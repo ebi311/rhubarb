@@ -70,3 +70,4 @@ src/stories/assets/tutorials.svg
 src/stories/assets/youtube.svg
 
 .pnpm-store/
+.github/instructions/daisyui.instructions.md
