@@ -21,7 +21,7 @@ RUN npm install -g @github/copilot
 # Use existing 'node' user; set default shell to zsh
 RUN usermod -s /bin/zsh node
 
-RUN mkdir -p /workspaces/work-logbook/node_modules && \
+RUN mkdir -p /workspaces/app/node_modules && \
 		chown -R node:node /workspaces
 
 # Allow passwordless sudo for the 'node' user
@@ -56,11 +56,11 @@ SHELL ["/bin/zsh", "-c"]
 # Persist zsh history inside the workspace so history survives rebuilds.
 # Create a history file in the repository .devcontainer directory and
 # configure ~/.zshrc to use it with history-sharing options.
-RUN mkdir -p /workspaces/work-logbook/.devcontainer \
-	&& touch /workspaces/work-logbook/.devcontainer/.zsh_history \
-	&& chmod 600 /workspaces/work-logbook/.devcontainer/.zsh_history \
-	&& chown -R node:node /workspaces/work-logbook/.devcontainer || true
+RUN mkdir -p /workspaces/app/.devcontainer \
+	&& touch /workspaces/app/.devcontainer/.zsh_history \
+	&& chmod 600 /workspaces/app/.devcontainer/.zsh_history \
+	&& chown -R node:node /workspaces/app/.devcontainer || true
 
-RUN echo '\n# Use workspace persistent zsh history\nexport HISTFILE=/workspaces/work-logbook/.devcontainer/.zsh_history\nexport HISTSIZE=10000\nexport SAVEHIST=10000\nsetopt append_history share_history inc_append_history hist_ignore_all_dups\n' >> ~/.zshrc
+RUN echo '\n# Use workspace persistent zsh history\nexport HISTFILE=/workspaces/app/.devcontainer/.zsh_history\nexport HISTSIZE=10000\nexport SAVEHIST=10000\nsetopt append_history share_history inc_append_history hist_ignore_all_dups\n' >> ~/.zshrc
 
 CMD ["zsh"]
