@@ -1,0 +1,3 @@
+# Powerlevel10k config placeholder.
+# Replace the contents of this file with your host ~/.p10k.zsh to bake into the image.
+# If you prefer mounting from host rather than baking, you can skip COPY.
