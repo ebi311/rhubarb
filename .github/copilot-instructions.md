@@ -22,7 +22,7 @@
   - どうしても必要な場合は、開発者に問い合わせる。
   - ただし、UT は例外として、型指定がテスト上重要な意味を保つ場合でない場合は、`as any` を使用してもよい。
 
-## components
+## UI components
 
 - Component と、UT のファイルに加え、Storybook も作成する。
 - スタイルフレームワークには、Tailwind CSS + daisyUI を使用する。
@@ -36,14 +36,12 @@
 ## use libraries
 
 - 日付の操作には、Day.js を使用する。
-- DB アクセスには、Drizzle ORM を使用する。
 - 実装で可読性や保守性、再利用性が向上すると判断した場合、適切なライブラリを提案する。コピーレフトライセンスのライブラリは使用しないこと。
 
 ## infrastructure
 
-- クラウドサービスとして、Heroku を使用する。
-- DB は、Heroku Postgres を使用する。
-- セッション情報の保存には、Heroku Key-Value Store を使用する。
+- クラウドサービスとして、Vercel を使用する。
+- DB, 認証, ファイルストレージなどは、Supabase を使用する。
 
 ## unit tests
 
