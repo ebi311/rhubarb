@@ -15,14 +15,23 @@
   // connected. This is typically a file mount in .devcontainer/docker-compose.yml
   "workspaceFolder": "/workspaces/app",
   "features": {
-    "ghcr.io/devcontainers-extra/features/supabase-cli:1": {}
+    "ghcr.io/devcontainers-extra/features/supabase-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": "true"
+    }
   },
 
   // Features to add to the dev container. More info: https://containers.dev/features.
   // "features": {},
 
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
+  "forwardPorts": [
+    3000, // Next.js
+    54323, // Supabase Studio (管理画面GUI)
+    54321, // Supabase API Gateway
+    54324 // Inbucket (メールテスト画面)
+  ],
 
   // Uncomment the next line if you want start specific services in your Docker Compose config.
   // "runServices": [],

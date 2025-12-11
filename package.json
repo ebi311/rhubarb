@@ -11,9 +11,14 @@
     "test:storybook": "vitest --project storybook",
     "test:all": "vitest",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "supa:start": "supabase start",
+    "supa:stop": "supabase stop",
+    "supa:reset": "supabase stop && supabase start --reset",
+    "supa:types": "supabase gen types typescript --local > ./lib/supabase/types.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.87.1",
     "next": "16.0.8",
     "react": "19.2.1",
     "react-dom": "19.2.1"
@@ -43,6 +48,7 @@
     "jsdom": "^27.3.0",
     "playwright": "^1.57.0",
     "storybook": "^10.1.5",
+    "supabase": "^2.66.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vite": "^7.2.7",
