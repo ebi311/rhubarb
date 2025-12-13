@@ -19,6 +19,7 @@
     "supa:types": "supabase gen types typescript --local > ./src/backend/types/supabase.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.87.1",
     "next": "16.0.8",
     "react": "19.2.1",

@@ -15,7 +15,7 @@ export const TimeRangeSchema = z
     {
       message: "開始時間は終了時間より前である必要があります",
       path: ["end"],
-    }
+    },
   );
 
 export type TimeRange = z.infer<typeof TimeRangeSchema>;
