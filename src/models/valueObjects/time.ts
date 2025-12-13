@@ -17,3 +17,9 @@ export const preprocessTime = (arg: unknown) => {
 };
 
 export const rhubarbTime = () => z.preprocess(preprocessTime, TimeValueSchema);
+
+export const formatTime = (time: TimeValue): string => {
+  const hour = time.hour.toString().padStart(2, "0");
+  const minute = time.minute.toString().padStart(2, "0");
+  return `${hour}${minute}`;
+};
