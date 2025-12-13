@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { BasicSchedule, BasicScheduleSchema } from "@/models/basicSchedule";
-import { Database } from "@/types/supabase";
+import { Database } from "@/backend/types/supabase";
 import { formatTime } from "@/models/valueObjects/time";
 
 type BasicScheduleRow = Database["public"]["Tables"]["basic_schedules"]["Row"];
