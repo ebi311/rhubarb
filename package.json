@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest",
     "test:ut": "vitest --project unit",
     "test:storybook": "vitest --project storybook",
     "test:all": "vitest",
@@ -21,7 +22,8 @@
     "@supabase/supabase-js": "^2.87.1",
     "next": "16.0.8",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.3",
