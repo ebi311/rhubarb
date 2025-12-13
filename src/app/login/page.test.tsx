@@ -9,7 +9,7 @@ vi.mock("./_components/LoginButton", () => ({
 
 describe("LoginPage", () => {
   it("renders the login page correctly", () => {
-    render(<LoginPage />);
+    render(<LoginPage searchParams={{}} />);
     expect(
       screen.getByRole("heading", { name: "ログイン" })
     ).toBeInTheDocument();
