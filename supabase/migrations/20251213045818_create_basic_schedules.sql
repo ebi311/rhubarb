@@ -4,8 +4,8 @@ create table public.basic_schedules (
   service_type_id uuid not null references public.service_types(id) on delete restrict,
   staff_id uuid references public.staffs(id) on delete set null,
   day_of_week day_of_week not null,
-  start_time time not null,
-  end_time time not null,
+  start_time text not null check (start_time ~ '^\d{4}$'),
+  end_time text not null check (end_time ~ '^\d{4}$'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

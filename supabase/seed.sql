@@ -48,11 +48,11 @@ VALUES
 -- 次郎: 火・木の午後
 INSERT INTO public.staff_availabilities (staff_id, day_of_week, start_time, end_time, priority)
 VALUES
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Mon', '09:00', '12:00', 'High'),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Wed', '09:00', '12:00', 'High'),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Fri', '09:00', '12:00', 'High'),
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Tue', '13:00', '17:00', 'High'),
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Thu', '13:00', '17:00', 'High');
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Mon', '0900', '1200', 'High'),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Wed', '0900', '1200', 'High'),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Fri', '0900', '1200', 'High'),
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Tue', '1300', '1700', 'High'),
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Thu', '1300', '1700', 'High');
 
 -- 6. Client Staff Assignments (担当許可)
 -- サービスIDを取得するための準備
@@ -84,11 +84,11 @@ BEGIN
 
   -- A子さん: 月曜 10:00-11:00 身体介護 (担当: 太郎)
   INSERT INTO public.basic_schedules (client_id, service_type_id, staff_id, day_of_week, start_time, end_time)
-  VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', service_body, 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'Mon', '10:00', '11:00');
+  VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', service_body, 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'Mon', '1000', '1100');
 
   -- B男さん: 火曜 14:00-15:00 生活支援 (担当: 次郎)
   INSERT INTO public.basic_schedules (client_id, service_type_id, staff_id, day_of_week, start_time, end_time)
-  VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', service_life, 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Tue', '14:00', '15:00');
+  VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', service_life, 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Tue', '1400', '1500');
 END $$;
 
 -- 8. Shifts (シフト実体) - 直近の日付で作成
@@ -105,9 +105,9 @@ BEGIN
 
   -- 明日のシフト (A子さん)
   INSERT INTO public.shifts (client_id, service_type_id, staff_id, date, start_time, end_time, status)
-  VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', service_body, 'cccccccc-cccc-cccc-cccc-cccccccccccc', today + 1, '10:00', '11:00', 'scheduled');
+  VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', service_body, 'cccccccc-cccc-cccc-cccc-cccccccccccc', today + 1, '1000', '1100', 'scheduled');
 
   -- 明後日のシフト (B男さん)
   INSERT INTO public.shifts (client_id, service_type_id, staff_id, date, start_time, end_time, status)
-  VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', service_life, 'dddddddd-dddd-dddd-dddd-dddddddddddd', today + 2, '14:00', '15:00', 'confirmed');
+  VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', service_life, 'dddddddd-dddd-dddd-dddd-dddddddddddd', today + 2, '1400', '1500', 'confirmed');
 END $$;

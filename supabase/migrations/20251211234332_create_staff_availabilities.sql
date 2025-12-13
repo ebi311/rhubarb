@@ -5,8 +5,8 @@ create table public.staff_availabilities (
   id uuid not null default gen_random_uuid() primary key,
   staff_id uuid not null references public.staffs(id) on delete cascade,
   day_of_week day_of_week not null,
-  start_time time not null,
-  end_time time not null,
+  start_time text not null check (start_time ~ '^\d{4}$'),
+  end_time text not null check (end_time ~ '^\d{4}$'),
   priority availability_priority not null default 'High',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

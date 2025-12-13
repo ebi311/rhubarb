@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const ClientStaffAssignmentSchema = z.object({
   id: z.uuid(),
