@@ -30,13 +30,13 @@
 
 ### 4. ミドルウェアの実装
 
-- [ ] `src/middleware.ts` を作成。
+- [x] `src/middleware.ts` を作成。
   - `updateSession` (Supabase SSR) を使用してセッション管理。
   - ルート保護ロジックの実装。
 
 ### 5. ログアウト機能の実装
 
-- [ ] ヘッダーまたはサイドバーにログアウトボタンを配置。
+- [x] ヘッダーまたはサイドバーにログアウトボタンを配置。
   - `supabase.auth.signOut()` を呼び出す Server Action または Client Component。
 
 ### 6. 動作確認

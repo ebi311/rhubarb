@@ -22,7 +22,7 @@ export async function GET(request: Request) {
         const authService = new AuthService(supabase);
         const isSuccess = await authService.handlePostLogin(
           user.email,
-          user.id,
+          user.id
         );
 
         if (isSuccess) {

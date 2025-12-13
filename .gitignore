@@ -46,3 +46,5 @@ src/stories
 
 .pnpm-store/
 .github/instructions/daisyui.instructions.md
+.secrets/*
+!.secrets/.gitkeep

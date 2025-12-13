@@ -1,4 +1,4 @@
--- 既存データのクリア（順序重要）
+-- 既存データのクリア(順序重要)
 truncate table public.shifts cascade;
 truncate table public.basic_schedules cascade;
 truncate table public.client_staff_assignments cascade;
@@ -6,53 +6,76 @@ truncate table public.staff_availabilities cascade;
 truncate table public.clients cascade;
 truncate table public.staffs cascade;
 truncate table public.offices cascade;
--- auth.users は truncate しない（システム全体に影響するため）。テストユーザーのみ削除する方針もあるが、ここではID指定で競合しないように挿入する。
 
--- 変数定義の代わりに、固定UUIDを使用する
--- Office: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
--- Admin User: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
--- Helper1 User: cccccccc-cccc-cccc-cccc-cccccccccccc
--- Helper2 User: dddddddd-dddd-dddd-dddd-dddddddddddd
--- Client1: eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee
--- Client2: ffffffff-ffff-ffff-ffff-ffffffffffff
+-- 注意: シードデータは開発環境でのテスト用です
+-- 実際のユーザーは Google 認証後に自動的に staffs テーブルに作成されます
 
--- 1. Auth Users (パスワードは 'password123')
--- 注意: ローカル開発環境でのみ動作することを想定
-INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud, confirmation_token)
-VALUES
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'admin@example.com', crypt('password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), 'authenticated', 'authenticated', ''),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'helper1@example.com', crypt('password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), 'authenticated', 'authenticated', ''),
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'helper2@example.com', crypt('password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(), 'authenticated', 'authenticated', '')
-ON CONFLICT (id) DO NOTHING; -- すでに存在する場合は何もしない
+-- UUIDs for seed data
+-- Office: 019b179f-c74d-75ef-a328-55a8f65a0d8a
+-- Helper1: 019b179f-c7db-7248-bcdc-745cfa30edad
+-- Helper2: 019b179f-c863-774e-ad83-4adc56163d05
+-- Client1: 019b179f-c8ec-7098-a1d7-7d2dc84f4b8d
+-- Client2: 019b179f-c977-717a-ab85-8d61b628550e
 
--- 2. Offices
+-- 1. Offices
 INSERT INTO public.offices (id, name)
 VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'ひまわりケア');
+  ('019b179f-c74d-75ef-a328-55a8f65a0d8a', 'ひまわりケア');
 
--- 3. Staffs
+-- 2. 既存の auth.users に対応する staffs レコードを作成
+-- Google ログイン済みユーザーがいる場合、そのユーザーを管理者として登録
+DO $$
+DECLARE
+  first_user_id uuid;
+  first_user_email text;
+BEGIN
+  -- 最初の認証済みユーザーを取得
+  SELECT id, email INTO first_user_id, first_user_email
+  FROM auth.users
+  WHERE deleted_at IS NULL
+  ORDER BY created_at ASC
+  LIMIT 1;
+
+  -- ユーザーが存在する場合、管理者として登録
+  IF first_user_id IS NOT NULL THEN
+    INSERT INTO public.staffs (office_id, auth_user_id, name, role, email)
+    VALUES (
+      '019b179f-c74d-75ef-a328-55a8f65a0d8a',
+      first_user_id,
+      coalesce(
+        (SELECT raw_user_meta_data->>'full_name' FROM auth.users WHERE id = first_user_id),
+        split_part(first_user_email, '@', 1)
+      ),
+      'admin',
+      first_user_email
+    )
+    ON CONFLICT (auth_user_id) DO UPDATE
+    SET role = 'admin'; -- 既存ユーザーは管理者に昇格
+  END IF;
+END $$;
+
+-- 3. テスト用ヘルパースタッフ（auth_user_id なし）
 INSERT INTO public.staffs (id, office_id, auth_user_id, name, role, email)
 VALUES
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '管理者 花子', 'admin', 'admin@example.com'),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'ヘルパー 太郎', 'helper', 'helper1@example.com'),
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'ヘルパー 次郎', 'helper', 'helper2@example.com');
+  ('019b179f-c7db-7248-bcdc-745cfa30edad', '019b179f-c74d-75ef-a328-55a8f65a0d8a', NULL, 'ヘルパー 太郎', 'helper', NULL),
+  ('019b179f-c863-774e-ad83-4adc56163d05', '019b179f-c74d-75ef-a328-55a8f65a0d8a', NULL, 'ヘルパー 次郎', 'helper', NULL);
 
 -- 4. Clients
 INSERT INTO public.clients (id, office_id, name, address)
 VALUES
-  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '利用者 A子', '東京都世田谷区1-1-1'),
-  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '利用者 B男', '東京都世田谷区2-2-2');
+  ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', '019b179f-c74d-75ef-a328-55a8f65a0d8a', '利用者 A子', '東京都世田谷区1-1-1'),
+  ('019b179f-c977-717a-ab85-8d61b628550e', '019b179f-c74d-75ef-a328-55a8f65a0d8a', '利用者 B男', '東京都世田谷区2-2-2');
 
 -- 5. Staff Availabilities (稼働可能シフト)
 -- 太郎: 月・水・金の午前中
 -- 次郎: 火・木の午後
 INSERT INTO public.staff_availabilities (staff_id, day_of_week, start_time, end_time, priority)
 VALUES
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Mon', '0900', '1200', 'High'),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Wed', '0900', '1200', 'High'),
-  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Fri', '0900', '1200', 'High'),
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Tue', '1300', '1700', 'High'),
-  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Thu', '1300', '1700', 'High');
+  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Mon', '0900', '1200', 'High'),
+  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Wed', '0900', '1200', 'High'),
+  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Fri', '0900', '1200', 'High'),
+  ('019b179f-c863-774e-ad83-4adc56163d05', 'Tue', '1300', '1700', 'High'),
+  ('019b179f-c863-774e-ad83-4adc56163d05', 'Thu', '1300', '1700', 'High');
 
 -- 6. Client Staff Assignments (担当許可)
 -- サービスIDを取得するための準備
@@ -64,13 +87,13 @@ BEGIN
   SELECT id INTO service_body FROM public.service_types WHERE name = '身体介護' LIMIT 1;
   SELECT id INTO service_life FROM public.service_types WHERE name = '生活支援' LIMIT 1;
 
-  -- A子さん(eeee...)は、太郎(cccc...)の身体介護OK
+  -- A子さんは、太郎の身体介護OK
   INSERT INTO public.client_staff_assignments (client_id, staff_id, service_type_id, note)
-  VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'cccccccc-cccc-cccc-cccc-cccccccccccc', service_body, '相性良し');
+  VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', '019b179f-c7db-7248-bcdc-745cfa30edad', service_body, '相性良し');
 
-  -- B男さん(ffff...)は、次郎(dddd...)の生活支援OK
+  -- B男さんは、次郎の生活支援OK
   INSERT INTO public.client_staff_assignments (client_id, staff_id, service_type_id, note)
-  VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'dddddddd-dddd-dddd-dddd-dddddddddddd', service_life, '指名あり');
+  VALUES ('019b179f-c977-717a-ab85-8d61b628550e', '019b179f-c863-774e-ad83-4adc56163d05', service_life, '指名あり');
 END $$;
 
 -- 7. Basic Schedules (基本スケジュール)
@@ -84,11 +107,11 @@ BEGIN
 
   -- A子さん: 月曜 10:00-11:00 身体介護 (担当: 太郎)
   INSERT INTO public.basic_schedules (client_id, service_type_id, staff_id, day_of_week, start_time, end_time)
-  VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', service_body, 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'Mon', '1000', '1100');
+  VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', service_body, '019b179f-c7db-7248-bcdc-745cfa30edad', 'Mon', '1000', '1100');
 
   -- B男さん: 火曜 14:00-15:00 生活支援 (担当: 次郎)
   INSERT INTO public.basic_schedules (client_id, service_type_id, staff_id, day_of_week, start_time, end_time)
-  VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', service_life, 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Tue', '1400', '1500');
+  VALUES ('019b179f-c977-717a-ab85-8d61b628550e', service_life, '019b179f-c863-774e-ad83-4adc56163d05', 'Tue', '1400', '1500');
 END $$;
 
 -- 8. Shifts (シフト実体) - 直近の日付で作成
@@ -105,9 +128,9 @@ BEGIN
 
   -- 明日のシフト (A子さん)
   INSERT INTO public.shifts (client_id, service_type_id, staff_id, date, start_time, end_time, status)
-  VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', service_body, 'cccccccc-cccc-cccc-cccc-cccccccccccc', today + 1, '1000', '1100', 'scheduled');
+  VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', service_body, '019b179f-c7db-7248-bcdc-745cfa30edad', today + 1, '1000', '1100', 'scheduled');
 
   -- 明後日のシフト (B男さん)
   INSERT INTO public.shifts (client_id, service_type_id, staff_id, date, start_time, end_time, status)
-  VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', service_life, 'dddddddd-dddd-dddd-dddd-dddddddddddd', today + 2, '1400', '1500', 'confirmed');
+  VALUES ('019b179f-c977-717a-ab85-8d61b628550e', service_life, '019b179f-c863-774e-ad83-4adc56163d05', today + 2, '1400', '1500', 'confirmed');
 END $$;
