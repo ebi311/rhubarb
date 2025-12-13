@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { TimestampSchema } from "./valueObjects/timestamp";
 
 export const ServiceTypeSchema = z.object({
   id: z.uuid(),
-  name: z.string().min(1, { message: "名称は必須です" }),
-  display_order: z.number().int().default(0),
-  created_at: z.coerce.date(),
-  updated_at: z.coerce.date(),
+  office_id: z.uuid(),
+  name: z.string().min(1, { message: "サービス種別名は必須です" }),
+  created_at: TimestampSchema,
+  updated_at: TimestampSchema,
 });
 
 export type ServiceType = z.infer<typeof ServiceTypeSchema>;

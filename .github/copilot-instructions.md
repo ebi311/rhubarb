@@ -75,6 +75,16 @@
 
 プロジェクトルートの `README.md` の同名の項目を参照してください。
 
+## llm.txt
+
+ラブラリで llm.txt が提供されている物があるので、それらを使用する場合、llm.txt の指示に従うこと。
+
+- daisyUI: `.github/instructions/daisyui.instructions.md`
+- zod: `.github/instructions/zod.instructions.md`
+
+- daisyUI
+  -
+
 ## MCPs
 
 ### Svelte MCP Server

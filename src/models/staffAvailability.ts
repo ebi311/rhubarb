@@ -1,16 +1,7 @@
 import { z } from "zod";
 import { TimeRangeSchema } from "./valueObjects/timeRange";
-
-export const DayOfWeekSchema = z.enum([
-  "Mon",
-  "Tue",
-  "Wed",
-  "Thu",
-  "Fri",
-  "Sat",
-  "Sun",
-]);
-export type DayOfWeek = z.infer<typeof DayOfWeekSchema>;
+import { DayOfWeekSchema } from "./valueObjects/dayOfWeek";
+import { TimestampSchema } from "./valueObjects/timestamp";
 
 export const PrioritySchema = z.enum(["High", "Low"]);
 export type Priority = z.infer<typeof PrioritySchema>;
@@ -21,8 +12,8 @@ export const StaffAvailabilitySchema = z.object({
   day_of_week: DayOfWeekSchema,
   time: TimeRangeSchema,
   priority: PrioritySchema.default("High"),
-  created_at: z.coerce.date(),
-  updated_at: z.coerce.date(),
+  created_at: TimestampSchema,
+  updated_at: TimestampSchema,
 });
 
 export type StaffAvailability = z.infer<typeof StaffAvailabilitySchema>;

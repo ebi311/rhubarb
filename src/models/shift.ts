@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TimeRangeSchema } from "./valueObjects/timeRange";
+import { TimestampSchema } from "./valueObjects/timestamp";
 
 export const ShiftStatusSchema = z.enum([
   "scheduled",
@@ -18,8 +19,8 @@ export const ShiftSchema = z.object({
   time: TimeRangeSchema,
   status: ShiftStatusSchema.default("scheduled"),
   is_unassigned: z.boolean().default(false),
-  created_at: z.coerce.date(),
-  updated_at: z.coerce.date(),
+  created_at: TimestampSchema,
+  updated_at: TimestampSchema,
 });
 
 export type Shift = z.infer<typeof ShiftSchema>;
