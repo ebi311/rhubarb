@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { rhubarbTime } from "./time";
+import { TimeRangeSchema } from "./valueObjects/timeRange";
 
 export const ShiftStatusSchema = z.enum([
   "scheduled",
@@ -15,8 +15,7 @@ export const ShiftSchema = z.object({
   service_type_id: z.uuid(),
   staff_id: z.uuid().nullable().optional(),
   date: z.coerce.date(), // YYYY-MM-DD
-  start_time: rhubarbTime(),
-  end_time: rhubarbTime(),
+  time: TimeRangeSchema,
   status: ShiftStatusSchema.default("scheduled"),
   is_unassigned: z.boolean().default(false),
   created_at: z.coerce.date(),

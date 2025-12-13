@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { rhubarbTime } from "./time";
+import { TimeRangeSchema } from "./valueObjects/timeRange";
 
 export const DayOfWeekSchema = z.enum([
   "Mon",
@@ -19,8 +19,7 @@ export const StaffAvailabilitySchema = z.object({
   id: z.uuid(),
   staff_id: z.uuid(),
   day_of_week: DayOfWeekSchema,
-  start_time: rhubarbTime(),
-  end_time: rhubarbTime(),
+  time: TimeRangeSchema,
   priority: PrioritySchema.default("High"),
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
