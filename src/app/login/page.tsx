@@ -1,11 +1,11 @@
 import LoginButton from "./_components/LoginButton";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
-  const isUnauthorized = searchParams.error === "unauthorized";
+  const isUnauthorized = (await searchParams).error === "unauthorized";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base-200">

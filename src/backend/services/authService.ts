@@ -1,12 +1,15 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { Database } from "@/backend/types/supabase";
 import { StaffRepository } from "@/backend/repositories/staffRepository";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export class AuthService {
   private staffRepository: StaffRepository;
 
   constructor(private supabase: SupabaseClient<Database>) {
-    this.staffRepository = new StaffRepository(supabase);
+    // ログイン処理ではRLSをバイパスする必要があるため、Admin Clientを使用
+    const adminClient = createAdminClient();
+    this.staffRepository = new StaffRepository(adminClient);
   }
 
   /**

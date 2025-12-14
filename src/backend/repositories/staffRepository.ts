@@ -16,12 +16,28 @@ export class StaffRepository {
   }
 
   async findByEmail(email: string): Promise<Staff | null> {
-    const { data, error } = await this.supabase
+    // デバッグ用: 実行されるクエリの情報を出力
+    console.log("=== findByEmail Debug ===");
+    console.log("Looking for email:", email);
+    console.log("Supabase client auth state:", await this.supabase.auth.getUser());
+    
+    const { data, error, status } = await this.supabase
       .from("staffs")
       .select("*")
       .eq("email", email)
       .maybeSingle();
 
+    console.log("findByEmail result:", { 
+      data, 
+      error: error ? {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      } : null, 
+      status 
+    });
+    
     if (error) throw error;
     if (!data) return null;
 
