@@ -1,12 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { ClientRepository } from "@/backend/repositories/clientRepository";
-import {
-  ClientInputSchema,
-  type ClientInput,
-  type Client,
-} from "@/models/client";
+import { ClientService, ServiceError, type StatusFilter } from "@/backend/services/clientService";
+import { type ClientInput, type Client } from "@/models/client";
 
 export type ActionResult<T> = {
   data: T | null;
@@ -27,8 +23,6 @@ const successResult = <T>(data: T, status = 200): ActionResult<T> => ({
   status,
 });
 
-export type StatusFilter = "active" | "suspended" | "all";
-
 export const getClientsAction = async (
   status: StatusFilter = "active",
 ): Promise<ActionResult<Client[]>> => {
@@ -39,22 +33,16 @@ export const getClientsAction = async (
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-
-  const { data: staff, error: staffError } = await supabase
-    .from("staffs")
-    .select("office_id")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (staffError || !staff) return errorResult("Staff not found", 404);
-
-  if (!["active", "suspended", "all"].includes(status)) {
-    return errorResult("Invalid status parameter", 400);
+  const service = new ClientService(supabase);
+  try {
+    const clients = await service.getClients(user.id, status);
+    return successResult(clients);
+  } catch (e) {
+    if (e instanceof ServiceError) {
+      return errorResult(e.message, e.status, e.details);
+    }
+    throw e;
   }
-
-  const repository = new ClientRepository(supabase);
-  const clients = await repository.findAll(staff.office_id, status);
-  return successResult(clients);
 };
 
 export const createClientAction = async (
@@ -67,29 +55,16 @@ export const createClientAction = async (
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-
-  const { data: staff, error: staffError } = await supabase
-    .from("staffs")
-    .select("office_id, role")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (staffError || !staff) return errorResult("Staff not found", 404);
-  if (staff.role !== "admin") return errorResult("Forbidden", 403);
-
-  const validation = ClientInputSchema.safeParse(input);
-  if (!validation.success) {
-    return errorResult("Validation error", 400, validation.error.issues);
+  const service = new ClientService(supabase);
+  try {
+    const client = await service.createClient(user.id, input);
+    return successResult(client, 201);
+  } catch (e) {
+    if (e instanceof ServiceError) {
+      return errorResult(e.message, e.status, e.details);
+    }
+    throw e;
   }
-
-  const repository = new ClientRepository(supabase);
-  const client = await repository.create({
-    office_id: staff.office_id,
-    name: validation.data.name,
-    address: validation.data.address,
-  });
-
-  return successResult(client, 201);
 };
 
 export const updateClientAction = async (
@@ -102,30 +77,16 @@ export const updateClientAction = async (
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-
-  const { data: staff, error: staffError } = await supabase
-    .from("staffs")
-    .select("office_id, role")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (staffError || !staff) return errorResult("Staff not found", 404);
-  if (staff.role !== "admin") return errorResult("Forbidden", 403);
-
-  const repository = new ClientRepository(supabase);
-  const existingClient = await repository.findById(id);
-  if (!existingClient) return errorResult("Client not found", 404);
-  if (existingClient.office_id !== staff.office_id) {
-    return errorResult("Forbidden", 403);
+  const service = new ClientService(supabase);
+  try {
+    const client = await service.updateClient(user.id, id, input);
+    return successResult(client);
+  } catch (e) {
+    if (e instanceof ServiceError) {
+      return errorResult(e.message, e.status, e.details);
+    }
+    throw e;
   }
-
-  const validation = ClientInputSchema.safeParse(input);
-  if (!validation.success) {
-    return errorResult("Validation error", 400, validation.error.issues);
-  }
-
-  const client = await repository.update(id, validation.data);
-  return successResult(client);
 };
 
 export const suspendClientAction = async (
@@ -137,25 +98,16 @@ export const suspendClientAction = async (
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-
-  const { data: staff, error: staffError } = await supabase
-    .from("staffs")
-    .select("office_id, role")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (staffError || !staff) return errorResult("Staff not found", 404);
-  if (staff.role !== "admin") return errorResult("Forbidden", 403);
-
-  const repository = new ClientRepository(supabase);
-  const existingClient = await repository.findById(id);
-  if (!existingClient) return errorResult("Client not found", 404);
-  if (existingClient.office_id !== staff.office_id) {
-    return errorResult("Forbidden", 403);
+  const service = new ClientService(supabase);
+  try {
+    const client = await service.suspendClient(user.id, id);
+    return successResult(client);
+  } catch (e) {
+    if (e instanceof ServiceError) {
+      return errorResult(e.message, e.status, e.details);
+    }
+    throw e;
   }
-
-  const client = await repository.suspend(id);
-  return successResult(client);
 };
 
 export const resumeClientAction = async (
@@ -167,23 +119,14 @@ export const resumeClientAction = async (
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-
-  const { data: staff, error: staffError } = await supabase
-    .from("staffs")
-    .select("office_id, role")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (staffError || !staff) return errorResult("Staff not found", 404);
-  if (staff.role !== "admin") return errorResult("Forbidden", 403);
-
-  const repository = new ClientRepository(supabase);
-  const existingClient = await repository.findById(id);
-  if (!existingClient) return errorResult("Client not found", 404);
-  if (existingClient.office_id !== staff.office_id) {
-    return errorResult("Forbidden", 403);
+  const service = new ClientService(supabase);
+  try {
+    const client = await service.resumeClient(user.id, id);
+    return successResult(client);
+  } catch (e) {
+    if (e instanceof ServiceError) {
+      return errorResult(e.message, e.status, e.details);
+    }
+    throw e;
   }
-
-  const client = await repository.resume(id);
-  return successResult(client);
 };

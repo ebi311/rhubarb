@@ -44,6 +44,19 @@ export class StaffRepository {
     return this.toDomain(data);
   }
 
+  async findByAuthUserId(authUserId: string): Promise<Staff | null> {
+    const { data, error } = await this.supabase
+      .from("staffs")
+      .select("*")
+      .eq("auth_user_id", authUserId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    return this.toDomain(data);
+  }
+
   async updateAuthUserId(id: string, authUserId: string): Promise<void> {
     const { error } = await this.supabase
       .from("staffs")
