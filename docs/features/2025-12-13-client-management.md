@@ -513,12 +513,12 @@ export interface ClientRepository {
 - [x] 単体テスト作成・実行（TDD）
 
 ### ステップ4: API Route実装
-- [ ] GET `/api/clients` 実装
-- [ ] POST `/api/clients` 実装
-- [ ] PUT `/api/clients/:id` 実装
-- [ ] PATCH `/api/clients/:id/suspend` 実装
-- [ ] PATCH `/api/clients/:id/resume` 実装
-- [ ] APIテスト作成・実行
+- [x] GET `/api/clients` 実装
+- [x] POST `/api/clients` 実装
+- [x] PUT `/api/clients/:id` 実装
+- [x] PATCH `/api/clients/:id/suspend` 実装
+- [x] PATCH `/api/clients/:id/resume` 実装
+- [x] APIテスト作成・実行
 
 ### ステップ5: UI Components実装
 - [ ] `StatusBadge` コンポーネント作成
