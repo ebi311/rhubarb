@@ -6,7 +6,8 @@ import { formatTime } from "@/models/valueObjects/time";
 type BasicScheduleRow = Database["public"]["Tables"]["basic_schedules"]["Row"];
 type BasicScheduleInsert =
   Database["public"]["Tables"]["basic_schedules"]["Insert"];
-type BasicScheduleUpdate =
+// 未使用のため '_’ をつけている。使用する場合は削除すること。
+type _BasicScheduleUpdate =
   Database["public"]["Tables"]["basic_schedules"]["Update"];
 
 export class BasicScheduleRepository {

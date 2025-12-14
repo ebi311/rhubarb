@@ -498,19 +498,19 @@ export interface ClientRepository {
 
 ### ステップ1: マイグレーションとシードデータ
 - [x] マイグレーションファイル作成（`add_contract_status_to_clients.sql`）
-- [ ] マイグレーション適用確認
-- [ ] シードデータ更新（契約中・中断中の両パターン）
+- [x] マイグレーション適用確認
+- [x] シードデータ更新（契約中・中断中の両パターン）
 
 ### ステップ2: 型定義とZodスキーマ
-- [ ] `Client` 型定義
-- [ ] `ContractStatus` 型定義
-- [ ] Zodスキーマ定義（`clientSchema`）
-- [ ] テスト作成・実行
+- [x] `Client` 型定義
+- [x] `ContractStatus` 型定義
+- [x] Zodスキーマ定義（`clientSchema`）
+- [x] テスト作成・実行
 
 ### ステップ3: Repository層実装
-- [ ] `ClientRepository` インターフェース定義
-- [ ] Supabase実装クラス作成
-- [ ] 単体テスト作成・実行（TDD）
+- [x] `ClientRepository` インターフェース定義
+- [x] Supabase実装クラス作成
+- [x] 単体テスト作成・実行（TDD）
 
 ### ステップ4: API Route実装
 - [ ] GET `/api/clients` 実装
