@@ -14,8 +14,10 @@ truncate table public.offices cascade;
 -- Office: 019b179f-c74d-75ef-a328-55a8f65a0d8a
 -- Helper1: 019b179f-c7db-7248-bcdc-745cfa30edad
 -- Helper2: 019b179f-c863-774e-ad83-4adc56163d05
--- Client1: 019b179f-c8ec-7098-a1d7-7d2dc84f4b8d
--- Client2: 019b179f-c977-717a-ab85-8d61b628550e
+-- Client1 (active): 019b179f-c8ec-7098-a1d7-7d2dc84f4b8d
+-- Client2 (active): 019b179f-c977-717a-ab85-8d61b628550e
+-- Client3 (suspended): 019b179f-ca00-7291-bb3a-9f2e8c5d1a7b
+-- Client4 (active): 019b179f-ca8a-7453-a912-1e3f4d6b8c2e
 
 -- 1. Offices
 INSERT INTO public.offices (id, name)
@@ -61,10 +63,14 @@ VALUES
   ('019b179f-c863-774e-ad83-4adc56163d05', '019b179f-c74d-75ef-a328-55a8f65a0d8a', NULL, 'ヘルパー 次郎', 'helper', NULL);
 
 -- 4. Clients
-INSERT INTO public.clients (id, office_id, name, address)
+INSERT INTO public.clients (id, office_id, name, address, contract_status)
 VALUES
-  ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', '019b179f-c74d-75ef-a328-55a8f65a0d8a', '利用者 A子', '東京都世田谷区1-1-1'),
-  ('019b179f-c977-717a-ab85-8d61b628550e', '019b179f-c74d-75ef-a328-55a8f65a0d8a', '利用者 B男', '東京都世田谷区2-2-2');
+  -- 契約中の利用者
+  ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', '019b179f-c74d-75ef-a328-55a8f65a0d8a', '利用者 A子', '東京都世田谷区1-1-1', 'active'),
+  ('019b179f-c977-717a-ab85-8d61b628550e', '019b179f-c74d-75ef-a328-55a8f65a0d8a', '利用者 B男', '東京都世田谷区2-2-2', 'active'),
+  ('019b179f-ca8a-7453-a912-1e3f4d6b8c2e', '019b179f-c74d-75ef-a328-55a8f65a0d8a', '利用者 C美', '東京都世田谷区4-4-4', 'active'),
+  -- 契約中断中の利用者
+  ('019b179f-ca00-7291-bb3a-9f2e8c5d1a7b', '019b179f-c74d-75ef-a328-55a8f65a0d8a', '利用者 D郎', '東京都世田谷区3-3-3', 'suspended');
 
 -- 5. Staff Availabilities (稼働可能シフト)
 -- 太郎: 月・水・金の午前中
