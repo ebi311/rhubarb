@@ -19,11 +19,13 @@
     "supa:types": "supabase gen types typescript --local > ./src/backend/types/supabase.ts"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.87.1",
     "next": "16.0.8",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "react-hook-form": "^7.68.0",
     "uuid": "^13.0.0",
     "zod": "^4.1.13"
   },
