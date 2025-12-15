@@ -1,6 +1,5 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import userEvent from "@testing-library/user-event";
 import { ClientTable } from "./ClientTable";
 import type { ServiceUser } from "@/models/serviceUser";
 
@@ -27,7 +26,7 @@ const mockClients: ServiceUser[] = [
 
 describe("ClientTable", () => {
   it("データが表示される", () => {
-    render(<ClientTable clients={mockClients} onEdit={vi.fn()} />);
+    render(<ClientTable clients={mockClients} getHref={() => "#"} />);
 
     expect(screen.getByText("山田太郎")).toBeInTheDocument();
     expect(screen.getByText("東京都千代田区丸の内1-1-1")).toBeInTheDocument();
@@ -36,42 +35,44 @@ describe("ClientTable", () => {
   });
 
   it("ステータスバッジが正しく表示される", () => {
-    render(<ClientTable clients={mockClients} onEdit={vi.fn()} />);
+    render(<ClientTable clients={mockClients} getHref={() => "#"} />);
 
     expect(screen.getByText("契約中")).toBeInTheDocument();
     expect(screen.getByText("中断中")).toBeInTheDocument();
   });
 
-  it("編集ボタンが表示される", () => {
-    render(<ClientTable clients={mockClients} onEdit={vi.fn()} />);
+  it("各行がクリック可能なリンクになっている", () => {
+    render(<ClientTable clients={mockClients} getHref={() => "#"} />);
 
-    const editButtons = screen.getAllByRole("button", { name: /編集/ });
-    expect(editButtons).toHaveLength(2);
+    // role="row"でaria-labelが設定されたリンク行を取得
+    const row1 = screen.getByRole("row", { name: /山田太郎の情報を編集/ });
+    const row2 = screen.getByRole("row", { name: /佐藤花子の情報を編集/ });
+    
+    expect(row1).toBeInTheDocument();
+    expect(row2).toBeInTheDocument();
   });
 
-  it("編集ボタンクリックでonEditが呼ばれる", async () => {
-    const user = userEvent.setup();
-    const handleEdit = vi.fn();
-    render(<ClientTable clients={mockClients} onEdit={handleEdit} />);
+  it("行のhrefが正しく生成される", () => {
+    const getHref = vi.fn((client) => `#edit-${client.id}`);
+    render(<ClientTable clients={mockClients} getHref={getHref} />);
 
-    const editButtons = screen.getAllByRole("button", { name: /編集/ });
-    await user.click(editButtons[0]);
-
-    expect(handleEdit).toHaveBeenCalledWith(mockClients[0]);
+    const row = screen.getByRole("row", { name: /山田太郎の情報を編集/ });
+    expect(row).toHaveAttribute("href", `#edit-${mockClients[0].id}`);
+    expect(getHref).toHaveBeenCalledWith(mockClients[0]);
   });
 
   it("データがない場合のメッセージが表示される", () => {
-    render(<ClientTable clients={[]} onEdit={vi.fn()} />);
+    render(<ClientTable clients={[]} getHref={() => "#"} />);
 
     expect(
       screen.getByText("利用者がまだ登録されていません")
     ).toBeInTheDocument();
   });
 
-  it("データがない場合は編集ボタンが表示されない", () => {
-    render(<ClientTable clients={[]} onEdit={vi.fn()} />);
+  it("データがない場合は編集リンクが表示されない", () => {
+    render(<ClientTable clients={[]} getHref={() => "#"} />);
 
-    const editButtons = screen.queryAllByRole("button", { name: /編集/ });
-    expect(editButtons).toHaveLength(0);
+    const editLinks = screen.queryAllByRole("link", { name: /編集/ });
+    expect(editLinks).toHaveLength(0);
   });
 });

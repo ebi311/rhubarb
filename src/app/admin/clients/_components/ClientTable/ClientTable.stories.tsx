@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { fn } from 'storybook/test';
 import { ClientTable } from "./ClientTable";
 import type { ServiceUser } from "@/models/serviceUser";
 
@@ -41,7 +40,7 @@ const meta = {
   },
   tags: ["autodocs"],
   args: {
-    onEdit: fn(),
+    getHref: (client: ServiceUser) => `#edit-${client.id}`,
   },
 } satisfies Meta<typeof ClientTable>;
 
