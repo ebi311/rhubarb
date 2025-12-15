@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ClientRepository } from "./clientRepository";
+import { ServiceUserRepository } from "./serviceUserRepository";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/backend/types/supabase";
 
-describe("ClientRepository", () => {
+describe("ServiceUserRepository", () => {
   let supabase: SupabaseClient<Database>;
-  let repository: ClientRepository;
+  let repository: ServiceUserRepository;
   const testOfficeId = "019b179f-c74d-75ef-a328-55a8f65a0d8a";
 
   const mockClientRow = {
@@ -30,7 +30,7 @@ describe("ClientRepository", () => {
     supabase = {
       from: vi.fn(),
     } as any;
-    repository = new ClientRepository(supabase);
+    repository = new ServiceUserRepository(supabase);
   });
 
   describe("findAll", () => {
@@ -455,7 +455,7 @@ describe("ClientRepository", () => {
     });
   });
 
-  describe("findActiveClients", () => {
+  describe("findActiveServiceUsers", () => {
     it("契約中の利用者のみ取得できる", async () => {
       const mockData = [mockClientRow];
       const mockSelect = vi.fn().mockReturnThis();
@@ -477,7 +477,7 @@ describe("ClientRepository", () => {
         order: mockOrder,
       });
 
-      const clients = await repository.findActiveClients(testOfficeId);
+      const clients = await repository.findActiveServiceUsers(testOfficeId);
 
       expect(mockEq).toHaveBeenCalledWith("office_id", testOfficeId);
       expect(mockEq2).toHaveBeenCalledWith("contract_status", "active");

@@ -1,7 +1,11 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { ClientRepository } from "@/backend/repositories/clientRepository";
+import { ServiceUserRepository } from "@/backend/repositories/serviceUserRepository";
 import { StaffRepository } from "@/backend/repositories/staffRepository";
-import { ClientInputSchema, type Client, type ClientInput } from "@/models/client";
+import {
+  ServiceUserInputSchema,
+  type ServiceUser,
+  type ServiceUserInput,
+} from "@/models/serviceUser";
 import { Database } from "@/backend/types/supabase";
 
 export class ServiceError extends Error {
@@ -15,14 +19,14 @@ export class ServiceError extends Error {
   }
 }
 
-export type StatusFilter = "active" | "suspended" | "all";
+export type ServiceUserStatusFilter = "active" | "suspended" | "all";
 
-export class ClientService {
-  private clientRepository: ClientRepository;
+export class ServiceUserService {
+  private serviceUserRepository: ServiceUserRepository;
   private staffRepository: StaffRepository;
 
   constructor(private supabase: SupabaseClient<Database>) {
-    this.clientRepository = new ClientRepository(supabase);
+    this.serviceUserRepository = new ServiceUserRepository(supabase);
     this.staffRepository = new StaffRepository(supabase);
   }
 
@@ -38,57 +42,64 @@ export class ClientService {
     return staff;
   }
 
-  async getClients(userId: string, status: StatusFilter = "active"): Promise<Client[]> {
+  async getServiceUsers(
+    userId: string,
+    status: ServiceUserStatusFilter = "active",
+  ): Promise<ServiceUser[]> {
     const staff = await this.getStaff(userId);
     if (!["active", "suspended", "all"].includes(status)) {
       throw new ServiceError(400, "Invalid status parameter");
     }
-    return this.clientRepository.findAll(staff.office_id, status);
+    return this.serviceUserRepository.findAll(staff.office_id, status);
   }
 
-  async createClient(userId: string, input: ClientInput): Promise<Client> {
+  async createServiceUser(userId: string, input: ServiceUserInput): Promise<ServiceUser> {
     const staff = await this.getAdminStaff(userId);
-    const validation = ClientInputSchema.safeParse(input);
+    const validation = ServiceUserInputSchema.safeParse(input);
     if (!validation.success) {
       throw new ServiceError(400, "Validation error", validation.error.issues);
     }
 
-    return this.clientRepository.create({
+    return this.serviceUserRepository.create({
       office_id: staff.office_id,
       name: validation.data.name,
       address: validation.data.address,
     });
   }
 
-  async updateClient(userId: string, id: string, input: ClientInput): Promise<Client> {
+  async updateServiceUser(
+    userId: string,
+    id: string,
+    input: ServiceUserInput,
+  ): Promise<ServiceUser> {
     const staff = await this.getAdminStaff(userId);
-    const existing = await this.clientRepository.findById(id);
-    if (!existing) throw new ServiceError(404, "Client not found");
+    const existing = await this.serviceUserRepository.findById(id);
+    if (!existing) throw new ServiceError(404, "Service user not found");
     if (existing.office_id !== staff.office_id) throw new ServiceError(403, "Forbidden");
 
-    const validation = ClientInputSchema.safeParse(input);
+    const validation = ServiceUserInputSchema.safeParse(input);
     if (!validation.success) {
       throw new ServiceError(400, "Validation error", validation.error.issues);
     }
 
-    return this.clientRepository.update(id, validation.data);
+    return this.serviceUserRepository.update(id, validation.data);
   }
 
-  async suspendClient(userId: string, id: string): Promise<Client> {
+  async suspendServiceUser(userId: string, id: string): Promise<ServiceUser> {
     const staff = await this.getAdminStaff(userId);
-    const existing = await this.clientRepository.findById(id);
-    if (!existing) throw new ServiceError(404, "Client not found");
+    const existing = await this.serviceUserRepository.findById(id);
+    if (!existing) throw new ServiceError(404, "Service user not found");
     if (existing.office_id !== staff.office_id) throw new ServiceError(403, "Forbidden");
 
-    return this.clientRepository.suspend(id);
+    return this.serviceUserRepository.suspend(id);
   }
 
-  async resumeClient(userId: string, id: string): Promise<Client> {
+  async resumeServiceUser(userId: string, id: string): Promise<ServiceUser> {
     const staff = await this.getAdminStaff(userId);
-    const existing = await this.clientRepository.findById(id);
-    if (!existing) throw new ServiceError(404, "Client not found");
+    const existing = await this.serviceUserRepository.findById(id);
+    if (!existing) throw new ServiceError(404, "Service user not found");
     if (existing.office_id !== staff.office_id) throw new ServiceError(403, "Forbidden");
 
-    return this.clientRepository.resume(id);
+    return this.serviceUserRepository.resume(id);
   }
 }

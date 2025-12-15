@@ -7,7 +7,7 @@ export const ContractStatusSchema = z.enum(["active", "suspended"], {
 
 export type ContractStatus = z.infer<typeof ContractStatusSchema>;
 
-export const ClientSchema = z.object({
+export const ServiceUserSchema = z.object({
   id: z.uuid(),
   office_id: z.uuid(),
   name: z.string().min(1, { message: "氏名は必須です" }),
@@ -17,26 +17,19 @@ export const ClientSchema = z.object({
   updated_at: TimestampSchema,
 });
 
-export type Client = z.infer<typeof ClientSchema>;
+export type ServiceUser = z.infer<typeof ServiceUserSchema>;
 
-// 入力用のスキーマ（作成・更新時に使用）
-export const ClientInputSchema = z.object({
+export const ServiceUserInputSchema = z.object({
   name: z
     .string()
     .min(1, "氏名は必須です")
     .max(100, "氏名は100文字以内で入力してください")
-    .refine(
-      (val) => val.trim().length > 0,
-      "氏名に空白のみは使用できません"
-    ),
+    .refine((val) => val.trim().length > 0, "氏名に空白のみは使用できません"),
   address: z
     .string()
     .min(1, "住所は必須です")
     .max(200, "住所は200文字以内で入力してください")
-    .refine(
-      (val) => val.trim().length > 0,
-      "住所に空白のみは使用できません"
-    ),
+    .refine((val) => val.trim().length > 0, "住所に空白のみは使用できません"),
 });
 
-export type ClientInput = z.infer<typeof ClientInputSchema>;
+export type ServiceUserInput = z.infer<typeof ServiceUserInputSchema>;

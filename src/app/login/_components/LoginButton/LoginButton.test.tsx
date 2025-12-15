@@ -2,10 +2,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import LoginButton from "./LoginButton";
 
-// Mock createClient
+// Mock createSupabaseClient
 const mockSignInWithOAuth = vi.fn();
 vi.mock("@/utils/supabase/client", () => ({
-  createClient: () => ({
+  createSupabaseClient: () => ({
     auth: {
       signInWithOAuth: mockSignInWithOAuth,
     },

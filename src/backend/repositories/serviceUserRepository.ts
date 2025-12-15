@@ -1,32 +1,33 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Client, ClientSchema, ClientInput } from "@/models/client";
+import {
+  ServiceUser,
+  ServiceUserSchema,
+  ServiceUserInput,
+} from "@/models/serviceUser";
 import { Database } from "@/backend/types/supabase";
 
-type ClientRow = Database["public"]["Tables"]["clients"]["Row"];
-type ClientInsert = Database["public"]["Tables"]["clients"]["Insert"];
-type ClientUpdate = Database["public"]["Tables"]["clients"]["Update"];
+// DBテーブル名は既存の clients を利用
+// naming 衝突を避けるためドメイン側は ServiceUser として扱う
 
-export class ClientRepository {
+type ServiceUserRow = Database["public"]["Tables"]["clients"]["Row"];
+type ServiceUserInsert = Database["public"]["Tables"]["clients"]["Insert"];
+type ServiceUserUpdate = Database["public"]["Tables"]["clients"]["Update"];
+
+export class ServiceUserRepository {
   constructor(private supabase: SupabaseClient<Database>) {}
 
-  private toDomain(row: ClientRow): Client {
-    return ClientSchema.parse({
+  private toDomain(row: ServiceUserRow): ServiceUser {
+    return ServiceUserSchema.parse({
       ...row,
       created_at: new Date(row.created_at),
       updated_at: new Date(row.updated_at),
     });
   }
 
-  /**
-   * 事業所の利用者一覧を取得
-   * @param officeId 事業所ID
-   * @param status フィルター（'active' | 'suspended' | 'all'）
-   * @returns 利用者の配列
-   */
   async findAll(
     officeId: string,
-    status: "active" | "suspended" | "all" = "active"
-  ): Promise<Client[]> {
+    status: "active" | "suspended" | "all" = "active",
+  ): Promise<ServiceUser[]> {
     let query = this.supabase
       .from("clients")
       .select("*")
@@ -45,12 +46,7 @@ export class ClientRepository {
     return data.map((row) => this.toDomain(row));
   }
 
-  /**
-   * 利用者を1件取得
-   * @param id 利用者ID
-   * @returns 利用者 or null
-   */
-  async findById(id: string): Promise<Client | null> {
+  async findById(id: string): Promise<ServiceUser | null> {
     const { data, error } = await this.supabase
       .from("clients")
       .select("*")
@@ -63,21 +59,16 @@ export class ClientRepository {
     return this.toDomain(data);
   }
 
-  /**
-   * 利用者を作成
-   * @param data 作成データ
-   * @returns 作成された利用者
-   */
   async create(data: {
     office_id: string;
     name: string;
     address: string;
-  }): Promise<Client> {
-    const insertData: ClientInsert = {
+  }): Promise<ServiceUser> {
+    const insertData: ServiceUserInsert = {
       office_id: data.office_id,
       name: data.name,
       address: data.address,
-      contract_status: "active", // デフォルトで契約中
+      contract_status: "active",
     };
 
     const { data: created, error } = await this.supabase
@@ -87,22 +78,15 @@ export class ClientRepository {
       .single();
 
     if (error) throw error;
-    if (!created) throw new Error("Failed to create client");
+    if (!created) throw new Error("Failed to create service user");
 
     return this.toDomain(created);
   }
 
-  /**
-   * 利用者を更新
-   * @param id 利用者ID
-   * @param data 更新データ
-   * @returns 更新された利用者
-   */
-  async update(id: string, data: ClientInput): Promise<Client> {
-    const updateData: ClientUpdate = {
+  async update(id: string, data: ServiceUserInput): Promise<ServiceUser> {
+    const updateData: ServiceUserUpdate = {
       name: data.name,
       address: data.address,
-      // contract_statusは専用メソッド（suspend/resume）でのみ更新
     };
 
     const { data: updated, error } = await this.supabase
@@ -113,17 +97,12 @@ export class ClientRepository {
       .single();
 
     if (error) throw error;
-    if (!updated) throw new Error("Client not found");
+    if (!updated) throw new Error("Service user not found");
 
     return this.toDomain(updated);
   }
 
-  /**
-   * 契約を中断
-   * @param id 利用者ID
-   * @returns 更新された利用者
-   */
-  async suspend(id: string): Promise<Client> {
+  async suspend(id: string): Promise<ServiceUser> {
     const { data: updated, error } = await this.supabase
       .from("clients")
       .update({ contract_status: "suspended" })
@@ -132,17 +111,12 @@ export class ClientRepository {
       .single();
 
     if (error) throw error;
-    if (!updated) throw new Error("Client not found");
+    if (!updated) throw new Error("Service user not found");
 
     return this.toDomain(updated);
   }
 
-  /**
-   * 契約を再開
-   * @param id 利用者ID
-   * @returns 更新された利用者
-   */
-  async resume(id: string): Promise<Client> {
+  async resume(id: string): Promise<ServiceUser> {
     const { data: updated, error } = await this.supabase
       .from("clients")
       .update({ contract_status: "active" })
@@ -151,17 +125,12 @@ export class ClientRepository {
       .single();
 
     if (error) throw error;
-    if (!updated) throw new Error("Client not found");
+    if (!updated) throw new Error("Service user not found");
 
     return this.toDomain(updated);
   }
 
-  /**
-   * 契約中の利用者のみ取得（スケジュール作成用）
-   * @param officeId 事業所ID
-   * @returns 契約中の利用者の配列
-   */
-  async findActiveClients(officeId: string): Promise<Client[]> {
+  async findActiveServiceUsers(officeId: string): Promise<ServiceUser[]> {
     return this.findAll(officeId, "active");
   }
 }

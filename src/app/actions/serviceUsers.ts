@@ -1,8 +1,12 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
-import { ClientService, ServiceError, type StatusFilter } from "@/backend/services/clientService";
-import { type ClientInput, type Client } from "@/models/client";
+import { createSupabaseClient } from "@/utils/supabase/server";
+import {
+  ServiceUserService,
+  ServiceError,
+  type ServiceUserStatusFilter,
+} from "@/backend/services/serviceUserService";
+import { type ServiceUserInput, type ServiceUser } from "@/models/serviceUser";
 
 export type ActionResult<T> = {
   data: T | null;
@@ -23,20 +27,20 @@ const successResult = <T>(data: T, status = 200): ActionResult<T> => ({
   status,
 });
 
-export const getClientsAction = async (
-  status: StatusFilter = "active",
-): Promise<ActionResult<Client[]>> => {
-  const supabase = await createClient();
+export const getServiceUsersAction = async (
+  status: ServiceUserStatusFilter = "active",
+): Promise<ActionResult<ServiceUser[]>> => {
+  const supabase = await createSupabaseClient();
 
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-  const service = new ClientService(supabase);
+  const service = new ServiceUserService(supabase);
   try {
-    const clients = await service.getClients(user.id, status);
-    return successResult(clients);
+    const serviceUsers = await service.getServiceUsers(user.id, status);
+    return successResult(serviceUsers);
   } catch (e) {
     if (e instanceof ServiceError) {
       return errorResult(e.message, e.status, e.details);
@@ -45,20 +49,20 @@ export const getClientsAction = async (
   }
 };
 
-export const createClientAction = async (
-  input: ClientInput,
-): Promise<ActionResult<Client>> => {
-  const supabase = await createClient();
+export const createServiceUserAction = async (
+  input: ServiceUserInput,
+): Promise<ActionResult<ServiceUser>> => {
+  const supabase = await createSupabaseClient();
 
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-  const service = new ClientService(supabase);
+  const service = new ServiceUserService(supabase);
   try {
-    const client = await service.createClient(user.id, input);
-    return successResult(client, 201);
+    const serviceUser = await service.createServiceUser(user.id, input);
+    return successResult(serviceUser, 201);
   } catch (e) {
     if (e instanceof ServiceError) {
       return errorResult(e.message, e.status, e.details);
@@ -67,20 +71,20 @@ export const createClientAction = async (
   }
 };
 
-export const updateClientAction = async (
+export const updateServiceUserAction = async (
   id: string,
-  input: ClientInput,
-): Promise<ActionResult<Client>> => {
-  const supabase = await createClient();
+  input: ServiceUserInput,
+): Promise<ActionResult<ServiceUser>> => {
+  const supabase = await createSupabaseClient();
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-  const service = new ClientService(supabase);
+  const service = new ServiceUserService(supabase);
   try {
-    const client = await service.updateClient(user.id, id, input);
-    return successResult(client);
+    const serviceUser = await service.updateServiceUser(user.id, id, input);
+    return successResult(serviceUser);
   } catch (e) {
     if (e instanceof ServiceError) {
       return errorResult(e.message, e.status, e.details);
@@ -89,19 +93,19 @@ export const updateClientAction = async (
   }
 };
 
-export const suspendClientAction = async (
+export const suspendServiceUserAction = async (
   id: string,
-): Promise<ActionResult<Client>> => {
-  const supabase = await createClient();
+): Promise<ActionResult<ServiceUser>> => {
+  const supabase = await createSupabaseClient();
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-  const service = new ClientService(supabase);
+  const service = new ServiceUserService(supabase);
   try {
-    const client = await service.suspendClient(user.id, id);
-    return successResult(client);
+    const serviceUser = await service.suspendServiceUser(user.id, id);
+    return successResult(serviceUser);
   } catch (e) {
     if (e instanceof ServiceError) {
       return errorResult(e.message, e.status, e.details);
@@ -110,19 +114,19 @@ export const suspendClientAction = async (
   }
 };
 
-export const resumeClientAction = async (
+export const resumeServiceUserAction = async (
   id: string,
-): Promise<ActionResult<Client>> => {
-  const supabase = await createClient();
+): Promise<ActionResult<ServiceUser>> => {
+  const supabase = await createSupabaseClient();
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
   if (authError || !user) return errorResult("Unauthorized", 401);
-  const service = new ClientService(supabase);
+  const service = new ServiceUserService(supabase);
   try {
-    const client = await service.resumeClient(user.id, id);
-    return successResult(client);
+    const serviceUser = await service.resumeServiceUser(user.id, id);
+    return successResult(serviceUser);
   } catch (e) {
     if (e instanceof ServiceError) {
       return errorResult(e.message, e.status, e.details);
