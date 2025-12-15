@@ -54,41 +54,54 @@ export const ClientsPageContent = ({
     router.push(`/admin/clients?filter=${filter}`);
   };
 
-  // 保存ハンドラー
-  const handleSubmit = async (
+  // 新規作成ハンドラー
+  const handleCreate = async (data: ServiceUserInput) => {
+    try {
+      const result = await createServiceUserAction(data);
+      if (result.error) {
+        console.error("Failed to create service user:", result.error);
+        // TODO: エラートースト表示
+        return;
+      }
+
+      // 成功したらモーダルを閉じる
+      handleModalClose();
+
+      // ページをリフレッシュしてデータを再取得
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to create client:", error);
+      // TODO: エラートースト表示
+    }
+  };
+
+  // 編集ハンドラー
+  const handleEdit = async (
     data: ServiceUserInput,
     contractStatus?: ContractStatus
   ) => {
+    if (!editingClient) return;
+
     try {
-      if (modalState?.mode === "create") {
-        // 新規作成
-        const result = await createServiceUserAction(data);
-        if (result.error) {
-          console.error("Failed to create service user:", result.error);
+      // 基本情報の更新
+      const result = await updateServiceUserAction(editingClient.id, data);
+      if (result.error) {
+        console.error("Failed to update service user:", result.error);
+        // TODO: エラートースト表示
+        return;
+      }
+
+      // 契約ステータスが変更された場合
+      if (contractStatus && contractStatus !== editingClient.contract_status) {
+        const statusResult =
+          contractStatus === "suspended"
+            ? await suspendServiceUserAction(editingClient.id)
+            : await resumeServiceUserAction(editingClient.id);
+
+        if (statusResult.error) {
+          console.error("Failed to update contract status:", statusResult.error);
           // TODO: エラートースト表示
           return;
-        }
-      } else if (modalState?.mode === "edit" && editingClient) {
-        // 更新
-        const result = await updateServiceUserAction(editingClient.id, data);
-        if (result.error) {
-          console.error("Failed to update service user:", result.error);
-          // TODO: エラートースト表示
-          return;
-        }
-
-        // 契約ステータスが変更された場合
-        if (contractStatus && contractStatus !== editingClient.contract_status) {
-          const statusResult =
-            contractStatus === "suspended"
-              ? await suspendServiceUserAction(editingClient.id)
-              : await resumeServiceUserAction(editingClient.id);
-
-          if (statusResult.error) {
-            console.error("Failed to update contract status:", statusResult.error);
-            // TODO: エラートースト表示
-            return;
-          }
         }
       }
 
@@ -98,7 +111,7 @@ export const ClientsPageContent = ({
       // ページをリフレッシュしてデータを再取得
       router.refresh();
     } catch (error) {
-      console.error("Failed to save client:", error);
+      console.error("Failed to edit client:", error);
       // TODO: エラートースト表示
     }
   };
@@ -126,13 +139,21 @@ export const ClientsPageContent = ({
       </div>
 
       {/* モーダル */}
-      {modalState && (
+      {modalState?.mode === "create" && (
         <ClientModal
           isOpen={true}
-          mode={modalState.mode}
+          mode="create"
+          onClose={handleModalClose}
+          onSubmit={handleCreate}
+        />
+      )}
+      {modalState?.mode === "edit" && editingClient && (
+        <ClientModal
+          isOpen={true}
+          mode="edit"
           client={editingClient}
           onClose={handleModalClose}
-          onSubmit={handleSubmit}
+          onSubmit={handleEdit}
         />
       )}
     </>

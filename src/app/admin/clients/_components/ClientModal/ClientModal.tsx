@@ -9,24 +9,29 @@ import { ServiceUserInputSchema } from "@/models/serviceUser";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormTextarea } from "@/components/forms/FormTextarea";
 
-export interface ClientModalProps {
+type CreateModalProps = {
   isOpen: boolean;
-  mode: "create" | "edit";
-  client?: ServiceUser;
+  mode: "create";
+  onClose: () => void;
+  onSubmit: (data: ServiceUserInput) => void | Promise<void>;
+};
+
+type EditModalProps = {
+  isOpen: boolean;
+  mode: "edit";
+  client: ServiceUser;
   onClose: () => void;
   onSubmit: (
     data: ServiceUserInput,
     contractStatus?: ContractStatus
   ) => void | Promise<void>;
-}
+};
 
-export const ClientModal = ({
-  isOpen,
-  mode,
-  client,
-  onClose,
-  onSubmit,
-}: ClientModalProps) => {
+export type ClientModalProps = CreateModalProps | EditModalProps;
+
+export const ClientModal = (props: ClientModalProps) => {
+  const { isOpen, mode, onClose, onSubmit } = props;
+  const client = mode === "edit" ? props.client : undefined;
   const {
     register,
     handleSubmit: hookFormHandleSubmit,
