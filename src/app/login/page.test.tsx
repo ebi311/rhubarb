@@ -8,8 +8,10 @@ vi.mock("./_components/LoginButton", () => ({
 }));
 
 describe("LoginPage", () => {
-  it("renders the login page correctly", () => {
-    render(<LoginPage searchParams={{}} />);
+  it("renders the login page correctly", async () => {
+    const { container } = render(
+      await LoginPage({ searchParams: Promise.resolve({}) })
+    );
     expect(
       screen.getByRole("heading", { name: "ログイン" })
     ).toBeInTheDocument();

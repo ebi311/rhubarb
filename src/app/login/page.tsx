@@ -3,9 +3,10 @@ import LoginButton from "./_components/LoginButton";
 export default async function LoginPage({
   searchParams,
 }: {
-    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const isUnauthorized = (await searchParams).error === "unauthorized";
+  const { error } = await searchParams;
+  const isUnauthorized = error === "unauthorized";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base-200">
