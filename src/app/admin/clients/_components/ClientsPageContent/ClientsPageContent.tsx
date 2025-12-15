@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ServiceUser, ContractStatus, ServiceUserInput } from "@/models/serviceUser";
 import { ClientFilterTabs } from "../ClientFilterTabs";
@@ -25,7 +25,6 @@ export const ClientsPageContent = ({
   modalState,
 }: ClientsPageContentProps) => {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [filter, setFilter] = useState<"all" | "active" | "suspended">(initialFilter);
 
   // フィルター適用
@@ -37,16 +36,12 @@ export const ClientsPageContent = ({
   // フィルター変更ハンドラー
   const handleFilterChange = (newFilter: "all" | "active" | "suspended") => {
     setFilter(newFilter);
-    startTransition(() => {
-      router.push(`/admin/clients?filter=${newFilter}`);
-    });
+    router.push(`/admin/clients?filter=${newFilter}`);
   };
 
   // 新規登録ボタンクリック
   const handleCreateClick = () => {
-    startTransition(() => {
-      router.push(`/admin/clients?filter=${filter}&modal=create`);
-    });
+    router.push(`/admin/clients?filter=${filter}&modal=create`);
   };
 
   // 編集リンク生成
@@ -56,9 +51,7 @@ export const ClientsPageContent = ({
 
   // モーダルを閉じる
   const handleModalClose = () => {
-    startTransition(() => {
-      router.push(`/admin/clients?filter=${filter}`);
-    });
+    router.push(`/admin/clients?filter=${filter}`);
   };
 
   // 保存ハンドラー
@@ -103,9 +96,7 @@ export const ClientsPageContent = ({
       handleModalClose();
 
       // ページをリフレッシュしてデータを再取得
-      startTransition(() => {
-        router.refresh();
-      });
+      router.refresh();
     } catch (error) {
       console.error("Failed to save client:", error);
       // TODO: エラートースト表示
