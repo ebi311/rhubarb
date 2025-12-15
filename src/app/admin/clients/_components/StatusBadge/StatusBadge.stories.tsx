@@ -26,6 +26,9 @@ export const Suspended: Story = {
 };
 
 export const Comparison: Story = {
+  args: {
+    status: "active",
+  },
   render: () => (
     <div className="flex gap-4">
       <StatusBadge status="active" />
