@@ -521,12 +521,12 @@ export interface ClientRepository {
 - [x] APIテスト作成・実行
 
 ### ステップ5: UI Components実装
-- [ ] `StatusBadge` コンポーネント作成
-- [ ] `ClientFilterTabs` コンポーネント作成
-- [ ] `ClientTable` コンポーネント作成
-- [ ] `ClientModal` コンポーネント作成
-- [ ] Storybook作成
-- [ ] 単体テスト作成・実行
+- [x] `StatusBadge` コンポーネント作成
+- [x] `ClientFilterTabs` コンポーネント作成
+- [x] `ClientTable` コンポーネント作成
+- [x] `ClientModal` コンポーネント作成
+- [x] Storybook作成
+- [x] 単体テスト作成・実行
 
 ### ステップ6: ページ実装
 - [ ] `/admin/clients` ページ作成
