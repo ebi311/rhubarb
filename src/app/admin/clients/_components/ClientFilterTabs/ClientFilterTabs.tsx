@@ -1,4 +1,4 @@
-export type FilterStatus = "all" | "active" | "suspended";
+import type { FilterStatus } from "../../_types";
 
 export interface ClientFilterTabsProps {
   activeFilter: FilterStatus;

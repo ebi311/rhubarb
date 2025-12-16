@@ -1,22 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { ServiceUser, ContractStatus, ServiceUserInput } from "@/models/serviceUser";
 import { ClientFilterTabs } from "../ClientFilterTabs";
 import { ClientTable } from "../ClientTable";
 import { ClientModal } from "../ClientModal";
-import {
-  createServiceUserAction,
-  updateServiceUserAction,
-  suspendServiceUserAction,
-  resumeServiceUserAction,
-} from "@/app/actions/serviceUsers";
+import { useClientFilter, useClientModal, useClientMutations } from "../../_hooks";
+import type { ModalState } from "../../_types";
 
 interface ClientsPageContentProps {
   initialClients: ServiceUser[];
   initialFilter: "all" | "active" | "suspended";
-  modalState: { mode: "create" | "edit"; clientId?: string } | null;
+  modalState: ModalState;
 }
 
 export const ClientsPageContent = ({
@@ -24,8 +18,8 @@ export const ClientsPageContent = ({
   initialFilter,
   modalState,
 }: ClientsPageContentProps) => {
-  const router = useRouter();
-  const [filter, setFilter] = useState<"all" | "active" | "suspended">(initialFilter);
+  const { filter, changeFilter } = useClientFilter(initialFilter);
+  const { openCreate, getEditHref, close } = useClientModal(filter);
 
   // フィルター適用
   const filteredClients =
@@ -33,46 +27,16 @@ export const ClientsPageContent = ({
       ? initialClients
       : initialClients.filter((client) => client.contract_status === filter);
 
-  // フィルター変更ハンドラー
-  const handleFilterChange = (newFilter: "all" | "active" | "suspended") => {
-    setFilter(newFilter);
-    router.push(`/admin/clients?filter=${newFilter}`);
-  };
+  // 編集対象の利用者を取得
+  const editingClient = modalState?.clientId
+    ? initialClients.find((c) => c.id === modalState.clientId)
+    : undefined;
 
-  // 新規登録ボタンクリック
-  const handleCreateClick = () => {
-    router.push(`/admin/clients?filter=${filter}&modal=create`);
-  };
-
-  // 編集リンク生成
-  const getEditHref = (client: ServiceUser) => {
-    return `/admin/clients?filter=${filter}&modal=edit&id=${client.id}`;
-  };
-
-  // モーダルを閉じる
-  const handleModalClose = () => {
-    router.push(`/admin/clients?filter=${filter}`);
-  };
+  const { createClient, updateClient, updateContractStatus } = useClientMutations(close);
 
   // 新規作成ハンドラー
   const handleCreate = async (data: ServiceUserInput) => {
-    try {
-      const result = await createServiceUserAction(data);
-      if (result.error) {
-        console.error("Failed to create service user:", result.error);
-        // TODO: エラートースト表示
-        return;
-      }
-
-      // 成功したらモーダルを閉じる
-      handleModalClose();
-
-      // ページをリフレッシュしてデータを再取得
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to create client:", error);
-      // TODO: エラートースト表示
-    }
+    await createClient(data);
   };
 
   // 編集ハンドラー
@@ -82,56 +46,29 @@ export const ClientsPageContent = ({
   ) => {
     if (!editingClient) return;
 
-    try {
-      // 基本情報の更新
-      const result = await updateServiceUserAction(editingClient.id, data);
-      if (result.error) {
-        console.error("Failed to update service user:", result.error);
-        // TODO: エラートースト表示
-        return;
-      }
+    const updated = await updateClient(editingClient.id, data);
+    if (!updated) return;
 
-      // 契約ステータスが変更された場合
-      if (contractStatus && contractStatus !== editingClient.contract_status) {
-        const statusResult =
-          contractStatus === "suspended"
-            ? await suspendServiceUserAction(editingClient.id)
-            : await resumeServiceUserAction(editingClient.id);
-
-        if (statusResult.error) {
-          console.error("Failed to update contract status:", statusResult.error);
-          // TODO: エラートースト表示
-          return;
-        }
-      }
-
-      // 成功したらモーダルを閉じる
-      handleModalClose();
-
-      // ページをリフレッシュしてデータを再取得
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to edit client:", error);
-      // TODO: エラートースト表示
+    if (contractStatus) {
+      await updateContractStatus(
+        editingClient.id,
+        editingClient.contract_status,
+        contractStatus
+      );
     }
   };
-
-  // 編集対象の利用者を取得
-  const editingClient = modalState?.clientId
-    ? initialClients.find((c) => c.id === modalState.clientId)
-    : undefined;
 
   return (
     <>
       {/* 新規登録ボタン */}
       <div className="mb-4">
-        <button onClick={handleCreateClick} className="btn btn-primary">
+        <button onClick={openCreate} className="btn btn-primary">
           ＋ 新規登録
         </button>
       </div>
 
       {/* フィルタータブ */}
-      <ClientFilterTabs activeFilter={filter} onFilterChange={handleFilterChange} />
+      <ClientFilterTabs activeFilter={filter} onFilterChange={changeFilter} />
 
       {/* テーブル */}
       <div className="mt-4">
@@ -143,7 +80,7 @@ export const ClientsPageContent = ({
         <ClientModal
           isOpen={true}
           mode="create"
-          onClose={handleModalClose}
+          onClose={close}
           onSubmit={handleCreate}
         />
       )}
@@ -152,7 +89,7 @@ export const ClientsPageContent = ({
           isOpen={true}
           mode="edit"
           client={editingClient}
-          onClose={handleModalClose}
+          onClose={close}
           onSubmit={handleEdit}
         />
       )}

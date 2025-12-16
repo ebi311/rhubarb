@@ -24,6 +24,10 @@ const eslintConfig = defineConfig([
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      // サイクロマティック複雑度が10以上の場合はエラーにする
+      // ESLint の `complexity` ルールは `max` より大きい値を報告するため
+      // 11以上でエラーにするには max を 10 に設定する
+      complexity: ["error", { max: 10 }],
     },
   },
   // テストファイルでは `as any` の使用を許可

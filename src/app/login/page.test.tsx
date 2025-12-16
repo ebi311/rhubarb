@@ -9,7 +9,7 @@ vi.mock("./_components/LoginButton", () => ({
 
 describe("LoginPage", () => {
   it("renders the login page correctly", async () => {
-    const { container } = render(
+    render(
       await LoginPage({ searchParams: Promise.resolve({}) })
     );
     expect(

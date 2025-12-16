@@ -2,18 +2,19 @@ import { Suspense } from "react";
 import { ClientsPageContent } from "./_components/ClientsPageContent";
 import { getServiceUsersAction } from "@/app/actions/serviceUsers";
 import type { ServiceUser } from "@/models/serviceUser";
+import type { FilterStatus, ModalMode } from "./_types";
 
 interface PageProps {
   searchParams: Promise<{
-    modal?: "create" | "edit";
+    modal?: ModalMode;
     id?: string;
-    filter?: "all" | "active" | "suspended";
+    filter?: FilterStatus;
   }>;
 }
 
 const ClientsPage = async ({ searchParams }: PageProps) => {
   const params = await searchParams;
-  const filter = (params.filter as "all" | "active" | "suspended") || "active";
+  const filter: FilterStatus = params.filter || "active";
 
   // Server Actionを使って利用者データを取得
   const result = await getServiceUsersAction("all");
