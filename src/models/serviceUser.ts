@@ -30,6 +30,7 @@ export const ServiceUserInputSchema = z.object({
 		.min(1, '住所は必須です')
 		.max(200, '住所は200文字以内で入力してください')
 		.refine((val) => val.trim().length > 0, '住所に空白のみは使用できません'),
+	contract_status: ContractStatusSchema.optional(),
 });
 
 export type ServiceUserInput = z.infer<typeof ServiceUserInputSchema>;
