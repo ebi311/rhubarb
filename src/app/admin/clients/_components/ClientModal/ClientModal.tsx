@@ -70,6 +70,7 @@ export const ClientModal = (props: ClientModalProps) => {
 		} else {
 			await onSubmit({ name: data.name, address: data.address }, data.contract_status ?? 'active');
 		}
+		onClose();
 	};
 
 	if (!isOpen) return null;
