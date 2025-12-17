@@ -79,29 +79,82 @@ describe('ClientModal', () => {
 		).toBeInTheDocument();
 	});
 
-	it('バリデーションエラーが表示される', async () => {
+	it('バリデーションエラーがある場合はボタンが無効化される', async () => {
 		const user = userEvent.setup();
 		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={vi.fn()} />);
 
-		// 空のまま送信
-		await user.click(screen.getByRole('button', { name: '登録' }));
+		// 初期状態では空なのでボタンが無効
+		const submitButton = screen.getByRole('button', { name: '登録' });
+		expect(submitButton).toBeDisabled();
 
-		// エラーが表示されることを確認
-		await waitFor(
-			() => {
-				const nameError = screen.queryByText('氏名は必須です');
-				const addressError = screen.queryByText('住所は必須です');
+		// 氏名のみ入力（住所が空）
+		const nameInput = screen.getByRole('textbox', { name: /氏名/ });
+		const addressInput = screen.getByRole('textbox', { name: /住所/ });
 
-				// デバッグ: 存在しない場合はDOMを出力
-				if (!nameError || !addressError) {
-					screen.debug();
-				}
+		await user.type(nameInput, 'テスト太郎');
+		await user.click(addressInput); // バリデーションをトリガー
 
-				expect(nameError).toBeInTheDocument();
-				expect(addressError).toBeInTheDocument();
-			},
-			{ timeout: 2000 },
-		);
+		// まだ住所が空なのでボタンは無効
+		expect(submitButton).toBeDisabled();
+
+		// 住所も入力
+		await user.type(addressInput, '東京都テスト区1-1-1');
+		await user.click(nameInput); // バリデーションをトリガー
+
+		// すべて入力したのでボタンが有効
+		await waitFor(() => {
+			expect(submitButton).toBeEnabled();
+		});
+	});
+
+	it('必須項目が未入力の場合、エラーメッセージが表示される', async () => {
+		const user = userEvent.setup();
+		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={vi.fn()} />);
+
+		const nameInput = screen.getByRole('textbox', { name: /氏名/ });
+		const addressInput = screen.getByRole('textbox', { name: /住所/ });
+
+		// 氏名フィールドにフォーカスして離れる（バリデーショントリガー）
+		await user.click(nameInput);
+		await user.click(addressInput);
+
+		// 氏名のエラーメッセージが表示される
+		await waitFor(() => {
+			expect(screen.getByText('氏名は必須です')).toBeInTheDocument();
+		});
+
+		// 住所フィールドにフォーカスして離れる
+		await user.click(addressInput);
+		await user.click(nameInput);
+
+		// 住所のエラーメッセージが表示される
+		await waitFor(() => {
+			expect(screen.getByText('住所は必須です')).toBeInTheDocument();
+		});
+	});
+
+	it('空白のみの入力の場合、エラーメッセージが表示される', async () => {
+		const user = userEvent.setup();
+		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={vi.fn()} />);
+
+		const nameInput = screen.getByRole('textbox', { name: /氏名/ });
+		const addressInput = screen.getByRole('textbox', { name: /住所/ });
+
+		// 氏名に空白のみ入力
+		await user.type(nameInput, '   ');
+		await user.click(addressInput);
+
+		await waitFor(() => {
+			expect(screen.getByText('氏名に空白のみは使用できません')).toBeInTheDocument();
+		});
+
+		// 住所に空白のみ入力
+		await user.type(addressInput, '   ');
+		await user.click(nameInput);
+
+		await waitFor(() => {
+			expect(screen.getByText('住所に空白のみは使用できません')).toBeInTheDocument();
+		});
 	});
 
 	it('保存ボタンクリックでonSubmitが呼ばれる（作成）', async () => {
@@ -113,8 +166,17 @@ describe('ClientModal', () => {
 		const addressInput = screen.getByRole('textbox', { name: /住所/ });
 
 		await user.type(nameInput, 'テスト太郎');
+		await user.click(addressInput); // バリデーションをトリガー
 		await user.type(addressInput, '東京都テスト区1-1-1');
-		await user.click(screen.getByRole('button', { name: '登録' }));
+		await user.click(nameInput); // バリデーションをトリガー
+
+		// ボタンが有効になるのを待つ
+		const submitButton = screen.getByRole('button', { name: '登録' });
+		await waitFor(() => {
+			expect(submitButton).toBeEnabled();
+		});
+
+		await user.click(submitButton);
 
 		await waitFor(() => {
 			expect(handleSubmit).toHaveBeenCalledWith({

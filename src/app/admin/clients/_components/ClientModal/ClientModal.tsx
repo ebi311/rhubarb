@@ -36,6 +36,7 @@ export const ClientModal = (props: ClientModalProps) => {
 		control,
 	} = useForm<ServiceUserInput & { contract_status?: ContractStatus }>({
 		resolver: zodResolver(ServiceUserInputSchema),
+		mode: 'onBlur',
 		defaultValues: {
 			name: '',
 			address: '',
