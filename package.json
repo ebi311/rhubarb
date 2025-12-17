@@ -17,7 +17,17 @@
 		"supa:stop": "supabase stop",
 		"supa:reset": "supabase stop && supabase start --reset",
 		"supa:types": "supabase gen types typescript --local > ./src/backend/types/supabase.ts",
-		"format": "prettier --write ."
+		"format": "prettier --write .",
+		"prepare": "husky"
+	},
+	"lint-staged": {
+		"*.{ts,tsx,js,jsx}": [
+			"eslint --fix",
+			"prettier --write"
+		],
+		"*.{json,md,css}": [
+			"prettier --write"
+		]
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
@@ -52,7 +62,9 @@
 		"eslint": "^9",
 		"eslint-config-next": "16.0.8",
 		"eslint-plugin-storybook": "^10.1.9",
+		"husky": "^9.1.7",
 		"jsdom": "^27.3.0",
+		"lint-staged": "^16.2.7",
 		"playwright": "^1.57.0",
 		"prettier": "^3.7.4",
 		"prettier-plugin-organize-imports": "^4.3.0",
