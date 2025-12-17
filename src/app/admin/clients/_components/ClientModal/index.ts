@@ -1,2 +1,2 @@
-export { ClientModal } from "./ClientModal";
-export type { ClientModalProps } from "./ClientModal";
+export { ClientModal } from './ClientModal';
+export type { ClientModalProps } from './ClientModal';

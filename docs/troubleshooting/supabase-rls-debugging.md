@@ -21,7 +21,9 @@
 
 ```typescript
 // 認証状態を確認
-const { data: { user } } = await supabase.auth.getUser();
+const {
+	data: { user },
+} = await supabase.auth.getUser();
 console.log('Current user:', user);
 ```
 
@@ -41,7 +43,7 @@ console.log('Current user:', user);
 
 ```typescript
 // authService.ts で Admin Client を使用
-import { createAdminClient } from "@/utils/supabase/admin";
+import { createAdminClient } from '@/utils/supabase/admin';
 
 const adminClient = createAdminClient();
 const staffRepository = new StaffRepository(adminClient);
@@ -52,25 +54,27 @@ const staffRepository = new StaffRepository(adminClient);
 #### 1. 詳細なログを追加
 
 ```typescript
-console.log("=== Query Debug ===");
-console.log("Email:", email);
-console.log("Auth state:", await supabase.auth.getUser());
+console.log('=== Query Debug ===');
+console.log('Email:', email);
+console.log('Auth state:', await supabase.auth.getUser());
 
 const { data, error, status } = await supabase
-  .from("staffs")
-  .select("*")
-  .eq("email", email)
-  .maybeSingle();
+	.from('staffs')
+	.select('*')
+	.eq('email', email)
+	.maybeSingle();
 
-console.log("Result:", {
-  data,
-  error: error ? {
-    message: error.message,
-    details: error.details,
-    hint: error.hint,
-    code: error.code
-  } : null,
-  status
+console.log('Result:', {
+	data,
+	error: error
+		? {
+				message: error.message,
+				details: error.details,
+				hint: error.hint,
+				code: error.code,
+			}
+		: null,
+	status,
 });
 ```
 
@@ -118,22 +122,22 @@ SELECT * FROM public.staffs WHERE email = 'test@example.com';
 
 ```typescript
 // utils/supabase/admin.ts
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
 export const createAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    throw new Error("Missing environment variables");
-  }
+	if (!supabaseUrl || !supabaseServiceRoleKey) {
+		throw new Error('Missing environment variables');
+	}
 
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+	return createClient(supabaseUrl, supabaseServiceRoleKey, {
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false,
+		},
+	});
 };
 ```
 

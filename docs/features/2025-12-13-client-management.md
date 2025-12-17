@@ -346,28 +346,22 @@ CREATE TYPE contract_status AS ENUM ('active', 'suspended');
 ### 5.1 クライアントサイド（Zod）
 
 ```typescript
-import { z } from "zod";
+import { z } from 'zod';
 
 export const clientSchema = z.object({
-  name: z
-    .string()
-    .min(1, "氏名は必須です")
-    .max(100, "氏名は100文字以内で入力してください")
-    .refine(
-      (val) => val.trim().length > 0,
-      "氏名に空白のみは使用できません"
-    ),
-  address: z
-    .string()
-    .min(1, "住所は必須です")
-    .max(200, "住所は200文字以内で入力してください")
-    .refine(
-      (val) => val.trim().length > 0,
-      "住所に空白のみは使用できません"
-    ),
+	name: z
+		.string()
+		.min(1, '氏名は必須です')
+		.max(100, '氏名は100文字以内で入力してください')
+		.refine((val) => val.trim().length > 0, '氏名に空白のみは使用できません'),
+	address: z
+		.string()
+		.min(1, '住所は必須です')
+		.max(200, '住所は200文字以内で入力してください')
+		.refine((val) => val.trim().length > 0, '住所に空白のみは使用できません'),
 });
 
-export const contractStatusSchema = z.enum(["active", "suspended"]);
+export const contractStatusSchema = z.enum(['active', 'suspended']);
 
 export type ClientInput = z.infer<typeof clientSchema>;
 export type ContractStatus = z.infer<typeof contractStatusSchema>;
@@ -387,59 +381,56 @@ export type ContractStatus = z.infer<typeof contractStatusSchema>;
 
 ```typescript
 export interface ClientRepository {
-  /**
-   * 事業所の利用者一覧を取得
-   * @param officeId 事業所ID
-   * @param status フィルター（'active' | 'suspended' | 'all'）
-   * @returns 利用者の配列
-   */
-  findAll(
-    officeId: string,
-    status?: "active" | "suspended" | "all"
-  ): Promise<Client[]>;
+	/**
+	 * 事業所の利用者一覧を取得
+	 * @param officeId 事業所ID
+	 * @param status フィルター（'active' | 'suspended' | 'all'）
+	 * @returns 利用者の配列
+	 */
+	findAll(officeId: string, status?: 'active' | 'suspended' | 'all'): Promise<Client[]>;
 
-  /**
-   * 利用者を1件取得
-   * @param id 利用者ID
-   * @returns 利用者 or null
-   */
-  findById(id: string): Promise<Client | null>;
+	/**
+	 * 利用者を1件取得
+	 * @param id 利用者ID
+	 * @returns 利用者 or null
+	 */
+	findById(id: string): Promise<Client | null>;
 
-  /**
-   * 利用者を作成
-   * @param data 作成データ
-   * @returns 作成された利用者
-   */
-  create(data: ClientCreateInput): Promise<Client>;
+	/**
+	 * 利用者を作成
+	 * @param data 作成データ
+	 * @returns 作成された利用者
+	 */
+	create(data: ClientCreateInput): Promise<Client>;
 
-  /**
-   * 利用者を更新
-   * @param id 利用者ID
-   * @param data 更新データ
-   * @returns 更新された利用者
-   */
-  update(id: string, data: ClientUpdateInput): Promise<Client>;
+	/**
+	 * 利用者を更新
+	 * @param id 利用者ID
+	 * @param data 更新データ
+	 * @returns 更新された利用者
+	 */
+	update(id: string, data: ClientUpdateInput): Promise<Client>;
 
-  /**
-   * 契約を中断
-   * @param id 利用者ID
-   * @returns 更新された利用者
-   */
-  suspend(id: string): Promise<Client>;
+	/**
+	 * 契約を中断
+	 * @param id 利用者ID
+	 * @returns 更新された利用者
+	 */
+	suspend(id: string): Promise<Client>;
 
-  /**
-   * 契約を再開
-   * @param id 利用者ID
-   * @returns 更新された利用者
-   */
-  resume(id: string): Promise<Client>;
+	/**
+	 * 契約を再開
+	 * @param id 利用者ID
+	 * @returns 更新された利用者
+	 */
+	resume(id: string): Promise<Client>;
 
-  /**
-   * 契約中の利用者のみ取得（スケジュール作成用）
-   * @param officeId 事業所ID
-   * @returns 契約中の利用者の配列
-   */
-  findActiveClients(officeId: string): Promise<Client[]>;
+	/**
+	 * 契約中の利用者のみ取得（スケジュール作成用）
+	 * @param officeId 事業所ID
+	 * @returns 契約中の利用者の配列
+	 */
+	findActiveClients(officeId: string): Promise<Client[]>;
 }
 ```
 

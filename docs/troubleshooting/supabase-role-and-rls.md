@@ -17,8 +17,8 @@ Supabase では、以下の3つの PostgreSQL ロールが自動的に設定さ�
 ```typescript
 // ケース1: 未認証状態（'anon' ロール）
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! // ← 'anon' ロールで接続
+	process.env.NEXT_PUBLIC_SUPABASE_URL!,
+	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // ← 'anon' ロールで接続
 );
 
 // ケース2: ログイン後（'authenticated' ロールに自動変更）
@@ -27,8 +27,8 @@ await supabase.auth.signInWithPassword({ email, password });
 
 // ケース3: Service Role（'service_role' ロール）
 const adminClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // ← 'service_role' ロール、RLS バイパス
+	process.env.NEXT_PUBLIC_SUPABASE_URL!,
+	process.env.SUPABASE_SERVICE_ROLE_KEY!, // ← 'service_role' ロール、RLS バイパス
 );
 ```
 
@@ -87,7 +87,7 @@ src/
 
 ```typescript
 export async function middleware(request: NextRequest) {
-  return await updateSession(request);
+	return await updateSession(request);
 }
 ```
 
@@ -202,13 +202,13 @@ export async function createClient() {
 
 ```typescript
 // src/utils/supabase/client.ts
-import { createBrowserClient } from "@supabase/ssr";
+import { createBrowserClient } from '@supabase/ssr';
 
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! // ← authenticated ロール
-  );
+	return createBrowserClient(
+		process.env.NEXT_PUBLIC_SUPABASE_URL!,
+		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // ← authenticated ロール
+	);
 }
 ```
 
@@ -223,19 +223,19 @@ export function createClient() {
 
 ```typescript
 // src/utils/supabase/admin.ts
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
 export const createAdminClient = () => {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // ← service_role ロール
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
+	return createClient(
+		process.env.NEXT_PUBLIC_SUPABASE_URL!,
+		process.env.SUPABASE_SERVICE_ROLE_KEY!, // ← service_role ロール
+		{
+			auth: {
+				autoRefreshToken: false,
+				persistSession: false,
+			},
+		},
+	);
 };
 ```
 
@@ -256,18 +256,18 @@ export const createAdminClient = () => {
 ```typescript
 // src/backend/services/authService.ts（修正前）
 export class AuthService {
-  constructor(private supabase: SupabaseClient<Database>) {
-    // ANON_KEY を使用 → 'authenticated' ロール
-    // しかし、ログイン直後は auth.uid() がまだ設定されていない
-    this.staffRepository = new StaffRepository(supabase);
-  }
+	constructor(private supabase: SupabaseClient<Database>) {
+		// ANON_KEY を使用 → 'authenticated' ロール
+		// しかし、ログイン直後は auth.uid() がまだ設定されていない
+		this.staffRepository = new StaffRepository(supabase);
+	}
 
-  async handlePostLogin(email: string, authUserId: string): Promise<boolean> {
-    // ❌ RLS ポリシーで弾かれる！
-    // auth.uid() が null なので、is_admin_in_office() が false を返す
-    const staff = await this.staffRepository.findByEmail(email);
-    // → data = null になる
-  }
+	async handlePostLogin(email: string, authUserId: string): Promise<boolean> {
+		// ❌ RLS ポリシーで弾かれる！
+		// auth.uid() が null なので、is_admin_in_office() が false を返す
+		const staff = await this.staffRepository.findByEmail(email);
+		// → data = null になる
+	}
 }
 ```
 
@@ -276,18 +276,18 @@ export class AuthService {
 ```typescript
 // src/backend/services/authService.ts（修正後）
 export class AuthService {
-  constructor(private supabase: SupabaseClient<Database>) {
-    // SERVICE_ROLE_KEY を使用 → 'service_role' ロール
-    // RLS をバイパスできる
-    const adminClient = createAdminClient();
-    this.staffRepository = new StaffRepository(adminClient);
-  }
+	constructor(private supabase: SupabaseClient<Database>) {
+		// SERVICE_ROLE_KEY を使用 → 'service_role' ロール
+		// RLS をバイパスできる
+		const adminClient = createAdminClient();
+		this.staffRepository = new StaffRepository(adminClient);
+	}
 
-  async handlePostLogin(email: string, authUserId: string): Promise<boolean> {
-    // ✅ RLS をバイパスしてデータ取得可能
-    const staff = await this.staffRepository.findByEmail(email);
-    // → 正しくデータが返される
-  }
+	async handlePostLogin(email: string, authUserId: string): Promise<boolean> {
+		// ✅ RLS をバイパスしてデータ取得可能
+		const staff = await this.staffRepository.findByEmail(email);
+		// → 正しくデータが返される
+	}
 }
 ```
 
@@ -342,9 +342,11 @@ to admin                            -- ← 'admin' という PostgreSQL ロー�
 
 ```typescript
 // ログに出力
-const { data: { user } } = await supabase.auth.getUser();
-console.log("Current user:", user);
-console.log("Auth UID:", user?.id);
+const {
+	data: { user },
+} = await supabase.auth.getUser();
+console.log('Current user:', user);
+console.log('Auth UID:', user?.id);
 ```
 
 ### 2. PostgreSQL で確認

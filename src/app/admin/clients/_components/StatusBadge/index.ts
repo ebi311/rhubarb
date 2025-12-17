@@ -1,2 +1,2 @@
-export { StatusBadge } from "./StatusBadge";
-export type { StatusBadgeProps, ContractStatus } from "./StatusBadge";
+export { StatusBadge } from './StatusBadge';
+export type { ContractStatus, StatusBadgeProps } from './StatusBadge';

@@ -1,2 +1,2 @@
-export { ClientTable } from "./ClientTable";
-export type { ClientTableProps } from "./ClientTable";
+export { ClientTable } from './ClientTable';
+export type { ClientTableProps } from './ClientTable';
