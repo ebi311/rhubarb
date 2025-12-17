@@ -9,14 +9,14 @@
 
 ### 1. Supabase 設定 (手動)
 
-- [ ] Supabase Dashboard > Authentication > Providers > Google を有効化。
-- [ ] Client ID と Secret を設定。
-- [ ] Redirect URL に `http://localhost:3000/auth/callback` を追加。
+- [x] Supabase Dashboard > Authentication > Providers > Google を有効化。
+- [x] Client ID と Secret を設定。
+- [x] Redirect URL に `http://localhost:3000/auth/callback` を追加。
 
 ### 2. ログインページの実装
 
-- [ ] `src/app/login/page.tsx` を作成。
-- [ ] `src/app/login/_components/LoginButton.tsx` を作成 (Client Component)。
+- [x] `src/app/login/page.tsx` を作成。
+- [x] `src/app/login/_components/LoginButton.tsx` を作成 (Client Component)。
   - `supabase.auth.signInWithOAuth()` を呼び出す。
 
 ### 3. 認証コールバックの実装
@@ -41,6 +41,6 @@
 
 ### 6. 動作確認
 
-- [ ] 未ログイン状態でトップページにアクセス -> ログインページへリダイレクト。
-- [ ] Google ログイン実行 -> スタッフ登録済みならトップページへ。
-- [ ] スタッフ未登録のアカウントでログイン -> エラー画面へ。
+- [x] 未ログイン状態でトップページにアクセス -> ログインページへリダイレクト。
+- [x] Google ログイン実行 -> スタッフ登録済みならトップページへ。
+- [x] スタッフ未登録のアカウントでログイン -> エラー画面へ。
