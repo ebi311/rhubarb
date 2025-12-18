@@ -7,26 +7,7 @@ import {
 } from '@/backend/services/serviceUserService';
 import { type ServiceUser, type ServiceUserInput } from '@/models/serviceUser';
 import { createSupabaseClient } from '@/utils/supabase/server';
-
-export type ActionResult<T> = {
-	data: T | null;
-	error: string | null;
-	status: number;
-	details?: unknown;
-};
-
-const errorResult = <T>(error: string, status: number, details?: unknown): ActionResult<T> => ({
-	data: null,
-	error,
-	status,
-	details,
-});
-
-const successResult = <T>(data: T, status = 200): ActionResult<T> => ({
-	data,
-	error: null,
-	status,
-});
+import { ActionResult, errorResult, successResult } from './utils/actionResult';
 
 export const getServiceUsersAction = async (
 	status: ServiceUserStatusFilter = 'active',
