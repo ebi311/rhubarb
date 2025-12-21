@@ -38,7 +38,7 @@ export const BasicScheduleFilterSchema = z.object({
 	weekday: WeekdaySchema.optional(),
 	client_id: z.uuid().optional(),
 	service_type_id: z.uuid().optional(),
-	includeDeleted: z.boolean().default(false),
+	includeDeleted: z.boolean(),
 });
 export type BasicScheduleFilters = z.infer<typeof BasicScheduleFilterSchema>;
 
