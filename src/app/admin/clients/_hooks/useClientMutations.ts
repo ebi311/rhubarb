@@ -1,10 +1,10 @@
-import type { ActionResult } from '@/app/actions/serviceUsers';
 import {
 	createServiceUserAction,
 	resumeServiceUserAction,
 	suspendServiceUserAction,
 	updateServiceUserAction,
 } from '@/app/actions/serviceUsers';
+import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { ContractStatus, ServiceUserInput } from '@/models/serviceUser';
 import { useRouter } from 'next/navigation';
 

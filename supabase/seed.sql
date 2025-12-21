@@ -107,17 +107,25 @@ DO $$
 DECLARE
   service_body uuid;
   service_life uuid;
+  schedule_id_1 uuid := gen_random_uuid();
+  schedule_id_2 uuid := gen_random_uuid();
 BEGIN
   SELECT id INTO service_body FROM public.service_types WHERE name = '身体介護' LIMIT 1;
   SELECT id INTO service_life FROM public.service_types WHERE name = '生活支援' LIMIT 1;
 
   -- A子さん: 月曜 10:00-11:00 身体介護 (担当: 太郎)
-  INSERT INTO public.basic_schedules (client_id, service_type_id, staff_id, day_of_week, start_time, end_time)
-  VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', service_body, '019b179f-c7db-7248-bcdc-745cfa30edad', 'Mon', '1000', '1100');
+  INSERT INTO public.basic_schedules (id, client_id, service_type_id, day_of_week, start_time, end_time)
+  VALUES (schedule_id_1, '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', service_body, 'Mon', '1000', '1100');
+  
+  INSERT INTO public.basic_schedule_staff_assignments (basic_schedule_id, staff_id)
+  VALUES (schedule_id_1, '019b179f-c7db-7248-bcdc-745cfa30edad');
 
   -- B男さん: 火曜 14:00-15:00 生活支援 (担当: 次郎)
-  INSERT INTO public.basic_schedules (client_id, service_type_id, staff_id, day_of_week, start_time, end_time)
-  VALUES ('019b179f-c977-717a-ab85-8d61b628550e', service_life, '019b179f-c863-774e-ad83-4adc56163d05', 'Tue', '1400', '1500');
+  INSERT INTO public.basic_schedules (id, client_id, service_type_id, day_of_week, start_time, end_time)
+  VALUES (schedule_id_2, '019b179f-c977-717a-ab85-8d61b628550e', service_life, 'Tue', '1400', '1500');
+  
+  INSERT INTO public.basic_schedule_staff_assignments (basic_schedule_id, staff_id)
+  VALUES (schedule_id_2, '019b179f-c863-774e-ad83-4adc56163d05');
 END $$;
 
 -- 8. Shifts (シフト実体) - 直近の日付で作成

@@ -23,3 +23,14 @@ export const formatTime = (time: TimeValue): string => {
 	const minute = time.minute.toString().padStart(2, '0');
 	return `${hour}${minute}`;
 };
+
+/**
+ * TimeValueを0時からの経過分数に変換します。
+ * @param time - 変換する時刻
+ * @returns 0時からの経過分数 (0-1439)
+ * @example
+ * timeToMinutes({ hour: 9, minute: 30 }) // => 570
+ */
+export const timeToMinutes = (time: TimeValue): number => {
+	return time.hour * 60 + time.minute;
+};

@@ -28,15 +28,54 @@ export type Database = {
 	};
 	public: {
 		Tables: {
+			basic_schedule_staff_assignments: {
+				Row: {
+					basic_schedule_id: string;
+					created_at: string;
+					id: string;
+					staff_id: string;
+					updated_at: string;
+				};
+				Insert: {
+					basic_schedule_id: string;
+					created_at?: string;
+					id?: string;
+					staff_id: string;
+					updated_at?: string;
+				};
+				Update: {
+					basic_schedule_id?: string;
+					created_at?: string;
+					id?: string;
+					staff_id?: string;
+					updated_at?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'basic_schedule_staff_assignments_basic_schedule_id_fkey';
+						columns: ['basic_schedule_id'];
+						isOneToOne: false;
+						referencedRelation: 'basic_schedules';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'basic_schedule_staff_assignments_staff_id_fkey';
+						columns: ['staff_id'];
+						isOneToOne: false;
+						referencedRelation: 'staffs';
+						referencedColumns: ['id'];
+					},
+				];
+			};
 			basic_schedules: {
 				Row: {
 					client_id: string;
 					created_at: string;
 					day_of_week: Database['public']['Enums']['day_of_week'];
+					deleted_at: string | null;
 					end_time: string;
 					id: string;
 					service_type_id: string;
-					staff_id: string | null;
 					start_time: string;
 					updated_at: string;
 				};
@@ -44,10 +83,10 @@ export type Database = {
 					client_id: string;
 					created_at?: string;
 					day_of_week: Database['public']['Enums']['day_of_week'];
+					deleted_at?: string | null;
 					end_time: string;
 					id?: string;
 					service_type_id: string;
-					staff_id?: string | null;
 					start_time: string;
 					updated_at?: string;
 				};
@@ -55,10 +94,10 @@ export type Database = {
 					client_id?: string;
 					created_at?: string;
 					day_of_week?: Database['public']['Enums']['day_of_week'];
+					deleted_at?: string | null;
 					end_time?: string;
 					id?: string;
 					service_type_id?: string;
-					staff_id?: string | null;
 					start_time?: string;
 					updated_at?: string;
 				};
@@ -75,13 +114,6 @@ export type Database = {
 						columns: ['service_type_id'];
 						isOneToOne: false;
 						referencedRelation: 'service_types';
-						referencedColumns: ['id'];
-					},
-					{
-						foreignKeyName: 'basic_schedules_staff_id_fkey';
-						columns: ['staff_id'];
-						isOneToOne: false;
-						referencedRelation: 'staffs';
 						referencedColumns: ['id'];
 					},
 				];
