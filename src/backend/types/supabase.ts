@@ -75,6 +75,7 @@ export type Database = {
 					deleted_at: string | null;
 					end_time: string;
 					id: string;
+					note: string | null;
 					service_type_id: string;
 					start_time: string;
 					updated_at: string;
@@ -86,6 +87,7 @@ export type Database = {
 					deleted_at?: string | null;
 					end_time: string;
 					id?: string;
+					note?: string | null;
 					service_type_id: string;
 					start_time: string;
 					updated_at?: string;
@@ -97,6 +99,7 @@ export type Database = {
 					deleted_at?: string | null;
 					end_time?: string;
 					id?: string;
+					note?: string | null;
 					service_type_id?: string;
 					start_time?: string;
 					updated_at?: string;

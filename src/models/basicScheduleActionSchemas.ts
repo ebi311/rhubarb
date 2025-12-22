@@ -30,6 +30,7 @@ export const BasicScheduleInputSchema = withTimeRangeValidation(
 		weekday: WeekdaySchema,
 		start_time: TimeValueSchema,
 		end_time: TimeValueSchema,
+		note: z.string().max(500).nullable().optional(),
 	}),
 );
 export type BasicScheduleInput = z.infer<typeof BasicScheduleInputSchema>;
@@ -51,6 +52,7 @@ export const BasicScheduleRecordSchema = withTimeRangeValidation(
 		weekday: WeekdaySchema,
 		start_time: TimeValueSchema,
 		end_time: TimeValueSchema,
+		note: z.string().max(500).nullable().optional(),
 		deleted_at: TimestampSchema.nullable().optional(),
 		created_at: TimestampSchema,
 		updated_at: TimestampSchema,

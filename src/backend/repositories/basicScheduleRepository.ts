@@ -24,6 +24,7 @@ export class BasicScheduleRepository {
 				start: preprocessTime(row.start_time),
 				end: preprocessTime(row.end_time),
 			},
+			note: row.note ?? null,
 			staff_ids: (row.basic_schedule_staff_assignments ?? []).map((a) => a.staff_id),
 		});
 	}
@@ -36,6 +37,7 @@ export class BasicScheduleRepository {
 			day_of_week: entity.day_of_week,
 			start_time: formatTime(entity.time.start),
 			end_time: formatTime(entity.time.end),
+			note: entity.note ?? null,
 			created_at: entity.created_at.toISOString(),
 			updated_at: entity.updated_at.toISOString(),
 			deleted_at: entity.deleted_at?.toISOString() ?? null,

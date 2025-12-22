@@ -106,6 +106,7 @@ export class BasicScheduleService {
 			weekday: schedule.day_of_week,
 			start_time: schedule.time.start,
 			end_time: schedule.time.end,
+			note: schedule.note ?? null,
 			deleted_at: schedule.deleted_at ?? null,
 			created_at: schedule.created_at,
 			updated_at: schedule.updated_at,
@@ -149,6 +150,7 @@ export class BasicScheduleService {
 			service_type_id: data.service_type_id,
 			day_of_week: data.weekday,
 			time: { start: data.start_time, end: data.end_time },
+			note: data.note ?? null,
 			deleted_at: null,
 			created_at: now,
 			updated_at: now,
@@ -186,6 +188,7 @@ export class BasicScheduleService {
 			service_type_id: data.service_type_id,
 			day_of_week: data.weekday,
 			time: { start: data.start_time, end: data.end_time },
+			note: data.note ?? null,
 			deleted_at: existing.deleted_at,
 			updated_at: new Date(),
 		};

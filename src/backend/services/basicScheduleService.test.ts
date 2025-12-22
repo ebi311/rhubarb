@@ -53,6 +53,7 @@ const basicScheduleTemplate: BasicScheduleWithStaff = {
 	service_type_id: '44444444-4444-4444-8444-444444444444',
 	day_of_week: 'Mon',
 	time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
+	note: 'メモ',
 	deleted_at: null,
 	created_at: new Date(),
 	updated_at: new Date(),
@@ -103,6 +104,7 @@ describe('BasicScheduleService', () => {
 			weekday: 'Mon',
 			start_time: { hour: 9, minute: 0 },
 			end_time: { hour: 10, minute: 0 },
+			note: 'メモ',
 		});
 
 		expect(result.client_id).toBe(basicScheduleTemplate.client_id);
@@ -137,6 +139,7 @@ describe('BasicScheduleService', () => {
 				weekday: 'Mon',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },
+				note: 'メモ',
 			}),
 		).rejects.toBeInstanceOf(ServiceError);
 	});
@@ -167,6 +170,7 @@ describe('BasicScheduleService', () => {
 				weekday: 'Mon',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },
+				note: 'メモ',
 			}),
 		).rejects.toBeInstanceOf(ServiceError);
 	});
@@ -197,6 +201,7 @@ describe('BasicScheduleService', () => {
 				weekday: 'Mon',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },
+				note: 'メモ',
 			}),
 		).rejects.toBeInstanceOf(ServiceError);
 	});
@@ -227,6 +232,7 @@ describe('BasicScheduleService', () => {
 				weekday: 'Mon',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },
+				note: 'メモ',
 			}),
 		).rejects.toBeInstanceOf(ServiceError);
 	});

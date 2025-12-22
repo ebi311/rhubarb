@@ -9,6 +9,7 @@ export const BasicScheduleSchema = z.object({
 	service_type_id: z.uuid(),
 	day_of_week: DayOfWeekSchema,
 	time: TimeRangeSchema,
+	note: z.string().max(500).nullable().optional(),
 	deleted_at: TimestampSchema.nullable().optional(),
 	created_at: TimestampSchema,
 	updated_at: TimestampSchema,
