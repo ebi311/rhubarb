@@ -8,6 +8,7 @@
 		"start": "next start",
 		"lint": "eslint",
 		"test": "vitest",
+		"typecheck": "tsc --noEmit",
 		"test:ut": "vitest --project unit",
 		"test:storybook": "vitest --project storybook",
 		"test:all": "vitest",

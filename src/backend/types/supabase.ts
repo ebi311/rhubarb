@@ -361,6 +361,45 @@ export type Database = {
 					},
 				];
 			};
+			staff_service_type_abilities: {
+				Row: {
+					created_at: string;
+					id: string;
+					service_type_id: string;
+					staff_id: string;
+					updated_at: string;
+				};
+				Insert: {
+					created_at?: string;
+					id?: string;
+					service_type_id: string;
+					staff_id: string;
+					updated_at?: string;
+				};
+				Update: {
+					created_at?: string;
+					id?: string;
+					service_type_id?: string;
+					staff_id?: string;
+					updated_at?: string;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'staff_service_type_abilities_service_type_id_fkey';
+						columns: ['service_type_id'];
+						isOneToOne: false;
+						referencedRelation: 'service_types';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'staff_service_type_abilities_staff_id_fkey';
+						columns: ['staff_id'];
+						isOneToOne: false;
+						referencedRelation: 'staffs';
+						referencedColumns: ['id'];
+					},
+				];
+			};
 			staffs: {
 				Row: {
 					auth_user_id: string | null;
@@ -368,6 +407,7 @@ export type Database = {
 					email: string | null;
 					id: string;
 					name: string;
+					note: string | null;
 					office_id: string;
 					role: Database['public']['Enums']['user_role'];
 					updated_at: string;
@@ -378,6 +418,7 @@ export type Database = {
 					email?: string | null;
 					id?: string;
 					name: string;
+					note?: string | null;
 					office_id: string;
 					role?: Database['public']['Enums']['user_role'];
 					updated_at?: string;
@@ -388,6 +429,7 @@ export type Database = {
 					email?: string | null;
 					id?: string;
 					name?: string;
+					note?: string | null;
 					office_id?: string;
 					role?: Database['public']['Enums']['user_role'];
 					updated_at?: string;
