@@ -8,6 +8,13 @@ import { createSupabaseClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 import { ActionResult, errorResult, successResult } from './utils/actionResult';
 
+export const ServiceTypeOptionSchema = z.object({
+	id: z.string().uuid(),
+	name: z.string().min(1),
+});
+
+export type ServiceTypeOption = z.infer<typeof ServiceTypeOptionSchema>;
+
 const getAuthUser = async () => {
 	const supabase = await createSupabaseClient();
 	const {
@@ -115,4 +122,34 @@ export const deleteStaffAction = async (id: string): Promise<ActionResult<null>>
 	} catch (err) {
 		return handleServiceError<null>(err);
 	}
+};
+
+export const listServiceTypesAction = async (): Promise<ActionResult<ServiceTypeOption[]>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const { data: staff, error: staffError } = await supabase
+		.from('staffs')
+		.select('office_id, role')
+		.eq('auth_user_id', user.id)
+		.maybeSingle<{ office_id: string; role: string }>();
+
+	if (staffError) return errorResult('Failed to resolve staff context', 500, staffError);
+	if (!staff) return errorResult('Staff not found', 404);
+	if (staff.role !== 'admin') return errorResult('Forbidden', 403);
+
+	const { data, error: serviceTypeError } = await supabase
+		.from('service_types')
+		.select('id, name')
+		.eq('office_id', staff.office_id)
+		.order('name', { ascending: true });
+
+	if (serviceTypeError) return errorResult('Failed to fetch service types', 500, serviceTypeError);
+
+	const parsed = ServiceTypeOptionSchema.array().safeParse(data ?? []);
+	if (!parsed.success) {
+		return errorResult('Invalid service type data', 500, parsed.error.flatten());
+	}
+
+	return successResult(parsed.data);
 };
