@@ -121,3 +121,50 @@
 - 渡した場合は指定サービス区分のみが許可され、BasicSchedule 作成時のチェックで利用可能。
 - スタッフに note を保存でき、API レスポンスで参照できる。
 - 追加した単体テストが `pnpm test:ut --run` で全て成功する。
+
+## フロントエンド仕様
+
+### ページ / コンポーネント構成
+
+- `/admin/staffs/page.tsx` (Server Component) で `listStaffsAction` と `listServiceTypesAction`（同一オフィスのサービス区分一覧を返す新規/既存アクション）を並列実行し、`StaffListPageClient` に `staffs`, `serviceTypes` を渡す。
+- `StaffListPageClient` で以下のクライアントコンポーネントを組み合わせる。
+  - `StaffFilterBar`: フリーワード + ロールフィルタ。
+  - `StaffTable`: 一覧表示、行アクション (編集/削除) を提供。
+  - `StaffFormModal`: 作成/編集モード両対応。
+  - `DeleteStaffDialog`: 削除確認用。
+  - `ToastHost`: DaisyUI toast をまとめて描画。
+
+### データ取得と ViewModel 変換
+
+- `listStaffsAction` の戻り値 (`StaffRecord`) を `StaffViewModel` に正規化。
+  - `service_type_ids` を `serviceTypes` の辞書に紐づけ、`{ id, name }` 配列へ変換。名称が取得できない場合は `id` をフォールバック表示。
+  - `updated_at` は `Intl.DateTimeFormat` でローカル時刻表示 (サーバー側で整形)。
+- `serviceTypes` データは `{ id, name, code }` 程度に抑え、フォームのチェックボックスリストで使用する。
+
+### 状態管理方針
+
+- フィルタ・モーダル・トースト等の UI 状態は `StaffListPageClient` 内のローカル state (`useState`) で管理する。URL Query への同期は不要。
+- 編集対象スタッフは `useState<StaffViewModel | null>` で保持し、モーダル開閉と同時にセット/クリアする。
+- CRUD 実行後は `router.refresh()` で最新データを取得し、同時に toast を表示する。
+
+### フォーム & バリデーション
+
+- `StaffFormModal` は `react-hook-form` + `@hookform/resolvers/zod` を利用し、`StaffInputSchema` をそのまま適用。
+- `note` フィールドには 500 文字カウンタを表示し、空白のみ入力は送信時に `'' -> null` に正規化する（サービスが同処理を実施するが UI でも合わせる）。
+- サービス区分セレクタは checklist + "全選択/全解除" トグルを提供。未選択のまま送信した場合は、Server Action が全区分を補完することを UI 上もメッセージで案内する。
+- Server Action の `ActionResult` で `status >= 400` の場合は `formState.setError('root', { message })` でグローバルエラー表示。
+
+### トースト / フィードバック
+
+- `useActionResultHandler` (新規フック) で `successResult` / `errorResult` を解釈し、DaisyUI `toast` + `alert-*` でユーザーへ通知する。
+- 成功時: `alert-success`、失敗時: `alert-error`。削除成功は 2 秒で自動 dismiss。
+- ローディング中は `btn` に `loading` クラスを付与し、Server Action 実行を 1 リクエストずつに制御する。
+
+### テスト / Storybook 方針
+
+- 各コンポーネント実装時に **UT (`*.test.tsx`) と Storybook (`*.stories.tsx`) を同時作成** し、フィルタロジックやフォーム送信のシナリオをモックで検証する。
+- Storybook では以下のステートを最低限用意する。
+  - `StaffTable`: default / empty / loading (skeleton) / error。
+  - `StaffFormModal`: create / edit / validation error。
+  - `ServiceTypeSelector`: many-options / none-selected。
+- UT は Vitest + Testing Library を用い、`pnpm test:ut --run` で既存スイートに統合する。
