@@ -79,9 +79,9 @@
 ## documents
 
 - ドキュメントは、Markdown 形式で、言語は日本語で書く。
-- docs/reports/{yyyy-mm-dd HH:MM}-{簡単な内容(英語)}.md : 調査レポート
-- docs/features/{yyyy-mm-dd HH:MM}-{簡単な内容(英語)}.md : 機能仕様書
-- docs/task/{yyyy-mm-dd HH:MM}-{簡単な内容(英語)}.md : タスク
+- docs/reports/{yyyy-MM-dd HH:mm}-{簡単な内容(英語)}.md : 調査レポート
+- docs/features/{yyyy-MM-dd HH:mm}-{簡単な内容(英語)}.md : 機能仕様書
+- docs/task/{yyyy-MMfdd HH:mm}-{簡単な内容(英語)}.md : タスク
 
 ### コンポーネントの構成規則
 
