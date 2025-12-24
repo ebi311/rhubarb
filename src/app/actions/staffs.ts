@@ -8,8 +8,8 @@ import { createSupabaseClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 import { ActionResult, errorResult, successResult } from './utils/actionResult';
 
-export const ServiceTypeOptionSchema = z.object({
-	id: z.string().uuid(),
+const ServiceTypeOptionSchema = z.object({
+	id: z.uuid(),
 	name: z.string().min(1),
 });
 
@@ -141,14 +141,14 @@ export const listServiceTypesAction = async (): Promise<ActionResult<ServiceType
 	const { data, error: serviceTypeError } = await supabase
 		.from('service_types')
 		.select('id, name')
-		.eq('office_id', staff.office_id)
+		// .eq('office_id', staff.office_id)
 		.order('name', { ascending: true });
 
 	if (serviceTypeError) return errorResult('Failed to fetch service types', 500, serviceTypeError);
 
 	const parsed = ServiceTypeOptionSchema.array().safeParse(data ?? []);
 	if (!parsed.success) {
-		return errorResult('Invalid service type data', 500, parsed.error.flatten());
+		return errorResult('Invalid service type data', 500, z.treeifyError(parsed.error));
 	}
 
 	return successResult(parsed.data);

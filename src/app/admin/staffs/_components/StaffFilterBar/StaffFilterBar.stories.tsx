@@ -9,18 +9,16 @@ const meta = {
 	component: StaffFilterBar,
 	args: {
 		filters: defaultFilters,
-		onChange: () => undefined,
 	},
 	parameters: {
 		layout: 'centered',
+		nextjs: {
+			router: {
+				pathname: '/admin/staffs',
+				query: {},
+			},
+		},
 	},
-	// decorators: [
-	// 	(Story) => (
-	// 		<div className="p-10 w-[640px]">
-	// 			<Story />
-	// 		</div>
-	// 	),
-	// ],
 } satisfies Meta<typeof StaffFilterBar>;
 
 export default meta;

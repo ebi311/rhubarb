@@ -9,6 +9,9 @@ const preview: Preview = {
 				date: /Date$/i,
 			},
 		},
+		nextjs: {
+			appDirectory: true,
+		},
 
 		a11y: {
 			// 'todo' - show a11y violations in the test UI only

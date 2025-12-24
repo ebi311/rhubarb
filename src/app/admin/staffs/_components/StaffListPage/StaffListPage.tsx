@@ -1,7 +1,4 @@
-'use client';
-
 import type { StaffRecord } from '@/models/staffActionSchemas';
-import { useMemo, useState } from 'react';
 import type { ServiceTypeOption, StaffFilterState, StaffViewModel } from '../../_types';
 import { StaffFilterBar } from '../StaffFilterBar';
 import { StaffTable } from '../StaffTable';
@@ -9,6 +6,7 @@ import { StaffTable } from '../StaffTable';
 interface StaffListPageClientProps {
 	initialStaffs: StaffRecord[];
 	serviceTypes: ServiceTypeOption[];
+	filters: StaffFilterState;
 }
 
 const formatDateTime = (date: Date) =>
@@ -38,16 +36,17 @@ const toViewModel = (staff: StaffRecord, serviceTypeMap: Map<string, string>): S
 	updatedAt: formatDateTime(staff.updated_at),
 });
 
-export const StaffListPageClient = ({ initialStaffs, serviceTypes }: StaffListPageClientProps) => {
-	const serviceTypeMap = useMemo(() => buildServiceTypeMap(serviceTypes), [serviceTypes]);
-	const staffViewModels = useMemo(
-		() => initialStaffs.map((staff) => toViewModel(staff, serviceTypeMap)),
-		[initialStaffs, serviceTypeMap],
-	);
+export const StaffListPage = ({
+	initialStaffs,
+	serviceTypes,
+	filters,
+}: StaffListPageClientProps) => {
+	const serviceTypeMap = buildServiceTypeMap(serviceTypes);
+	const staffViewModels = initialStaffs.map((staff) => toViewModel(staff, serviceTypeMap));
 
-	const [filters, setFilters] = useState<StaffFilterState>({ query: '', role: 'all' });
+	// const [filters, setFilters] = useState<StaffFilterState>({ query: '', role: 'all' });
 
-	const filteredStaffs = useMemo(() => {
+	const filteredStaffs = (() => {
 		const keyword = filters.query.trim().toLowerCase();
 		return staffViewModels.filter((staff) => {
 			const matchesKeyword =
@@ -57,7 +56,7 @@ export const StaffListPageClient = ({ initialStaffs, serviceTypes }: StaffListPa
 			const matchesRole = filters.role === 'all' || staff.role === filters.role;
 			return matchesKeyword && matchesRole;
 		});
-	}, [filters, staffViewModels]);
+	})();
 
 	return (
 		<section className="space-y-6">
@@ -72,7 +71,7 @@ export const StaffListPageClient = ({ initialStaffs, serviceTypes }: StaffListPa
 					＋ 担当者を追加
 				</button>
 			</div>
-			<StaffFilterBar filters={filters} onChange={setFilters} />
+			<StaffFilterBar filters={filters} />
 			<StaffTable staffs={filteredStaffs} />
 		</section>
 	);

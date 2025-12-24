@@ -1,8 +1,20 @@
 import type { StaffRecord } from '@/models/staffActionSchemas';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { useRouter } from 'next/navigation';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ServiceTypeOption } from '../../_types';
-import { StaffListPageClient } from './StaffListPageClient';
+import { StaffListPage } from './StaffListPage';
+
+vi.mock('next/navigation');
+
+const replaceMock = vi.fn();
+
+beforeEach(() => {
+	vi.clearAllMocks();
+	vi.mocked(useRouter).mockReturnValue({
+		replace: replaceMock,
+	} as any);
+});
 
 const buildStaff = (overrides: Partial<StaffRecord> = {}): StaffRecord => ({
 	id: '019b1d20-0000-4000-8000-000000000999',
@@ -26,12 +38,13 @@ describe('StaffListPageClient', () => {
 
 	it('担当者一覧を表示する', () => {
 		render(
-			<StaffListPageClient
+			<StaffListPage
 				initialStaffs={[
 					buildStaff(),
 					buildStaff({ id: 'staff-2', name: '佐藤花子', role: 'helper' }),
 				]}
 				serviceTypes={serviceTypes}
+				filters={{ query: '', role: 'all' }}
 			/>,
 		);
 
@@ -43,14 +56,12 @@ describe('StaffListPageClient', () => {
 
 	it('検索フィルタで結果を絞り込む', () => {
 		render(
-			<StaffListPageClient
+			<StaffListPage
 				initialStaffs={[buildStaff(), buildStaff({ id: 'staff-2', name: '佐藤花子' })]}
 				serviceTypes={serviceTypes}
+				filters={{ query: '佐藤花子', role: 'all' }}
 			/>,
 		);
-
-		const searchInput = screen.getByPlaceholderText('氏名・メールで検索');
-		fireEvent.change(searchInput, { target: { value: '佐藤' } });
 
 		expect(screen.queryByText('山田太郎')).not.toBeInTheDocument();
 		expect(screen.getByText('佐藤花子')).toBeInTheDocument();

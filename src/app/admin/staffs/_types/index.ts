@@ -23,3 +23,10 @@ export type StaffFilterState = {
 	query: string;
 	role: StaffFilterRole;
 };
+
+export const convertStaffFilterRole = (val: string | null | undefined) => {
+	if (STAFF_FILTER_ROLES.includes(val as StaffFilterRole)) {
+		return val as StaffFilterRole;
+	}
+	return 'all';
+};

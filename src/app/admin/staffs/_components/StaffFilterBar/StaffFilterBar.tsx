@@ -1,12 +1,12 @@
 'use client';
 
 import classNames from 'classnames';
+import { useRouter } from 'next/navigation';
 import type { ChangeEvent } from 'react';
 import { STAFF_FILTER_ROLES, type StaffFilterState } from '../../_types';
 
 interface StaffFilterBarProps {
 	filters: StaffFilterState;
-	onChange: (next: StaffFilterState) => void;
 }
 
 const roleLabels: Record<StaffFilterState['role'], string> = {
@@ -15,7 +15,19 @@ const roleLabels: Record<StaffFilterState['role'], string> = {
 	helper: 'ヘルパー',
 };
 
-export const StaffFilterBar = ({ filters, onChange }: StaffFilterBarProps) => {
+export const StaffFilterBar = ({ filters }: StaffFilterBarProps) => {
+	const router = useRouter();
+	const onChange = (newFilters: StaffFilterState) => {
+		const params = new URLSearchParams();
+		if (newFilters.query.trim() !== '') {
+			params.set('query', newFilters.query.trim());
+		}
+		if (newFilters.role !== 'all') {
+			params.set('role', newFilters.role);
+		}
+		const queryString = params.toString();
+		router.replace(`?${queryString}`);
+	};
 	const handleQueryChange = (event: ChangeEvent<HTMLInputElement>) => {
 		onChange({ ...filters, query: event.target.value });
 	};
