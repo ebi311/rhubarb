@@ -21,7 +21,7 @@ type TestHarnessProps<T> = {
 const TestHarness = <T,>({ onReady }: TestHarnessProps<T>) => {
 	const { handleActionResult } = useActionResultHandler();
 	useEffect(() => {
-		onReady(handleActionResult);
+		onReady(handleActionResult as any);
 	}, [handleActionResult, onReady]);
 	return null;
 };
@@ -33,7 +33,7 @@ describe('useActionResultHandler', () => {
 		await waitFor(() => {
 			expect(ready).toHaveBeenCalled();
 		});
-		return ready.mock.calls.at(-1)[0] as (result: ActionResult<T>, options?: unknown) => boolean;
+		return ready.mock.calls.at(-1)![0] as (result: ActionResult<T>, options?: unknown) => boolean;
 	};
 
 	beforeEach(() => {
