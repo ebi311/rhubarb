@@ -3,6 +3,7 @@
 import { createStaffAction, updateStaffAction } from '@/app/actions/staffs';
 import { FormInput } from '@/components/forms/FormInput';
 import { FormTextarea } from '@/components/forms/FormTextarea';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { StaffInputSchema } from '@/models/staffActionSchemas';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -70,6 +71,7 @@ const buildDefaultValues = (props: StaffFormModalProps): StaffFormValues => {
 export const StaffFormModal = (props: StaffFormModalProps) => {
 	const { isOpen, mode, serviceTypes, onClose, onSuccess } = props;
 	const [apiError, setApiError] = useState<string | null>(null);
+	const { handleActionResult } = useActionResultHandler();
 
 	const { control, register, reset, handleSubmit, formState } = useForm<
 		StaffFormValues,
@@ -102,7 +104,13 @@ export const StaffFormModal = (props: StaffFormModalProps) => {
 				? await createStaffAction(values)
 				: await updateStaffAction(props.staff.id, values);
 
-		if (result.error || !result.data) {
+		const handledSuccessfully = handleActionResult(result, {
+			successMessage: mode === 'create' ? '担当者を登録しました' : '担当者情報を更新しました',
+			errorMessage:
+				mode === 'create' ? '担当者の登録に失敗しました' : '担当者情報の更新に失敗しました',
+		});
+
+		if (!handledSuccessfully || !result.data) {
 			setApiError(result.error ?? '不明なエラーが発生しました');
 			return;
 		}

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { fn } from 'storybook/test';
 import type { StaffViewModel } from '../../_types';
 import { StaffTable } from './StaffTable';
 
@@ -31,6 +32,8 @@ const meta = {
 	component: StaffTable,
 	args: {
 		staffs: sampleStaffs,
+		onEdit: fn(),
+		onDelete: fn(),
 	},
 	parameters: {
 		layout: 'fullscreen',

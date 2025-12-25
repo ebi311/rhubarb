@@ -2,6 +2,8 @@ import type { StaffViewModel } from '../../_types';
 
 interface StaffTableProps {
 	staffs: StaffViewModel[];
+	onEdit?: (staffId: string) => void;
+	onDelete?: (staffId: string) => void;
 }
 
 const roleLabel: Record<StaffViewModel['role'], string> = {
@@ -11,7 +13,9 @@ const roleLabel: Record<StaffViewModel['role'], string> = {
 
 const emptyMessage = '該当する担当者がいません';
 
-export const StaffTable = ({ staffs }: StaffTableProps) => {
+export const StaffTable = ({ staffs, onEdit, onDelete }: StaffTableProps) => {
+	const hasActions = Boolean(onEdit || onDelete);
+
 	if (staffs.length === 0) {
 		return (
 			<div className="alert alert-info" role="status">
@@ -31,6 +35,7 @@ export const StaffTable = ({ staffs }: StaffTableProps) => {
 						<th>担当サービス区分</th>
 						<th>備考</th>
 						<th>更新日時</th>
+						{hasActions && <th className="w-32 text-right">操作</th>}
 					</tr>
 				</thead>
 				<tbody>
@@ -55,6 +60,30 @@ export const StaffTable = ({ staffs }: StaffTableProps) => {
 							</td>
 							<td>{staff.note ?? '―'}</td>
 							<td>{staff.updatedAt}</td>
+							{hasActions && (
+								<td>
+									<div className="flex flex-wrap justify-end gap-2">
+										{onEdit && (
+											<button
+												type="button"
+												className="btn btn-ghost btn-xs"
+												onClick={() => onEdit(staff.id)}
+											>
+												編集
+											</button>
+										)}
+										{onDelete && (
+											<button
+												type="button"
+												className="btn btn-outline btn-error btn-xs"
+												onClick={() => onDelete(staff.id)}
+											>
+												削除
+											</button>
+										)}
+									</div>
+								</td>
+							)}
 						</tr>
 					))}
 				</tbody>

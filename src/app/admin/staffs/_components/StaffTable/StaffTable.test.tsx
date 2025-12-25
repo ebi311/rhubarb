@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import type { StaffViewModel } from '../../_types';
 import { StaffTable } from './StaffTable';
 
@@ -42,5 +43,19 @@ describe('StaffTable', () => {
 		render(<StaffTable staffs={[]} />);
 
 		expect(screen.getByText('該当する担当者がいません')).toBeInTheDocument();
+	});
+
+	it('編集・削除ボタンの操作をハンドラへ伝播する', async () => {
+		const user = userEvent.setup();
+		const handleEdit = vi.fn();
+		const handleDelete = vi.fn();
+
+		render(<StaffTable staffs={mockStaffs} onEdit={handleEdit} onDelete={handleDelete} />);
+
+		await user.click(screen.getAllByRole('button', { name: '編集' })[0]);
+		await user.click(screen.getAllByRole('button', { name: '削除' })[1]);
+
+		expect(handleEdit).toHaveBeenCalledWith('019b1d20-0000-4000-8000-000000000111');
+		expect(handleDelete).toHaveBeenCalledWith('019b1d20-0000-4000-8000-000000000222');
 	});
 });

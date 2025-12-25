@@ -8,6 +8,11 @@ vi.mock('@/app/actions/staffs', () => ({
 	deleteStaffAction: vi.fn(),
 }));
 
+const handleActionResultMock = vi.fn();
+vi.mock('@/hooks/useActionResultHandler', () => ({
+	useActionResultHandler: () => ({ handleActionResult: handleActionResultMock }),
+}));
+
 const mockStaff = {
 	id: '019b1d20-0000-4000-8000-000000000aaa',
 	name: '山田太郎',
@@ -19,6 +24,8 @@ const errorResult = (message: string) => ({ data: null, error: message, status: 
 describe('DeleteStaffDialog', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		handleActionResultMock.mockReset();
+		handleActionResultMock.mockReturnValue(true);
 	});
 
 	it('担当者名が一致するまで削除ボタンは無効のまま', async () => {
@@ -58,12 +65,14 @@ describe('DeleteStaffDialog', () => {
 
 		expect(handleDeleted).toHaveBeenCalledWith('019b1d20-0000-4000-8000-000000000aaa');
 		expect(handleClose).toHaveBeenCalled();
+		expect(handleActionResultMock).toHaveBeenCalled();
 	});
 
 	it('API エラー時はエラーメッセージを表示する', async () => {
 		const user = userEvent.setup();
 		const handleClose = vi.fn();
 		vi.mocked(deleteStaffAction).mockResolvedValue(errorResult('削除に失敗しました'));
+		handleActionResultMock.mockReturnValue(false);
 
 		render(<DeleteStaffDialog isOpen staff={mockStaff} onClose={handleClose} />);
 

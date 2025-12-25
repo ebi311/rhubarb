@@ -1,6 +1,12 @@
+'use client';
+
 import type { StaffRecord } from '@/models/staffActionSchemas';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import type { ServiceTypeOption, StaffFilterState, StaffViewModel } from '../../_types';
+import { DeleteStaffDialog } from '../DeleteStaffDialog';
 import { StaffFilterBar } from '../StaffFilterBar';
+import { StaffFormModal } from '../StaffFormModal';
 import { StaffTable } from '../StaffTable';
 
 interface StaffListPageClientProps {
@@ -41,12 +47,23 @@ export const StaffListPage = ({
 	serviceTypes,
 	filters,
 }: StaffListPageClientProps) => {
-	const serviceTypeMap = buildServiceTypeMap(serviceTypes);
-	const staffViewModels = initialStaffs.map((staff) => toViewModel(staff, serviceTypeMap));
+	const router = useRouter();
+	const [staffs, setStaffs] = useState(initialStaffs);
+	const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+	const [editingStaff, setEditingStaff] = useState<StaffRecord | null>(null);
+	const [deletingStaff, setDeletingStaff] = useState<Pick<StaffRecord, 'id' | 'name'> | null>(null);
 
-	// const [filters, setFilters] = useState<StaffFilterState>({ query: '', role: 'all' });
+	useEffect(() => {
+		setStaffs(initialStaffs);
+	}, [initialStaffs]);
 
-	const filteredStaffs = (() => {
+	const serviceTypeMap = useMemo(() => buildServiceTypeMap(serviceTypes), [serviceTypes]);
+	const staffViewModels = useMemo(
+		() => staffs.map((staff) => toViewModel(staff, serviceTypeMap)),
+		[staffs, serviceTypeMap],
+	);
+
+	const filteredStaffs = useMemo(() => {
 		const keyword = filters.query.trim().toLowerCase();
 		return staffViewModels.filter((staff) => {
 			const matchesKeyword =
@@ -56,7 +73,47 @@ export const StaffListPage = ({
 			const matchesRole = filters.role === 'all' || staff.role === filters.role;
 			return matchesKeyword && matchesRole;
 		});
-	})();
+	}, [filters, staffViewModels]);
+
+	const refreshSafely = () => {
+		try {
+			router.refresh();
+		} catch (error) {
+			console.error('Failed to refresh staffs after mutation', error);
+		}
+	};
+
+	const handleCreateSuccess = (staff: StaffRecord) => {
+		setStaffs((prev) => [staff, ...prev.filter((item) => item.id !== staff.id)]);
+		setCreateModalOpen(false);
+		refreshSafely();
+	};
+
+	const handleEditSuccess = (staff: StaffRecord) => {
+		setStaffs((prev) => prev.map((item) => (item.id === staff.id ? staff : item)));
+		setEditingStaff(null);
+		refreshSafely();
+	};
+
+	const handleDeleteSuccess = (staffId: string) => {
+		setStaffs((prev) => prev.filter((item) => item.id !== staffId));
+		setDeletingStaff(null);
+		refreshSafely();
+	};
+
+	const openEditModal = (staffId: string) => {
+		const target = staffs.find((staff) => staff.id === staffId);
+		if (target) {
+			setEditingStaff(target);
+		}
+	};
+
+	const openDeleteDialog = (staffId: string) => {
+		const target = staffs.find((staff) => staff.id === staffId);
+		if (target) {
+			setDeletingStaff({ id: target.id, name: target.name });
+		}
+	};
 
 	return (
 		<section className="space-y-6">
@@ -67,12 +124,37 @@ export const StaffListPage = ({
 						サービス区分権限と備考情報を含む担当者の一覧です。
 					</p>
 				</div>
-				<button type="button" className="btn btn-primary" disabled>
+				<button type="button" className="btn btn-primary" onClick={() => setCreateModalOpen(true)}>
 					＋ 担当者を追加
 				</button>
 			</div>
 			<StaffFilterBar filters={filters} />
-			<StaffTable staffs={filteredStaffs} />
+			<StaffTable staffs={filteredStaffs} onEdit={openEditModal} onDelete={openDeleteDialog} />
+			<StaffFormModal
+				isOpen={isCreateModalOpen}
+				mode="create"
+				serviceTypes={serviceTypes}
+				onClose={() => setCreateModalOpen(false)}
+				onSuccess={handleCreateSuccess}
+			/>
+			{editingStaff && (
+				<StaffFormModal
+					isOpen
+					mode="edit"
+					staff={editingStaff}
+					serviceTypes={serviceTypes}
+					onClose={() => setEditingStaff(null)}
+					onSuccess={handleEditSuccess}
+				/>
+			)}
+			{deletingStaff && (
+				<DeleteStaffDialog
+					isOpen
+					staff={deletingStaff}
+					onClose={() => setDeletingStaff(null)}
+					onDeleted={handleDeleteSuccess}
+				/>
+			)}
 		</section>
 	);
 };

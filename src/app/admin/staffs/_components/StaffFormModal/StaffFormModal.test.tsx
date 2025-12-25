@@ -11,6 +11,13 @@ vi.mock('@/app/actions/staffs', () => ({
 	updateStaffAction: vi.fn(),
 }));
 
+const handleActionResultMock = vi.fn();
+vi.mock('@/hooks/useActionResultHandler', () => ({
+	useActionResultHandler: () => ({
+		handleActionResult: handleActionResultMock,
+	}),
+}));
+
 const serviceTypes: ServiceTypeOption[] = [
 	{ id: '019b1d20-0000-4000-8000-000000000111', name: '身体介護' },
 	{ id: '019b1d20-0000-4000-8000-000000000222', name: '生活援助' },
@@ -35,6 +42,8 @@ const errorResult = (message: string, status = 400) => ({ data: null, error: mes
 describe('StaffFormModal', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		handleActionResultMock.mockReset();
+		handleActionResultMock.mockReturnValue(true);
 	});
 
 	it('作成モードで初期状態のフォームが表示される', () => {
@@ -98,6 +107,7 @@ describe('StaffFormModal', () => {
 
 		expect(handleSuccess).toHaveBeenCalledWith(sampleStaff);
 		expect(handleClose).toHaveBeenCalled();
+		expect(handleActionResultMock).toHaveBeenCalled();
 	});
 
 	it('編集モードで更新するとupdateStaffActionが呼ばれる', async () => {
@@ -130,11 +140,13 @@ describe('StaffFormModal', () => {
 		});
 
 		expect(handleClose).toHaveBeenCalled();
+		expect(handleActionResultMock).toHaveBeenCalled();
 	});
 
 	it('API エラー時にエラーメッセージを表示する', async () => {
 		const user = userEvent.setup();
 		vi.mocked(createStaffAction).mockResolvedValue(errorResult('Validation failed'));
+		handleActionResultMock.mockReturnValue(false);
 
 		render(<StaffFormModal isOpen mode="create" serviceTypes={serviceTypes} onClose={vi.fn()} />);
 

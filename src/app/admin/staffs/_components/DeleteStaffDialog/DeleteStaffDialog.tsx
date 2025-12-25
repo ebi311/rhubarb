@@ -1,6 +1,7 @@
 'use client';
 
 import { deleteStaffAction } from '@/app/actions/staffs';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useState } from 'react';
@@ -34,6 +35,7 @@ export const DeleteStaffDialog = ({
 }: DeleteStaffDialogProps) => {
 	const [apiError, setApiError] = useState<string | null>(null);
 	const confirmationSchema = useMemo(() => buildConfirmationSchema(staff.name), [staff.name]);
+	const { handleActionResult } = useActionResultHandler();
 
 	const { register, handleSubmit, reset, formState } = useForm<DeleteStaffFormValues>({
 		resolver: zodResolver(confirmationSchema),
@@ -60,7 +62,11 @@ export const DeleteStaffDialog = ({
 	const onSubmit = handleSubmit(async () => {
 		setApiError(null);
 		const result = await deleteStaffAction(staff.id);
-		if (result.error) {
+		const handledSuccessfully = handleActionResult(result, {
+			successMessage: '担当者を削除しました',
+			errorMessage: '担当者の削除に失敗しました',
+		});
+		if (!handledSuccessfully) {
 			setApiError(result.error ?? '不明なエラーが発生しました');
 			return;
 		}
