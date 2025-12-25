@@ -115,6 +115,22 @@
 - Service: 管理者判定、ServiceType 範囲チェック、note の正規化
 - Server Action: 認証失敗/成功、バリデーション、サービス層エラーハンドリング
 
+## UI 操作手順 (Step #9)
+
+1. `/admin/staffs` にアクセスすると、`StaffFilterBar` と `StaffTable` が初期表示される。
+2. フリーワード・ロール切替で即時にテーブルが絞り込まれる（URL クエリ同期あり）。
+3. 「＋ 担当者を追加」から `StaffFormModal` を開き、フォーム送信で `createStaffAction` を実行。成功時は React-Toastify の成功トーストとともに一覧へ即時反映される。
+4. 各行の「編集」アクションで既存データ付きの `StaffFormModal` を開き、更新成功後にトースト + 行のリフレッシュが行われる。
+5. 各行の「削除」で `DeleteStaffDialog` を開き、担当者名確認後に `deleteStaffAction` を実行。成功トーストとともに該当行が削除される。
+6. フォーム/API エラー時は `useActionResultHandler` により失敗トーストが表示され、同時にフォーム下部へエラーメッセージが出力される。
+
+## 動作確認ログ (Step #9)
+
+| 日時       | コマンド             | 結果               |
+| ---------- | -------------------- | ------------------ |
+| 2025-12-25 | `pnpm test:ut --run` | 131 Tests Passed   |
+| 2025-12-25 | `pnpm storybook`     | UI 表示確認 (手動) |
+
 ## 受入基準
 
 - スタッフ作成時に `service_type_ids` を渡さなくても全サービス区分が自動設定される。
