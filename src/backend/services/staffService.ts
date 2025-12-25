@@ -38,23 +38,19 @@ export class StaffService {
 		return staff;
 	}
 
-	private async assertServiceTypesBelongToOffice(serviceTypeIds: string[], officeId: string) {
+	private async assertServiceTypesExist(serviceTypeIds: string[]) {
 		if (serviceTypeIds.length === 0) return;
 		const { data, error } = await this.supabase
 			.from('service_types')
-			.select('id, office_id')
-			.in('id', serviceTypeIds)
-			.eq('office_id', officeId);
+			.select('id')
+			.in('id', serviceTypeIds);
 		if (error) throw error;
 		if ((data ?? []).length !== serviceTypeIds.length)
-			throw new ServiceError(400, 'Service type does not belong to office');
+			throw new ServiceError(400, 'Service type not found');
 	}
 
-	private async findOfficeServiceTypeIds(officeId: string): Promise<string[]> {
-		const { data, error } = await this.supabase
-			.from('service_types')
-			.select('id')
-			.eq('office_id', officeId);
+	private async findAllServiceTypeIds(): Promise<string[]> {
+		const { data, error } = await this.supabase.from('service_types').select('id');
 		if (error) throw error;
 		return (data ?? []).map((row) => row.id);
 	}
@@ -84,8 +80,8 @@ export class StaffService {
 		const data = parsed.data;
 		const serviceTypeIds = data.service_type_ids?.length
 			? data.service_type_ids
-			: await this.findOfficeServiceTypeIds(admin.office_id);
-		await this.assertServiceTypesBelongToOffice(serviceTypeIds, admin.office_id);
+			: await this.findAllServiceTypeIds();
+		await this.assertServiceTypesExist(serviceTypeIds);
 		const staff = await this.staffRepository.create({
 			office_id: admin.office_id,
 			name: data.name,
@@ -109,8 +105,8 @@ export class StaffService {
 			? data.service_type_ids
 			: existing.service_type_ids.length > 0
 				? existing.service_type_ids
-				: await this.findOfficeServiceTypeIds(admin.office_id);
-		await this.assertServiceTypesBelongToOffice(serviceTypeIds, admin.office_id);
+				: await this.findAllServiceTypeIds();
+		await this.assertServiceTypesExist(serviceTypeIds);
 		const staff = await this.staffRepository.update(id, {
 			name: data.name,
 			role: data.role,

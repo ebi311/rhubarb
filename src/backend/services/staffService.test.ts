@@ -80,13 +80,14 @@ describe('StaffService', () => {
 		};
 
 		it('バリデーションに成功すると作成', async () => {
-			const eqMock = vi.fn().mockResolvedValue({
-				data: [{ id: ids.svc1, office_id: ids.office }],
+			const inMock = vi.fn().mockResolvedValue({
+				data: [{ id: ids.svc1 }],
 				error: null,
 			});
-			const inMock = vi.fn().mockReturnValue({ eq: eqMock });
-			vi.spyOn(supabase, 'from').mockReturnValue({
-				select: () => ({ in: inMock }),
+			const selectMock = vi.fn().mockReturnValue({ in: inMock });
+			const fromMock = supabase.from as ReturnType<typeof vi.fn>;
+			fromMock.mockReturnValue({
+				select: selectMock,
 			} as any);
 
 			(staffRepository.create as any).mockResolvedValue(
@@ -96,6 +97,31 @@ describe('StaffService', () => {
 			const result = await service.create(ids.auth, input);
 			expect(result.service_type_ids).toEqual([ids.svc1]);
 			expect(staffRepository.create).toHaveBeenCalled();
+		});
+
+		it('サービス区分未指定の場合は全件を紐付ける', async () => {
+			const defaultIds = [ids.svc1, ids.svc2];
+			const selectAllMock = vi.fn().mockResolvedValue({
+				data: defaultIds.map((id) => ({ id })),
+				error: null,
+			});
+			const inMock = vi.fn().mockResolvedValue({
+				data: defaultIds.map((id) => ({ id })),
+				error: null,
+			});
+			const fromMock = supabase.from as ReturnType<typeof vi.fn>;
+			fromMock.mockReturnValueOnce({ select: selectAllMock } as any).mockReturnValueOnce({
+				select: () => ({ in: inMock }),
+			} as any);
+
+			(staffRepository.create as any).mockResolvedValue(
+				mockStaff({ service_type_ids: defaultIds }),
+			);
+
+			const result = await service.create(ids.auth, { ...input, service_type_ids: [] });
+			expect(result.service_type_ids).toEqual(defaultIds);
+			expect(selectAllMock).toHaveBeenCalledWith('id');
+			expect(inMock).toHaveBeenCalledWith('id', defaultIds);
 		});
 	});
 
@@ -109,12 +135,12 @@ describe('StaffService', () => {
 		};
 
 		it('既存スタッフを更新できる', async () => {
-			const eqMock = vi.fn().mockResolvedValue({
-				data: [{ id: ids.svc2, office_id: ids.office }],
+			const inMock = vi.fn().mockResolvedValue({
+				data: [{ id: ids.svc2 }],
 				error: null,
 			});
-			const inMock = vi.fn().mockReturnValue({ eq: eqMock });
-			vi.spyOn(supabase, 'from').mockReturnValue({
+			const fromMock = supabase.from as ReturnType<typeof vi.fn>;
+			fromMock.mockReturnValue({
 				select: () => ({ in: inMock }),
 			} as any);
 

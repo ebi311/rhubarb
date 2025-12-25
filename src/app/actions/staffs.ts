@@ -6,7 +6,7 @@ import type { StaffInput, StaffRecord } from '@/models/staffActionSchemas';
 import { StaffInputSchema } from '@/models/staffActionSchemas';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { z } from 'zod';
-import { ActionResult, errorResult, successResult } from './utils/actionResult';
+import { ActionResult, errorResult, logServerError, successResult } from './utils/actionResult';
 
 const ServiceTypeOptionSchema = z.object({
 	id: z.uuid(),
@@ -26,8 +26,12 @@ const getAuthUser = async () => {
 
 const handleServiceError = <T>(error: unknown): ActionResult<T> => {
 	if (error instanceof ServiceError) {
+		if (error.status >= 500) {
+			logServerError(error);
+		}
 		return errorResult<T>(error.message, error.status, error.details);
 	}
+	logServerError(error);
 	throw error;
 };
 

@@ -5,6 +5,15 @@ export type ActionResult<T> = {
 	details?: unknown;
 };
 
+export const logServerError = (error: unknown) => {
+	if (process.env.NODE_ENV === 'test') return;
+	if (error instanceof Error) {
+		console.error('[ServerError]', error.stack ?? error.message);
+		return;
+	}
+	console.error('[ServerError]', error);
+};
+
 export const errorResult = <T>(
 	error: string,
 	status: number,
