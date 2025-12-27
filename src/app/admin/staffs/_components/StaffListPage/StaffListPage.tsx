@@ -1,6 +1,7 @@
 'use client';
 
 import type { StaffRecord } from '@/models/staffActionSchemas';
+import { dateJst } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { ServiceTypeOption, StaffFilterState, StaffViewModel } from '../../_types';
@@ -15,11 +16,7 @@ interface StaffListPageClientProps {
 	filters: StaffFilterState;
 }
 
-const formatDateTime = (date: Date) =>
-	new Intl.DateTimeFormat('ja-JP', {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(date);
+const formatDateTime = (date: Date) => dateJst(date).format('YYYY-MM-DD HH:mm');
 
 const buildServiceTypeMap = (serviceTypes: ServiceTypeOption[]) => {
 	const map = new Map<string, string>();
