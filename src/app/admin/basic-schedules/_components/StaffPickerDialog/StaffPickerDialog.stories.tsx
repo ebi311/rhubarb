@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fn } from 'storybook/test';
 import { StaffPickerDialog, StaffPickerOption } from './StaffPickerDialog';
+import type { StaffPickerDialogProps } from './types';
 
 const staffOptions: StaffPickerOption[] = [
 	{
@@ -27,6 +28,15 @@ const staffOptions: StaffPickerOption[] = [
 	},
 ];
 
+const baseArgs: StaffPickerDialogProps = {
+	isOpen: true,
+	staffOptions,
+	selectedStaffId: null,
+	onClose: fn(),
+	onSelect: fn(),
+	onClear: fn(),
+};
+
 const meta = {
 	title: 'Admin/BasicSchedules/StaffPickerDialog',
 	component: StaffPickerDialog,
@@ -34,51 +44,54 @@ const meta = {
 		layout: 'centered',
 	},
 	tags: ['autodocs'],
-	args: {
-		isOpen: true,
-		staffOptions,
-		onClose: fn(),
-		onSelect: fn(),
-		onClear: fn(),
-	},
+	args: baseArgs,
 } satisfies Meta<typeof StaffPickerDialog>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof StaffPickerDialog>;
 
-const StatefulWrapper = (props: Story['args']) => {
-	const [selected, setSelected] = useState<string | null>(props?.selectedStaffId ?? null);
+const ensureProps = (args?: Story['args']): StaffPickerDialogProps => ({
+	...baseArgs,
+	...args,
+});
+
+const StatefulWrapper = (props: StaffPickerDialogProps) => {
+	const { selectedStaffId, onSelect, onClear, ...rest } = props;
+	const [selected, setSelected] = useState<string | null>(selectedStaffId);
+
+	useEffect(() => {
+		setSelected(selectedStaffId);
+	}, [selectedStaffId]);
 	return (
 		<StaffPickerDialog
-			{...props}
+			{...rest}
 			selectedStaffId={selected}
 			onSelect={(staffId) => {
 				setSelected(staffId);
-				props?.onSelect?.(staffId);
+				onSelect(staffId);
 			}}
-			onClose={() => props?.onClose?.()}
 			onClear={() => {
 				setSelected(null);
-				props?.onClear?.();
+				onClear?.();
 			}}
 		/>
 	);
 };
 
 export const Default: Story = {
-	render: (args) => <StatefulWrapper {...args} />,
+	render: (args) => <StatefulWrapper {...ensureProps(args)} />,
 };
 
 export const Empty: Story = {
 	args: {
 		staffOptions: [],
 	},
-	render: (args) => <StatefulWrapper {...args} />,
+	render: (args) => <StatefulWrapper {...ensureProps(args)} />,
 };
 
 export const WithSelected: Story = {
 	args: {
 		selectedStaffId: 'staff-2',
 	},
-	render: (args) => <StatefulWrapper {...args} />,
+	render: (args) => <StatefulWrapper {...ensureProps(args)} />,
 };

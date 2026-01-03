@@ -20,11 +20,21 @@ const staffOptions: StaffPickerOption[] = [
 	},
 ];
 
+type HookProps = {
+	staffOptions: StaffPickerOption[];
+	selectedStaffId: string | null;
+	isOpen: boolean;
+};
+
 describe('useStaffPickerDialogState', () => {
 	it('フィルタ変更で絞り込み、選択状態を管理する', () => {
-		const { result, rerender } = renderHook((props) => useStaffPickerDialogState(props), {
-			initialProps: { staffOptions, selectedStaffId: null, isOpen: true },
-		});
+		const initialProps: HookProps = { staffOptions, selectedStaffId: null, isOpen: true };
+		const { result, rerender } = renderHook(
+			(props: HookProps) => useStaffPickerDialogState(props),
+			{
+				initialProps,
+			},
+		);
 
 		act(() => {
 			result.current.handleKeywordChange('花子');
