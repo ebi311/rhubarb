@@ -1,3 +1,4 @@
+import { ServiceTypeBadges } from '@/app/admin/_components/ServiceTypeBadges';
 import type { StaffViewModel } from '../../_types';
 
 interface StaffTableProps {
@@ -47,16 +48,9 @@ export const StaffTable = ({ staffs, onEdit, onDelete }: StaffTableProps) => {
 							</td>
 							<td>{staff.email ?? '―'}</td>
 							<td>
-								<div className="flex flex-wrap gap-2">
-									{staff.serviceTypes.length === 0 && (
-										<span className="text-base-content/60">未割当</span>
-									)}
-									{staff.serviceTypes.map((serviceType) => (
-										<span key={serviceType.id} className="badge badge-primary badge-outline">
-											{serviceType.name}
-										</span>
-									))}
-								</div>
+								<ServiceTypeBadges
+									names={staff.serviceTypes.map((serviceType) => serviceType.name)}
+								/>
 							</td>
 							<td>{staff.note ?? '―'}</td>
 							<td>{staff.updatedAt}</td>
