@@ -290,51 +290,50 @@ export const BasicScheduleForm = ({
 			</header>
 			<FormProvider {...formMethods}>
 				<form className="space-y-6" onSubmit={onSubmit}>
-					<div className="grid gap-4 md:grid-cols-2">
+					<div className="flex flex-col gap-4">
 						<ClientSelectField serviceUsers={serviceUsers} />
 						<ServiceTypeSelectField serviceTypes={serviceTypes} />
-					</div>
-
-					<div className="grid gap-4 md:grid-cols-3">
 						<WeekdayField />
-						<TimeField name="startTime" label="開始時刻" />
-						<TimeField name="endTime" label="終了時刻" />
-					</div>
+						<div className="flex items-baseline gap-4">
+							<TimeField name="startTime" label="開始時刻" />
+							<span>〜</span>
+							<TimeField name="endTime" label="終了時刻" />
+						</div>
 
-					<div className="space-y-2">
-						<div className="flex flex-col gap-2 rounded-box border border-base-200 p-4">
-							<div className="flex flex-wrap items-center justify-between gap-3">
-								<div>
-									<p className="font-medium">デフォルト担当者</p>
-									<p className="text-sm text-base-content/70">{staffStatusMessage}</p>
-								</div>
-								<div className="flex flex-wrap gap-2">
-									<button
-										type="button"
-										className="btn btn-sm"
-										onClick={() => setStaffPickerOpen(true)}
-										disabled={staffPickerDisabled}
-									>
-										担当者を選択
-									</button>
-									<button
-										type="button"
-										className="btn btn-sm btn-ghost"
-										onClick={handleStaffClear}
-										disabled={staffClearDisabled}
-									>
-										クリア
-									</button>
+						<div className="space-y-2">
+							<div className="flex flex-col gap-2 fieldset">
+								<div className="flex flex-col items-start justify-center gap-3">
+									<div>
+										<p className="fieldset-legend">デフォルト担当者</p>
+										<p className="text-sm text-base-content/70">{staffStatusMessage}</p>
+									</div>
+									<StaffSelectionSummary staff={selectedStaff} />
+									<div className="flex flex-wrap gap-2">
+										<button
+											type="button"
+											className="btn btn-sm"
+											onClick={() => setStaffPickerOpen(true)}
+											disabled={staffPickerDisabled}
+										>
+											担当者を選択
+										</button>
+										<button
+											type="button"
+											className="btn btn-sm btn-ghost"
+											onClick={handleStaffClear}
+											disabled={staffClearDisabled}
+										>
+											クリア
+										</button>
+									</div>
 								</div>
 							</div>
-							<StaffSelectionSummary staff={selectedStaff} />
 						</div>
+
+						<NoteField valueLength={noteValue.length} />
+
+						<ApiErrorMessage message={apiError} />
 					</div>
-
-					<NoteField valueLength={noteValue.length} />
-
-					<ApiErrorMessage message={apiError} />
-
 					<div className="flex justify-end">
 						<button type="submit" className={submitButtonClass} disabled={isSubmitDisabled}>
 							スケジュールを登録

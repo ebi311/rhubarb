@@ -129,15 +129,17 @@ export const TimeField = ({ name, label }: TimeFieldProps) => {
 	} = useFormContext<BasicScheduleFormValues>();
 
 	return (
-		<FormInput
-			control={control}
-			name={name}
-			label={label}
-			type="time"
-			step={300}
-			required
-			disabled={isSubmitting}
-		/>
+		<div className="w-24">
+			<FormInput
+				control={control}
+				name={name}
+				label={label}
+				type="time"
+				step={300}
+				required
+				disabled={isSubmitting}
+			/>
+		</div>
 	);
 };
 
