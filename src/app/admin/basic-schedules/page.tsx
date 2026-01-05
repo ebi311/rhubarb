@@ -2,7 +2,6 @@ import { listClientStaffAssignmentsAction } from '@/app/actions/clientStaffAssig
 import { getServiceUsersAction } from '@/app/actions/serviceUsers';
 import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
-import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
 import type { ServiceUser } from '@/models/serviceUser';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import type { ServiceTypeOption } from '../staffs/_types';
@@ -56,9 +55,6 @@ const BasicSchedulesPage = async () => {
 				serviceTypes={serviceTypes}
 				staffs={staffs}
 				assignments={assignments}
-				onCreated={(schedule: BasicScheduleRecord) => {
-					console.info('[BasicSchedulesPage] schedule created', schedule.id);
-				}}
 			/>
 		</div>
 	);

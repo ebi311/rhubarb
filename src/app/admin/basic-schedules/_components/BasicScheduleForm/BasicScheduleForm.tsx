@@ -93,7 +93,6 @@ export type BasicScheduleFormProps = {
 	staffs: StaffRecord[];
 	assignments: ClientStaffAssignmentLink[];
 	initialValues?: BasicScheduleFormInitialValues;
-	onCreated?: (schedule: BasicScheduleRecord) => void;
 };
 
 const DEFAULT_FORM_VALUES: BasicScheduleFormValues = {
@@ -188,7 +187,6 @@ export const BasicScheduleForm = ({
 	staffs,
 	assignments,
 	initialValues,
-	onCreated,
 }: BasicScheduleFormProps) => {
 	const [apiError, setApiError] = useState<string | null>(null);
 	const [isStaffPickerOpen, setStaffPickerOpen] = useState(false);
@@ -275,7 +273,6 @@ export const BasicScheduleForm = ({
 			handleActionResult,
 			reset,
 			initialValues,
-			onCreated,
 			setStaffPickerOpen,
 		}),
 	);

@@ -95,7 +95,6 @@ describe('BasicScheduleForm', () => {
 
 	it('入力内容でcreateBasicScheduleActionを呼び出し、成功時にリセットする', async () => {
 		const user = userEvent.setup();
-		const handleCreated = vi.fn();
 		vi.mocked(createBasicScheduleAction).mockResolvedValue(successResult(sampleSchedule));
 
 		render(
@@ -104,7 +103,6 @@ describe('BasicScheduleForm', () => {
 				serviceTypes={serviceTypes}
 				staffs={staffs}
 				assignments={assignments}
-				onCreated={handleCreated}
 			/>,
 		);
 
@@ -140,7 +138,6 @@ describe('BasicScheduleForm', () => {
 		});
 
 		expect(handleActionResultMock).toHaveBeenCalled();
-		expect(handleCreated).toHaveBeenCalledWith(sampleSchedule);
 
 		await waitFor(() => {
 			expect(screen.getByLabelText('利用者 *')).toHaveValue('');

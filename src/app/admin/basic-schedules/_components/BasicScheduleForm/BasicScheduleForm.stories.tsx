@@ -3,7 +3,6 @@ import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import type { ServiceUser } from '@/models/serviceUser';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { fn } from 'storybook/test';
 import type { BasicScheduleFormInitialValues } from './BasicScheduleForm';
 import { BasicScheduleForm } from './BasicScheduleForm';
 
@@ -93,7 +92,6 @@ const meta = {
 		serviceTypes,
 		staffs,
 		assignments,
-		onCreated: fn(),
 	},
 	parameters: {
 		layout: 'fullscreen',
