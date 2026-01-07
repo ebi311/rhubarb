@@ -60,18 +60,21 @@ export class BasicScheduleService {
 			});
 	}
 
-	private async assertStaffsPermitted(clientId: string, serviceTypeId: string, staffIds: string[]) {
+	private async assertStaffsPermitted(serviceTypeId: string, staffIds: string[]) {
 		if (staffIds.length === 0) return;
-		for (const staffId of staffIds) {
-			const { data, error } = await this.supabase
-				.from('client_staff_assignments')
-				.select('id')
-				.eq('client_id', clientId)
-				.eq('service_type_id', serviceTypeId)
-				.eq('staff_id', staffId)
-				.maybeSingle();
-			if (error) throw error;
-			if (!data) throw new ServiceError(409, 'Staff not permitted for client/service');
+		const { data, error } = await this.supabase
+			.from('staff_service_type_abilities')
+			.select('staff_id')
+			.eq('service_type_id', serviceTypeId)
+			.in('staff_id', staffIds);
+		if (error) throw error;
+		const permittedIds = new Set((data ?? []).map((row) => row.staff_id));
+		const missing = staffIds.filter((id) => !permittedIds.has(id));
+		if (missing.length > 0) {
+			throw new ServiceError(409, 'Staff not permitted for service type', {
+				staff_ids: missing,
+				service_type_id: serviceTypeId,
+			});
 		}
 	}
 
@@ -135,7 +138,7 @@ export class BasicScheduleService {
 		}
 		const data = parsed.data;
 		await this.assertClientActive(data.client_id, staff.office_id);
-		await this.assertStaffsPermitted(data.client_id, data.service_type_id, data.staff_ids);
+		await this.assertStaffsPermitted(data.service_type_id, data.staff_ids);
 		await this.assertNoOverlap({
 			staffIds: data.staff_ids,
 			weekday: data.weekday,
@@ -173,7 +176,7 @@ export class BasicScheduleService {
 		const data = parsed.data;
 
 		await this.assertClientActive(data.client_id, staff.office_id);
-		await this.assertStaffsPermitted(data.client_id, data.service_type_id, data.staff_ids);
+		await this.assertStaffsPermitted(data.service_type_id, data.staff_ids);
 		await this.assertNoOverlap({
 			staffIds: data.staff_ids,
 			weekday: data.weekday,

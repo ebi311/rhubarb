@@ -13,26 +13,33 @@ const makeSelectBuilder = <T>(result: T) => {
 	return { select, eq, maybeSingle };
 };
 
+const makeAbilityBuilder = (result: { data: { staff_id: string }[] | null; error: unknown }) => {
+	const select = vi.fn().mockReturnThis();
+	const eq = vi.fn().mockReturnThis();
+	const inFn = vi.fn().mockResolvedValue(result);
+	return { select, eq, in: inFn };
+};
+
 const makeSupabaseMock = (options: {
 	clientResult: {
 		data: { id: string; office_id: string; contract_status: string } | null;
 		error: unknown;
 	};
-	assignmentResult: { data: { id: string } | null; error: unknown };
+	abilityResult: { data: { staff_id: string }[] | null; error: unknown };
 }) => {
 	const clientBuilder = makeSelectBuilder(options.clientResult);
-	const assignmentBuilder = makeSelectBuilder(options.assignmentResult);
+	const abilityBuilder = makeAbilityBuilder(options.abilityResult);
 
 	const from = vi.fn((table: string) => {
 		if (table === 'clients') return clientBuilder;
-		if (table === 'client_staff_assignments') return assignmentBuilder;
+		if (table === 'staff_service_type_abilities') return abilityBuilder;
 		throw new Error(`Unexpected table ${table}`);
 	});
 
 	return {
 		from,
 		_clientBuilder: clientBuilder,
-		_assignmentBuilder: assignmentBuilder,
+		_abilityBuilder: abilityBuilder,
 	} as unknown as SupabaseClient<Database>;
 };
 
@@ -89,7 +96,10 @@ describe('BasicScheduleService', () => {
 				},
 				error: null,
 			},
-			assignmentResult: { data: { id: 'assign-1' }, error: null },
+			abilityResult: {
+				data: basicScheduleTemplate.staff_ids.map((id) => ({ staff_id: id })),
+				error: null,
+			},
 		});
 		basicRepo.findOverlaps.mockResolvedValue([]);
 
@@ -123,7 +133,10 @@ describe('BasicScheduleService', () => {
 				},
 				error: null,
 			},
-			assignmentResult: { data: { id: 'assign-1' }, error: null },
+			abilityResult: {
+				data: basicScheduleTemplate.staff_ids.map((id) => ({ staff_id: id })),
+				error: null,
+			},
 		});
 		basicRepo.findOverlaps.mockResolvedValue([]);
 		const service = new BasicScheduleService(supabase, {
@@ -154,7 +167,7 @@ describe('BasicScheduleService', () => {
 				},
 				error: null,
 			},
-			assignmentResult: { data: null, error: null },
+			abilityResult: { data: [], error: null },
 		});
 		basicRepo.findOverlaps.mockResolvedValue([]);
 		const service = new BasicScheduleService(supabase, {
@@ -185,7 +198,10 @@ describe('BasicScheduleService', () => {
 				},
 				error: null,
 			},
-			assignmentResult: { data: { id: 'assign-1' }, error: null },
+			abilityResult: {
+				data: basicScheduleTemplate.staff_ids.map((id) => ({ staff_id: id })),
+				error: null,
+			},
 		});
 		basicRepo.findOverlaps.mockResolvedValue([basicScheduleTemplate]);
 		const service = new BasicScheduleService(supabase, {
@@ -216,7 +232,10 @@ describe('BasicScheduleService', () => {
 				},
 				error: null,
 			},
-			assignmentResult: { data: { id: 'assign-1' }, error: null },
+			abilityResult: {
+				data: basicScheduleTemplate.staff_ids.map((id) => ({ staff_id: id })),
+				error: null,
+			},
 		});
 		basicRepo.findById.mockResolvedValue(null);
 		const service = new BasicScheduleService(supabase, {
