@@ -1,4 +1,3 @@
-import type { ClientStaffAssignmentLink } from '@/app/actions/clientStaffAssignments';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import type { Weekday } from '@/models/basicScheduleActionSchemas';
 import type { StaffRecord } from '@/models/staffActionSchemas';
@@ -19,21 +18,12 @@ export const createServiceTypeNameMap = (serviceTypes: ServiceTypeOption[]) =>
 export const createStaffMap = (staffs: StaffRecord[]) =>
 	new Map(staffs.map((staff) => [staff.id, staff]));
 
-export const computeAllowedStaffIds = (
-	assignments: ClientStaffAssignmentLink[],
-	clientId?: string,
-	serviceTypeId?: string,
-) => {
-	if (!clientId || !serviceTypeId) {
-		return new Set<string>();
-	}
+export const computeAllowedStaffIds = (staffs: StaffRecord[], serviceTypeId?: string) => {
+	if (!serviceTypeId) return new Set<string>();
 	return new Set(
-		assignments
-			.filter(
-				(assignment) =>
-					assignment.client_id === clientId && assignment.service_type_id === serviceTypeId,
-			)
-			.map((assignment) => assignment.staff_id),
+		staffs
+			.filter((staff) => staff.service_type_ids.includes(serviceTypeId))
+			.map((staff) => staff.id),
 	);
 };
 
@@ -54,16 +44,12 @@ export const mapStaffPickerOptions = (
 				.filter((name): name is string => Boolean(name)),
 		}));
 
-export const getStaffStatusMessage = (
-	clientId?: string,
-	serviceTypeId?: string,
-	optionCount: number = 0,
-) => {
-	if (!clientId || !serviceTypeId) {
-		return '利用者とサービス区分を選択すると担当者を選べます。';
+export const getStaffStatusMessage = (serviceTypeId?: string, optionCount: number = 0) => {
+	if (!serviceTypeId) {
+		return 'サービス区分を選択すると担当者を選べます。';
 	}
 	if (optionCount === 0) {
-		return '選択された組み合わせで許可された担当者が存在しません。';
+		return '選択されたサービス区分に紐づく担当者がいません。';
 	}
 	return `${optionCount}名の担当者が選択可能です。`;
 };

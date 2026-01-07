@@ -1,5 +1,4 @@
 import { createBasicScheduleAction } from '@/app/actions/basicSchedules';
-import type { ClientStaffAssignmentLink } from '@/app/actions/clientStaffAssignments';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import * as actionResultHandler from '@/hooks/useActionResultHandler';
 import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
@@ -42,17 +41,9 @@ const staffs: StaffRecord[] = [
 		role: 'admin',
 		email: 'yamada@example.com',
 		note: 'ベテラン',
-		service_type_ids: ['svc-1'],
+		service_type_ids: ['019b8916-7afe-75ce-adc3-ebd27f3ac000'],
 		created_at: new Date('2025-01-01T00:00:00Z'),
 		updated_at: new Date('2025-01-01T00:00:00Z'),
-	},
-];
-
-const assignments: ClientStaffAssignmentLink[] = [
-	{
-		client_id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
-		service_type_id: '019b8916-7afe-75ce-adc3-ebd27f3ac000',
-		staff_id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
 	},
 ];
 
@@ -81,12 +72,7 @@ describe('BasicScheduleForm', () => {
 
 	it('必須項目が未入力の場合、登録ボタンが無効になる', async () => {
 		render(
-			<BasicScheduleForm
-				serviceUsers={serviceUsers}
-				serviceTypes={serviceTypes}
-				staffs={staffs}
-				assignments={assignments}
-			/>,
+			<BasicScheduleForm serviceUsers={serviceUsers} serviceTypes={serviceTypes} staffs={staffs} />,
 		);
 
 		const submitButton = screen.getByRole('button', { name: 'スケジュールを登録' });
@@ -98,12 +84,7 @@ describe('BasicScheduleForm', () => {
 		vi.mocked(createBasicScheduleAction).mockResolvedValue(successResult(sampleSchedule));
 
 		render(
-			<BasicScheduleForm
-				serviceUsers={serviceUsers}
-				serviceTypes={serviceTypes}
-				staffs={staffs}
-				assignments={assignments}
-			/>,
+			<BasicScheduleForm serviceUsers={serviceUsers} serviceTypes={serviceTypes} staffs={staffs} />,
 		);
 
 		await user.selectOptions(

@@ -1,4 +1,3 @@
-import type { ClientStaffAssignmentLink } from '@/app/actions/clientStaffAssignments';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import type { ServiceUser } from '@/models/serviceUser';
 import type { StaffRecord } from '@/models/staffActionSchemas';
@@ -66,24 +65,6 @@ const staffs: StaffRecord[] = [
 	},
 ];
 
-const assignments: ClientStaffAssignmentLink[] = [
-	{
-		client_id: '019b8b17-5b02-74ed-a77e-724d384629aa',
-		service_type_id: '019b8b1a-5979-766e-a500-7334e4af217b',
-		staff_id: '019b8b17-5b02-74ed-a77e-724d384629ac',
-	},
-	{
-		client_id: '019b8b17-5b02-74ed-a77e-724d384629aa',
-		service_type_id: '019b8b1a-5979-766e-a500-7334e4af217c',
-		staff_id: '019b8b17-5b02-74ed-a77e-724d384629ad',
-	},
-	{
-		client_id: '019b8b17-5b02-74ed-a77e-724d384629ab',
-		service_type_id: '019b8b1a-5979-766e-a500-7334e4af217d',
-		staff_id: '019b8b17-5b02-74ed-a77e-724d384629ad',
-	},
-];
-
 const meta = {
 	title: 'Admin/BasicSchedules/BasicScheduleForm',
 	component: BasicScheduleForm,
@@ -91,7 +72,6 @@ const meta = {
 		serviceUsers,
 		serviceTypes,
 		staffs,
-		assignments,
 	},
 	parameters: {
 		layout: 'fullscreen',
@@ -105,13 +85,13 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 const selectedDefaults: BasicScheduleFormInitialValues = {
-	clientId: 'client-1',
-	serviceTypeId: 'svc-1',
+	clientId: serviceUsers[0]?.id,
+	serviceTypeId: serviceTypes[0]?.id,
 	weekday: 'Fri',
 	startTime: '09:00',
 	endTime: '11:00',
 	note: '既存の初期値が入った例です。',
-	staffId: 'staff-1',
+	staffId: staffs[0]?.id,
 };
 
 export const WithPreselectedStaff: Story = {
@@ -121,7 +101,5 @@ export const WithPreselectedStaff: Story = {
 };
 
 export const NoAssignments: Story = {
-	args: {
-		assignments: [],
-	},
+	args: {},
 };

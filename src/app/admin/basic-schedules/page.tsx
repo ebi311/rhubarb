@@ -1,4 +1,3 @@
-import { listClientStaffAssignmentsAction } from '@/app/actions/clientStaffAssignments';
 import { getServiceUsersAction } from '@/app/actions/serviceUsers';
 import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
@@ -20,24 +19,21 @@ const safeData = <T,>(label: string, result: ActionResult<T[]>): T[] => {
 };
 
 const fetchPageData = async () => {
-	const [serviceUsersResult, serviceTypesResult, staffsResult, assignmentsResult] =
-		await Promise.all([
-			getServiceUsersAction('active'),
-			listServiceTypesAction(),
-			listStaffsAction(),
-			listClientStaffAssignmentsAction(),
-		]);
+	const [serviceUsersResult, serviceTypesResult, staffsResult] = await Promise.all([
+		getServiceUsersAction('active'),
+		listServiceTypesAction(),
+		listStaffsAction(),
+	]);
 
 	return {
 		serviceUsers: safeData<ServiceUser>('service users', serviceUsersResult),
 		serviceTypes: safeData<ServiceTypeOption>('service types', serviceTypesResult),
 		staffs: safeData<StaffRecord>('staffs', staffsResult),
-		assignments: safeData('client staff assignments', assignmentsResult),
 	};
 };
 
 const BasicSchedulesPage = async () => {
-	const { serviceUsers, serviceTypes, staffs, assignments } = await fetchPageData();
+	const { serviceUsers, serviceTypes, staffs } = await fetchPageData();
 
 	return (
 		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
@@ -50,12 +46,7 @@ const BasicSchedulesPage = async () => {
 					契約中の利用者について、曜日と時間帯、サービス区分、デフォルト担当者を設定します。
 				</p>
 			</section>
-			<BasicScheduleForm
-				serviceUsers={serviceUsers}
-				serviceTypes={serviceTypes}
-				staffs={staffs}
-				assignments={assignments}
-			/>
+			<BasicScheduleForm serviceUsers={serviceUsers} serviceTypes={serviceTypes} staffs={staffs} />
 		</div>
 	);
 };

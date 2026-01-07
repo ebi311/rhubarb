@@ -1,7 +1,6 @@
 'use client';
 
 import { createBasicScheduleAction } from '@/app/actions/basicSchedules';
-import type { ClientStaffAssignmentLink } from '@/app/actions/clientStaffAssignments';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
@@ -91,7 +90,6 @@ export type BasicScheduleFormProps = {
 	serviceUsers: ServiceUser[];
 	serviceTypes: ServiceTypeOption[];
 	staffs: StaffRecord[];
-	assignments: ClientStaffAssignmentLink[];
 	initialValues?: BasicScheduleFormInitialValues;
 };
 
@@ -185,7 +183,6 @@ export const BasicScheduleForm = ({
 	serviceUsers,
 	serviceTypes,
 	staffs,
-	assignments,
 	initialValues,
 }: BasicScheduleFormProps) => {
 	const [apiError, setApiError] = useState<string | null>(null);
@@ -212,7 +209,7 @@ export const BasicScheduleForm = ({
 		}
 	}, [initialValues, reset]);
 
-	const { clientId, serviceTypeId, selectedStaffId, noteValue } = useBasicScheduleWatchValues(
+	const { serviceTypeId, selectedStaffId, noteValue } = useBasicScheduleWatchValues(
 		control,
 		WATCH_VALUE_DEFAULTS,
 	);
@@ -222,8 +219,8 @@ export const BasicScheduleForm = ({
 	const staffMap = useMemo(() => createStaffMap(staffs), [staffs]);
 
 	const allowedStaffIds = useMemo(
-		() => computeAllowedStaffIds(assignments, clientId, serviceTypeId),
-		[assignments, clientId, serviceTypeId],
+		() => computeAllowedStaffIds(staffs, serviceTypeId),
+		[staffs, serviceTypeId],
 	);
 
 	const staffPickerOptions: StaffPickerOption[] = useMemo(
@@ -241,12 +238,12 @@ export const BasicScheduleForm = ({
 		() => getSelectedStaff(staffMap, selectedStaffId),
 		[staffMap, selectedStaffId],
 	);
-	const canOpenStaffPicker = Boolean(clientId && serviceTypeId);
 
 	const staffStatusMessage = useMemo(
-		() => getStaffStatusMessage(clientId, serviceTypeId, staffPickerOptions.length),
-		[clientId, serviceTypeId, staffPickerOptions.length],
+		() => getStaffStatusMessage(serviceTypeId, staffPickerOptions.length),
+		[serviceTypeId, staffPickerOptions.length],
 	);
+	const canOpenStaffPicker = Boolean(serviceTypeId);
 
 	const handleStaffConfirm = useCallback(
 		(staffId: string) => {
