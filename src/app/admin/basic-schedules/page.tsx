@@ -1,54 +1,31 @@
-import { getServiceUsersAction } from '@/app/actions/serviceUsers';
-import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
-import type { ActionResult } from '@/app/actions/utils/actionResult';
-import type { ServiceUser } from '@/models/serviceUser';
-import type { StaffRecord } from '@/models/staffActionSchemas';
-import type { ServiceTypeOption } from '../staffs/_types';
-import { BasicScheduleForm } from './_components/BasicScheduleForm';
+import Link from 'next/link';
 
-const safeData = <T,>(label: string, result: ActionResult<T[]>): T[] => {
-	if (result.error) {
-		console.warn(`[BasicSchedulesPage] ${label} fetch failed`, {
-			error: result.error,
-			status: result.status,
-			details: result.details,
-		});
-		return [];
-	}
-	return result.data ?? [];
-};
-
-const fetchPageData = async () => {
-	const [serviceUsersResult, serviceTypesResult, staffsResult] = await Promise.all([
-		getServiceUsersAction('active'),
-		listServiceTypesAction(),
-		listStaffsAction(),
-	]);
-
-	return {
-		serviceUsers: safeData<ServiceUser>('service users', serviceUsersResult),
-		serviceTypes: safeData<ServiceTypeOption>('service types', serviceTypesResult),
-		staffs: safeData<StaffRecord>('staffs', staffsResult),
-	};
-};
-
-const BasicSchedulesPage = async () => {
-	const { serviceUsers, serviceTypes, staffs } = await fetchPageData();
-
+const BasicScheduleListPage = async () => {
 	return (
 		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
 			<section className="space-y-2">
 				<p className="text-sm font-semibold uppercase tracking-widest text-primary">
 					基本スケジュール
 				</p>
-				<h1 className="text-3xl font-bold">週次スケジュールの登録</h1>
-				<p className="text-base-content/70 text-sm">
-					契約中の利用者について、曜日と時間帯、サービス区分、デフォルト担当者を設定します。
-				</p>
+				<h1 className="text-3xl font-bold">週次スケジュール一覧</h1>
+				<p className="text-base-content/70 text-sm">登録済みの基本スケジュールを確認できます。</p>
 			</section>
-			<BasicScheduleForm serviceUsers={serviceUsers} serviceTypes={serviceTypes} staffs={staffs} />
+
+			<div className="flex justify-end">
+				<Link href="/admin/basic-schedules/new" className="btn btn-primary">
+					新規登録
+				</Link>
+			</div>
+
+			{/* TODO: フィルタバーとテーブルを実装 */}
+			<div className="rounded-box border border-base-300 bg-base-100 p-8 text-center">
+				<p className="text-base-content/60">まだ基本スケジュールがありません</p>
+				<Link href="/admin/basic-schedules/new" className="btn btn-primary mt-4">
+					新規登録
+				</Link>
+			</div>
 		</div>
 	);
 };
 
-export default BasicSchedulesPage;
+export default BasicScheduleListPage;
