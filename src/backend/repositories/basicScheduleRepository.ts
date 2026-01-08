@@ -78,7 +78,9 @@ export class BasicScheduleRepository {
 		if (filters.service_type_id) query = query.eq('service_type_id', filters.service_type_id);
 		if (!filters.includeDeleted) query = query.is('deleted_at', null);
 
-		const { data, error } = await query.order('start_time', { ascending: true });
+		const { data, error } = await query
+			.order('day_of_week', { ascending: true })
+			.order('start_time', { ascending: true });
 		if (error) throw error;
 		return (data ?? []).map((row) => this.toDomain(row as BasicScheduleJoinedRow));
 	}

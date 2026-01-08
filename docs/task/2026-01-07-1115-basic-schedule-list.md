@@ -10,10 +10,10 @@
 
 ### ステップ1: ルーティング整理
 
-- [ ] 1.1. 既存の `/admin/basic-schedules/page.tsx` を `/admin/basic-schedules/new/page.tsx` に移動
-- [ ] 1.2. 新しい `/admin/basic-schedules/page.tsx` を作成（一覧用の空ページ）
-- [ ] 1.3. 各ページで認可チェック（管理者のみ）が機能することを確認
-- [ ] 1.4. ナビゲーションリンクを更新（もし存在する場合）
+- [x] 1.1. 既存の `/admin/basic-schedules/page.tsx` を `/admin/basic-schedules/new/page.tsx` に移動
+- [x] 1.2. 新しい `/admin/basic-schedules/page.tsx` を作成（一覧用の空ページ）
+- [x] 1.3. 各ページで認可チェック（管理者のみ）が機能することを確認
+- [x] 1.4. ナビゲーションリンクを更新（もし存在する場合）
 
 ### ステップ2: データ取得アクションの実装
 
