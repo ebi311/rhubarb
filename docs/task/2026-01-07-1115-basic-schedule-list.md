@@ -17,10 +17,10 @@
 
 ### ステップ2: データ取得アクションの実装
 
-- [ ] 2.1. `listBasicSchedulesAction` のテストを作成（フィルタパラメータ含む）
-- [ ] 2.2. `listBasicSchedulesAction` を実装（weekday/clientId/serviceTypeId/keyword対応）
-- [ ] 2.3. Repository層で「曜日 → 開始時刻」昇順ソートを実装
-- [ ] 2.4. テストを実行して成功を確認
+- [x] 2.1. `listBasicSchedulesAction` のテストを作成（フィルタパラメータ含む）
+- [x] 2.2. `listBasicSchedulesAction` を実装（weekday/clientId/serviceTypeId/keyword対応）
+- [x] 2.3. Repository層で「曜日 → 開始時刻」昇順ソートを実装
+- [x] 2.4. テストを実行して成功を確認
 
 ### ステップ3: 一覧UIコンポーネント（フィルタバー）
 
