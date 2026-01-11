@@ -20,6 +20,7 @@ const config: StorybookConfig = {
 	],
 	features: {
 		experimentalComponentsManifest: true,
+		experimentalRSC: true,
 	},
 	framework: '@storybook/nextjs-vite',
 	staticDirs: ['../public'],

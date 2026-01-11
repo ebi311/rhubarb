@@ -1,5 +1,11 @@
 import type { Preview } from '@storybook/nextjs-vite';
+import { sb } from 'storybook/test';
 import '../src/app/globals.css';
+
+// モジュールのモック登録（Automocking）
+sb.mock(
+	import('../src/app/admin/basic-schedules/_components/BasicScheduleTable/fetchBasicSchedules.ts'),
+);
 
 const preview: Preview = {
 	parameters: {
