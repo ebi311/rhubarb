@@ -1,6 +1,21 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
+import { BasicScheduleFilterBar } from './_components/BasicScheduleFilterBar';
+import { BasicScheduleTable } from './_components/BasicScheduleTable';
+import { fetchFilterOptions } from './fetchFilterOptions';
+import { parseFiltersFromSearchParams } from './parseFiltersFromParams';
 
-const BasicScheduleListPage = async () => {
+interface BasicScheduleListPageProps {
+	searchParams:
+		| Promise<Record<string, string | string[] | undefined>>
+		| Record<string, string | string[] | undefined>;
+}
+
+const BasicScheduleListPage = async ({ searchParams }: BasicScheduleListPageProps) => {
+	const params = await searchParams;
+	const filters = parseFiltersFromSearchParams(params);
+	const { clients, serviceTypes } = await fetchFilterOptions();
+
 	return (
 		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
 			<section className="space-y-2">
@@ -17,12 +32,20 @@ const BasicScheduleListPage = async () => {
 				</Link>
 			</div>
 
-			{/* TODO: フィルタバーとテーブルを実装 */}
-			<div className="rounded-box border border-base-300 bg-base-100 p-8 text-center">
-				<p className="text-base-content/60">まだ基本スケジュールがありません</p>
-				<Link href="/admin/basic-schedules/new" className="btn btn-primary mt-4">
-					新規登録
-				</Link>
+			<div className="space-y-4">
+				<BasicScheduleFilterBar clients={clients} serviceTypes={serviceTypes} />
+
+				<Suspense
+					fallback={
+						<div className="space-y-2">
+							<div className="skeleton h-12 w-full" />
+							<div className="skeleton h-12 w-full" />
+							<div className="skeleton h-12 w-full" />
+						</div>
+					}
+				>
+					<BasicScheduleTable filters={filters} />
+				</Suspense>
 			</div>
 		</div>
 	);

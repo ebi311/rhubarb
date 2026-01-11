@@ -1,5 +1,6 @@
 ---
-description: daisyUI 5
+name: daisyUI 5
+description: daisyUI 5 is a CSS library for Tailwind CSS 4. daisyUI 5 provides class names for common UI components
 alwaysApply: true
 applyTo: '**'
 downloadedFrom: https://daisyui.com/llms.txt

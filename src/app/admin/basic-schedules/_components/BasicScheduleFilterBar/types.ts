@@ -1,10 +1,13 @@
-import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
+import { DayOfWeekSchema } from '@/models/valueObjects/dayOfWeek';
+import z from 'zod';
 
-export interface BasicScheduleFilterState {
-	weekday: DayOfWeek | undefined;
-	clientId: string | undefined;
-	serviceTypeId: string | undefined;
-}
+export const BasicScheduleFilterSchema = z.object({
+	weekday: DayOfWeekSchema.or(z.literal('')).optional(),
+	clientId: z.uuid().or(z.literal('')).optional(),
+	serviceTypeId: z.uuid().or(z.literal('')).optional(),
+});
+
+export type BasicScheduleFilterState = z.infer<typeof BasicScheduleFilterSchema>;
 
 export interface ClientOption {
 	id: string;

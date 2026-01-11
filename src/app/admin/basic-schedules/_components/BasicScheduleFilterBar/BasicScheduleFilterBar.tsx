@@ -3,6 +3,7 @@
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ChangeEvent } from 'react';
+import { parseFiltersFromSearchParams } from '../../parseFiltersFromParams';
 import type { BasicScheduleFilterState, ClientOption, ServiceTypeOption } from './types';
 
 interface BasicScheduleFilterBarProps {
@@ -20,22 +21,10 @@ const WEEKDAYS: { value: DayOfWeek; label: string }[] = [
 	{ value: 'Sun', label: '日曜日' },
 ];
 
-const VALID_WEEKDAYS = new Set<string>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
-
-const parseFiltersFromParams = (searchParams: URLSearchParams): BasicScheduleFilterState => {
-	const weekdayParam = searchParams.get('weekday');
-	return {
-		weekday:
-			weekdayParam && VALID_WEEKDAYS.has(weekdayParam) ? (weekdayParam as DayOfWeek) : undefined,
-		clientId: searchParams.get('clientId') || undefined,
-		serviceTypeId: searchParams.get('serviceTypeId') || undefined,
-	};
-};
-
 export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleFilterBarProps) => {
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const filters = parseFiltersFromParams(searchParams);
+	const filters = parseFiltersFromSearchParams(searchParams);
 
 	const updateFilters = (newFilters: BasicScheduleFilterState) => {
 		const params = new URLSearchParams();

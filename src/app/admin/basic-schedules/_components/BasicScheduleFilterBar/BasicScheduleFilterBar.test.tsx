@@ -21,8 +21,8 @@ beforeEach(() => {
 });
 
 const sampleClients = [
-	{ id: 'client-1', name: '山田太郎' },
-	{ id: 'client-2', name: '鈴木花子' },
+	{ id: '8f14e45f-e7c5-4c8d-8a4d-2c7d7f5b51a4', name: '山田太郎' },
+	{ id: 'c9f0f895-ef3a-4c4a-9b70-1f3d8c2b8bbb', name: '鈴木花子' },
 ];
 
 const sampleServiceTypes = [
@@ -42,9 +42,11 @@ describe('BasicScheduleFilterBar', () => {
 	it('利用者セレクトで利用者を選択できる', () => {
 		render(<BasicScheduleFilterBar clients={sampleClients} serviceTypes={sampleServiceTypes} />);
 
-		fireEvent.change(screen.getByLabelText('利用者'), { target: { value: 'client-1' } });
+		fireEvent.change(screen.getByLabelText('利用者'), {
+			target: { value: '8f14e45f-e7c5-4c8d-8a4d-2c7d7f5b51a4' },
+		});
 
-		expect(replaceMock).toHaveBeenCalledWith('?clientId=client-1');
+		expect(replaceMock).toHaveBeenCalledWith('?clientId=8f14e45f-e7c5-4c8d-8a4d-2c7d7f5b51a4');
 	});
 
 	it('サービス区分セレクトでサービス区分を選択できる', () => {
@@ -59,7 +61,7 @@ describe('BasicScheduleFilterBar', () => {
 		vi.mocked(useSearchParams).mockReturnValue(
 			createMockSearchParams({
 				weekday: 'Mon',
-				clientId: 'client-1',
+				clientId: '8f14e45f-e7c5-4c8d-8a4d-2c7d7f5b51a4',
 				serviceTypeId: 'st-1',
 			}) as any,
 		);
@@ -73,13 +75,16 @@ describe('BasicScheduleFilterBar', () => {
 
 	it('URLパラメータから初期値が設定される', () => {
 		vi.mocked(useSearchParams).mockReturnValue(
-			createMockSearchParams({ weekday: 'Tue', clientId: 'client-2' }) as any,
+			createMockSearchParams({
+				weekday: 'Tue',
+				clientId: 'c9f0f895-ef3a-4c4a-9b70-1f3d8c2b8bbb',
+			}) as any,
 		);
 
 		render(<BasicScheduleFilterBar clients={sampleClients} serviceTypes={sampleServiceTypes} />);
 
 		expect(screen.getByLabelText('曜日')).toHaveValue('Tue');
-		expect(screen.getByLabelText('利用者')).toHaveValue('client-2');
+		expect(screen.getByLabelText('利用者')).toHaveValue('c9f0f895-ef3a-4c4a-9b70-1f3d8c2b8bbb');
 		expect(screen.getByLabelText('サービス区分')).toHaveValue('');
 	});
 
