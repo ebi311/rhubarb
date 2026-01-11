@@ -38,7 +38,15 @@ describe('BasicScheduleTable', () => {
 	it('スケジュールデータを正しく表示する', async () => {
 		mockFetchSchedules.mockResolvedValue(sampleSchedules);
 
-		render(await BasicScheduleTable({ filters: {} }));
+		render(
+			await BasicScheduleTable({
+				filters: {
+					clientId: undefined,
+					serviceTypeId: undefined,
+					weekday: undefined,
+				},
+			}),
+		);
 
 		// ヘッダーの確認
 		expect(screen.getByRole('columnheader', { name: '利用者' })).toBeInTheDocument();
@@ -63,7 +71,15 @@ describe('BasicScheduleTable', () => {
 	it('データがない場合は空状態を表示する', async () => {
 		mockFetchSchedules.mockResolvedValue([]);
 
-		render(await BasicScheduleTable({ filters: {} }));
+		render(
+			await BasicScheduleTable({
+				filters: {
+					clientId: undefined,
+					serviceTypeId: undefined,
+					weekday: undefined,
+				},
+			}),
+		);
 
 		expect(screen.getByText('スケジュールが登録されていません')).toBeInTheDocument();
 	});
@@ -71,7 +87,15 @@ describe('BasicScheduleTable', () => {
 	it('担当者が未設定の場合はハイフンを表示する', async () => {
 		mockFetchSchedules.mockResolvedValue([sampleSchedules[1]]);
 
-		render(await BasicScheduleTable({ filters: {} }));
+		render(
+			await BasicScheduleTable({
+				filters: {
+					clientId: undefined,
+					serviceTypeId: undefined,
+					weekday: undefined,
+				},
+			}),
+		);
 
 		// 担当者列と備考列の両方がハイフン
 		const hyphens = screen.getAllByText('-');
@@ -80,7 +104,7 @@ describe('BasicScheduleTable', () => {
 
 	it('フィルタをfetchBasicSchedulesに渡す', async () => {
 		mockFetchSchedules.mockResolvedValue([]);
-		const filters = { weekday: 'Mon' as const, clientId: 'client-1' };
+		const filters = { weekday: 'Mon' as const, clientId: 'client-1', serviceTypeId: 'st-1' };
 
 		render(await BasicScheduleTable({ filters }));
 
