@@ -76,7 +76,7 @@
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"storybook": "^10.1.9",
-		"supabase": "^2.67.1",
+		"supabase": "^2.72.4",
 		"tailwindcss": "^4",
 		"typescript": "^5",
 		"vite": "^7.2.7",
