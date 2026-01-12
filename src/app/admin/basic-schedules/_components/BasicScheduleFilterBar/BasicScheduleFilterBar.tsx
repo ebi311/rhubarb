@@ -1,5 +1,6 @@
 'use client';
 
+import { FormSelect } from '@/components/forms/FormSelect';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ChangeEvent } from 'react';
@@ -25,6 +26,21 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const filters = parseFiltersFromSearchParams(searchParams);
+
+	const weekdayOptions = [
+		{ value: '', label: 'すべて' },
+		...WEEKDAYS.map((day) => ({ value: day.value, label: day.label })),
+	];
+
+	const clientOptions = [
+		{ value: '', label: 'すべて' },
+		...clients.map((client) => ({ value: client.id, label: client.name })),
+	];
+
+	const serviceTypeOptions = [
+		{ value: '', label: 'すべて' },
+		...serviceTypes.map((serviceType) => ({ value: serviceType.id, label: serviceType.name })),
+	];
 
 	const updateFilters = (newFilters: BasicScheduleFilterState) => {
 		const params = new URLSearchParams();
@@ -60,53 +76,35 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 			<div className="flex flex-col gap-3 md:flex-row md:items-end">
 				<label className="form-control w-full md:w-auto">
 					<span className="label label-text">曜日</span>
-					<select
+					<FormSelect
 						className="select select-bordered w-full md:w-32"
 						value={filters.weekday ?? ''}
 						onChange={handleWeekdayChange}
 						aria-label="曜日"
-					>
-						<option value="">すべて</option>
-						{WEEKDAYS.map((day) => (
-							<option key={day.value} value={day.value}>
-								{day.label}
-							</option>
-						))}
-					</select>
+						options={weekdayOptions}
+					/>
 				</label>
 
 				<label className="form-control w-full md:w-auto">
 					<span className="label label-text">利用者</span>
-					<select
+					<FormSelect
 						className="select select-bordered w-full md:w-48"
 						value={filters.clientId ?? ''}
 						onChange={handleClientChange}
 						aria-label="利用者"
-					>
-						<option value="">すべて</option>
-						{clients.map((client) => (
-							<option key={client.id} value={client.id}>
-								{client.name}
-							</option>
-						))}
-					</select>
+						options={clientOptions}
+					/>
 				</label>
 
 				<label className="form-control w-full md:w-auto">
 					<span className="label label-text">サービス区分</span>
-					<select
+					<FormSelect
 						className="select select-bordered w-full md:w-40"
 						value={filters.serviceTypeId ?? ''}
 						onChange={handleServiceTypeChange}
 						aria-label="サービス区分"
-					>
-						<option value="">すべて</option>
-						{serviceTypes.map((st) => (
-							<option key={st.id} value={st.id}>
-								{st.name}
-							</option>
-						))}
-					</select>
+						options={serviceTypeOptions}
+					/>
 				</label>
 			</div>
 

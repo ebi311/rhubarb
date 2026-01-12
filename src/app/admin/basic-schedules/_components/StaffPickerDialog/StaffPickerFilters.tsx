@@ -1,3 +1,4 @@
+import { FormSelect } from '@/components/forms/FormSelect';
 import type { RoleFilter } from './types';
 
 type StaffPickerFiltersProps = {
@@ -31,29 +32,21 @@ export const StaffPickerFilters = ({
 			value={keyword}
 			onChange={(event) => onKeywordChange(event.target.value)}
 		/>
-		<select
+		<FormSelect
 			className="select select-bordered w-full sm:max-w-40"
 			value={roleFilter}
 			onChange={(event) => onRoleFilterChange(event.target.value as RoleFilter)}
-		>
-			{roleFilterOptions.map((option) => (
-				<option key={option.value} value={option.value}>
-					{option.label}
-				</option>
-			))}
-		</select>
-		<select
+			options={roleFilterOptions.map((option) => ({ value: option.value, label: option.label }))}
+		/>
+		<FormSelect
 			className="select select-bordered w-full sm:max-w-48"
 			value={serviceFilter}
 			onChange={(event) => onServiceFilterChange(event.target.value)}
-		>
-			<option value="all">すべてのサービス区分</option>
-			{serviceTypeOptions.map((service) => (
-				<option key={service} value={service}>
-					{service}
-				</option>
-			))}
-		</select>
+			options={[
+				{ value: 'all', label: 'すべてのサービス区分' },
+				...serviceTypeOptions.map((service) => ({ value: service, label: service })),
+			]}
+		/>
 		{onClear && (
 			<button type="button" className="btn btn-ghost" onClick={onClear}>
 				選択をクリア

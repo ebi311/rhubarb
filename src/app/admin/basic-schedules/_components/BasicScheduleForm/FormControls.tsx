@@ -1,5 +1,6 @@
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import { FormInput } from '@/components/forms/FormInput';
+import { FormSelect } from '@/components/forms/FormSelect';
 import { FormTextarea } from '@/components/forms/FormTextarea';
 import type { ServiceUser } from '@/models/serviceUser';
 import { useId } from 'react';
@@ -27,22 +28,19 @@ export const ClientSelectField = ({ serviceUsers }: ClientSelectFieldProps) => {
 			<legend id={`${fieldId}-label`} className="fieldset-legend">
 				利用者 *
 			</legend>
-			<select
+			<FormSelect
 				id={fieldId}
 				className={selectClass}
-				{...register('clientId')}
 				disabled={isSubmitting}
 				aria-labelledby={`${fieldId}-label`}
 				aria-invalid={hasError}
 				aria-describedby={describedBy}
-			>
-				<option value="">選択してください</option>
-				{serviceUsers.map((client) => (
-					<option key={client.id} value={client.id}>
-						{client.name}
-					</option>
-				))}
-			</select>
+				options={[
+					{ value: '', label: '選択してください' },
+					...serviceUsers.map((client) => ({ value: client.id, label: client.name })),
+				]}
+				{...register('clientId')}
+			/>
 			<FieldErrorMessage fieldId={fieldId} error={errors.clientId} />
 		</fieldset>
 	);
@@ -67,22 +65,19 @@ export const ServiceTypeSelectField = ({ serviceTypes }: ServiceTypeSelectFieldP
 			<legend id={`${fieldId}-label`} className="fieldset-legend">
 				サービス区分 *
 			</legend>
-			<select
+			<FormSelect
 				id={fieldId}
 				className={selectClass}
-				{...register('serviceTypeId')}
 				disabled={isSubmitting}
 				aria-labelledby={`${fieldId}-label`}
 				aria-invalid={hasError}
 				aria-describedby={describedBy}
-			>
-				<option value="">選択してください</option>
-				{serviceTypes.map((type) => (
-					<option key={type.id} value={type.id}>
-						{type.name}
-					</option>
-				))}
-			</select>
+				options={[
+					{ value: '', label: '選択してください' },
+					...serviceTypes.map((type) => ({ value: type.id, label: type.name })),
+				]}
+				{...register('serviceTypeId')}
+			/>
 			<FieldErrorMessage fieldId={fieldId} error={errors.serviceTypeId} />
 		</fieldset>
 	);
@@ -100,19 +95,19 @@ export const WeekdayField = () => {
 			<legend id={`${fieldId}-label`} className="fieldset-legend">
 				曜日 *
 			</legend>
-			<select
+			<FormSelect
 				id={fieldId}
 				className="select"
-				{...register('weekday')}
 				disabled={isSubmitting}
 				aria-labelledby={`${fieldId}-label`}
-			>
-				{(Object.keys(WEEKDAY_LABELS) as Array<keyof typeof WEEKDAY_LABELS>).map((weekday) => (
-					<option key={weekday} value={weekday}>
-						{WEEKDAY_LABELS[weekday]}
-					</option>
-				))}
-			</select>
+				options={(Object.keys(WEEKDAY_LABELS) as Array<keyof typeof WEEKDAY_LABELS>).map(
+					(weekday) => ({
+						value: weekday,
+						label: WEEKDAY_LABELS[weekday],
+					}),
+				)}
+				{...register('weekday')}
+			/>
 		</fieldset>
 	);
 };
