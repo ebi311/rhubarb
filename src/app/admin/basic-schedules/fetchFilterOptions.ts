@@ -37,8 +37,7 @@ export const fetchFilterOptions = async (): Promise<{
 	const { data: serviceTypes } = await supabase
 		.from('service_types')
 		.select('id, name')
-		.eq('office_id', staff.office_id)
-		.order('name');
+		.order('display_order');
 
 	return {
 		clients: clients ?? [],
