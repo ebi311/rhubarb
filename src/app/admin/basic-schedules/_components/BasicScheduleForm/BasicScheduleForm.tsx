@@ -10,6 +10,7 @@ import type { StaffRecord } from '@/models/staffActionSchemas';
 import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { timeToMinutes } from '@/models/valueObjects/time';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'next/navigation';
 import {
 	useCallback,
 	useEffect,
@@ -140,6 +141,7 @@ type SubmitHandlerDeps = {
 	initialValues?: BasicScheduleFormInitialValues;
 	onCreated?: (schedule: BasicScheduleRecord) => void;
 	setStaffPickerOpen: Dispatch<SetStateAction<boolean>>;
+	router: ReturnType<typeof useRouter>;
 };
 
 const createOnSubmit = ({
@@ -149,6 +151,7 @@ const createOnSubmit = ({
 	initialValues,
 	onCreated,
 	setStaffPickerOpen,
+	router,
 }: SubmitHandlerDeps): SubmitHandler<BasicScheduleFormValues> => {
 	return async (values) => {
 		setApiError(null);
@@ -188,6 +191,7 @@ const createOnSubmit = ({
 
 		reset(buildDefaultValues(initialValues));
 		setStaffPickerOpen(false);
+		router.push('/admin/basic-schedules');
 	};
 };
 
@@ -197,6 +201,7 @@ export const BasicScheduleForm = ({
 	staffs,
 	initialValues,
 }: BasicScheduleFormProps) => {
+	const router = useRouter();
 	const [apiError, setApiError] = useState<string | null>(null);
 	const [isStaffPickerOpen, setStaffPickerOpen] = useState(false);
 	const { handleActionResult } = useActionResultHandler();
@@ -281,6 +286,7 @@ export const BasicScheduleForm = ({
 			reset,
 			initialValues,
 			setStaffPickerOpen,
+			router,
 		}),
 	);
 

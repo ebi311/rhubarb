@@ -8,6 +8,14 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BasicScheduleForm } from './BasicScheduleForm';
+
+const mockPush = vi.fn();
+vi.mock('next/navigation', () => ({
+	useRouter: () => ({
+		push: mockPush,
+	}),
+}));
+
 vi.mock('@/app/actions/basicSchedules', () => ({
 	createBasicScheduleAction: vi.fn(),
 }));
@@ -67,6 +75,7 @@ describe('BasicScheduleForm', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		handleActionResultMock.mockReset();
+		mockPush.mockClear();
 		// handleActionResultMock.mockReturnValue(true);
 	});
 
@@ -124,5 +133,8 @@ describe('BasicScheduleForm', () => {
 			expect(screen.getByLabelText('身体介護')).not.toBeChecked();
 			expect(screen.getByLabelText('開始時刻 *')).toHaveValue('');
 		});
+
+		// 成功後に一覧ページへ遷移することを確認
+		expect(mockPush).toHaveBeenCalledWith('/admin/basic-schedules');
 	});
 });
