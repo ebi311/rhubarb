@@ -60,7 +60,7 @@ export const StaffPickerTable = ({ staffs, selectedStaffId, onSelect }: StaffPic
 							</span>
 						</td>
 						<td>
-							<ServiceTypeBadges serviceType={staff.serviceTypeNames} badgeSize="md" />
+							<ServiceTypeBadges serviceTypeIds={staff.serviceTypeIds} size="md" />
 						</td>
 						<td className="text-sm text-base-content/70">{staff.note ?? '-'}</td>
 					</tr>

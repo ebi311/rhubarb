@@ -1,20 +1,15 @@
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import type { ServiceTypeOption, StaffFilterState } from '../../_types';
-import { buildServiceTypeMap, filterStaffs, toStaffViewModel } from './staffViewModel';
+import type { StaffFilterState } from '../../_types';
+import { filterStaffs, toStaffViewModel } from './staffViewModel';
 
 type UseStaffListStateOptions = {
 	initialStaffs: StaffRecord[];
-	serviceTypes: ServiceTypeOption[];
 	filters: StaffFilterState;
 };
 
-export const useStaffListState = ({
-	initialStaffs,
-	serviceTypes,
-	filters,
-}: UseStaffListStateOptions) => {
+export const useStaffListState = ({ initialStaffs, filters }: UseStaffListStateOptions) => {
 	const router = useRouter();
 	const [staffs, setStaffs] = useState(initialStaffs);
 	const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -25,11 +20,7 @@ export const useStaffListState = ({
 		setStaffs(initialStaffs);
 	}, [initialStaffs]);
 
-	const serviceTypeMap = useMemo(() => buildServiceTypeMap(serviceTypes), [serviceTypes]);
-	const staffViewModels = useMemo(
-		() => staffs.map((staff) => toStaffViewModel(staff, serviceTypeMap)),
-		[staffs, serviceTypeMap],
-	);
+	const staffViewModels = useMemo(() => staffs.map((staff) => toStaffViewModel(staff)), [staffs]);
 	const filteredStaffs = useMemo(
 		() => filterStaffs(staffViewModels, filters),
 		[staffViewModels, filters],

@@ -5,9 +5,9 @@ import type { ServiceTypeOption } from '../../_types';
 import { ServiceTypeSelector } from './ServiceTypeSelector';
 
 const serviceTypes: ServiceTypeOption[] = [
-	{ id: '019b1d20-0000-4000-8000-000000000111', name: '身体介護' },
-	{ id: '019b1d20-0000-4000-8000-000000000222', name: '生活援助' },
-	{ id: '019b1d20-0000-4000-8000-000000000333', name: '通院介助' },
+	{ id: 'physical-care', name: '身体介護' },
+	{ id: 'life-support', name: '生活支援' },
+	{ id: 'commute-support', name: '通院サポート' },
 ];
 
 describe('ServiceTypeSelector', () => {
@@ -16,14 +16,14 @@ describe('ServiceTypeSelector', () => {
 		render(
 			<ServiceTypeSelector
 				options={serviceTypes}
-				selectedIds={['019b1d20-0000-4000-8000-000000000111']}
+				selectedIds={['physical-care']}
 				onChange={handleChange}
 			/>,
 		);
 
 		expect(screen.getByLabelText('身体介護')).toBeChecked();
-		expect(screen.getByLabelText('生活援助')).not.toBeChecked();
-		expect(screen.getByLabelText('通院介助')).not.toBeChecked();
+		expect(screen.getByLabelText('生活支援')).not.toBeChecked();
+		expect(screen.getByLabelText('通院サポート')).not.toBeChecked();
 	});
 
 	it('個別のサービス区分をトグルするとonChangeが呼ばれる', async () => {
@@ -31,9 +31,9 @@ describe('ServiceTypeSelector', () => {
 		const handleChange = vi.fn();
 		render(<ServiceTypeSelector options={serviceTypes} selectedIds={[]} onChange={handleChange} />);
 
-		await user.click(screen.getByLabelText('生活援助'));
+		await user.click(screen.getByLabelText('生活支援'));
 
-		expect(handleChange).toHaveBeenCalledWith(['019b1d20-0000-4000-8000-000000000222']);
+		expect(handleChange).toHaveBeenCalledWith(['life-support']);
 	});
 
 	it('全選択ボタンで全てのサービス区分を選択/解除できる', async () => {
@@ -42,17 +42,13 @@ describe('ServiceTypeSelector', () => {
 		const { rerender } = render(
 			<ServiceTypeSelector
 				options={serviceTypes}
-				selectedIds={['019b1d20-0000-4000-8000-000000000111']}
+				selectedIds={['physical-care']}
 				onChange={handleChange}
 			/>,
 		);
 
 		await user.click(screen.getByRole('button', { name: '全選択' }));
-		expect(handleChange).toHaveBeenCalledWith([
-			'019b1d20-0000-4000-8000-000000000111',
-			'019b1d20-0000-4000-8000-000000000222',
-			'019b1d20-0000-4000-8000-000000000333',
-		]);
+		expect(handleChange).toHaveBeenCalledWith(['physical-care', 'life-support', 'commute-support']);
 
 		rerender(
 			<ServiceTypeSelector

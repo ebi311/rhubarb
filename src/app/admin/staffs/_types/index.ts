@@ -1,7 +1,8 @@
 import type { StaffRecord } from '@/models/staffActionSchemas';
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 
 export type ServiceTypeOption = {
-	id: string;
+	id: ServiceTypeId;
 	name: string;
 };
 
@@ -11,7 +12,7 @@ export type StaffViewModel = {
 	role: StaffRecord['role'];
 	email: string | null;
 	note: string | null;
-	serviceTypes: ServiceTypeOption[];
+	serviceTypeIds: ServiceTypeId[];
 	updatedAt: string;
 };
 

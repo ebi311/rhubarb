@@ -1,12 +1,7 @@
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { describe, expect, it } from 'vitest';
-import type { ServiceTypeOption, StaffFilterState } from '../../_types';
-import {
-	buildServiceTypeMap,
-	filterStaffs,
-	formatStaffUpdatedAt,
-	toStaffViewModel,
-} from './staffViewModel';
+import type { StaffFilterState } from '../../_types';
+import { filterStaffs, formatStaffUpdatedAt, toStaffViewModel } from './staffViewModel';
 
 const buildStaff = (overrides: Partial<StaffRecord> = {}): StaffRecord => ({
 	id: 'staff-1',
@@ -22,32 +17,24 @@ const buildStaff = (overrides: Partial<StaffRecord> = {}): StaffRecord => ({
 	...overrides,
 });
 
-const serviceTypes: ServiceTypeOption[] = [
-	{ id: 'physical-care', name: '身体介護' },
-	{ id: 'life-support', name: '生活援助' },
-];
-
 describe('staffViewModel utilities', () => {
 	it('formatStaffUpdatedAt returns formatted timestamp', () => {
 		const formatted = formatStaffUpdatedAt(new Date('2025-01-02T09:00:00Z'));
 		expect(formatted).toBe('2025-01-02 18:00');
 	});
 
-	it('toStaffViewModel resolves service type names via map', () => {
-		const map = buildServiceTypeMap(serviceTypes);
-		const vm = toStaffViewModel(buildStaff(), map);
-		expect(vm.serviceTypes[0]).toEqual({ id: 'physical-care', name: '身体介護' });
-		const fallback = toStaffViewModel(buildStaff({ service_type_ids: ['unknown' as any] }), map);
-		expect(fallback.serviceTypes[0]).toEqual({ id: 'unknown', name: 'unknown' });
+	it('toStaffViewModel maps staff record to view model with serviceTypeIds', () => {
+		const vm = toStaffViewModel(buildStaff());
+		expect(vm.serviceTypeIds).toEqual(['physical-care']);
+		expect(vm.name).toBe('山田太郎');
+		expect(vm.role).toBe('admin');
 	});
 
 	it('filterStaffs filters by query and role', () => {
-		const map = buildServiceTypeMap(serviceTypes);
 		const viewModels = [
-			toStaffViewModel(buildStaff(), map),
+			toStaffViewModel(buildStaff()),
 			toStaffViewModel(
 				buildStaff({ id: 'staff-2', name: '佐藤花子', role: 'helper', email: 'sato@example.com' }),
-				map,
 			),
 		];
 

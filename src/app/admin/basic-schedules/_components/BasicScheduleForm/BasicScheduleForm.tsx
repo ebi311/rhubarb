@@ -32,7 +32,6 @@ import { ApiErrorMessage } from './FormMessages';
 import {
 	TIME_PATTERN,
 	computeAllowedStaffIds,
-	createServiceTypeNameMap,
 	createStaffMap,
 	getSelectedStaff,
 	getStaffStatusMessage,
@@ -227,8 +226,6 @@ export const BasicScheduleForm = ({
 		WATCH_VALUE_DEFAULTS,
 	);
 
-	const serviceTypeNameMap = useMemo(() => createServiceTypeNameMap(serviceTypes), [serviceTypes]);
-
 	const staffMap = useMemo(() => createStaffMap(staffs), [staffs]);
 
 	const allowedStaffIds = useMemo(
@@ -237,8 +234,8 @@ export const BasicScheduleForm = ({
 	);
 
 	const staffPickerOptions: StaffPickerOption[] = useMemo(
-		() => mapStaffPickerOptions(staffs, allowedStaffIds, serviceTypeNameMap),
-		[staffs, allowedStaffIds, serviceTypeNameMap],
+		() => mapStaffPickerOptions(staffs, allowedStaffIds),
+		[staffs, allowedStaffIds],
 	);
 
 	useEffect(() => {

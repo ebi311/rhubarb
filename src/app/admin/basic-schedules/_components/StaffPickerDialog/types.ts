@@ -1,3 +1,5 @@
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+
 export type StaffRole = 'admin' | 'helper';
 export type RoleFilter = 'all' | StaffRole;
 
@@ -5,7 +7,7 @@ export type StaffPickerOption = {
 	id: string;
 	name: string;
 	role: StaffRole;
-	serviceTypeNames: string[];
+	serviceTypeIds: ServiceTypeId[];
 	note?: string | null;
 };
 

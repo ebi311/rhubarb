@@ -4,9 +4,9 @@ import type { ServiceTypeOption } from '../../_types';
 import { ServiceTypeSelector } from './ServiceTypeSelector';
 
 const options: ServiceTypeOption[] = [
-	{ id: 'svc-1', name: '身体介護' },
-	{ id: 'svc-2', name: '生活援助' },
-	{ id: 'svc-3', name: '通院介助' },
+	{ id: 'physical-care', name: '身体介護' },
+	{ id: 'life-support', name: '生活支援' },
+	{ id: 'commute-support', name: '通院サポート' },
 ];
 
 const meta = {
@@ -26,7 +26,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
 	args: {
-		selectedIds: ['svc-1'],
+		selectedIds: ['physical-care'],
 	},
 };
 

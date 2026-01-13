@@ -3,7 +3,7 @@ import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { ServiceUser } from '@/models/serviceUser';
 import type { StaffRecord } from '@/models/staffActionSchemas';
-import { ServiceTypeOption } from '../_components/BasicScheduleFilterBar/types';
+import type { ServiceTypeOption } from '../../staffs/_types';
 import { BasicScheduleForm } from '../_components/BasicScheduleForm';
 
 const safeData = <T,>(label: string, result: ActionResult<T[]>): T[] => {

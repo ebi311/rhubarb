@@ -1,3 +1,4 @@
+import { ServiceTypeLabels, type ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { useEffect, useMemo, useState } from 'react';
 import type { RoleFilter, StaffPickerOption } from './types';
 
@@ -10,14 +11,14 @@ export type UseStaffPickerDialogStateParams = {
 export type UseStaffPickerDialogState = {
 	keyword: string;
 	roleFilter: RoleFilter;
-	serviceFilter: string;
-	serviceTypeFilterOptions: string[];
+	serviceFilter: ServiceTypeId | 'all';
+	serviceTypeFilterOptions: ServiceTypeId[];
 	filteredStaffs: StaffPickerOption[];
 	pendingSelection: string | null;
 	pendingStaff: StaffPickerOption | null;
 	handleKeywordChange: (value: string) => void;
 	handleRoleFilterChange: (value: RoleFilter) => void;
-	handleServiceFilterChange: (value: string) => void;
+	handleServiceFilterChange: (value: ServiceTypeId | 'all') => void;
 	selectStaff: (staffId: string | null) => void;
 };
 
@@ -28,7 +29,7 @@ export const useStaffPickerDialogState = ({
 }: UseStaffPickerDialogStateParams): UseStaffPickerDialogState => {
 	const [keyword, setKeyword] = useState('');
 	const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
-	const [serviceFilter, setServiceFilter] = useState<string>('all');
+	const [serviceFilter, setServiceFilter] = useState<ServiceTypeId | 'all'>('all');
 	const [pendingSelection, setPendingSelection] = useState<string | null>(selectedStaffId);
 
 	useEffect(() => {
@@ -44,11 +45,13 @@ export const useStaffPickerDialogState = ({
 	}, [isOpen]);
 
 	const serviceTypeFilterOptions = useMemo(() => {
-		const unique = new Set<string>();
+		const unique = new Set<ServiceTypeId>();
 		staffOptions.forEach((option) => {
-			option.serviceTypeNames.forEach((name) => unique.add(name));
+			option.serviceTypeIds.forEach((id) => unique.add(id));
 		});
-		return Array.from(unique).sort((a, b) => a.localeCompare(b, 'ja'));
+		return Array.from(unique).sort((a, b) =>
+			ServiceTypeLabels[a].localeCompare(ServiceTypeLabels[b], 'ja'),
+		);
 	}, [staffOptions]);
 
 	const filteredStaffs = useMemo(() => {
@@ -56,11 +59,13 @@ export const useStaffPickerDialogState = ({
 		return staffOptions.filter((option) => {
 			const matchesRole = roleFilter === 'all' || option.role === roleFilter;
 			const matchesService =
-				serviceFilter === 'all' || option.serviceTypeNames.includes(serviceFilter);
+				serviceFilter === 'all' || option.serviceTypeIds.includes(serviceFilter);
 			const matchesKeyword =
 				keywordLower.length === 0 ||
 				option.name.toLowerCase().includes(keywordLower) ||
-				option.serviceTypeNames.some((service) => service.toLowerCase().includes(keywordLower));
+				option.serviceTypeIds.some((id) =>
+					ServiceTypeLabels[id].toLowerCase().includes(keywordLower),
+				);
 			return matchesRole && matchesService && matchesKeyword;
 		});
 	}, [keyword, roleFilter, serviceFilter, staffOptions]);

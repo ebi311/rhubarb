@@ -9,14 +9,14 @@ const options: StaffPickerOption[] = [
 		id: 'staff-1',
 		name: '山田太郎',
 		role: 'admin',
-		serviceTypeNames: ['身体介護', '生活援助'],
+		serviceTypeIds: ['physical-care', 'life-support'],
 		note: '夜間可',
 	},
 	{
 		id: 'staff-2',
 		name: '佐藤花子',
 		role: 'helper',
-		serviceTypeNames: ['身体介護'],
+		serviceTypeIds: ['physical-care'],
 		note: null,
 	},
 ];

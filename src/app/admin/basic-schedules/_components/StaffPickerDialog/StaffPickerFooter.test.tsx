@@ -11,7 +11,7 @@ describe('StaffPickerFooter', () => {
 					id: 'staff-1',
 					name: '山田太郎',
 					role: 'admin',
-					serviceTypeNames: [],
+					serviceTypeIds: [],
 					note: null,
 				}}
 				onClose={() => {}}

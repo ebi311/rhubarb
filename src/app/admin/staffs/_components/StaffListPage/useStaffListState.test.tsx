@@ -2,15 +2,10 @@ import type { StaffRecord } from '@/models/staffActionSchemas';
 import { act, renderHook } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ServiceTypeOption, StaffFilterState } from '../../_types';
+import type { StaffFilterState } from '../../_types';
 import { useStaffListState } from './useStaffListState';
 
 vi.mock('next/navigation');
-
-const serviceTypes: ServiceTypeOption[] = [
-	{ id: 'physical-care', name: '身体介護' },
-	{ id: 'life-support', name: '生活援助' },
-];
 
 const buildStaff = (overrides: Partial<StaffRecord> = {}): StaffRecord => ({
 	id: 'staff-1',
@@ -35,7 +30,6 @@ const setup = (overrides: Partial<{ filters: StaffFilterState }> = {}) => {
 	return renderHook(() =>
 		useStaffListState({
 			initialStaffs,
-			serviceTypes,
 			filters,
 		}),
 	);

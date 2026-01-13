@@ -1,28 +1,16 @@
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { dateJst } from '@/utils/date';
-import type { ServiceTypeOption, StaffFilterState, StaffViewModel } from '../../_types';
-
-export const buildServiceTypeMap = (serviceTypes: ServiceTypeOption[]) => {
-	const map = new Map<string, string>();
-	serviceTypes.forEach((type) => map.set(type.id, type.name));
-	return map;
-};
+import type { StaffFilterState, StaffViewModel } from '../../_types';
 
 export const formatStaffUpdatedAt = (date: Date) => dateJst(date).format('YYYY-MM-DD HH:mm');
 
-export const toStaffViewModel = (
-	staff: StaffRecord,
-	serviceTypeMap: Map<string, string>,
-): StaffViewModel => ({
+export const toStaffViewModel = (staff: StaffRecord): StaffViewModel => ({
 	id: staff.id,
 	name: staff.name,
 	role: staff.role,
 	email: staff.email ?? null,
 	note: staff.note ?? null,
-	serviceTypes: staff.service_type_ids.map((serviceTypeId) => ({
-		id: serviceTypeId,
-		name: serviceTypeMap.get(serviceTypeId) ?? serviceTypeId,
-	})),
+	serviceTypeIds: staff.service_type_ids,
 	updatedAt: formatStaffUpdatedAt(staff.updated_at),
 });
 

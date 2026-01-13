@@ -1,4 +1,3 @@
-import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import type { Weekday } from '@/models/basicScheduleActionSchemas';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
@@ -12,9 +11,6 @@ export const parseTimeString = (value: string): TimeValue | null => {
 	if (!match) return null;
 	return { hour: Number(match[1]), minute: Number(match[2]) };
 };
-
-export const createServiceTypeNameMap = (serviceTypes: ServiceTypeOption[]) =>
-	new Map(serviceTypes.map((type) => [type.id, type.name]));
 
 export const createStaffMap = (staffs: StaffRecord[]) =>
 	new Map(staffs.map((staff) => [staff.id, staff]));
@@ -34,7 +30,6 @@ export const computeAllowedStaffIds = (
 export const mapStaffPickerOptions = (
 	staffs: StaffRecord[],
 	allowedStaffIds: Set<string>,
-	serviceTypeNameMap: Map<string, string>,
 ): StaffPickerOption[] =>
 	staffs
 		.filter((staff) => allowedStaffIds.has(staff.id))
@@ -43,9 +38,7 @@ export const mapStaffPickerOptions = (
 			name: staff.name,
 			role: staff.role,
 			note: staff.note,
-			serviceTypeNames: staff.service_type_ids
-				.map((id) => serviceTypeNameMap.get(id))
-				.filter((name): name is string => Boolean(name)),
+			serviceTypeIds: staff.service_type_ids,
 		}));
 
 export const getStaffStatusMessage = (serviceTypeId?: string, optionCount: number = 0) => {

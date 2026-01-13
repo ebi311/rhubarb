@@ -11,10 +11,7 @@ const mockStaffs: StaffViewModel[] = [
 		role: 'admin',
 		email: 'yamada@example.com',
 		note: '夜間帯対応可能',
-		serviceTypes: [
-			{ id: 'svc-1', name: '身体介護' },
-			{ id: 'svc-2', name: '生活援助' },
-		],
+		serviceTypeIds: ['physical-care', 'life-support'],
 		updatedAt: '2025/01/01 10:00',
 	},
 	{
@@ -23,7 +20,7 @@ const mockStaffs: StaffViewModel[] = [
 		role: 'helper',
 		email: null,
 		note: null,
-		serviceTypes: [],
+		serviceTypeIds: [],
 		updatedAt: '2025/01/02 09:00',
 	},
 ];
@@ -35,7 +32,7 @@ describe('StaffTable', () => {
 		expect(screen.getByText('山田太郎')).toBeInTheDocument();
 		expect(screen.getByText('佐藤花子')).toBeInTheDocument();
 		expect(screen.getByText('身体介護')).toBeInTheDocument();
-		expect(screen.getByText('生活援助')).toBeInTheDocument();
+		expect(screen.getByText('生活支援')).toBeInTheDocument();
 		expect(screen.getByText('未割当')).toBeInTheDocument();
 	});
 

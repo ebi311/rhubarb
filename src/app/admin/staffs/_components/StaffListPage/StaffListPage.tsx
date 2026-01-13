@@ -22,7 +22,6 @@ export const StaffListPage = ({
 }: StaffListPageClientProps) => {
 	const { filteredStaffs, modals, actions, handlers } = useStaffListState({
 		initialStaffs,
-		serviceTypes,
 		filters,
 	});
 

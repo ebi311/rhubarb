@@ -1,23 +1,29 @@
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+import { ServiceTypeBadge } from './ServiceTypeBadge';
+
 type ServiceTypeBadgesProps = {
-	serviceType: string[];
+	/** サービス区分IDの配列 */
+	serviceTypeIds: ServiceTypeId[];
+	/** 空の場合に表示するラベル */
 	emptyLabel?: string;
-	badgeSize?: 'sm' | 'md';
+	/** バッジサイズ */
+	size?: 'sm' | 'md';
+	/** 追加のCSSクラス */
 	className?: string;
 };
 
-const badgeSizeClassMap: Record<NonNullable<ServiceTypeBadgesProps['badgeSize']>, string> = {
-	sm: 'badge-sm',
-	md: '',
-};
-
+/**
+ * 複数のサービス区分バッジを表示するコンポーネント
+ */
 export const ServiceTypeBadges = ({
-	serviceType: names,
+	serviceTypeIds,
 	emptyLabel = '未割当',
-	badgeSize = 'sm',
+	size = 'sm',
 	className = '',
 }: ServiceTypeBadgesProps) => {
 	const containerClassName = ['flex flex-wrap gap-2', className].filter(Boolean).join(' ');
-	if (names.length === 0) {
+
+	if (serviceTypeIds.length === 0) {
 		return (
 			<span className={[containerClassName, 'text-base-content/60'].join(' ')}>{emptyLabel}</span>
 		);
@@ -25,15 +31,8 @@ export const ServiceTypeBadges = ({
 
 	return (
 		<div className={containerClassName}>
-			{names.map((name, index) => (
-				<span
-					key={`${name}-${index}`}
-					className={['badge badge-outline badge-primary', badgeSizeClassMap[badgeSize]]
-						.join(' ')
-						.trim()}
-				>
-					{name}
-				</span>
+			{serviceTypeIds.map((id) => (
+				<ServiceTypeBadge key={id} serviceTypeId={id} size={size} />
 			))}
 		</div>
 	);

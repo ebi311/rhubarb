@@ -1,15 +1,16 @@
 import { FormSelect } from '@/components/forms/FormSelect';
+import { ServiceTypeLabels, type ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import type { RoleFilter } from './types';
 
 type StaffPickerFiltersProps = {
 	keyword: string;
 	roleFilter: RoleFilter;
-	serviceFilter: string;
-	serviceTypeOptions: string[];
+	serviceFilter: ServiceTypeId | 'all';
+	serviceTypeOptions: ServiceTypeId[];
 	roleFilterOptions: Array<{ label: string; value: RoleFilter }>;
 	onKeywordChange: (value: string) => void;
 	onRoleFilterChange: (value: RoleFilter) => void;
-	onServiceFilterChange: (value: string) => void;
+	onServiceFilterChange: (value: ServiceTypeId | 'all') => void;
 	onClear?: () => void;
 };
 
@@ -41,10 +42,10 @@ export const StaffPickerFilters = ({
 		<FormSelect
 			className="select-bordered select w-full sm:max-w-48"
 			value={serviceFilter}
-			onChange={(event) => onServiceFilterChange(event.target.value)}
+			onChange={(event) => onServiceFilterChange(event.target.value as ServiceTypeId | 'all')}
 			options={[
 				{ value: 'all', label: 'すべてのサービス区分' },
-				...serviceTypeOptions.map((service) => ({ value: service, label: service })),
+				...serviceTypeOptions.map((id) => ({ value: id, label: ServiceTypeLabels[id] })),
 			]}
 		/>
 		{onClear && (

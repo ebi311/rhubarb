@@ -22,7 +22,7 @@ describe('StaffPickerFilters', () => {
 				keyword=""
 				roleFilter="all"
 				serviceFilter="all"
-				serviceTypeOptions={['身体介護']}
+				serviceTypeOptions={['physical-care']}
 				roleFilterOptions={roleFilterOptions}
 				onKeywordChange={handleKeywordChange}
 				onRoleFilterChange={handleRoleFilterChange}
@@ -40,7 +40,7 @@ describe('StaffPickerFilters', () => {
 		expect(handleRoleFilterChange).toHaveBeenLastCalledWith('admin');
 
 		await user.selectOptions(screen.getByDisplayValue('すべてのサービス区分'), '身体介護');
-		expect(handleServiceFilterChange).toHaveBeenLastCalledWith('身体介護');
+		expect(handleServiceFilterChange).toHaveBeenLastCalledWith('physical-care');
 
 		await user.click(screen.getByRole('button', { name: '選択をクリア' }));
 		expect(handleClear).toHaveBeenCalledTimes(1);
