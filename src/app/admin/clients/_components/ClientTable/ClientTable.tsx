@@ -1,3 +1,4 @@
+import { classNameConsts } from '@/app/_components/classNameConsts';
 import type { ServiceUser } from '@/models/serviceUser';
 import { StatusBadge } from '../StatusBadge';
 
@@ -27,13 +28,11 @@ export const ClientTable = ({ clients, getHref }: ClientTableProps) => {
 
 			{/* ボディ */}
 			<div role="rowgroup">
-				{clients.map((client, index) => (
+				{clients.map((client) => (
 					<a
 						key={client.id}
 						href={getHref(client)}
-						className={`grid grid-cols-[2fr_3fr_1fr] items-center gap-4 px-4 py-3 transition-colors hover:bg-base-200 focus:bg-base-200 focus:ring-2 focus:ring-primary focus:outline-none ${
-							index % 2 === 1 ? 'bg-base-100' : ''
-						}`}
+						className={`grid-cols-[2fr_3fr_1fr] ${classNameConsts.selectableRow}`}
 						role="row"
 						aria-label={`${client.name}の情報を編集`}
 					>

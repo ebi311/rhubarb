@@ -21,3 +21,11 @@
 	--toastify-font-family: inherit;
 	--toastify-toast-border-radius: 0.75rem;
 }
+
+@utility grid-areas-* {
+	grid-template-areas: --value([\*]);
+}
+
+@utility grid-area-* {
+	grid-area: --value([\*]);
+}

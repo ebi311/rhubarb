@@ -48,14 +48,6 @@ describe('BasicScheduleTable', () => {
 			}),
 		);
 
-		// ヘッダーの確認
-		expect(screen.getByRole('columnheader', { name: '利用者' })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: 'サービス区分' })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: '曜日' })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: '時間帯' })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: '担当者' })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: '備考' })).toBeInTheDocument();
-
 		// データ行の確認
 		expect(screen.getByText('山田太郎')).toBeInTheDocument();
 		expect(screen.getByText('身体介護')).toBeInTheDocument();

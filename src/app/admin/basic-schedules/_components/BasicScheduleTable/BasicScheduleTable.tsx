@@ -1,5 +1,8 @@
+import { classNameConsts } from '@/app/_components/classNameConsts';
 import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
+import classNames from 'classnames';
+import Link from 'next/link';
 import type { BasicScheduleFilterState } from '../BasicScheduleFilterBar/types';
 import { fetchBasicSchedules } from './fetchBasicSchedules';
 import type { BasicScheduleViewModel } from './types';
@@ -18,17 +21,31 @@ const WEEKDAY_LABELS: Record<DayOfWeek, string> = {
 	Sun: '日曜日',
 };
 
+const rowClassName = classNames(
+	'grid-cols-[6rem_4rem_6rem_1fr]',
+	'grid-areas-["client_client_client_client""service-type_weekday_time-range_staff-names""note_note_note_note"]',
+	classNameConsts.selectableRow,
+	'md:grid-cols-[10rem_6rem_auto_auto_1fr]',
+	'md:grid-areas-["client_service-type_weekday_time-range_staff-names""note_note_note_note_note"]',
+);
+
 const TableRow = ({ schedule }: { schedule: BasicScheduleViewModel }) => (
-	<tr>
-		<td>{schedule.clientName}</td>
-		<td>
+	<Link href="" className={rowClassName}>
+		<div className="text-lg font-bold grid-area-[client]">{schedule.clientName}</div>
+		<div className="grid-area-[service-type]">
 			<ServiceTypeBadge serviceTypeId={schedule.serviceTypeId} />
-		</td>
-		<td>{WEEKDAY_LABELS[schedule.weekday]}</td>
-		<td>{schedule.timeRange}</td>
-		<td>{schedule.staffNames.length > 0 ? schedule.staffNames.join(', ') : '-'}</td>
-		<td>{schedule.note ?? '-'}</td>
-	</tr>
+		</div>
+		<div className="text-sm text-base-content/75 grid-area-[weekday]">
+			{WEEKDAY_LABELS[schedule.weekday]}
+		</div>
+		<div className="text-sm text-base-content/75 grid-area-[time-range]">{schedule.timeRange}</div>
+		<div className="text-sm text-base-content/75 grid-area-[staff-names]">
+			{schedule.staffNames.length > 0 ? schedule.staffNames.join(', ') : '-'}
+		</div>
+		<div className="overflow-clip text-sm whitespace-nowrap grid-area-[note]">
+			{schedule.note ?? '-'}
+		</div>
+	</Link>
 );
 
 const EmptyState = () => (
@@ -45,24 +62,10 @@ export const BasicScheduleTable = async ({ filters }: BasicScheduleTableProps) =
 	}
 
 	return (
-		<div className="overflow-x-auto">
-			<table className="table">
-				<thead>
-					<tr>
-						<th>利用者</th>
-						<th>サービス区分</th>
-						<th>曜日</th>
-						<th>時間帯</th>
-						<th>担当者</th>
-						<th>備考</th>
-					</tr>
-				</thead>
-				<tbody>
-					{schedules.map((schedule) => (
-						<TableRow key={schedule.id} schedule={schedule} />
-					))}
-				</tbody>
-			</table>
+		<div>
+			{schedules.map((schedule) => (
+				<TableRow key={schedule.id} schedule={schedule} />
+			))}
 		</div>
 	);
 };
