@@ -1,3 +1,4 @@
+import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import type { BasicScheduleFilterState } from '../BasicScheduleFilterBar/types';
 import { fetchBasicSchedules } from './fetchBasicSchedules';
@@ -20,7 +21,9 @@ const WEEKDAY_LABELS: Record<DayOfWeek, string> = {
 const TableRow = ({ schedule }: { schedule: BasicScheduleViewModel }) => (
 	<tr>
 		<td>{schedule.clientName}</td>
-		<td>{schedule.serviceTypeName}</td>
+		<td>
+			<ServiceTypeBadge serviceTypeId={schedule.serviceTypeId} />
+		</td>
 		<td>{WEEKDAY_LABELS[schedule.weekday]}</td>
 		<td>{schedule.timeRange}</td>
 		<td>{schedule.staffNames.length > 0 ? schedule.staffNames.join(', ') : '-'}</td>

@@ -9,7 +9,7 @@ const sampleSchedules: BasicScheduleViewModel[] = [
 	{
 		id: 'schedule-1',
 		clientName: '山田太郎',
-		serviceTypeName: '身体介護',
+		serviceTypeId: 'physical-care',
 		weekday: 'Mon',
 		timeRange: '09:00 - 10:00',
 		staffNames: ['田中一郎', '佐藤花子'],
@@ -18,7 +18,7 @@ const sampleSchedules: BasicScheduleViewModel[] = [
 	{
 		id: 'schedule-2',
 		clientName: '鈴木花子',
-		serviceTypeName: '生活援助',
+		serviceTypeId: 'life-support',
 		weekday: 'Tue',
 		timeRange: '14:00 - 15:30',
 		staffNames: ['田中一郎'],
@@ -27,7 +27,7 @@ const sampleSchedules: BasicScheduleViewModel[] = [
 	{
 		id: 'schedule-3',
 		clientName: '佐藤一郎',
-		serviceTypeName: '通院介助',
+		serviceTypeId: 'commute-support',
 		weekday: 'Wed',
 		timeRange: '10:00 - 12:00',
 		staffNames: [],

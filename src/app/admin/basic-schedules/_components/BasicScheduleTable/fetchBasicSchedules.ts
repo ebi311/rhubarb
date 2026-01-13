@@ -16,7 +16,7 @@ const buildBasicSchedulesQuery = async (
 			end_time,
 			note,
 			clients:client_id (name),
-			service_types:service_type_id (name)
+			service_types:service_type_id (id)
 		`,
 		)
 		.is('deleted_at', null)
@@ -101,7 +101,7 @@ export const fetchBasicSchedules = async (
 	return schedules.map((schedule) => ({
 		id: schedule.id,
 		clientName: (schedule.clients as { name: string } | null)?.name ?? '不明',
-		serviceTypeName: (schedule.service_types as { name: string } | null)?.name ?? '不明',
+		serviceTypeId: (schedule.service_types as { id: string } | null)?.id ?? 'physical-care',
 		weekday: schedule.day_of_week,
 		timeRange: `${schedule.start_time} - ${schedule.end_time}`,
 		staffNames: staffMap.get(schedule.id) ?? [],
