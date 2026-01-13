@@ -19,11 +19,11 @@ const BasicScheduleListPage = async ({ searchParams }: BasicScheduleListPageProp
 	return (
 		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
 			<section className="space-y-2">
-				<p className="text-sm font-semibold uppercase tracking-widest text-primary">
+				<p className="text-sm font-semibold tracking-widest text-primary uppercase">
 					基本スケジュール
 				</p>
 				<h1 className="text-3xl font-bold">週次スケジュール一覧</h1>
-				<p className="text-base-content/70 text-sm">登録済みの基本スケジュールを確認できます。</p>
+				<p className="text-sm text-base-content/70">登録済みの基本スケジュールを確認できます。</p>
 			</section>
 
 			<div className="flex justify-end">
@@ -38,9 +38,9 @@ const BasicScheduleListPage = async ({ searchParams }: BasicScheduleListPageProp
 				<Suspense
 					fallback={
 						<div className="space-y-2">
-							<div className="skeleton h-12 w-full" />
-							<div className="skeleton h-12 w-full" />
-							<div className="skeleton h-12 w-full" />
+							<div className="h-12 w-full skeleton" />
+							<div className="h-12 w-full skeleton" />
+							<div className="h-12 w-full skeleton" />
 						</div>
 					}
 				>

@@ -12,10 +12,10 @@ export default async function LoginPage({
 		<div className="flex min-h-screen items-center justify-center bg-base-200">
 			<div className="card w-96 bg-base-100 shadow-xl">
 				<div className="card-body">
-					<h2 className="card-title justify-center mb-4">ログイン</h2>
+					<h2 className="mb-4 card-title justify-center">ログイン</h2>
 
 					{isUnauthorized && (
-						<div role="alert" className="alert alert-error mb-4">
+						<div role="alert" className="mb-4 alert alert-error">
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
 								className="h-6 w-6 shrink-0 stroke-current"
@@ -37,7 +37,7 @@ export default async function LoginPage({
 						</div>
 					)}
 
-					<p className="text-center mb-6 text-sm text-base-content/70">
+					<p className="mb-6 text-center text-sm text-base-content/70">
 						Googleアカウントを使用してログインしてください。
 					</p>
 					<div className="card-actions justify-center">

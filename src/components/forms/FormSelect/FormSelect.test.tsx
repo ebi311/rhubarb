@@ -20,7 +20,7 @@ describe('FormSelect', () => {
 	it('className を上書きできる', () => {
 		render(
 			<FormSelect
-				className="select select-bordered w-40"
+				className="select-bordered select w-40"
 				value="option-1"
 				onChange={() => {}}
 				options={baseOptions}

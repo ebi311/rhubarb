@@ -9,7 +9,7 @@ export interface ClientTableProps {
 export const ClientTable = ({ clients, getHref }: ClientTableProps) => {
 	if (clients.length === 0) {
 		return (
-			<div className="text-center py-8 text-base-content/70">利用者がまだ登録されていません</div>
+			<div className="py-8 text-center text-base-content/70">利用者がまだ登録されていません</div>
 		);
 	}
 
@@ -17,7 +17,7 @@ export const ClientTable = ({ clients, getHref }: ClientTableProps) => {
 		<div className="overflow-x-auto">
 			{/* ヘッダー */}
 			<div
-				className="grid grid-cols-[2fr_3fr_1fr] gap-4 px-4 py-3 bg-base-200 font-semibold text-sm"
+				className="grid grid-cols-[2fr_3fr_1fr] gap-4 bg-base-200 px-4 py-3 text-sm font-semibold"
 				role="row"
 			>
 				<div role="columnheader">氏名</div>
@@ -31,7 +31,7 @@ export const ClientTable = ({ clients, getHref }: ClientTableProps) => {
 					<a
 						key={client.id}
 						href={getHref(client)}
-						className={`grid grid-cols-[2fr_3fr_1fr] gap-4 px-4 py-3 items-center hover:bg-base-200 focus:bg-base-200 focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${
+						className={`grid grid-cols-[2fr_3fr_1fr] items-center gap-4 px-4 py-3 transition-colors hover:bg-base-200 focus:bg-base-200 focus:ring-2 focus:ring-primary focus:outline-none ${
 							index % 2 === 1 ? 'bg-base-100' : ''
 						}`}
 						role="row"

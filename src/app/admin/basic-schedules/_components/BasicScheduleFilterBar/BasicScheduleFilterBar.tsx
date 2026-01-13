@@ -74,10 +74,10 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 	return (
 		<div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 			<div className="flex flex-col gap-3 md:flex-row md:items-end">
-				<label className="form-control w-full md:w-auto">
-					<span className="label label-text">曜日</span>
+				<label className="form-control flex w-full gap-1 md:w-auto">
+					<span className="label-text label">曜日</span>
 					<FormSelect
-						className="select select-bordered w-full md:w-32"
+						className="select-bordered select w-full md:w-32"
 						value={filters.weekday ?? ''}
 						onChange={handleWeekdayChange}
 						aria-label="曜日"
@@ -86,9 +86,9 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 				</label>
 
 				<label className="form-control w-full md:w-auto">
-					<span className="label label-text">利用者</span>
+					<span className="label-text label">利用者</span>
 					<FormSelect
-						className="select select-bordered w-full md:w-48"
+						className="select-bordered select w-full md:w-48"
 						value={filters.clientId ?? ''}
 						onChange={handleClientChange}
 						aria-label="利用者"
@@ -97,9 +97,9 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 				</label>
 
 				<label className="form-control w-full md:w-auto">
-					<span className="label label-text">サービス区分</span>
+					<span className="label-text label">サービス区分</span>
 					<FormSelect
-						className="select select-bordered w-full md:w-40"
+						className="select-bordered select w-full md:w-40"
 						value={filters.serviceTypeId ?? ''}
 						onChange={handleServiceTypeChange}
 						aria-label="サービス区分"
@@ -108,7 +108,7 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 				</label>
 			</div>
 
-			<button type="button" className="btn btn-sm btn-ghost" onClick={handleReset}>
+			<button type="button" className="btn btn-ghost btn-sm" onClick={handleReset}>
 				リセット
 			</button>
 		</div>

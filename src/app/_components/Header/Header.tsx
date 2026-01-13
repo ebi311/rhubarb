@@ -4,7 +4,7 @@ export function Header() {
 	return (
 		<header className="navbar bg-base-100 shadow-sm">
 			<div className="flex-1">
-				<a className="btn btn-ghost text-xl">Rhubarb</a>
+				<a className="btn text-xl btn-ghost">Rhubarb</a>
 			</div>
 			<div className="flex-none">
 				<form action={signOut}>

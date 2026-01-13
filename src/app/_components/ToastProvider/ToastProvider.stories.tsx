@@ -18,7 +18,7 @@ type Story = StoryObj<typeof meta>;
 const Demo = () => {
 	const [count, setCount] = useState(0);
 	return (
-		<div className="min-h-screen bg-base-200 flex flex-col items-center justify-center gap-4">
+		<div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-base-200">
 			<ToastProvider />
 			<button
 				type="button"

@@ -7,7 +7,7 @@ export interface ClientFilterTabsProps {
 
 export const ClientFilterTabs = ({ activeFilter, onFilterChange }: ClientFilterTabsProps) => {
 	return (
-		<div role="tablist" className="tabs tabs-box">
+		<div role="tablist" className="tabs-box tabs">
 			<button
 				role="tab"
 				className={`tab ${activeFilter === 'all' ? 'tab-active' : ''}`}

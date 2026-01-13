@@ -28,7 +28,7 @@ export const ServiceTypeBadges = ({
 			{names.map((name, index) => (
 				<span
 					key={`${name}-${index}`}
-					className={['badge badge-primary badge-outline', badgeSizeClassMap[badgeSize]]
+					className={['badge badge-outline badge-primary', badgeSizeClassMap[badgeSize]]
 						.join(' ')
 						.trim()}
 				>

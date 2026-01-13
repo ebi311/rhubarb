@@ -79,7 +79,7 @@ export const ClientModal = (props: ClientModalProps) => {
 	return (
 		<dialog open className="modal">
 			<div className="modal-box">
-				<h3 className="font-bold text-lg mb-4">
+				<h3 className="mb-4 text-lg font-bold">
 					{mode === 'create' ? '利用者の新規登録' : '利用者情報の編集'}
 				</h3>
 
@@ -126,7 +126,7 @@ export const ClientModal = (props: ClientModalProps) => {
 							</fieldset>
 
 							{contractStatus === 'suspended' && (
-								<div role="alert" className="alert alert-warning mb-4">
+								<div role="alert" className="mb-4 alert alert-warning">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
 										className="h-6 w-6 shrink-0 stroke-current"

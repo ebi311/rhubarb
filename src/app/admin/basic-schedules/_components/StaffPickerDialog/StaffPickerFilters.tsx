@@ -28,18 +28,18 @@ export const StaffPickerFilters = ({
 		<input
 			type="search"
 			placeholder="氏名・サービス区分で検索"
-			className="input input-bordered w-full"
+			className="input-bordered input w-full"
 			value={keyword}
 			onChange={(event) => onKeywordChange(event.target.value)}
 		/>
 		<FormSelect
-			className="select select-bordered w-full sm:max-w-40"
+			className="select-bordered select w-full sm:max-w-40"
 			value={roleFilter}
 			onChange={(event) => onRoleFilterChange(event.target.value as RoleFilter)}
 			options={roleFilterOptions.map((option) => ({ value: option.value, label: option.label }))}
 		/>
 		<FormSelect
-			className="select select-bordered w-full sm:max-w-48"
+			className="select-bordered select w-full sm:max-w-48"
 			value={serviceFilter}
 			onChange={(event) => onServiceFilterChange(event.target.value)}
 			options={[

@@ -69,7 +69,7 @@ export const StaffTable = ({ staffs, onEdit, onDelete }: StaffTableProps) => {
 										{onDelete && (
 											<button
 												type="button"
-												className="btn btn-outline btn-error btn-xs"
+												className="btn btn-outline btn-xs btn-error"
 												onClick={() => onDelete(staff.id)}
 											>
 												削除

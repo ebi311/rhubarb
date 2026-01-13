@@ -62,7 +62,7 @@ export const StaffPickerDialog = ({
 				<div className="flex items-start justify-between gap-2">
 					<div>
 						<h2 className="text-xl font-semibold">担当者を選択</h2>
-						<p className="text-base-content/70 text-sm">
+						<p className="text-sm text-base-content/70">
 							検索・フィルタで許可された担当者を絞り込み、1 名を選択してください。
 						</p>
 					</div>
@@ -90,7 +90,7 @@ export const StaffPickerDialog = ({
 
 				<div className="mt-4 max-h-80 overflow-auto rounded border border-base-200">
 					{filteredStaffs.length === 0 ? (
-						<div className="alert alert-info rounded-none">
+						<div className="alert rounded-none alert-info">
 							候補が見つかりません。検索条件を変更してください。
 						</div>
 					) : (

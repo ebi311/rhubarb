@@ -295,7 +295,7 @@ export const BasicScheduleForm = ({
 						</div>
 
 						<div className="space-y-2">
-							<div className="flex flex-col gap-2 fieldset">
+							<div className="fieldset flex flex-col gap-2">
 								<div className="flex flex-col items-start justify-center gap-3">
 									<div>
 										<p className="fieldset-legend">デフォルト担当者</p>
@@ -313,7 +313,7 @@ export const BasicScheduleForm = ({
 										</button>
 										<button
 											type="button"
-											className="btn btn-sm btn-ghost"
+											className="btn btn-ghost btn-sm"
 											onClick={handleStaffClear}
 											disabled={staffClearDisabled}
 										>

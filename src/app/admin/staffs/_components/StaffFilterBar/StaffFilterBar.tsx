@@ -1,6 +1,6 @@
 'use client';
 
-import classNames from 'classnames';
+import cn from 'classnames';
 import { useRouter } from 'next/navigation';
 import type { ChangeEvent } from 'react';
 import { STAFF_FILTER_ROLES, type StaffFilterState } from '../../_types';
@@ -46,7 +46,7 @@ export const StaffFilterBar = ({ filters }: StaffFilterBarProps) => {
 			<div className="grow">
 				<input
 					type="text"
-					className="input input-bordered w-full"
+					className="input-bordered input w-full"
 					placeholder="氏名・メールで検索"
 					value={filters.query}
 					onChange={handleQueryChange}
@@ -59,7 +59,7 @@ export const StaffFilterBar = ({ filters }: StaffFilterBarProps) => {
 						<button
 							key={role}
 							type="button"
-							className={classNames('btn btn-sm join-item', {
+							className={cn('btn join-item btn-sm', {
 								'btn-active btn-primary': filters.role === role,
 							})}
 							onClick={() => handleRoleChange(role)}
@@ -68,7 +68,7 @@ export const StaffFilterBar = ({ filters }: StaffFilterBarProps) => {
 						</button>
 					))}
 				</div>
-				<button type="button" className="btn btn-sm btn-ghost" onClick={handleReset}>
+				<button type="button" className="btn btn-ghost btn-sm" onClick={handleReset}>
 					リセット
 				</button>
 			</div>

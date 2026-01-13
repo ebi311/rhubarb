@@ -129,7 +129,7 @@ export const StaffFormModal = (props: StaffFormModalProps) => {
 	return (
 		<dialog open className="modal">
 			<div className="modal-box max-w-2xl">
-				<h3 className="font-bold text-lg mb-4">{dialogTitle}</h3>
+				<h3 className="mb-4 text-lg font-bold">{dialogTitle}</h3>
 				<form className="space-y-4" onSubmit={onSubmit}>
 					<FormInput control={control} name="name" label="氏名" required disabled={isSubmitting} />
 					<FormInput
@@ -196,7 +196,7 @@ export const StaffFormModal = (props: StaffFormModalProps) => {
 						</p>
 					</fieldset>
 
-					{apiError && <p className="text-error text-sm">{apiError}</p>}
+					{apiError && <p className="text-sm text-error">{apiError}</p>}
 
 					<div className="modal-action">
 						<button

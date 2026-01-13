@@ -38,11 +38,11 @@ const BasicSchedulesPage = async () => {
 	return (
 		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
 			<section className="space-y-2">
-				<p className="text-sm font-semibold uppercase tracking-widest text-primary">
+				<p className="text-sm font-semibold tracking-widest text-primary uppercase">
 					基本スケジュール
 				</p>
 				<h1 className="text-3xl font-bold">週次スケジュールの登録</h1>
-				<p className="text-base-content/70 text-sm">
+				<p className="text-sm text-base-content/70">
 					契約中の利用者について、曜日と時間帯、サービス区分、デフォルト担当者を設定します。
 				</p>
 			</section>

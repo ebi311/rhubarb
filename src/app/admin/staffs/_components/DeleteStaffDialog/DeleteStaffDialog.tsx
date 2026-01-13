@@ -82,7 +82,7 @@ export const DeleteStaffDialog = ({
 		<dialog open className="modal">
 			<div className="modal-box max-w-lg space-y-4">
 				<div>
-					<h3 className="font-bold text-lg">担当者を削除</h3>
+					<h3 className="text-lg font-bold">担当者を削除</h3>
 					<p className="text-sm text-base-content/70">
 						この操作は取り消せません。続行するには担当者名「{staff.name}」を入力してください。
 					</p>
@@ -94,15 +94,15 @@ export const DeleteStaffDialog = ({
 						</div>
 						<input
 							type="text"
-							className={`input input-bordered w-full ${fieldError ? 'input-error' : ''}`}
+							className={`input-bordered input w-full ${fieldError ? 'input-error' : ''}`}
 							placeholder={staff.name}
 							{...register('confirmationName')}
 							disabled={isSubmitting}
 							aria-invalid={fieldError ? 'true' : 'false'}
 						/>
 					</label>
-					{fieldError && <p className="text-error text-sm">{fieldError}</p>}
-					{apiError && <p className="text-error text-sm">{apiError}</p>}
+					{fieldError && <p className="text-sm text-error">{fieldError}</p>}
+					{apiError && <p className="text-sm text-error">{apiError}</p>}
 					<div className="modal-action">
 						<button
 							type="button"
