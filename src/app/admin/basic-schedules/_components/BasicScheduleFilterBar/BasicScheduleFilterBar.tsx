@@ -63,7 +63,7 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 	};
 
 	const handleServiceTypeChange = (event: ChangeEvent<HTMLSelectElement>) => {
-		const value = event.target.value;
+		const value = event.target.value as BasicScheduleFilterState['serviceTypeId'];
 		updateFilters({ ...filters, serviceTypeId: value || undefined });
 	};
 

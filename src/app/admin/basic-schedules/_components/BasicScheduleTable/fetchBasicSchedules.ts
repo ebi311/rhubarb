@@ -1,3 +1,4 @@
+import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import type { BasicScheduleFilterState } from '../BasicScheduleFilterBar/types';
 import type { BasicScheduleViewModel } from './types';
@@ -100,8 +101,8 @@ export const fetchBasicSchedules = async (
 	// ViewModelに変換
 	return schedules.map((schedule) => ({
 		id: schedule.id,
-		clientName: (schedule.clients as { name: string } | null)?.name ?? '不明',
-		serviceTypeId: (schedule.service_types as { id: string } | null)?.id ?? 'physical-care',
+		clientName: schedule.clients?.name ?? '不明',
+		serviceTypeId: ServiceTypeIdSchema.parse(schedule.service_types.id),
 		weekday: schedule.day_of_week,
 		timeRange: `${schedule.start_time} - ${schedule.end_time}`,
 		staffNames: staffMap.get(schedule.id) ?? [],

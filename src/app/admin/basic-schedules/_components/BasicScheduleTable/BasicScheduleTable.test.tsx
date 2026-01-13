@@ -104,7 +104,11 @@ describe('BasicScheduleTable', () => {
 
 	it('フィルタをfetchBasicSchedulesに渡す', async () => {
 		mockFetchSchedules.mockResolvedValue([]);
-		const filters = { weekday: 'Mon' as const, clientId: 'client-1', serviceTypeId: 'st-1' };
+		const filters = {
+			weekday: 'Mon' as const,
+			clientId: 'client-1',
+			serviceTypeId: 'life-support' as const,
+		};
 
 		render(await BasicScheduleTable({ filters }));
 
