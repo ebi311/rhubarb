@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DayOfWeekSchema } from './valueObjects/dayOfWeek';
+import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeValueSchema } from './valueObjects/time';
 import { TimeRangeSchema } from './valueObjects/timeRange';
 import { TimestampSchema } from './valueObjects/timestamp';
@@ -25,7 +26,7 @@ const withTimeRangeValidation = <T extends { start_time: unknown; end_time: unkn
 export const BasicScheduleInputSchema = withTimeRangeValidation(
 	z.object({
 		client_id: z.uuid({ message: 'client_id は UUID 形式で指定してください' }),
-		service_type_id: z.uuid({ message: 'service_type_id は UUID 形式で指定してください' }),
+		service_type_id: ServiceTypeIdSchema,
 		staff_ids: z.array(z.uuid({ message: 'staff_id は UUID 形式で指定してください' })).min(0),
 		weekday: WeekdaySchema,
 		start_time: TimeValueSchema,
@@ -38,7 +39,7 @@ export type BasicScheduleInput = z.infer<typeof BasicScheduleInputSchema>;
 export const BasicScheduleFilterSchema = z.object({
 	weekday: WeekdaySchema.optional(),
 	client_id: z.uuid().optional(),
-	service_type_id: z.uuid().optional(),
+	service_type_id: ServiceTypeIdSchema.optional(),
 	includeDeleted: z.boolean(),
 });
 export type BasicScheduleFilters = z.infer<typeof BasicScheduleFilterSchema>;
@@ -47,7 +48,7 @@ export const BasicScheduleRecordSchema = withTimeRangeValidation(
 	z.object({
 		id: z.uuid(),
 		client_id: z.uuid(),
-		service_type_id: z.uuid(),
+		service_type_id: ServiceTypeIdSchema,
 		staff_ids: z.array(z.uuid()),
 		weekday: WeekdaySchema,
 		start_time: TimeValueSchema,

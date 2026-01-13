@@ -7,6 +7,7 @@ import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
 import { WeekdaySchema } from '@/models/basicScheduleActionSchemas';
 import type { ServiceUser } from '@/models/serviceUser';
 import type { StaffRecord } from '@/models/staffActionSchemas';
+import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { timeToMinutes } from '@/models/valueObjects/time';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -50,7 +51,7 @@ import { useBasicScheduleWatchValues } from './useBasicScheduleWatchValues';
 const BasicScheduleFormSchema = z
 	.object({
 		clientId: z.uuid({ error: '利用者を選択してください' }),
-		serviceTypeId: z.uuid({ error: 'サービス区分を選択してください' }),
+		serviceTypeId: ServiceTypeIdSchema.or(z.literal('')),
 		weekday: WeekdaySchema,
 		startTime: z
 			.string()
@@ -64,6 +65,14 @@ const BasicScheduleFormSchema = z
 		staffId: z.uuid('担当者IDはUUID形式で指定してください').nullable().optional(),
 	})
 	.superRefine((values, ctx) => {
+		// serviceTypeId が空の場合はエラーを追加
+		if (!values.serviceTypeId) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['serviceTypeId'],
+				message: 'サービス区分を選択してください',
+			});
+		}
 		const start = parseTimeString(values.startTime);
 		const end = parseTimeString(values.endTime);
 		if (start && end) {
@@ -148,6 +157,10 @@ const createOnSubmit = ({
 		const end = parseTimeString(values.endTime);
 		if (!start || !end) {
 			setApiError('時刻の変換に失敗しました');
+			return;
+		}
+		if (!values.serviceTypeId) {
+			setApiError('サービス区分を選択してください');
 			return;
 		}
 		const payload = {

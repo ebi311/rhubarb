@@ -8,9 +8,9 @@ describe('StaffRepository', () => {
 	let repository: StaffRepository;
 	const officeId = '019b179f-c74d-75ef-a328-55a8f65a0d8a';
 	const serviceTypeIds = {
-		one: '019b1b00-0000-4000-8000-0000000000a1',
-		two: '019b1b00-0000-4000-8000-0000000000a2',
-		three: '019b1b00-0000-4000-8000-0000000000a3',
+		one: 'physical-care',
+		two: 'life-support',
+		three: 'commute-support',
 	};
 	const baseStaffRow = {
 		id: '019b1aaf-0000-4000-8000-000000000001',

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { StaffWithServiceTypesSchema, UserRoleSchema } from './staff';
 import { EmailSchema } from './valueObjects/email';
+import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 
 const StaffNoteSchema = z
 	.string()
@@ -13,7 +14,7 @@ export const StaffInputSchema = z.object({
 	email: EmailSchema.optional().nullable(),
 	role: UserRoleSchema,
 	note: StaffNoteSchema,
-	service_type_ids: z.array(z.uuid()).min(0).optional(),
+	service_type_ids: z.array(ServiceTypeIdSchema).min(0).optional(),
 });
 
 export type StaffInput = z.infer<typeof StaffInputSchema>;

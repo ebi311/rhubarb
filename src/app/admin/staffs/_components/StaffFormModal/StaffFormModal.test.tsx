@@ -19,8 +19,8 @@ vi.mock('@/hooks/useActionResultHandler', () => ({
 }));
 
 const serviceTypes: ServiceTypeOption[] = [
-	{ id: '019b1d20-0000-4000-8000-000000000111', name: '身体介護' },
-	{ id: '019b1d20-0000-4000-8000-000000000222', name: '生活援助' },
+	{ id: 'physical-care', name: '身体介護' },
+	{ id: 'life-support', name: '生活援助' },
 ];
 
 const sampleStaff: StaffRecord = {
@@ -31,7 +31,7 @@ const sampleStaff: StaffRecord = {
 	role: 'helper',
 	email: 'yamada@example.com',
 	note: 'メモ',
-	service_type_ids: ['019b1d20-0000-4000-8000-000000000111'],
+	service_type_ids: ['physical-care'],
 	created_at: new Date('2025-01-01T00:00:00Z'),
 	updated_at: new Date('2025-01-02T00:00:00Z'),
 };
@@ -101,7 +101,7 @@ describe('StaffFormModal', () => {
 				email: 'hanako@example.com',
 				role: 'helper',
 				note: 'テスト備考',
-				service_type_ids: ['019b1d20-0000-4000-8000-000000000222'],
+				service_type_ids: ['life-support'],
 			});
 		});
 
@@ -135,7 +135,7 @@ describe('StaffFormModal', () => {
 				email: 'yamada@example.com',
 				role: 'helper',
 				note: 'メモ',
-				service_type_ids: ['019b1d20-0000-4000-8000-000000000111'],
+				service_type_ids: ['physical-care'],
 			});
 		});
 

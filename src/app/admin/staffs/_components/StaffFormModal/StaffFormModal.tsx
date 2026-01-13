@@ -6,6 +6,7 @@ import { FormTextarea } from '@/components/forms/FormTextarea';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { StaffInputSchema } from '@/models/staffActionSchemas';
+import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -16,7 +17,7 @@ import { ServiceTypeSelector } from '../ServiceTypeSelector';
 const StaffFormSchema = StaffInputSchema.extend({
 	email: StaffInputSchema.shape.email.or(z.literal('')),
 	note: StaffInputSchema.shape.note.or(z.literal('')),
-	service_type_ids: z.array(z.string().uuid()).default([]),
+	service_type_ids: z.array(ServiceTypeIdSchema).default([]),
 }).transform((value) => ({
 	...value,
 	email:

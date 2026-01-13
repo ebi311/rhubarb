@@ -243,7 +243,7 @@ export type Database = {
 				Insert: {
 					created_at?: string;
 					display_order?: number;
-					id?: string;
+					id: string;
 					name: string;
 					updated_at?: string;
 				};

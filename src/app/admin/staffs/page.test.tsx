@@ -37,15 +37,15 @@ describe('AdminStaffsPage', () => {
 			role: 'admin',
 			email: 'yamada@example.com',
 			note: null,
-			service_type_ids: ['svc-1'],
+			service_type_ids: ['physical-care'],
 			created_at: new Date('2025-01-01T00:00:00Z'),
 			updated_at: new Date('2025-01-02T00:00:00Z'),
 		},
 	];
 
 	const serviceTypes: ServiceTypeOption[] = [
-		{ id: 'svc-1', name: '身体介護' },
-		{ id: 'svc-2', name: '生活援助' },
+		{ id: 'physical-care', name: '身体介護' },
+		{ id: 'life-support', name: '生活援助' },
 	];
 
 	const successResult = <T,>(data: T) => ({ data, error: null, status: 200 });

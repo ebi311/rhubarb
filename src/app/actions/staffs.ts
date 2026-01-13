@@ -4,12 +4,13 @@ import { ServiceError } from '@/backend/services/basicScheduleService';
 import { StaffService } from '@/backend/services/staffService';
 import type { StaffInput, StaffRecord } from '@/models/staffActionSchemas';
 import { StaffInputSchema } from '@/models/staffActionSchemas';
+import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { z } from 'zod';
 import { ActionResult, errorResult, logServerError, successResult } from './utils/actionResult';
 
 const ServiceTypeOptionSchema = z.object({
-	id: z.uuid(),
+	id: ServiceTypeIdSchema,
 	name: z.string().min(1),
 });
 

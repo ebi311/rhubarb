@@ -9,7 +9,7 @@ const meta = {
 	},
 	tags: ['autodocs'],
 	args: {
-		names: ['身体介護', '生活援助'],
+		serviceType: ['身体介護', '生活援助'],
 	},
 } satisfies Meta<typeof ServiceTypeBadges>;
 
@@ -20,7 +20,7 @@ export const Default: Story = {};
 
 export const Empty: Story = {
 	args: {
-		names: [],
+		serviceType: [],
 		emptyLabel: '未割当',
 	},
 };

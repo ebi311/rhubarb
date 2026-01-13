@@ -23,8 +23,10 @@ export const StaffSchema = z.object({
 
 export type Staff = z.infer<typeof StaffSchema>;
 
+import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
+
 export const StaffWithServiceTypesSchema = StaffSchema.extend({
-	service_type_ids: z.array(z.uuid()),
+	service_type_ids: z.array(ServiceTypeIdSchema),
 });
 
 export type StaffWithServiceTypes = z.infer<typeof StaffWithServiceTypesSchema>;

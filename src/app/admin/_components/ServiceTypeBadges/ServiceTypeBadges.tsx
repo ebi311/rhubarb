@@ -1,5 +1,5 @@
 type ServiceTypeBadgesProps = {
-	names: string[];
+	serviceType: string[];
 	emptyLabel?: string;
 	badgeSize?: 'sm' | 'md';
 	className?: string;
@@ -11,7 +11,7 @@ const badgeSizeClassMap: Record<NonNullable<ServiceTypeBadgesProps['badgeSize']>
 };
 
 export const ServiceTypeBadges = ({
-	names,
+	serviceType: names,
 	emptyLabel = '未割当',
 	badgeSize = 'sm',
 	className = '',

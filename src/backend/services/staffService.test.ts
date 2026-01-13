@@ -18,8 +18,8 @@ const ids = {
 	office: '019b1c10-0000-4000-8000-000000000201',
 	officeOther: '019b1c10-0000-4000-8000-000000000202',
 	auth: '019b1c10-0000-4000-8000-000000000301',
-	svc1: '019b1c10-0000-4000-8000-000000000401',
-	svc2: '019b1c10-0000-4000-8000-000000000402',
+	svc1: 'physical-care',
+	svc2: 'life-support',
 } as const;
 
 const mockStaff = (overrides?: Partial<StaffWithServiceTypes>): StaffWithServiceTypes => ({

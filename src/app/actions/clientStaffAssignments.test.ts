@@ -92,12 +92,12 @@ describe('listClientStaffAssignmentsAction', () => {
 			data: [
 				{
 					client_id: '019b8b17-5b02-74ed-a77e-724d384629aa',
-					service_type_id: '019b8b17-b254-7296-a008-cab6ca77f3a2',
+					service_type_id: 'physical-care',
 					staff_id: '019b8b1a-5979-766e-a500-7334e4af217b',
 				},
 				{
 					client_id: '019b8b17-5b02-74ed-a77e-724d384629ab',
-					service_type_id: '019b8b17-b254-7296-a008-cab6ca77f3a3',
+					service_type_id: 'life-support',
 					staff_id: '019b8b1a-5979-766e-a500-7334e4af217c',
 				},
 			],
@@ -114,12 +114,12 @@ describe('listClientStaffAssignmentsAction', () => {
 			data: [
 				{
 					client_id: '019b8b17-5b02-74ed-a77e-724d384629aa',
-					service_type_id: '019b8b17-b254-7296-a008-cab6ca77f3a2',
+					service_type_id: 'physical-care',
 					staff_id: '019b8b1a-5979-766e-a500-7334e4af217b',
 				},
 				{
 					client_id: '019b8b17-5b02-74ed-a77e-724d384629ab',
-					service_type_id: '019b8b17-b254-7296-a008-cab6ca77f3a3',
+					service_type_id: 'life-support',
 					staff_id: '019b8b1a-5979-766e-a500-7334e4af217c',
 				},
 			],
@@ -135,7 +135,7 @@ describe('listClientStaffAssignmentsAction', () => {
 			error: null,
 		});
 		assignmentQuery.eq.mockResolvedValue({
-			data: [{ client_id: 'client-1', service_type_id: 'svc-1', staff_id: null }],
+			data: [{ client_id: 'client-1', service_type_id: 'physical-care', staff_id: null }],
 			error: null,
 		});
 

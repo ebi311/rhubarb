@@ -30,7 +30,7 @@ const createMockService = () => ({
 const sampleSchedule = {
 	id: '019b1d20-0000-4000-8000-000000000001',
 	client_id: '019b1d20-0000-4000-8000-000000000002',
-	service_type_id: '019b1d20-0000-4000-8000-000000000003',
+	service_type_id: 'life-support',
 	staff_ids: ['019b1d20-0000-4000-8000-000000000004'],
 	weekday: 'Mon' as const,
 	start_time: { hour: 9, minute: 0 },
@@ -121,11 +121,11 @@ describe('listBasicSchedulesAction', () => {
 		mockService.list.mockResolvedValue([sampleSchedule]);
 
 		const result = await listBasicSchedulesAction({
-			service_type_id: '019b1d20-0000-4000-8000-000000000003',
+			service_type_id: 'life-support',
 		});
 
 		expect(mockService.list).toHaveBeenCalledWith('user-1', {
-			service_type_id: '019b1d20-0000-4000-8000-000000000003',
+			service_type_id: 'life-support',
 			includeDeleted: false,
 		});
 		expect(result.status).toBe(200);

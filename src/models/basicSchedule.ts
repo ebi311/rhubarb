@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { DayOfWeekSchema } from './valueObjects/dayOfWeek';
+import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeRangeSchema } from './valueObjects/timeRange';
 import { TimestampSchema } from './valueObjects/timestamp';
 
 export const BasicScheduleSchema = z.object({
 	id: z.uuid(),
 	client_id: z.uuid(),
-	service_type_id: z.uuid(),
+	service_type_id: ServiceTypeIdSchema,
 	day_of_week: DayOfWeekSchema,
 	time: TimeRangeSchema,
 	note: z.string().max(500).nullable().optional(),

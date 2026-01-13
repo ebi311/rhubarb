@@ -84,45 +84,32 @@ VALUES
   ('019b179f-c863-774e-ad83-4adc56163d05', 'Thu', '1300', '1700', 'High');
 
 -- 6. Client Staff Assignments (担当許可)
--- サービスIDを取得するための準備
-DO $$
-DECLARE
-  service_body uuid;
-  service_life uuid;
-BEGIN
-  SELECT id INTO service_body FROM public.service_types WHERE name = '身体介護' LIMIT 1;
-  SELECT id INTO service_life FROM public.service_types WHERE name = '生活支援' LIMIT 1;
+-- サービスIDを直接使用（text型に変更後）
 
-  -- A子さんは、太郎の身体介護OK
-  INSERT INTO public.client_staff_assignments (client_id, staff_id, service_type_id, note)
-  VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', '019b179f-c7db-7248-bcdc-745cfa30edad', service_body, '相性良し');
+-- A子さんは、太郎の身体介護OK
+INSERT INTO public.client_staff_assignments (client_id, staff_id, service_type_id, note)
+VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', '019b179f-c7db-7248-bcdc-745cfa30edad', 'physical-care', '相性良し');
 
-  -- B男さんは、次郎の生活支援OK
-  INSERT INTO public.client_staff_assignments (client_id, staff_id, service_type_id, note)
-  VALUES ('019b179f-c977-717a-ab85-8d61b628550e', '019b179f-c863-774e-ad83-4adc56163d05', service_life, '指名あり');
-END $$;
+-- B男さんは、次郎の生活支援OK
+INSERT INTO public.client_staff_assignments (client_id, staff_id, service_type_id, note)
+VALUES ('019b179f-c977-717a-ab85-8d61b628550e', '019b179f-c863-774e-ad83-4adc56163d05', 'life-support', '指名あり');
 
 -- 7. Basic Schedules (基本スケジュール)
 DO $$
 DECLARE
-  service_body uuid;
-  service_life uuid;
   schedule_id_1 uuid := gen_random_uuid();
   schedule_id_2 uuid := gen_random_uuid();
 BEGIN
-  SELECT id INTO service_body FROM public.service_types WHERE name = '身体介護' LIMIT 1;
-  SELECT id INTO service_life FROM public.service_types WHERE name = '生活支援' LIMIT 1;
-
   -- A子さん: 月曜 10:00-11:00 身体介護 (担当: 太郎)
   INSERT INTO public.basic_schedules (id, client_id, service_type_id, day_of_week, start_time, end_time)
-  VALUES (schedule_id_1, '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', service_body, 'Mon', '1000', '1100');
+  VALUES (schedule_id_1, '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 'physical-care', 'Mon', '1000', '1100');
   
   INSERT INTO public.basic_schedule_staff_assignments (basic_schedule_id, staff_id)
   VALUES (schedule_id_1, '019b179f-c7db-7248-bcdc-745cfa30edad');
 
   -- B男さん: 火曜 14:00-15:00 生活支援 (担当: 次郎)
   INSERT INTO public.basic_schedules (id, client_id, service_type_id, day_of_week, start_time, end_time)
-  VALUES (schedule_id_2, '019b179f-c977-717a-ab85-8d61b628550e', service_life, 'Tue', '1400', '1500');
+  VALUES (schedule_id_2, '019b179f-c977-717a-ab85-8d61b628550e', 'life-support', 'Tue', '1400', '1500');
   
   INSERT INTO public.basic_schedule_staff_assignments (basic_schedule_id, staff_id)
   VALUES (schedule_id_2, '019b179f-c863-774e-ad83-4adc56163d05');
@@ -133,18 +120,13 @@ END $$;
 -- ここでは、現在日付から計算して挿入する。
 DO $$
 DECLARE
-  service_body uuid;
-  service_life uuid;
   today date := current_date;
 BEGIN
-  SELECT id INTO service_body FROM public.service_types WHERE name = '身体介護' LIMIT 1;
-  SELECT id INTO service_life FROM public.service_types WHERE name = '生活支援' LIMIT 1;
-
   -- 明日のシフト (A子さん)
   INSERT INTO public.shifts (client_id, service_type_id, staff_id, date, start_time, end_time, status)
-  VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', service_body, '019b179f-c7db-7248-bcdc-745cfa30edad', today + 1, '1000', '1100', 'scheduled');
+  VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 'physical-care', '019b179f-c7db-7248-bcdc-745cfa30edad', today + 1, '1000', '1100', 'scheduled');
 
   -- 明後日のシフト (B男さん)
   INSERT INTO public.shifts (client_id, service_type_id, staff_id, date, start_time, end_time, status)
-  VALUES ('019b179f-c977-717a-ab85-8d61b628550e', service_life, '019b179f-c863-774e-ad83-4adc56163d05', today + 2, '1400', '1500', 'confirmed');
+  VALUES ('019b179f-c977-717a-ab85-8d61b628550e', 'life-support', '019b179f-c863-774e-ad83-4adc56163d05', today + 2, '1400', '1500', 'confirmed');
 END $$;

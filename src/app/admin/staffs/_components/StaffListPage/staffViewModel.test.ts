@@ -16,15 +16,15 @@ const buildStaff = (overrides: Partial<StaffRecord> = {}): StaffRecord => ({
 	role: 'admin',
 	email: 'yamada@example.com',
 	note: '備考',
-	service_type_ids: ['svc-1'],
+	service_type_ids: ['physical-care'],
 	created_at: new Date('2025-01-01T00:00:00Z'),
 	updated_at: new Date('2025-01-02T12:34:00Z'),
 	...overrides,
 });
 
 const serviceTypes: ServiceTypeOption[] = [
-	{ id: 'svc-1', name: '身体介護' },
-	{ id: 'svc-2', name: '生活援助' },
+	{ id: 'physical-care', name: '身体介護' },
+	{ id: 'life-support', name: '生活援助' },
 ];
 
 describe('staffViewModel utilities', () => {
@@ -36,8 +36,8 @@ describe('staffViewModel utilities', () => {
 	it('toStaffViewModel resolves service type names via map', () => {
 		const map = buildServiceTypeMap(serviceTypes);
 		const vm = toStaffViewModel(buildStaff(), map);
-		expect(vm.serviceTypes[0]).toEqual({ id: 'svc-1', name: '身体介護' });
-		const fallback = toStaffViewModel(buildStaff({ service_type_ids: ['unknown'] }), map);
+		expect(vm.serviceTypes[0]).toEqual({ id: 'physical-care', name: '身体介護' });
+		const fallback = toStaffViewModel(buildStaff({ service_type_ids: ['unknown' as any] }), map);
 		expect(fallback.serviceTypes[0]).toEqual({ id: 'unknown', name: 'unknown' });
 	});
 

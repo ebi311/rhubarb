@@ -28,8 +28,8 @@ const serviceUsers: ServiceUser[] = [
 ];
 
 const serviceTypes: ServiceTypeOption[] = [
-	{ id: '019b8916-7afe-75ce-adc3-ebd27f3ac000', name: '身体介護' },
-	{ id: '019b8916-c382-75bf-9803-82b89a109b3c', name: '生活援助' },
+	{ id: 'physical-care', name: '身体介護' },
+	{ id: 'life-support', name: '生活援助' },
 ];
 
 const staffs: StaffRecord[] = [
@@ -41,7 +41,7 @@ const staffs: StaffRecord[] = [
 		role: 'admin',
 		email: 'yamada@example.com',
 		note: 'ベテラン',
-		service_type_ids: ['019b8916-7afe-75ce-adc3-ebd27f3ac000'],
+		service_type_ids: ['physical-care'],
 		created_at: new Date('2025-01-01T00:00:00Z'),
 		updated_at: new Date('2025-01-01T00:00:00Z'),
 	},
@@ -52,7 +52,7 @@ const successResult = <T,>(data: T) => ({ data, error: null, status: 200 });
 const sampleSchedule: BasicScheduleRecord = {
 	id: '019b8917-62a6-703d-9acf-502cf1dc5f7c',
 	client_id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
-	service_type_id: '019b8916-7afe-75ce-adc3-ebd27f3ac000',
+	service_type_id: 'physical-care',
 	staff_ids: ['019b8916-5594-773b-aaf3-f04e0f2b0ac7'],
 	weekday: 'Mon',
 	start_time: { hour: 9, minute: 0 },
@@ -91,10 +91,7 @@ describe('BasicScheduleForm', () => {
 			screen.getByLabelText('利用者 *'),
 			'019b8916-5594-773b-aaf3-f04e0f2b0ac7',
 		);
-		await user.selectOptions(
-			screen.getByLabelText('サービス区分 *'),
-			'019b8916-7afe-75ce-adc3-ebd27f3ac000',
-		);
+		await user.selectOptions(screen.getByLabelText('サービス区分 *'), 'physical-care');
 		await user.selectOptions(screen.getByLabelText('曜日 *'), 'Tue');
 		await user.type(screen.getByLabelText('開始時刻 *'), '09:00');
 		await user.type(screen.getByLabelText('終了時刻 *'), '10:00');
@@ -109,7 +106,7 @@ describe('BasicScheduleForm', () => {
 		await waitFor(() => {
 			expect(createBasicScheduleAction).toHaveBeenCalledWith({
 				client_id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
-				service_type_id: '019b8916-7afe-75ce-adc3-ebd27f3ac000',
+				service_type_id: 'physical-care',
 				weekday: 'Tue',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },

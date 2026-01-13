@@ -49,7 +49,7 @@ export const StaffTable = ({ staffs, onEdit, onDelete }: StaffTableProps) => {
 							<td>{staff.email ?? '―'}</td>
 							<td>
 								<ServiceTypeBadges
-									names={staff.serviceTypes.map((serviceType) => serviceType.name)}
+									serviceType={staff.serviceTypes.map((serviceType) => serviceType.name)}
 								/>
 							</td>
 							<td>{staff.note ?? '―'}</td>

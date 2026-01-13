@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeRangeSchema } from './valueObjects/timeRange';
 import { TimestampSchema } from './valueObjects/timestamp';
 
@@ -8,7 +9,7 @@ export type ShiftStatus = z.infer<typeof ShiftStatusSchema>;
 export const ShiftSchema = z.object({
 	id: z.uuid(),
 	client_id: z.uuid(),
-	service_type_id: z.uuid(),
+	service_type_id: ServiceTypeIdSchema,
 	staff_id: z.uuid().nullable().optional(),
 	date: z.coerce.date(), // YYYY-MM-DD
 	time: TimeRangeSchema,

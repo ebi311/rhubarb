@@ -43,7 +43,7 @@ const sampleStaff = {
 	role: 'admin' as const,
 	email: 'yamada@example.com',
 	note: 'メモ',
-	service_type_ids: ['019b1d20-0000-4000-8000-000000000333'],
+	service_type_ids: ['life-support'],
 	created_at: new Date(),
 	updated_at: new Date(),
 };
@@ -134,13 +134,15 @@ describe('getStaffAction', () => {
 	});
 });
 
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+
 describe('createStaffAction', () => {
 	const validInput = {
 		name: '山田太郎',
 		role: 'helper' as const,
 		email: 'yamada@example.com',
 		note: '備考',
-		service_type_ids: ['019b1d20-0000-4000-8000-000000000333'],
+		service_type_ids: ['life-support'] as ServiceTypeId[],
 	};
 
 	it('未認証は401', async () => {
@@ -187,7 +189,7 @@ describe('updateStaffAction', () => {
 		role: 'helper' as const,
 		email: 'updated@example.com',
 		note: null,
-		service_type_ids: ['019b1d20-0000-4000-8000-000000000333'],
+		service_type_ids: ['life-support'] as ServiceTypeId[],
 	};
 
 	it('未認証は401', async () => {
