@@ -1,3 +1,4 @@
+import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import { FormInput } from '@/components/forms/FormInput';
 import { FormSelect } from '@/components/forms/FormSelect';
@@ -57,7 +58,6 @@ export const ServiceTypeSelectField = ({ serviceTypes }: ServiceTypeSelectFieldP
 		formState: { errors, isSubmitting },
 	} = useFormContext<BasicScheduleFormValues>();
 	const hasError = Boolean(errors.serviceTypeId);
-	const selectClass = getSelectClassName(hasError);
 	const describedBy = getFieldDescriptionId(hasError, fieldId);
 
 	return (
@@ -65,19 +65,31 @@ export const ServiceTypeSelectField = ({ serviceTypes }: ServiceTypeSelectFieldP
 			<legend id={`${fieldId}-label`} className="fieldset-legend">
 				サービス区分 *
 			</legend>
-			<FormSelect
-				id={fieldId}
-				className={selectClass}
-				disabled={isSubmitting}
+			<div
+				className="flex flex-wrap gap-4"
+				role="radiogroup"
 				aria-labelledby={`${fieldId}-label`}
 				aria-invalid={hasError}
 				aria-describedby={describedBy}
-				options={[
-					{ value: '', label: '選択してください' },
-					...serviceTypes.map((type) => ({ value: type.id, label: type.name })),
-				]}
-				{...register('serviceTypeId')}
-			/>
+			>
+				{serviceTypes.map((type) => (
+					<label
+						key={type.id}
+						className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 ${
+							hasError ? 'border-error' : 'border-base-300'
+						}`}
+					>
+						<input
+							type="radio"
+							className="radio radio-sm radio-primary"
+							value={type.id}
+							disabled={isSubmitting}
+							{...register('serviceTypeId')}
+						/>
+						<ServiceTypeBadge serviceTypeId={type.id} />
+					</label>
+				))}
+			</div>
 			<FieldErrorMessage fieldId={fieldId} error={errors.serviceTypeId} />
 		</fieldset>
 	);

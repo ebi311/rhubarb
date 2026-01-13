@@ -91,7 +91,8 @@ describe('BasicScheduleForm', () => {
 			screen.getByLabelText('利用者 *'),
 			'019b8916-5594-773b-aaf3-f04e0f2b0ac7',
 		);
-		await user.selectOptions(screen.getByLabelText('サービス区分 *'), 'physical-care');
+		// サービス区分はラジオボタンになったのでクリックで選択
+		await user.click(screen.getByLabelText('身体介護'));
 		await user.selectOptions(screen.getByLabelText('曜日 *'), 'Tue');
 		await user.type(screen.getByLabelText('開始時刻 *'), '09:00');
 		await user.type(screen.getByLabelText('終了時刻 *'), '10:00');
@@ -119,7 +120,8 @@ describe('BasicScheduleForm', () => {
 
 		await waitFor(() => {
 			expect(screen.getByLabelText('利用者 *')).toHaveValue('');
-			expect(screen.getByLabelText('サービス区分 *')).toHaveValue('');
+			// ラジオボタンなのでcheckedを確認
+			expect(screen.getByLabelText('身体介護')).not.toBeChecked();
 			expect(screen.getByLabelText('開始時刻 *')).toHaveValue('');
 		});
 	});
