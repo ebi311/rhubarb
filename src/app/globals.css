@@ -1,3 +1,4 @@
+@import 'material-symbols';
 @import 'react-toastify/dist/ReactToastify.css';
 @import 'tailwindcss';
 @plugin 'daisyui';
@@ -28,4 +29,8 @@
 
 @utility grid-area-* {
 	grid-area: --value([\*]);
+}
+
+@utility icon-filled {
+	font-variation-settings: 'FILL' 1;
 }
