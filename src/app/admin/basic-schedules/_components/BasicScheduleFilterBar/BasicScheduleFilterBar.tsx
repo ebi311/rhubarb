@@ -2,6 +2,7 @@
 
 import { FormSelect } from '@/components/forms/FormSelect';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
+import classNames from 'classnames';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ChangeEvent } from 'react';
 import { parseFiltersFromSearchParams } from '../../parseFiltersFromParams';
@@ -21,6 +22,16 @@ const WEEKDAYS: { value: DayOfWeek; label: string }[] = [
 	{ value: 'Sat', label: '土曜日' },
 	{ value: 'Sun', label: '日曜日' },
 ];
+
+const labeledControlClassNames = classNames(
+	'form-control',
+	'flex',
+	'flex-col',
+	'md:flex-row',
+	'w-full',
+	'gap-1',
+	'md:w-auto',
+);
 
 export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleFilterBarProps) => {
 	const router = useRouter();
@@ -74,7 +85,7 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 	return (
 		<div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 			<div className="flex flex-col gap-3 md:flex-row md:items-end">
-				<label className="form-control flex w-full gap-1 md:w-auto">
+				<label className={labeledControlClassNames}>
 					<span className="label-text label">曜日</span>
 					<FormSelect
 						className="select-bordered select w-full md:w-32"
@@ -85,7 +96,7 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 					/>
 				</label>
 
-				<label className="form-control w-full md:w-auto">
+				<label className={labeledControlClassNames}>
 					<span className="label-text label">利用者</span>
 					<FormSelect
 						className="select-bordered select w-full md:w-48"
@@ -96,7 +107,7 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 					/>
 				</label>
 
-				<label className="form-control w-full md:w-auto">
+				<label className={labeledControlClassNames}>
 					<span className="label-text label">サービス区分</span>
 					<FormSelect
 						className="select-bordered select w-full md:w-40"
