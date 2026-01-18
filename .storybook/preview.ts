@@ -6,6 +6,7 @@ import '../src/app/globals.css';
 sb.mock(
 	import('../src/app/admin/basic-schedules/_components/BasicScheduleTable/fetchBasicSchedules.ts'),
 );
+sb.mock(import('../src/app/actions/weeklySchedules.ts'));
 
 const preview: Preview = {
 	parameters: {

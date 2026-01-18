@@ -32,7 +32,7 @@ const toShiftRecord = (shift: Shift): ShiftRecord => ({
 
 /**
  * 週間シフトを生成
- * @param weekStartDate 週の開始日（月曜日）を表す ISO 文字列
+ * @param weekStartDate 週の開始日（月曜日）を表す ISO 文字列 (YYYY-MM-DD)
  */
 export const generateWeeklyShiftsAction = async (
 	weekStartDate: string,
