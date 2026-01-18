@@ -10,9 +10,9 @@
 
 ### ステップ1: ヘルパー関数の準備
 
-- [ ] 1.1. `getMonday(date: Date): Date` - 指定日を含む週の月曜日を取得
-- [ ] 1.2. `parseSearchParams(params: SearchParams): ParsedSearchParams` - searchParams をパース
-- [ ] 1.3. 上記ヘルパーのテストを作成・実行
+- [x] 1.1. `getMonday(date: Date): Date` - 指定日を含む週の月曜日を取得
+- [x] 1.2. `parseSearchParams(params: SearchParams): ParsedSearchParams` - searchParams をパース
+- [x] 1.3. 上記ヘルパーのテストを作成・実行
 
 #### parseSearchParams 仕様
 
