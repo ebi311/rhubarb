@@ -118,15 +118,30 @@ END $$;
 -- 8. Shifts (シフト実体) - 直近の日付で作成
 -- 注意: seed.sql は静的なので、実行時の日付に依存するデータを入れるのは工夫が必要。
 -- ここでは、現在日付から計算して挿入する。
+-- start_time, end_time は timestamptz で保存
 DO $$
 DECLARE
   today date := current_date;
 BEGIN
-  -- 明日のシフト (A子さん)
-  INSERT INTO public.shifts (client_id, service_type_id, staff_id, date, start_time, end_time, status)
-  VALUES ('019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 'physical-care', '019b179f-c7db-7248-bcdc-745cfa30edad', today + 1, '1000', '1100', 'scheduled');
+  -- 明日のシフト (A子さん) 10:00-11:00
+  INSERT INTO public.shifts (client_id, service_type_id, staff_id, start_time, end_time, status)
+  VALUES (
+    '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 
+    'physical-care', 
+    '019b179f-c7db-7248-bcdc-745cfa30edad', 
+    (today + 1)::timestamp + interval '10 hours',
+    (today + 1)::timestamp + interval '11 hours',
+    'scheduled'
+  );
 
-  -- 明後日のシフト (B男さん)
-  INSERT INTO public.shifts (client_id, service_type_id, staff_id, date, start_time, end_time, status)
-  VALUES ('019b179f-c977-717a-ab85-8d61b628550e', 'life-support', '019b179f-c863-774e-ad83-4adc56163d05', today + 2, '1400', '1500', 'confirmed');
+  -- 明後日のシフト (B男さん) 14:00-15:00
+  INSERT INTO public.shifts (client_id, service_type_id, staff_id, start_time, end_time, status)
+  VALUES (
+    '019b179f-c977-717a-ab85-8d61b628550e', 
+    'life-support', 
+    '019b179f-c863-774e-ad83-4adc56163d05', 
+    (today + 2)::timestamp + interval '14 hours',
+    (today + 2)::timestamp + interval '15 hours',
+    'confirmed'
+  );
 END $$;
