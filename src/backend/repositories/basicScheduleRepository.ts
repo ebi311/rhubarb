@@ -65,14 +65,17 @@ export class BasicScheduleRepository {
 	}
 
 	async list(filters: {
+		officeId?: string;
 		weekday?: DayOfWeek;
 		client_id?: string;
 		service_type_id?: string;
 		includeDeleted?: boolean;
 	}): Promise<BasicScheduleWithStaff[]> {
+		// officeId フィルタ対応: clients テーブルを join して office_id でフィルタ
 		let query = this.supabase
 			.from('basic_schedules')
-			.select('*, basic_schedule_staff_assignments(staff_id)');
+			.select('*, basic_schedule_staff_assignments(staff_id), clients!inner(office_id)');
+		if (filters.officeId) query = query.eq('clients.office_id', filters.officeId);
 		if (filters.weekday) query = query.eq('day_of_week', filters.weekday);
 		if (filters.client_id) query = query.eq('client_id', filters.client_id);
 		if (filters.service_type_id) query = query.eq('service_type_id', filters.service_type_id);

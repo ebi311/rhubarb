@@ -7,6 +7,7 @@ type ShiftRow = Database['public']['Tables']['shifts']['Row'];
 type ShiftInsert = Database['public']['Tables']['shifts']['Insert'];
 
 export interface ShiftFilters {
+	officeId?: string;
 	startDate?: Date;
 	endDate?: Date;
 	staffId?: string;
@@ -62,7 +63,13 @@ export class ShiftRepository {
 	}
 
 	async list(filters: ShiftFilters = {}): Promise<Shift[]> {
-		const baseQuery = this.supabase.from('shifts').select('*');
+		// officeId フィルタ対応: clients テーブルを join して office_id でフィルタ
+		const baseQuery = filters.officeId
+			? this.supabase
+					.from('shifts')
+					.select('*, clients!inner(office_id)')
+					.eq('clients.office_id', filters.officeId)
+			: this.supabase.from('shifts').select('*');
 		type Query = typeof baseQuery;
 
 		// 条件付きフィルタ適用ヘルパー（分岐をここに閉じ込める）
@@ -149,15 +156,27 @@ export class ShiftRepository {
 	 * 指定期間の既存シフトを取得（重複チェック用）
 	 * キー形式: "clientId|start_time_iso|end_time_iso"
 	 */
-	async findExistingInRange(startDate: Date, endDate: Date): Promise<Map<string, Set<string>>> {
+	async findExistingInRange(
+		startDate: Date,
+		endDate: Date,
+		officeId?: string,
+	): Promise<Map<string, Set<string>>> {
 		const startOfRange = setJstTime(startDate, 0, 0);
 		const endOfRange = setJstTime(endDate, 23, 59);
 
-		const { data, error } = await this.supabase
-			.from('shifts')
-			.select('client_id, start_time, end_time')
+		// officeId フィルタ対応: clients テーブルを join して office_id でフィルタ
+		let query = officeId
+			? this.supabase
+					.from('shifts')
+					.select('client_id, start_time, end_time, clients!inner(office_id)')
+					.eq('clients.office_id', officeId)
+			: this.supabase.from('shifts').select('client_id, start_time, end_time');
+
+		query = query
 			.gte('start_time', startOfRange.toISOString())
 			.lte('start_time', endOfRange.toISOString());
+
+		const { data, error } = await query;
 
 		if (error) throw error;
 

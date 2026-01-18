@@ -115,14 +115,16 @@ export class WeeklyScheduleService {
 	 * @param weekStartDate 週の開始日（月曜日）
 	 */
 	async generateWeeklyShifts(userId: string, weekStartDate: Date): Promise<GenerateResult> {
-		await this.getAdminStaff(userId);
+		const staff = await this.getAdminStaff(userId);
+		const officeId = staff.office_id;
 		this.assertIsMonday(weekStartDate);
 
 		// 週の終了日を計算（日曜日）（JST ベース）
 		const weekEndDate = addJstDays(weekStartDate, 6);
 
-		// アクティブな基本スケジュールを全取得
+		// 自事業所のアクティブな基本スケジュールを取得
 		const basicSchedules = await this.basicScheduleRepository.list({
+			officeId,
 			includeDeleted: false,
 		});
 
@@ -130,10 +132,11 @@ export class WeeklyScheduleService {
 			return { created: 0, skipped: 0, total: 0 };
 		}
 
-		// 既存シフトを取得（重複チェック用）
+		// 既存シフトを取得（重複チェック用、自事業所のみ）
 		const existingShiftsMap = await this.shiftRepository.findExistingInRange(
 			weekStartDate,
 			weekEndDate,
+			officeId,
 		);
 
 		const shiftsToCreate: Shift[] = [];
@@ -189,9 +192,10 @@ export class WeeklyScheduleService {
 			staffId?: string;
 		},
 	): Promise<Shift[]> {
-		await this.getAdminStaff(userId);
+		const staff = await this.getAdminStaff(userId);
 
 		return this.shiftRepository.list({
+			officeId: staff.office_id,
 			startDate: filters.startDate,
 			endDate: filters.endDate,
 			staffId: filters.staffId,
@@ -212,6 +216,7 @@ export class WeeklyScheduleService {
 		if (!staff) throw new ServiceError(404, 'Staff not found');
 
 		return this.shiftRepository.list({
+			officeId: staff.office_id,
 			startDate: filters.startDate,
 			endDate: filters.endDate,
 			staffId: staff.id,

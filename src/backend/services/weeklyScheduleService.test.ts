@@ -254,6 +254,7 @@ describe('WeeklyScheduleService', () => {
 
 			expect(result).toEqual(mockShifts);
 			expect(shiftRepo.list).toHaveBeenCalledWith({
+				officeId: adminStaff.office_id,
 				startDate: new Date('2026-01-19'),
 				endDate: new Date('2026-01-25'),
 				staffId: undefined,
@@ -301,6 +302,7 @@ describe('WeeklyScheduleService', () => {
 
 			expect(result).toEqual(mockShifts);
 			expect(shiftRepo.list).toHaveBeenCalledWith({
+				officeId: helperStaff.office_id,
 				startDate: new Date('2026-01-19'),
 				endDate: new Date('2026-01-25'),
 				staffId: helperStaff.id,
