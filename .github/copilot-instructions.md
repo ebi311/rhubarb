@@ -1,95 +1,115 @@
 # Rhubarb Copilot Instructions
 
-このファイルは、Rhubarb プロジェクトにおける Copilot の動作指示を定義しています。以下の指示に従ってください。
+訪問介護事業所向けシフト管理 Web アプリ。日本語で応答すること。
 
-## プロジェクト概要
+## アーキテクチャ概要
 
-訪問介護事業所向けのシフト管理 Web アプリケーションです。
-「予定のすっぽかし」と「変更時の調整負担」を解消し、現場管理者の作業効率化を支援します。
+レイヤードアーキテクチャを採用。データフローは以下の順序で流れる：
 
-## 基本
+```
+[Server Actions] → [Service] → [Repository] → [Supabase]
+src/app/actions/   src/backend/services/   src/backend/repositories/
+```
 
-- 日本語で応答すること
-- 必要に応じて、ユーザに質問を行い、要求を明確にすること
-- 作業後、作業内容とユーザが次に取れる行動を説明すること
-- コマンドの出力が確認できない場合、 get last command / check background terminal を使用して確認すること
+- **Server Actions** (`src/app/actions/`): `'use server'` を宣言。認証チェック後に Service を呼び出し、`ActionResult<T>` を返す
+- **Service** (`src/backend/services/`): ビジネスロジック。Repository を DI で受け取り、`ServiceError` をスローしてエラーを通知
+- **Repository** (`src/backend/repositories/`): Supabase クエリをカプセル化。Zod スキーマでドメインモデルに変換
+- **Models** (`src/models/`): Zod スキーマでエンティティと Value Object を定義（例: staff.ts, valueObjects/）
 
-## develop
+## コーディングパターン
 
-各作業を以下のように定義する。
+### ActionResult パターン（Server Actions の戻り値）
 
-- 開発は、”要件”の定義から、それを満たす"機能"をリスト化して、機能を実装するための"タスク"に分解することから始める。
-- "要件"は、"docs/MVP.md"に記載しているので、参照にする。
-- "機能"、"タスク"は、Marakdown 形式で、docs/features、docs/task に保存する。
-- 各タスクは、実装に必要なステップに分解し、表や API 仕様、DB スキーマ、エンティティ仕様、合格基準などを定義する。
-- ドキュメントに、コードを直接書かない。(デバッグなどの候補が必要な場合は除く)
-- 各ステップのコードは、必要に応じて説明を加える。
-- 各ステップのコードは、TDD の原則に従い、テストコードを最初に提供し、その後に実装コードを提供する。
-- 最小限のテスト項目と実装コードを提供し、動作確認を行いながら進める。
-- 関数は、Arrow Function を原則として使用する。(クラスのメソッド等は除く)
-- Typescript による厳密な型チェックを行う。`as any` の仕様は原則として禁止する。
-  - どうしても必要な場合は、開発者に問い合わせる。
-  - ただし、UT は例外として、型指定がテスト上重要な意味を保つ場合でない場合は、`as any` を使用してもよい。
+```typescript
+// src/app/actions/utils/actionResult.ts を参照
+export type ActionResult<T> = {
+	data: T | null;
+	error: string | null;
+	status: number;
+	details?: unknown;
+};
+```
 
-## UI components
+クライアントでは `useActionResultHandler` フックでトースト通知と結果処理を統一：
 
-- Component と、UT のファイルに加え、Storybook も作成する。
-- それらは、`src/app/{path}/_components/{Component名}` ディレクトリに保存する。
-- Storybook のストーリーは、`src/app/{path}/_components/{Component名}/{Component名}.stories.tsx` に保存する。
-- テストコードは、`src/app/{path}/_components/{Component名}/{Component名}.test.tsx` に保存する。
-- import で、コンポーネント名が重複するのを避けるため、同じディレクトリ内に、`index.ts` を作成し、エクスポートすることを推奨する。
-- スタイルフレームワークには、Tailwind CSS + daisyUI を使用する。
-- Component が複数の責務を持つ場合、サブコンポーネントに分割する。
+```typescript
+const { handleActionResult } = useActionResultHandler();
+const result = await someAction();
+handleActionResult(result, { successMessage: '保存しました', onSuccess: (data) => { ... } });
+```
 
-## git rules
+### ServiceError パターン（Service 層のエラー）
 
-- コミット前に、prettier を使用してコードを整形する。
-- コミットメッセージは、日本語で書く。
-- コミットメッセージのルール
-  - 1 行目: おおよそ 50 文字以内で要約を書く。名詞だけでなく「何をどうした」という文章にすること。
-  - プレフィックスとして、下記のいずれかを入れる
-    - feat: 新機能の追加
-    - fix: バグ修正
-    - docs: ドキュメントの変更
-    - style: コードのスタイル変更（動作に影響しない）
-    - refactor: リファクタリング（動作に影響しない）
-    - test: テストの追加・修正
-    - chore: その他の雑務
-  - 2 行目: 空行
-  - 3 行目以降: おおよそ 100 文字以内で詳細な説明を書く(必須)
+```typescript
+// src/backend/services/basicScheduleService.ts の ServiceError を使用
+throw new ServiceError(404, 'Staff not found');
+throw new ServiceError(400, 'Validation error', zodError.issues);
+```
 
-## use libraries
+### Zod スキーマによるバリデーション
 
-- 日付の操作には、Day.js を使用する。
-- 実装で可読性や保守性、再利用性が向上すると判断した場合、適切なライブラリを提案する。コピーレフトライセンスのライブラリは使用しないこと。
+- エンティティは `*Schema` で定義し、`z.infer<typeof *Schema>` で型を導出
+- Action 用の入力・出力スキーマは `*ActionSchemas.ts` に分離（例: staffActionSchemas.ts）
 
-## infrastructure
+## コマンド
 
-- クラウドサービスとして、Vercel を使用する。
-- DB, 認証, ファイルストレージなどは、Supabase を使用する。
+```bash
+pnpm dev              # 開発サーバー起動
+pnpm test:ut --run    # ユニットテスト（単発実行）
+pnpm test:storybook   # Storybook テスト
+pnpm storybook        # Storybook 起動 (port 6006)
+pnpm supa:start       # ローカル Supabase 起動
+pnpm supa:reset       # Supabase リセット（マイグレーション再適用）
+pnpm supa:types       # Supabase から型定義を生成 → src/backend/types/supabase.ts
+pnpm format           # Prettier でフォーマット
+```
 
-## unit tests
+## コンポーネント配置規則
 
-- テストフレームワークは Vitest を使用する。
-- `pnpm test:ut --run` コマンドで実行する。
-- component のテストは、 Testing Library for Svelte を使用する。
-- テスト対象のファイル名のプレフィックスに `+` がついていても、テストコードのファイルにはつけないこと。
-  - Vitest、Svelte の予約語のため。
+コンポーネントは必ず **本体 + テスト + Storybook + index.ts** をセットで作成：
 
-## documents
+```
+src/app/{path}/_components/{ComponentName}/
+├── {ComponentName}.tsx           # コンポーネント本体
+├── {ComponentName}.test.tsx      # Vitest + Testing Library (React)
+├── {ComponentName}.stories.tsx   # Storybook ストーリー
+└── index.ts                      # named export
+```
 
-- ドキュメントは、Markdown 形式で、言語は日本語で書く。
-- docs/reports/{yyyy-MM-dd HH:mm}-{簡単な内容(英語)}.md : 調査レポート
-- docs/features/{yyyy-MM-dd HH:mm}-{簡単な内容(英語)}.md : 機能仕様書
-- docs/task/{yyyy-MMfdd HH:mm}-{簡単な内容(英語)}.md : タスク
+- 汎用コンポーネント: `src/app/_components/`
+- ページ固有: `src/app/{feature}/_components/`
+- スタイル: Tailwind CSS + daisyUI
 
-### コンポーネントの構成規則
+## 開発プロセス
 
-プロジェクトルートの `README.md` の同名の項目を参照してください。
+1. 要件は `docs/MVP.md` を参照
+2. 機能仕様は `docs/features/{yyyy-MM-dd HH:mm}-{name}.md` に保存
+3. タスクは `docs/task/{yyyy-MM-dd HH:mm}-{name}.md` に分解
+4. **TDD**: テストを先に書き、最小限の実装で動作確認しながら進める
+5. 関数は Arrow Function を原則使用（クラスメソッド除く）
+6. `as any` は原則禁止（UT で型が重要でない場合のみ例外）
 
-## llm.txt
+## Git ルール
 
-ラブラリで llm.txt が提供されている物があるので、それらを使用する場合、llm.txt の指示に従うこと。
+コミット前に `pnpm format` を実行。メッセージは日本語で：
 
-- daisyUI: `.github/instructions/daisyui.instructions.md`
-- zod: `.github/instructions/zod.instructions.md`
+```
+feat: スタッフ一覧の検索機能を追加
+
+サービス種別でのフィルタリングを実装。
+```
+
+プレフィックス: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+## Supabase 注意点
+
+- RLS (Row Level Security) が有効。認証前のデータアクセスには Admin Client が必要
+- マイグレーションは `supabase/migrations/` に追加（ファイル名: `{timestamp}_{description}.sql`）
+- トラブル時は `docs/troubleshooting/supabase-rls-debugging.md` を参照
+
+## ライブラリ
+
+- 日付操作: Day.js
+- フォーム: react-hook-form + @hookform/resolvers (Zod)
+- 通知: react-toastify
+- コピーレフトライセンスのライブラリは使用禁止
