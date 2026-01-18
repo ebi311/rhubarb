@@ -15,6 +15,13 @@ export const getMonday = (date: Date): Date => {
 };
 
 /**
+ * Next.js page の searchParams の型
+ */
+export type SearchParams = {
+	[key: string]: string | string[] | undefined;
+};
+
+/**
  * searchParams をパースした結果
  */
 export type ParsedSearchParams = {
@@ -26,8 +33,9 @@ export type ParsedSearchParams = {
 /**
  * Next.js page の searchParams をパースする
  */
-export const parseSearchParams = (params: { week?: string }): ParsedSearchParams => {
-	const { week } = params;
+export const parseSearchParams = (params: SearchParams): ParsedSearchParams => {
+	const weekRaw = params.week;
+	const week = typeof weekRaw === 'string' ? weekRaw : undefined;
 
 	// week 未指定または空文字
 	if (!week) {
