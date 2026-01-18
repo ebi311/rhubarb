@@ -1,10 +1,14 @@
 import dayjs, { Dayjs } from 'dayjs';
+import advancedFormat from 'dayjs/plugin/advancedFormat';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.tz.setDefault('UTC');
+dayjs.extend(advancedFormat);
+dayjs.extend(isoWeek);
 
 const JST = 'Asia/Tokyo';
 
