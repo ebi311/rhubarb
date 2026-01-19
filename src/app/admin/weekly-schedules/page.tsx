@@ -1,6 +1,10 @@
-import { formatJstDateString } from '@/utils/date';
+import { getServiceUsersAction } from '@/app/actions/serviceUsers';
+import { listStaffsAction } from '@/app/actions/staffs';
+import { listShiftsAction } from '@/app/actions/weeklySchedules';
+import { addJstDays, formatJstDateString } from '@/utils/date';
 import { redirect } from 'next/navigation';
-
+import type { ShiftDisplayRow } from './_components/ShiftTable';
+import { WeeklySchedulePage } from './_components/WeeklySchedulePage';
 import { getMonday, parseSearchParams, type SearchParams } from './helpers';
 
 interface WeeklySchedulesPageProps {
@@ -28,6 +32,44 @@ const WeeklySchedulesPage = async ({ searchParams }: WeeklySchedulesPageProps) =
 	}
 
 	const weekStartDate = parsed.weekStartDate!;
+	const weekEndDate = addJstDays(weekStartDate, 6);
+
+	// データ取得を並列実行
+	const [shiftsResult, clientsResult, staffsResult] = await Promise.all([
+		listShiftsAction({
+			startDate: formatJstDateString(weekStartDate),
+			endDate: formatJstDateString(weekEndDate),
+		}),
+		getServiceUsersAction('all'),
+		listStaffsAction(),
+	]);
+
+	// 名前解決用のマップを作成
+	const clientNameMap = new Map<string, string>();
+	if (clientsResult.data) {
+		for (const client of clientsResult.data) {
+			clientNameMap.set(client.id, client.name);
+		}
+	}
+
+	const staffNameMap = new Map<string, string>();
+	if (staffsResult.data) {
+		for (const staff of staffsResult.data) {
+			staffNameMap.set(staff.id, staff.name);
+		}
+	}
+
+	// ShiftDisplayRow に変換
+	const shifts: ShiftDisplayRow[] = (shiftsResult.data ?? []).map((shift) => ({
+		id: shift.id,
+		date: shift.date,
+		startTime: shift.start_time,
+		endTime: shift.end_time,
+		clientName: clientNameMap.get(shift.client_id) ?? '不明な利用者',
+		serviceTypeId: shift.service_type_id,
+		staffName: shift.staff_id ? (staffNameMap.get(shift.staff_id) ?? '不明なスタッフ') : null,
+		status: shift.status,
+	}));
 
 	return (
 		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
@@ -37,10 +79,7 @@ const WeeklySchedulesPage = async ({ searchParams }: WeeklySchedulesPageProps) =
 				<p className="text-sm text-base-content/70">週ごとのシフトを確認・生成できます。</p>
 			</section>
 
-			{/* TODO: WeekSelector, GenerateButton, ShiftTable を追加 */}
-			<div className="rounded-lg border border-base-300 p-4">
-				<p className="text-base-content/70">選択中の週: {formatJstDateString(weekStartDate)}</p>
-			</div>
+			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={shifts} />
 		</div>
 	);
 };

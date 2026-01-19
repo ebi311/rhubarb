@@ -10,6 +10,10 @@ import WeeklySchedulesPage from './page';
 // redirect のモック
 vi.mock('next/navigation', () => ({
 	redirect: vi.fn(),
+	useRouter: () => ({
+		push: vi.fn(),
+		refresh: vi.fn(),
+	}),
 }));
 
 // helpers のモック
@@ -18,9 +22,32 @@ vi.mock('./helpers', () => ({
 	parseSearchParams: vi.fn(),
 }));
 
-// formatJstDateString のモック
-vi.mock('@/utils/date', () => ({
-	formatJstDateString: vi.fn(() => '2026-01-19'),
+// formatJstDateString のモック（部分モック）
+vi.mock('@/utils/date', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@/utils/date')>();
+	return {
+		...actual,
+		formatJstDateString: vi.fn(() => '2026-01-19'),
+		addJstDays: vi.fn(() => new Date('2026-01-25T00:00:00+09:00')),
+	};
+});
+
+// Server Actions のモック
+vi.mock('@/app/actions/weeklySchedules', () => ({
+	listShiftsAction: vi.fn().mockResolvedValue({ data: [], error: null, status: 200 }),
+	generateWeeklyShiftsAction: vi.fn().mockResolvedValue({
+		data: { created: 0, skipped: 0 },
+		error: null,
+		status: 200,
+	}),
+}));
+
+vi.mock('@/app/actions/serviceUsers', () => ({
+	getServiceUsersAction: vi.fn().mockResolvedValue({ data: [], error: null, status: 200 }),
+}));
+
+vi.mock('@/app/actions/staffs', () => ({
+	listStaffsAction: vi.fn().mockResolvedValue({ data: [], error: null, status: 200 }),
 }));
 
 beforeEach(() => {
