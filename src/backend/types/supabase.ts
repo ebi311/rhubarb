@@ -258,11 +258,14 @@ export type Database = {
 			};
 			shifts: {
 				Row: {
+					canceled_at: string | null;
+					canceled_reason: string | null;
 					client_id: string;
 					created_at: string;
 					end_time: string;
 					id: string;
 					is_unassigned: boolean;
+					notes: string | null;
 					service_type_id: string;
 					staff_id: string | null;
 					start_time: string;
@@ -270,11 +273,14 @@ export type Database = {
 					updated_at: string;
 				};
 				Insert: {
+					canceled_at?: string | null;
+					canceled_reason?: string | null;
 					client_id: string;
 					created_at?: string;
 					end_time: string;
 					id?: string;
 					is_unassigned?: boolean;
+					notes?: string | null;
 					service_type_id: string;
 					staff_id?: string | null;
 					start_time: string;
@@ -282,11 +288,14 @@ export type Database = {
 					updated_at?: string;
 				};
 				Update: {
+					canceled_at?: string | null;
+					canceled_reason?: string | null;
 					client_id?: string;
 					created_at?: string;
 					end_time?: string;
 					id?: string;
 					is_unassigned?: boolean;
+					notes?: string | null;
 					service_type_id?: string;
 					staff_id?: string | null;
 					start_time?: string;

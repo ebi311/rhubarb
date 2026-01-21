@@ -104,6 +104,17 @@ export class StaffRepository {
 		return rows.map((row) => this.toDomainWithServiceTypes(row, map[row.id] ?? []));
 	}
 
+	async findById(id: string): Promise<Staff | null> {
+		const { data, error } = await this.supabase
+			.from('staffs')
+			.select('*')
+			.eq('id', id)
+			.maybeSingle();
+		if (error) throw error;
+		if (!data) return null;
+		return this.toDomain(data);
+	}
+
 	async findWithServiceTypesById(id: string): Promise<StaffWithServiceTypes | null> {
 		const { data, error } = await this.supabase
 			.from('staffs')

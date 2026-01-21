@@ -191,4 +191,73 @@ export class ShiftRepository {
 		}
 		return existingMap;
 	}
+
+	/**
+	 * 担当者を変更する
+	 */
+	async updateStaffAssignment(shiftId: string, staffId: string, notes?: string): Promise<void> {
+		const { error } = await this.supabase
+			.from('shifts')
+			.update({
+				staff_id: staffId,
+				is_unassigned: false,
+				notes,
+				updated_at: new Date().toISOString(),
+			})
+			.eq('id', shiftId);
+
+		if (error) throw error;
+	}
+
+	/**
+	 * シフトをキャンセルする
+	 */
+	async cancelShift(
+		shiftId: string,
+		reason: string,
+		category: 'client' | 'staff' | 'other',
+		canceledAt: Date,
+	): Promise<void> {
+		const { error } = await this.supabase
+			.from('shifts')
+			.update({
+				status: 'canceled',
+				canceled_reason: reason,
+				canceled_at: canceledAt.toISOString(),
+				updated_at: new Date().toISOString(),
+			})
+			.eq('id', shiftId);
+
+		if (error) throw error;
+	}
+
+	/**
+	 * 指定されたスタッフの指定時間帯の重複シフトを検索する
+	 * @param staffId スタッフID
+	 * @param startTime 開始時刻
+	 * @param endTime 終了時刻
+	 * @param excludeShiftId 除外するシフトID（自身のシフトを除外する場合）
+	 */
+	async findConflictingShifts(
+		staffId: string,
+		startTime: Date,
+		endTime: Date,
+		excludeShiftId?: string,
+	): Promise<Shift[]> {
+		let query = this.supabase
+			.from('shifts')
+			.select('*')
+			.eq('staff_id', staffId)
+			.neq('status', 'canceled')
+			.or(`and(start_time.lt.${endTime.toISOString()},end_time.gt.${startTime.toISOString()})`);
+
+		if (excludeShiftId) {
+			query = query.neq('id', excludeShiftId);
+		}
+
+		const { data, error } = await query.order('start_time');
+
+		if (error) throw error;
+		return (data ?? []).map((row) => this.toDomain(row));
+	}
 }
