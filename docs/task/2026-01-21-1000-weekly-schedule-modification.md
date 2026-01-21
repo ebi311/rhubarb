@@ -15,37 +15,37 @@
 
 ### タスク
 
-- [ ] **ShiftRepository の拡張**
-  - [ ] `updateStaffAssignment(shiftId, staffId, notes)` メソッド追加
-  - [ ] `cancelShift(shiftId, reason, category, canceledAt)` メソッド追加
-  - [ ] `findById(shiftId)` メソッド追加（詳細取得用）
-  - [ ] `findConflictingShifts(staffId, startTime, endTime, excludeShiftId?)` メソッド追加
-  - [ ] 単体テスト作成（各メソッドの正常系・異常系）
+- [x] **ShiftRepository の拡張**
+  - [x] `updateStaffAssignment(shiftId, staffId, notes)` メソッド追加
+  - [x] `cancelShift(shiftId, reason, category, canceledAt)` メソッド追加
+  - [x] `findById(shiftId)` メソッド追加（詳細取得用）
+  - [x] `findConflictingShifts(staffId, startTime, endTime, excludeShiftId?)` メソッド追加
+  - [x] 単体テスト作成（各メソッドの正常系・異常系）
 
-- [ ] **ShiftService の実装**
-  - [ ] `changeStaffAssignment(userId, shiftId, newStaffId, reason?)` メソッド実装
-    - [ ] 認可チェック（管理者のみ）
-    - [ ] シフトの存在確認
-    - [ ] ステータス検証（canceled/completed は変更不可）
-    - [ ] 元の担当者名を取得
-    - [ ] Repository 呼び出し
-  - [ ] `cancelShift(userId, shiftId, reason, category)` メソッド実装
-    - [ ] 認可チェック（管理者のみ）
-    - [ ] シフトの存在確認
-    - [ ] ステータス検証（completed は変更不可）
-    - [ ] Repository 呼び出し
-  - [ ] `validateStaffAvailability(staffId, startTime, endTime, excludeShiftId?)` メソッド実装
-    - [ ] Repository で重複シフトを検索
-    - [ ] 結果を返却
-  - [ ] 単体テスト作成（全メソッド）
-    - [ ] 正常系
-    - [ ] 権限エラー
-    - [ ] ステータスエラー
-    - [ ] 存在しないシフト
+- [x] **ShiftService の実装**
+  - [x] `changeStaffAssignment(userId, shiftId, newStaffId, reason?)` メソッド実装
+    - [x] 認可チェック（管理者のみ）
+    - [x] シフトの存在確認
+    - [x] ステータス検証（canceled/completed は変更不可）
+    - [x] 元の担当者名を取得
+    - [x] Repository 呼び出し
+  - [x] `cancelShift(userId, shiftId, reason, category)` メソッド実装
+    - [x] 認可チェック（管理者のみ）
+    - [x] シフトの存在確認
+    - [x] ステータス検証（completed は変更不可）
+    - [x] Repository 呼び出し
+  - [x] `validateStaffAvailability(staffId, startTime, endTime, excludeShiftId?)` メソッド実装
+    - [x] Repository で重複シフトを検索
+    - [x] 結果を返却
+  - [x] 単体テスト作成（全メソッド）
+    - [x] 正常系
+    - [x] 権限エラー
+    - [x] ステータスエラー
+    - [x] 存在しないシフト
 
 ### レビュー & コミット
 
-バックエンドロジックが完成し、すべてのテストが通ることを確認してコミット。
+✅ バックエンドロジックが完成し、すべてのテストが通ることを確認してコミット。
 
 ---
 
