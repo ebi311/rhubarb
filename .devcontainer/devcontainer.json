@@ -30,6 +30,7 @@
 		3000, // Next.js
 		54323, // Supabase Studio (管理画面GUI)
 		54321, // Supabase API Gateway
+		54322, // Supabase DB
 		54324 // Inbucket (メールテスト画面)
 	],
 

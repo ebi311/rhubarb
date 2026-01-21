@@ -129,8 +129,8 @@ BEGIN
     '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 
     'physical-care', 
     '019b179f-c7db-7248-bcdc-745cfa30edad', 
-    (today + 1)::timestamp + interval '10 hours',
-    (today + 1)::timestamp + interval '11 hours',
+    (today + 1)::timestamp + interval '19 hours',
+    (today + 1)::timestamp + interval '20 hours',
     'scheduled'
   );
 
@@ -140,8 +140,8 @@ BEGIN
     '019b179f-c977-717a-ab85-8d61b628550e', 
     'life-support', 
     '019b179f-c863-774e-ad83-4adc56163d05', 
-    (today + 2)::timestamp + interval '14 hours',
-    (today + 2)::timestamp + interval '15 hours',
+    (today + 2)::timestamp + interval '01 hours',
+    (today + 2)::timestamp + interval '02 hours',
     'confirmed'
   );
 END $$;

@@ -1,6 +1,6 @@
 import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
-import { formatJstDateString } from '@/utils/date';
+import { formatJstDateString, getJstDayOfWeek } from '@/utils/date';
 import classNames from 'classnames';
 
 export type ShiftStatus = 'scheduled' | 'confirmed' | 'completed' | 'canceled';
@@ -29,7 +29,7 @@ const formatTime = (time: { hour: number; minute: number }): string => {
 
 const formatDateWithDay = (date: Date): string => {
 	const dateStr = formatJstDateString(date).replace(/-/g, '/');
-	const dayOfWeek = DAY_NAMES[date.getDay()];
+	const dayOfWeek = DAY_NAMES[getJstDayOfWeek(date)];
 	return `${dateStr}(${dayOfWeek})`;
 };
 
@@ -50,7 +50,7 @@ const STATUS_BADGE_CLASSES: Record<ShiftStatus, string> = {
 const GRID_COLS = classNames(
 	'grid',
 	'grid-cols-[8rem_10rem_1fr]',
-	'grid-areas-["date_time_client","staff_service_status"]',
+	'grid-areas-["date_time_client""staff_service_status"]',
 	'lg:grid-cols-[8rem_8rem_1fr_8rem_8rem_6rem]',
 	"lg:grid-areas-['date_time_client_staff_service_status']",
 	'gap-2',
