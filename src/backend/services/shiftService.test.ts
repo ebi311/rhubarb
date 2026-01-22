@@ -1,6 +1,8 @@
+import { ServiceUserRepository } from '@/backend/repositories/serviceUserRepository';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
+import { ServiceUser } from '@/models/serviceUser';
 import { Shift } from '@/models/shift';
 import { Staff } from '@/models/staff';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -21,6 +23,12 @@ const createMockShiftRepository = (): Mocked<ShiftRepository> => {
 		cancelShift: vi.fn(),
 		findConflictingShifts: vi.fn(),
 	} as unknown as Mocked<ShiftRepository>;
+};
+
+const createMockServiceUserRepository = (): Mocked<ServiceUserRepository> => {
+	return {
+		findById: vi.fn(),
+	} as unknown as Mocked<ServiceUserRepository>;
 };
 
 const createTestStaff = (overrides: Partial<Staff> = {}): Staff => ({
@@ -56,15 +64,18 @@ describe('ShiftService', () => {
 	let service: ShiftService;
 	let mockStaffRepo: Mocked<StaffRepository>;
 	let mockShiftRepo: Mocked<ShiftRepository>;
+	let mockServiceUserRepo: Mocked<ServiceUserRepository>;
 	let mockSupabase: SupabaseClient<Database>;
 
 	beforeEach(() => {
 		mockStaffRepo = createMockStaffRepository();
 		mockShiftRepo = createMockShiftRepository();
+		mockServiceUserRepo = createMockServiceUserRepository();
 		mockSupabase = {} as SupabaseClient<Database>;
 		service = new ShiftService(mockSupabase, {
 			staffRepository: mockStaffRepo,
 			shiftRepository: mockShiftRepo,
+			serviceUserRepository: mockServiceUserRepo,
 		});
 	});
 
@@ -259,52 +270,46 @@ describe('ShiftService', () => {
 
 	describe('validateStaffAvailability', () => {
 		it('should return available=true if no conflicts', async () => {
-			const userId = 'auth-user-1';
 			const staffId = '12345678-1234-1234-8234-123456789001';
 			const startTime = new Date('2026-01-20T10:00:00Z');
 			const endTime = new Date('2026-01-20T11:00:00Z');
 
-			const adminStaff = createTestStaff();
-			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([]);
 
-			const result = await service.validateStaffAvailability(userId, staffId, startTime, endTime);
+			const result = await service.validateStaffAvailability(staffId, startTime, endTime);
 
 			expect(result).toEqual({ available: true });
 		});
 
 		it('should return available=false with conflicting shifts', async () => {
-			const userId = 'auth-user-1';
 			const staffId = '12345678-1234-1234-8234-123456789001';
 			const startTime = new Date('2026-01-20T10:00:00Z');
 			const endTime = new Date('2026-01-20T11:00:00Z');
 
-			const adminStaff = createTestStaff();
 			const conflictingShift = createTestShift();
-
-			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([conflictingShift]);
+			mockServiceUserRepo.findById.mockResolvedValueOnce({
+				id: conflictingShift.client_id,
+				name: '田中様',
+			} as ServiceUser);
 
-			const result = await service.validateStaffAvailability(userId, staffId, startTime, endTime);
+			const result = await service.validateStaffAvailability(staffId, startTime, endTime);
 
-			expect(result).toEqual({
-				available: false,
-				conflictingShifts: [conflictingShift],
-			});
+			expect(result.available).toBe(false);
+			expect(result.conflictingShifts).toBeDefined();
+			expect(result.conflictingShifts?.length).toBe(1);
+			expect(result.conflictingShifts?.[0].clientName).toBe('田中様');
 		});
 
 		it('should exclude specific shift when provided', async () => {
-			const userId = 'auth-user-1';
 			const staffId = '12345678-1234-1234-8234-123456789001';
 			const startTime = new Date('2026-01-20T10:00:00Z');
 			const endTime = new Date('2026-01-20T11:00:00Z');
 			const excludeShiftId = 'exclude-shift-1';
 
-			const adminStaff = createTestStaff();
-			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([]);
 
-			await service.validateStaffAvailability(userId, staffId, startTime, endTime, excludeShiftId);
+			await service.validateStaffAvailability(staffId, startTime, endTime, excludeShiftId);
 
 			expect(mockShiftRepo.findConflictingShifts).toHaveBeenCalledWith(
 				staffId,

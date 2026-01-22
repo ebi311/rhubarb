@@ -1,7 +1,8 @@
+import { ServiceUserRepository } from '@/backend/repositories/serviceUserRepository';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
-import { Shift } from '@/models/shift';
+import { setJstTime } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export class ServiceError extends Error {
@@ -20,19 +21,30 @@ export interface StaffAssignmentResult {
 	newStaffName: string;
 }
 
+export interface ConflictingShift {
+	id: string;
+	clientId: string;
+	clientName: string;
+	date: Date;
+	startTime: Date;
+	endTime: Date;
+}
+
 export interface StaffAvailability {
 	available: boolean;
-	conflictingShifts?: Shift[];
+	conflictingShifts?: ConflictingShift[];
 }
 
 interface ShiftServiceOptions {
 	staffRepository?: StaffRepository;
 	shiftRepository?: ShiftRepository;
+	serviceUserRepository?: ServiceUserRepository;
 }
 
 export class ShiftService {
 	private staffRepository: StaffRepository;
 	private shiftRepository: ShiftRepository;
+	private serviceUserRepository: ServiceUserRepository;
 
 	constructor(
 		private supabase: SupabaseClient<Database>,
@@ -40,6 +52,8 @@ export class ShiftService {
 	) {
 		this.staffRepository = options?.staffRepository ?? new StaffRepository(supabase);
 		this.shiftRepository = options?.shiftRepository ?? new ShiftRepository(supabase);
+		this.serviceUserRepository =
+			options?.serviceUserRepository ?? new ServiceUserRepository(supabase);
 	}
 
 	/**
@@ -126,15 +140,11 @@ export class ShiftService {
 	 * スタッフの時間重複チェック
 	 */
 	async validateStaffAvailability(
-		userId: string,
 		staffId: string,
 		startTime: Date,
 		endTime: Date,
 		excludeShiftId?: string,
 	): Promise<StaffAvailability> {
-		// 認可チェック
-		await this.getAdminStaff(userId);
-
 		// Repository で重複シフトを検索
 		const conflictingShifts = await this.shiftRepository.findConflictingShifts(
 			staffId,
@@ -147,9 +157,24 @@ export class ShiftService {
 			return { available: true };
 		}
 
+		// クライアント名を取得
+		const conflictingShiftsWithClient = await Promise.all(
+			conflictingShifts.map(async (shift) => {
+				const client = await this.serviceUserRepository.findById(shift.client_id);
+				return {
+					id: shift.id,
+					clientId: shift.client_id,
+					clientName: client?.name ?? '不明',
+					date: shift.date,
+					startTime: setJstTime(shift.date, shift.time.start.hour, shift.time.start.minute),
+					endTime: setJstTime(shift.date, shift.time.end.hour, shift.time.end.minute),
+				};
+			}),
+		);
+
 		return {
 			available: false,
-			conflictingShifts,
+			conflictingShifts: conflictingShiftsWithClient,
 		};
 	}
 }

@@ -62,3 +62,60 @@ export const ShiftRecordSchema = z.object({
 	updated_at: TimestampSchema,
 });
 export type ShiftRecord = z.infer<typeof ShiftRecordSchema>;
+
+// changeShiftStaffAction の入力スキーマ
+export const ChangeShiftStaffInputSchema = z.object({
+	shiftId: z.string().uuid(),
+	newStaffId: z.string().uuid(),
+	reason: z.string().optional(),
+});
+
+export type ChangeShiftStaffInput = z.infer<typeof ChangeShiftStaffInputSchema>;
+
+// changeShiftStaffAction の出力スキーマ
+export const ChangeShiftStaffOutputSchema = z.object({
+	oldStaffName: z.string(),
+	newStaffName: z.string(),
+});
+
+export type ChangeShiftStaffOutput = z.infer<typeof ChangeShiftStaffOutputSchema>;
+
+// cancelShiftAction の入力スキーマ
+export const CancelShiftCategorySchema = z.enum(['client', 'staff', 'other']);
+
+export type CancelShiftCategory = z.infer<typeof CancelShiftCategorySchema>;
+
+export const CancelShiftInputSchema = z.object({
+	shiftId: z.string().uuid(),
+	reason: z.string().min(1, 'キャンセル理由は必須です'),
+	category: CancelShiftCategorySchema,
+});
+
+export type CancelShiftInput = z.infer<typeof CancelShiftInputSchema>;
+
+// validateStaffAvailabilityAction の入力スキーマ
+export const ValidateStaffAvailabilityInputSchema = z.object({
+	staffId: z.string().uuid(),
+	startTime: z.string(),
+	endTime: z.string(),
+	excludeShiftId: z.string().uuid().optional(),
+});
+
+export type ValidateStaffAvailabilityInput = z.infer<typeof ValidateStaffAvailabilityInputSchema>;
+
+// validateStaffAvailabilityAction の出力スキーマ
+export const ValidateStaffAvailabilityOutputSchema = z.object({
+	available: z.boolean(),
+	conflictingShifts: z
+		.array(
+			z.object({
+				id: z.string().uuid(),
+				clientName: z.string(),
+				startTime: z.coerce.date(),
+				endTime: z.coerce.date(),
+			}),
+		)
+		.optional(),
+});
+
+export type ValidateStaffAvailabilityOutput = z.infer<typeof ValidateStaffAvailabilityOutputSchema>;
