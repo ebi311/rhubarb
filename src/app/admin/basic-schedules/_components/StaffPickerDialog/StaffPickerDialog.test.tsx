@@ -21,7 +21,9 @@ const options: StaffPickerOption[] = [
 	},
 ];
 
-const renderDialog = (overrides: Partial<Parameters<typeof StaffPickerDialog>[0]> = {}) => {
+const renderDialog = (
+	overrides: Partial<Parameters<typeof StaffPickerDialog>[0]> = {},
+) => {
 	const defaultProps = {
 		isOpen: true,
 		staffOptions: options,
@@ -38,7 +40,10 @@ describe('StaffPickerDialog', () => {
 		const user = userEvent.setup();
 		renderDialog();
 
-		await user.type(screen.getByPlaceholderText('氏名・サービス区分で検索'), '花子');
+		await user.type(
+			screen.getByPlaceholderText('氏名・サービス区分で検索'),
+			'花子',
+		);
 		expect(screen.queryByText('山田太郎')).not.toBeInTheDocument();
 		expect(screen.getByText('佐藤花子')).toBeInTheDocument();
 

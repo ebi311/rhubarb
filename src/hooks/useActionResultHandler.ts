@@ -12,13 +12,19 @@ type HandleActionResultOptions<T> = {
 const DEFAULT_SUCCESS = '操作が完了しました';
 const DEFAULT_ERROR = 'エラーが発生しました';
 
-const notifyError = <T>(result: ActionResult<T>, options?: HandleActionResultOptions<T>) => {
+const notifyError = <T>(
+	result: ActionResult<T>,
+	options?: HandleActionResultOptions<T>,
+) => {
 	toast.error(options?.errorMessage ?? result.error ?? DEFAULT_ERROR);
 	options?.onError?.(result.error, result);
 	return false;
 };
 
-const notifySuccess = <T>(result: ActionResult<T>, options?: HandleActionResultOptions<T>) => {
+const notifySuccess = <T>(
+	result: ActionResult<T>,
+	options?: HandleActionResultOptions<T>,
+) => {
 	toast.success(options?.successMessage ?? DEFAULT_SUCCESS);
 	options?.onSuccess?.(result.data ?? null);
 	return true;
@@ -27,7 +33,9 @@ const notifySuccess = <T>(result: ActionResult<T>, options?: HandleActionResultO
 export const useActionResultHandler = () => {
 	const handleActionResult = useCallback(
 		<T>(result: ActionResult<T>, options?: HandleActionResultOptions<T>) =>
-			result.error ? notifyError(result, options) : notifySuccess(result, options),
+			result.error
+				? notifyError(result, options)
+				: notifySuccess(result, options),
 		[],
 	);
 

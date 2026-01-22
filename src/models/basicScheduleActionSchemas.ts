@@ -8,11 +8,16 @@ import { TimestampSchema } from './valueObjects/timestamp';
 export const WeekdaySchema = DayOfWeekSchema;
 export type Weekday = z.infer<typeof WeekdaySchema>;
 
-const withTimeRangeValidation = <T extends { start_time: unknown; end_time: unknown }>(
+const withTimeRangeValidation = <
+	T extends { start_time: unknown; end_time: unknown },
+>(
 	schema: z.ZodType<T>,
 ) =>
 	schema.superRefine((val, ctx) => {
-		const parsed = TimeRangeSchema.safeParse({ start: val.start_time, end: val.end_time });
+		const parsed = TimeRangeSchema.safeParse({
+			start: val.start_time,
+			end: val.end_time,
+		});
 		if (!parsed.success) {
 			parsed.error.issues.forEach((issue) => {
 				const mappedPath = issue.path.map((p) =>
@@ -27,7 +32,9 @@ export const BasicScheduleInputSchema = withTimeRangeValidation(
 	z.object({
 		client_id: z.uuid({ message: 'client_id は UUID 形式で指定してください' }),
 		service_type_id: ServiceTypeIdSchema,
-		staff_ids: z.array(z.uuid({ message: 'staff_id は UUID 形式で指定してください' })).min(0),
+		staff_ids: z
+			.array(z.uuid({ message: 'staff_id は UUID 形式で指定してください' }))
+			.min(0),
 		weekday: WeekdaySchema,
 		start_time: TimeValueSchema,
 		end_time: TimeValueSchema,

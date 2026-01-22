@@ -21,7 +21,9 @@ vi.mock('@/app/actions/basicSchedules', () => ({
 }));
 
 vi.spyOn(actionResultHandler, 'useActionResultHandler');
-const handleActionResultMock = vi.mocked(actionResultHandler.useActionResultHandler);
+const handleActionResultMock = vi.mocked(
+	actionResultHandler.useActionResultHandler,
+);
 
 const serviceUsers: ServiceUser[] = [
 	{
@@ -81,19 +83,31 @@ describe('BasicScheduleForm', () => {
 
 	it('必須項目が未入力の場合、登録ボタンが無効になる', async () => {
 		render(
-			<BasicScheduleForm serviceUsers={serviceUsers} serviceTypes={serviceTypes} staffs={staffs} />,
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+			/>,
 		);
 
-		const submitButton = screen.getByRole('button', { name: 'スケジュールを登録' });
+		const submitButton = screen.getByRole('button', {
+			name: 'スケジュールを登録',
+		});
 		expect(submitButton).toBeDisabled();
 	});
 
 	it('入力内容でcreateBasicScheduleActionを呼び出し、成功時にリセットする', async () => {
 		const user = userEvent.setup();
-		vi.mocked(createBasicScheduleAction).mockResolvedValue(successResult(sampleSchedule));
+		vi.mocked(createBasicScheduleAction).mockResolvedValue(
+			successResult(sampleSchedule),
+		);
 
 		render(
-			<BasicScheduleForm serviceUsers={serviceUsers} serviceTypes={serviceTypes} staffs={staffs} />,
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+			/>,
 		);
 
 		await user.selectOptions(
@@ -111,7 +125,9 @@ describe('BasicScheduleForm', () => {
 		await user.click(screen.getByLabelText('山田太郎を選択'));
 		await user.click(screen.getByRole('button', { name: '確定する' }));
 
-		await user.click(screen.getByRole('button', { name: 'スケジュールを登録' }));
+		await user.click(
+			screen.getByRole('button', { name: 'スケジュールを登録' }),
+		);
 
 		await waitFor(() => {
 			expect(createBasicScheduleAction).toHaveBeenCalledWith({

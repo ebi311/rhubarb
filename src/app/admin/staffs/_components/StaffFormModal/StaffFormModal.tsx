@@ -21,7 +21,9 @@ const StaffFormSchema = StaffInputSchema.extend({
 }).transform((value) => ({
 	...value,
 	email:
-		typeof value.email === 'string' && value.email.trim() === '' ? null : (value.email ?? null),
+		typeof value.email === 'string' && value.email.trim() === ''
+			? null
+			: (value.email ?? null),
 	note:
 		typeof value.note === 'string' && value.note.trim().length === 0
 			? null
@@ -106,9 +108,12 @@ export const StaffFormModal = (props: StaffFormModalProps) => {
 				: await updateStaffAction(props.staff.id, values);
 
 		const handledSuccessfully = handleActionResult(result, {
-			successMessage: mode === 'create' ? '担当者を登録しました' : '担当者情報を更新しました',
+			successMessage:
+				mode === 'create' ? '担当者を登録しました' : '担当者情報を更新しました',
 			errorMessage:
-				mode === 'create' ? '担当者の登録に失敗しました' : '担当者情報の更新に失敗しました',
+				mode === 'create'
+					? '担当者の登録に失敗しました'
+					: '担当者情報の更新に失敗しました',
 		});
 
 		if (!handledSuccessfully || !result.data) {
@@ -132,7 +137,13 @@ export const StaffFormModal = (props: StaffFormModalProps) => {
 			<div className="modal-box max-w-2xl">
 				<h3 className="mb-4 text-lg font-bold">{dialogTitle}</h3>
 				<form className="space-y-4" onSubmit={onSubmit}>
-					<FormInput control={control} name="name" label="氏名" required disabled={isSubmitting} />
+					<FormInput
+						control={control}
+						name="name"
+						label="氏名"
+						required
+						disabled={isSubmitting}
+					/>
 					<FormInput
 						control={control}
 						name="email"
@@ -176,7 +187,9 @@ export const StaffFormModal = (props: StaffFormModalProps) => {
 						disabled={isSubmitting}
 						placeholder="備考を入力"
 					/>
-					<p className="text-right text-xs text-base-content/60">{noteValue.length} / 500</p>
+					<p className="text-right text-xs text-base-content/60">
+						{noteValue.length} / 500
+					</p>
 
 					<fieldset className="fieldset">
 						<legend className="fieldset-legend">担当サービス区分</legend>

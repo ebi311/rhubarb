@@ -1,7 +1,15 @@
 'use client';
 
-import type { ContractStatus, ServiceUser, ServiceUserInput } from '@/models/serviceUser';
-import { useClientFilter, useClientModal, useClientMutations } from '../../_hooks';
+import type {
+	ContractStatus,
+	ServiceUser,
+	ServiceUserInput,
+} from '@/models/serviceUser';
+import {
+	useClientFilter,
+	useClientModal,
+	useClientMutations,
+} from '../../_hooks';
 import type { ModalState } from '../../_types';
 import { ClientFilterTabs } from '../ClientFilterTabs';
 import { ClientModal } from '../ClientModal';
@@ -32,7 +40,8 @@ export const ClientsPageContent = ({
 		? initialClients.find((c) => c.id === modalState.clientId)
 		: undefined;
 
-	const { createClient, updateClient, updateContractStatus } = useClientMutations(close);
+	const { createClient, updateClient, updateContractStatus } =
+		useClientMutations(close);
 
 	// 新規作成ハンドラー
 	const handleCreate = async (data: ServiceUserInput) => {
@@ -40,14 +49,21 @@ export const ClientsPageContent = ({
 	};
 
 	// 編集ハンドラー
-	const handleEdit = async (data: ServiceUserInput, contractStatus?: ContractStatus) => {
+	const handleEdit = async (
+		data: ServiceUserInput,
+		contractStatus?: ContractStatus,
+	) => {
 		if (!editingClient) return;
 
 		const updated = await updateClient(editingClient.id, data);
 		if (!updated) return;
 
 		if (contractStatus) {
-			await updateContractStatus(editingClient.id, editingClient.contract_status, contractStatus);
+			await updateContractStatus(
+				editingClient.id,
+				editingClient.contract_status,
+				contractStatus,
+			);
 		}
 	};
 
@@ -70,7 +86,12 @@ export const ClientsPageContent = ({
 
 			{/* モーダル */}
 			{modalState?.mode === 'create' && (
-				<ClientModal isOpen={true} mode="create" onClose={close} onSubmit={handleCreate} />
+				<ClientModal
+					isOpen={true}
+					mode="create"
+					onClose={close}
+					onSubmit={handleCreate}
+				/>
 			)}
 			{modalState?.mode === 'edit' && editingClient && (
 				<ClientModal

@@ -64,7 +64,9 @@ describe('ClientTable', () => {
 	it('データがない場合のメッセージが表示される', () => {
 		render(<ClientTable clients={[]} getHref={() => '#'} />);
 
-		expect(screen.getByText('利用者がまだ登録されていません')).toBeInTheDocument();
+		expect(
+			screen.getByText('利用者がまだ登録されていません'),
+		).toBeInTheDocument();
 	});
 
 	it('データがない場合は編集リンクが表示されない', () => {

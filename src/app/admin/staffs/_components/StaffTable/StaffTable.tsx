@@ -44,7 +44,9 @@ export const StaffTable = ({ staffs, onEdit, onDelete }: StaffTableProps) => {
 						<tr key={staff.id}>
 							<td className="font-medium">{staff.name}</td>
 							<td>
-								<span className="badge badge-outline badge-sm">{roleLabel[staff.role]}</span>
+								<span className="badge badge-outline badge-sm">
+									{roleLabel[staff.role]}
+								</span>
 							</td>
 							<td>{staff.email ?? '―'}</td>
 							<td>

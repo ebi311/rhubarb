@@ -3,7 +3,12 @@ import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeRangeSchema } from './valueObjects/timeRange';
 import { TimestampSchema } from './valueObjects/timestamp';
 
-export const ShiftStatusSchema = z.enum(['scheduled', 'confirmed', 'completed', 'canceled']);
+export const ShiftStatusSchema = z.enum([
+	'scheduled',
+	'confirmed',
+	'completed',
+	'canceled',
+]);
 export type ShiftStatus = z.infer<typeof ShiftStatusSchema>;
 
 export const ShiftSchema = z.object({

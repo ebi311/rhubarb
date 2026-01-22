@@ -9,18 +9,27 @@ type UseStaffListStateOptions = {
 	filters: StaffFilterState;
 };
 
-export const useStaffListState = ({ initialStaffs, filters }: UseStaffListStateOptions) => {
+export const useStaffListState = ({
+	initialStaffs,
+	filters,
+}: UseStaffListStateOptions) => {
 	const router = useRouter();
 	const [staffs, setStaffs] = useState(initialStaffs);
 	const [isCreateModalOpen, setCreateModalOpen] = useState(false);
 	const [editingStaff, setEditingStaff] = useState<StaffRecord | null>(null);
-	const [deletingStaff, setDeletingStaff] = useState<Pick<StaffRecord, 'id' | 'name'> | null>(null);
+	const [deletingStaff, setDeletingStaff] = useState<Pick<
+		StaffRecord,
+		'id' | 'name'
+	> | null>(null);
 
 	useEffect(() => {
 		setStaffs(initialStaffs);
 	}, [initialStaffs]);
 
-	const staffViewModels = useMemo(() => staffs.map((staff) => toStaffViewModel(staff)), [staffs]);
+	const staffViewModels = useMemo(
+		() => staffs.map((staff) => toStaffViewModel(staff)),
+		[staffs],
+	);
 	const filteredStaffs = useMemo(
 		() => filterStaffs(staffViewModels, filters),
 		[staffViewModels, filters],
@@ -35,13 +44,18 @@ export const useStaffListState = ({ initialStaffs, filters }: UseStaffListStateO
 	};
 
 	const handleCreateSuccess = (staff: StaffRecord) => {
-		setStaffs((prev) => [staff, ...prev.filter((item) => item.id !== staff.id)]);
+		setStaffs((prev) => [
+			staff,
+			...prev.filter((item) => item.id !== staff.id),
+		]);
 		setCreateModalOpen(false);
 		refreshSafely();
 	};
 
 	const handleEditSuccess = (staff: StaffRecord) => {
-		setStaffs((prev) => prev.map((item) => (item.id === staff.id ? staff : item)));
+		setStaffs((prev) =>
+			prev.map((item) => (item.id === staff.id ? staff : item)),
+		);
 		setEditingStaff(null);
 		refreshSafely();
 	};

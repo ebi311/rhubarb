@@ -25,7 +25,9 @@ export const GenerateButton = ({
 	const handleClick = async () => {
 		setIsLoading(true);
 		try {
-			const result = await generateWeeklyShiftsAction(formatJstDateString(weekStartDate));
+			const result = await generateWeeklyShiftsAction(
+				formatJstDateString(weekStartDate),
+			);
 			if (result.data && onGenerated) {
 				onGenerated(result.data);
 			}

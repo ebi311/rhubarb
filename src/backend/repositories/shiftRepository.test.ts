@@ -41,7 +41,10 @@ describe('ShiftRepository', () => {
 			const newStaffId = 'staff-2';
 			const notes = '担当者変更: 急病のため';
 
-			mockSupabase._mockQuery.eq.mockResolvedValueOnce({ data: null, error: null });
+			mockSupabase._mockQuery.eq.mockResolvedValueOnce({
+				data: null,
+				error: null,
+			});
 
 			await repository.updateStaffAssignment(shiftId, newStaffId, notes);
 
@@ -59,7 +62,10 @@ describe('ShiftRepository', () => {
 			const shiftId = 'shift-1';
 			const newStaffId = 'staff-2';
 
-			mockSupabase._mockQuery.eq.mockResolvedValueOnce({ data: null, error: null });
+			mockSupabase._mockQuery.eq.mockResolvedValueOnce({
+				data: null,
+				error: null,
+			});
 
 			await repository.updateStaffAssignment(shiftId, newStaffId);
 
@@ -75,9 +81,9 @@ describe('ShiftRepository', () => {
 			const error = new Error('Update failed');
 			mockSupabase._mockQuery.eq.mockResolvedValueOnce({ data: null, error });
 
-			await expect(repository.updateStaffAssignment('shift-1', 'staff-2')).rejects.toThrow(
-				'Update failed',
-			);
+			await expect(
+				repository.updateStaffAssignment('shift-1', 'staff-2'),
+			).rejects.toThrow('Update failed');
 		});
 	});
 
@@ -88,7 +94,10 @@ describe('ShiftRepository', () => {
 			const category = 'client';
 			const canceledAt = new Date('2026-01-20T10:00:00Z');
 
-			mockSupabase._mockQuery.eq.mockResolvedValueOnce({ data: null, error: null });
+			mockSupabase._mockQuery.eq.mockResolvedValueOnce({
+				data: null,
+				error: null,
+			});
 
 			await repository.cancelShift(shiftId, reason, category, canceledAt);
 
@@ -136,13 +145,23 @@ describe('ShiftRepository', () => {
 				},
 			];
 
-			mockSupabase._mockQuery.order.mockResolvedValueOnce({ data: mockData, error: null });
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: mockData,
+				error: null,
+			});
 
-			const result = await repository.findConflictingShifts(staffId, startTime, endTime);
+			const result = await repository.findConflictingShifts(
+				staffId,
+				startTime,
+				endTime,
+			);
 
 			expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
 			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith('*');
-			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith('staff_id', staffId);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'staff_id',
+				staffId,
+			);
 			expect(result).toHaveLength(1);
 			expect(result[0].id).toBe('12345678-1234-1234-8234-123456789011');
 		});
@@ -153,9 +172,17 @@ describe('ShiftRepository', () => {
 			const endTime = new Date('2026-01-20T11:00:00Z');
 			const excludeShiftId = 'shift-2';
 
-			mockSupabase._mockQuery.order.mockResolvedValueOnce({ data: [], error: null });
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
 
-			await repository.findConflictingShifts(staffId, startTime, endTime, excludeShiftId);
+			await repository.findConflictingShifts(
+				staffId,
+				startTime,
+				endTime,
+				excludeShiftId,
+			);
 
 			// neq が呼ばれることを確認
 			expect(mockSupabase._mockQuery.eq).toHaveBeenCalled();
@@ -166,16 +193,26 @@ describe('ShiftRepository', () => {
 			const startTime = new Date('2026-01-20T10:00:00Z');
 			const endTime = new Date('2026-01-20T11:00:00Z');
 
-			mockSupabase._mockQuery.order.mockResolvedValueOnce({ data: [], error: null });
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
 
-			const result = await repository.findConflictingShifts(staffId, startTime, endTime);
+			const result = await repository.findConflictingShifts(
+				staffId,
+				startTime,
+				endTime,
+			);
 
 			expect(result).toEqual([]);
 		});
 
 		it('should throw error if query fails', async () => {
 			const error = new Error('Query failed');
-			mockSupabase._mockQuery.order.mockResolvedValueOnce({ data: null, error });
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: null,
+				error,
+			});
 
 			await expect(
 				repository.findConflictingShifts('staff-1', new Date(), new Date()),

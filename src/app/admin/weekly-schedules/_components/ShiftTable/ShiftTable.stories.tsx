@@ -36,7 +36,10 @@ const createShift = (
 };
 
 const sampleShifts: ShiftDisplayRow[] = [
-	createShift('1', 0, { startTime: { hour: 9, minute: 0 }, endTime: { hour: 10, minute: 0 } }),
+	createShift('1', 0, {
+		startTime: { hour: 9, minute: 0 },
+		endTime: { hour: 10, minute: 0 },
+	}),
 	createShift('2', 0, {
 		startTime: { hour: 11, minute: 0 },
 		endTime: { hour: 12, minute: 0 },

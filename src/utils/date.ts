@@ -58,8 +58,17 @@ export const getJstMinutes = (date: Date): number => {
  * 例: date が JST 2026-01-19 15:30 で、hours=9, minutes=0 なら
  *     JST 2026-01-19 09:00:00 を返す
  */
-export const setJstTime = (date: Date, hours: number, minutes: number): Date => {
-	return dayjs(date).tz(JST).startOf('day').hour(hours).minute(minutes).toDate();
+export const setJstTime = (
+	date: Date,
+	hours: number,
+	minutes: number,
+): Date => {
+	return dayjs(date)
+		.tz(JST)
+		.startOf('day')
+		.hour(hours)
+		.minute(minutes)
+		.toDate();
 };
 
 /**

@@ -1,5 +1,9 @@
 import { Database } from '@/backend/types/supabase';
-import { ServiceUser, ServiceUserInput, ServiceUserSchema } from '@/models/serviceUser';
+import {
+	ServiceUser,
+	ServiceUserInput,
+	ServiceUserSchema,
+} from '@/models/serviceUser';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // DBテーブル名は既存の clients を利用
@@ -55,7 +59,11 @@ export class ServiceUserRepository {
 		return this.toDomain(data);
 	}
 
-	async create(data: { office_id: string; name: string; address: string }): Promise<ServiceUser> {
+	async create(data: {
+		office_id: string;
+		name: string;
+		address: string;
+	}): Promise<ServiceUser> {
 		const insertData: ServiceUserInsert = {
 			office_id: data.office_id,
 			name: data.name,

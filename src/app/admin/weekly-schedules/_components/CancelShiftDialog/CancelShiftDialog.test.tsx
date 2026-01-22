@@ -43,14 +43,18 @@ describe('CancelShiftDialog', () => {
 
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-		rerender(<CancelShiftDialog isOpen={true} shift={mockShift} onClose={onClose} />);
+		rerender(
+			<CancelShiftDialog isOpen={true} shift={mockShift} onClose={onClose} />,
+		);
 
 		expect(screen.getByRole('dialog')).toBeInTheDocument();
 		expect(screen.getByText('シフトをキャンセル')).toBeInTheDocument();
 	});
 
 	it('シフト情報が表示される', () => {
-		render(<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />);
+		render(
+			<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />,
+		);
 
 		expect(screen.getByText('山田太郎')).toBeInTheDocument();
 		expect(screen.getByText('身体介護')).toBeInTheDocument();
@@ -59,7 +63,9 @@ describe('CancelShiftDialog', () => {
 
 	it('キャンセル理由カテゴリを選択できる', async () => {
 		const user = userEvent.setup();
-		render(<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />);
+		render(
+			<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />,
+		);
 
 		const clientRadio = screen.getByLabelText('利用者都合');
 		const staffRadio = screen.getByLabelText('スタッフ都合');
@@ -83,14 +89,22 @@ describe('CancelShiftDialog', () => {
 		const onClose = vi.fn();
 
 		render(
-			<CancelShiftDialog isOpen={true} shift={mockShift} onClose={onClose} onSuccess={onSuccess} />,
+			<CancelShiftDialog
+				isOpen={true}
+				shift={mockShift}
+				onClose={onClose}
+				onSuccess={onSuccess}
+			/>,
 		);
 
 		// カテゴリを選択
 		await user.click(screen.getByLabelText('利用者都合'));
 
 		// 理由を入力
-		await user.type(screen.getByPlaceholderText(/キャンセル理由/), '体調不良のため');
+		await user.type(
+			screen.getByPlaceholderText(/キャンセル理由/),
+			'体調不良のため',
+		);
 
 		// 送信
 		await user.click(screen.getByRole('button', { name: 'キャンセルする' }));
@@ -108,7 +122,9 @@ describe('CancelShiftDialog', () => {
 	});
 
 	it('理由が未入力の場合は送信ボタンが無効', () => {
-		render(<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />);
+		render(
+			<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />,
+		);
 
 		const submitButton = screen.getByRole('button', { name: 'キャンセルする' });
 		expect(submitButton).toBeDisabled();
@@ -116,10 +132,15 @@ describe('CancelShiftDialog', () => {
 
 	it('カテゴリが未選択の場合は送信ボタンが無効', async () => {
 		const user = userEvent.setup();
-		render(<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />);
+		render(
+			<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />,
+		);
 
 		// 理由のみ入力
-		await user.type(screen.getByPlaceholderText(/キャンセル理由/), '体調不良のため');
+		await user.type(
+			screen.getByPlaceholderText(/キャンセル理由/),
+			'体調不良のため',
+		);
 
 		const submitButton = screen.getByRole('button', { name: 'キャンセルする' });
 		expect(submitButton).toBeDisabled();
@@ -129,7 +150,9 @@ describe('CancelShiftDialog', () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
 
-		render(<CancelShiftDialog isOpen={true} shift={mockShift} onClose={onClose} />);
+		render(
+			<CancelShiftDialog isOpen={true} shift={mockShift} onClose={onClose} />,
+		);
 
 		await user.click(screen.getByRole('button', { name: '閉じる' }));
 

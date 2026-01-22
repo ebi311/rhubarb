@@ -10,7 +10,9 @@ export interface ClientTableProps {
 export const ClientTable = ({ clients, getHref }: ClientTableProps) => {
 	if (clients.length === 0) {
 		return (
-			<div className="py-8 text-center text-base-content/70">利用者がまだ登録されていません</div>
+			<div className="py-8 text-center text-base-content/70">
+				利用者がまだ登録されていません
+			</div>
 		);
 	}
 

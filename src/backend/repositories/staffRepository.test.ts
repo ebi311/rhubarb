@@ -52,10 +52,14 @@ describe('StaffRepository', () => {
 
 			const mockStaffSelect = vi.fn().mockReturnThis();
 			const mockStaffEq = vi.fn().mockReturnThis();
-			const mockStaffOrder = vi.fn().mockResolvedValue({ data: staffRows, error: null });
+			const mockStaffOrder = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
 
 			const mockAbilitySelect = vi.fn().mockReturnThis();
-			const mockAbilityIn = vi.fn().mockResolvedValue({ data: abilityRows, error: null });
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: abilityRows, error: null });
 
 			(supabase.from as any).mockImplementation((table: string) => {
 				if (table === 'staffs') {
@@ -80,7 +84,10 @@ describe('StaffRepository', () => {
 
 			expect(result).toHaveLength(2);
 			expect(result[0].name).toBe('管理者A');
-			expect(result[0].service_type_ids).toEqual([serviceTypeIds.one, serviceTypeIds.two]);
+			expect(result[0].service_type_ids).toEqual([
+				serviceTypeIds.one,
+				serviceTypeIds.two,
+			]);
 			expect(result[1].service_type_ids).toEqual([serviceTypeIds.three]);
 			expect(mockAbilityIn).toHaveBeenCalledWith(
 				'staff_id',
@@ -93,11 +100,15 @@ describe('StaffRepository', () => {
 		it('指定したスタッフをサービス区分付きで返す', async () => {
 			const mockStaffSelect = vi.fn().mockReturnThis();
 			const mockStaffEq = vi.fn().mockReturnThis();
-			const mockMaybeSingle = vi.fn().mockResolvedValue({ data: baseStaffRow, error: null });
+			const mockMaybeSingle = vi
+				.fn()
+				.mockResolvedValue({ data: baseStaffRow, error: null });
 
 			const mockAbilitySelect = vi.fn().mockReturnThis();
 			const mockAbilityIn = vi.fn().mockResolvedValue({
-				data: [{ staff_id: baseStaffRow.id, service_type_id: serviceTypeIds.one }],
+				data: [
+					{ staff_id: baseStaffRow.id, service_type_id: serviceTypeIds.one },
+				],
 				error: null,
 			});
 
@@ -125,7 +136,9 @@ describe('StaffRepository', () => {
 		it('見つからない場合はnullを返す', async () => {
 			const mockStaffSelect = vi.fn().mockReturnThis();
 			const mockStaffEq = vi.fn().mockReturnThis();
-			const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+			const mockMaybeSingle = vi
+				.fn()
+				.mockResolvedValue({ data: null, error: null });
 
 			(supabase.from as any).mockImplementation((table: string) => {
 				if (table === 'staffs') {
@@ -152,7 +165,9 @@ describe('StaffRepository', () => {
 			};
 			const mockInsert = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: insertRow, error: null });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: insertRow, error: null });
 
 			const mockAbilityDelete = vi.fn().mockReturnThis();
 			const mockAbilityEq = vi.fn().mockResolvedValue({ error: null });
@@ -200,7 +215,10 @@ describe('StaffRepository', () => {
 				{ staff_id: insertRow.id, service_type_id: serviceTypeIds.two },
 			]);
 			expect(result.note).toBe('メモ');
-			expect(result.service_type_ids).toEqual([serviceTypeIds.one, serviceTypeIds.two]);
+			expect(result.service_type_ids).toEqual([
+				serviceTypeIds.one,
+				serviceTypeIds.two,
+			]);
 		});
 	});
 
@@ -216,7 +234,9 @@ describe('StaffRepository', () => {
 			const mockUpdate = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: updatedRow, error: null });
 
 			const mockAbilityDelete = vi.fn().mockReturnThis();
 			const mockAbilityEq = vi.fn().mockResolvedValue({ error: null });

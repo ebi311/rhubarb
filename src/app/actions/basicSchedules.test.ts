@@ -1,13 +1,16 @@
-import { BasicScheduleService, ServiceError } from '@/backend/services/basicScheduleService';
+import {
+	BasicScheduleService,
+	ServiceError,
+} from '@/backend/services/basicScheduleService';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { listBasicSchedulesAction } from './basicSchedules';
 
 vi.mock('@/utils/supabase/server');
 vi.mock('@/backend/services/basicScheduleService', async () => {
-	const actual = await vi.importActual<typeof import('@/backend/services/basicScheduleService')>(
-		'@/backend/services/basicScheduleService',
-	);
+	const actual = await vi.importActual<
+		typeof import('@/backend/services/basicScheduleService')
+	>('@/backend/services/basicScheduleService');
 	return {
 		...actual,
 		BasicScheduleService: vi.fn(),
@@ -55,12 +58,18 @@ beforeEach(() => {
 });
 
 const mockAuthUser = (userId: string) => {
-	mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
+	mockSupabase.auth.getUser.mockResolvedValue({
+		data: { user: { id: userId } },
+		error: null,
+	});
 };
 
 describe('listBasicSchedulesAction', () => {
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await listBasicSchedulesAction();
 
@@ -70,7 +79,9 @@ describe('listBasicSchedulesAction', () => {
 
 	it('ServiceErrorを委譲する', async () => {
 		mockAuthUser('user-1');
-		mockService.list.mockRejectedValue(new ServiceError(404, 'Staff not found'));
+		mockService.list.mockRejectedValue(
+			new ServiceError(404, 'Staff not found'),
+		);
 
 		const result = await listBasicSchedulesAction();
 
@@ -84,8 +95,14 @@ describe('listBasicSchedulesAction', () => {
 
 		const result = await listBasicSchedulesAction();
 
-		expect(mockService.list).toHaveBeenCalledWith('user-1', { includeDeleted: false });
-		expect(result).toEqual({ data: [sampleSchedule], error: null, status: 200 });
+		expect(mockService.list).toHaveBeenCalledWith('user-1', {
+			includeDeleted: false,
+		});
+		expect(result).toEqual({
+			data: [sampleSchedule],
+			error: null,
+			status: 200,
+		});
 	});
 
 	it('曜日フィルタを適用して一覧を返す', async () => {
@@ -134,7 +151,9 @@ describe('listBasicSchedulesAction', () => {
 	it('無効なUUID形式のclient_idは400を返す', async () => {
 		mockAuthUser('user-1');
 
-		const result = await listBasicSchedulesAction({ client_id: 'invalid-uuid' });
+		const result = await listBasicSchedulesAction({
+			client_id: 'invalid-uuid',
+		});
 
 		expect(result.status).toBe(400);
 		expect(result.error).toBe('Validation failed');
@@ -144,7 +163,9 @@ describe('listBasicSchedulesAction', () => {
 	it('無効な曜日は400を返す', async () => {
 		mockAuthUser('user-1');
 
-		const result = await listBasicSchedulesAction({ weekday: 'INVALID' as 'Mon' });
+		const result = await listBasicSchedulesAction({
+			weekday: 'INVALID' as 'Mon',
+		});
 
 		expect(result.status).toBe(400);
 		expect(result.error).toBe('Validation failed');

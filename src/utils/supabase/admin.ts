@@ -13,7 +13,9 @@ export const createAdminClient = () => {
 	const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 	if (!supabaseUrl || !supabaseServiceRoleKey) {
-		throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+		throw new Error(
+			'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required',
+		);
 	}
 
 	return createClient<Database>(supabaseUrl, supabaseServiceRoleKey, {

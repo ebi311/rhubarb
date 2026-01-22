@@ -8,7 +8,11 @@ import { useId } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { BasicScheduleFormValues } from './BasicScheduleForm';
 import { FieldErrorMessage } from './FormMessages';
-import { getFieldDescriptionId, getSelectClassName, WEEKDAY_LABELS } from './helpers';
+import {
+	getFieldDescriptionId,
+	getSelectClassName,
+	WEEKDAY_LABELS,
+} from './helpers';
 
 type ClientSelectFieldProps = {
 	serviceUsers: ServiceUser[];
@@ -38,7 +42,10 @@ export const ClientSelectField = ({ serviceUsers }: ClientSelectFieldProps) => {
 				aria-describedby={describedBy}
 				options={[
 					{ value: '', label: '選択してください' },
-					...serviceUsers.map((client) => ({ value: client.id, label: client.name })),
+					...serviceUsers.map((client) => ({
+						value: client.id,
+						label: client.name,
+					})),
 				]}
 				{...register('clientId')}
 			/>
@@ -51,7 +58,9 @@ type ServiceTypeSelectFieldProps = {
 	serviceTypes: ServiceTypeOption[];
 };
 
-export const ServiceTypeSelectField = ({ serviceTypes }: ServiceTypeSelectFieldProps) => {
+export const ServiceTypeSelectField = ({
+	serviceTypes,
+}: ServiceTypeSelectFieldProps) => {
 	const fieldId = useId();
 	const {
 		register,
@@ -112,12 +121,12 @@ export const WeekdayField = () => {
 				className="select"
 				disabled={isSubmitting}
 				aria-labelledby={`${fieldId}-label`}
-				options={(Object.keys(WEEKDAY_LABELS) as Array<keyof typeof WEEKDAY_LABELS>).map(
-					(weekday) => ({
-						value: weekday,
-						label: WEEKDAY_LABELS[weekday],
-					}),
-				)}
+				options={(
+					Object.keys(WEEKDAY_LABELS) as Array<keyof typeof WEEKDAY_LABELS>
+				).map((weekday) => ({
+					value: weekday,
+					label: WEEKDAY_LABELS[weekday],
+				}))}
 				{...register('weekday')}
 			/>
 		</fieldset>
@@ -170,7 +179,9 @@ export const NoteField = ({ valueLength }: NoteFieldProps) => {
 				placeholder="メモがあれば入力してください (最大500文字)"
 				disabled={isSubmitting}
 			/>
-			<p className="text-right text-xs text-base-content/60">{valueLength} / 500</p>
+			<p className="text-right text-xs text-base-content/60">
+				{valueLength} / 500
+			</p>
 		</>
 	);
 };

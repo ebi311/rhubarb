@@ -11,23 +11,32 @@ export interface SelectOption {
 	disabled?: boolean;
 }
 
-export interface FormSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
+export interface FormSelectProps extends Omit<
+	SelectHTMLAttributes<HTMLSelectElement>,
+	'children'
+> {
 	options: SelectOption[];
 }
 
-export const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>((props, ref) => {
-	const { options, className, ...rest } = props;
-	const mergedClassName = className ?? FORM_SELECT_DEFAULT_CLASSNAME;
+export const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
+	(props, ref) => {
+		const { options, className, ...rest } = props;
+		const mergedClassName = className ?? FORM_SELECT_DEFAULT_CLASSNAME;
 
-	return (
-		<select ref={ref} className={mergedClassName} {...rest}>
-			{options.map((option) => (
-				<option key={option.value} value={option.value} disabled={option.disabled}>
-					{option.label}
-				</option>
-			))}
-		</select>
-	);
-});
+		return (
+			<select ref={ref} className={mergedClassName} {...rest}>
+				{options.map((option) => (
+					<option
+						key={option.value}
+						value={option.value}
+						disabled={option.disabled}
+					>
+						{option.label}
+					</option>
+				))}
+			</select>
+		);
+	},
+);
 
 FormSelect.displayName = 'FormSelect';

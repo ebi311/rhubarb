@@ -8,7 +8,9 @@ export const BasicScheduleFilterSchema = z.object({
 	serviceTypeId: ServiceTypeIdSchema.or(z.literal('')).optional(),
 });
 
-export type BasicScheduleFilterState = z.infer<typeof BasicScheduleFilterSchema>;
+export type BasicScheduleFilterState = z.infer<
+	typeof BasicScheduleFilterSchema
+>;
 
 export interface ClientOption {
 	id: string;

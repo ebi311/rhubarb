@@ -15,6 +15,8 @@ describe('Header', () => {
 
 	it('renders the logout button', () => {
 		render(<Header />);
-		expect(screen.getByRole('button', { name: 'ログアウト' })).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: 'ログアウト' }),
+		).toBeInTheDocument();
 	});
 });

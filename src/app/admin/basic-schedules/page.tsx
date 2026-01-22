@@ -11,7 +11,9 @@ interface BasicScheduleListPageProps {
 		| Record<string, string | string[] | undefined>;
 }
 
-const BasicScheduleListPage = async ({ searchParams }: BasicScheduleListPageProps) => {
+const BasicScheduleListPage = async ({
+	searchParams,
+}: BasicScheduleListPageProps) => {
 	const params = await searchParams;
 	const filters = parseFiltersFromSearchParams(params);
 	const { clients, serviceTypes } = await fetchFilterOptions();
@@ -23,7 +25,9 @@ const BasicScheduleListPage = async ({ searchParams }: BasicScheduleListPageProp
 					基本スケジュール
 				</p>
 				<h1 className="text-3xl font-bold">週次スケジュール一覧</h1>
-				<p className="text-sm text-base-content/70">登録済みの基本スケジュールを確認できます。</p>
+				<p className="text-sm text-base-content/70">
+					登録済みの基本スケジュールを確認できます。
+				</p>
 			</section>
 
 			<div className="flex justify-end">

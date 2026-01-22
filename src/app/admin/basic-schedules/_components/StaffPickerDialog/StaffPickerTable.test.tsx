@@ -23,7 +23,13 @@ const staffs: StaffPickerOption[] = [
 
 describe('StaffPickerTable', () => {
 	it('スタッフ情報をテーブル表示し、選択状態を示す', () => {
-		render(<StaffPickerTable staffs={staffs} selectedStaffId="staff-2" onSelect={() => {}} />);
+		render(
+			<StaffPickerTable
+				staffs={staffs}
+				selectedStaffId="staff-2"
+				onSelect={() => {}}
+			/>,
+		);
 
 		expect(screen.getByText('山田太郎')).toBeInTheDocument();
 		expect(screen.getByText('佐藤花子')).toBeInTheDocument();
@@ -33,7 +39,13 @@ describe('StaffPickerTable', () => {
 	it('行クリックで onSelect を呼び出す', async () => {
 		const user = userEvent.setup();
 		const handleSelect = vi.fn();
-		render(<StaffPickerTable staffs={staffs} selectedStaffId={null} onSelect={handleSelect} />);
+		render(
+			<StaffPickerTable
+				staffs={staffs}
+				selectedStaffId={null}
+				onSelect={handleSelect}
+			/>,
+		);
 
 		const row = screen.getByText('佐藤花子').closest('tr');
 		await user.click(row!);

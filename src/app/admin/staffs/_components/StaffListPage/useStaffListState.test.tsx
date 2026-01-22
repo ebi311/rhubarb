@@ -22,10 +22,19 @@ const buildStaff = (overrides: Partial<StaffRecord> = {}): StaffRecord => ({
 });
 
 const setup = (overrides: Partial<{ filters: StaffFilterState }> = {}) => {
-	const filters: StaffFilterState = { query: '', role: 'all', ...overrides.filters };
+	const filters: StaffFilterState = {
+		query: '',
+		role: 'all',
+		...overrides.filters,
+	};
 	const initialStaffs = [
 		buildStaff(),
-		buildStaff({ id: 'staff-2', name: '佐藤花子', role: 'helper', email: 'sato@example.com' }),
+		buildStaff({
+			id: 'staff-2',
+			name: '佐藤花子',
+			role: 'helper',
+			email: 'sato@example.com',
+		}),
 	];
 	return renderHook(() =>
 		useStaffListState({
@@ -76,7 +85,9 @@ describe('useStaffListState', () => {
 		});
 		expect(result.current.modals.editingStaff?.id).toBe('staff-1');
 		act(() => {
-			result.current.handlers.handleEditSuccess(buildStaff({ name: '山田太郎（更新）' }));
+			result.current.handlers.handleEditSuccess(
+				buildStaff({ name: '山田太郎（更新）' }),
+			);
 		});
 		expect(result.current.modals.editingStaff).toBeNull();
 		expect(result.current.filteredStaffs[0].name).toBe('山田太郎（更新）');
@@ -89,7 +100,9 @@ describe('useStaffListState', () => {
 			result.current.handlers.handleDeleteSuccess('staff-2');
 		});
 		expect(result.current.modals.deletingStaff).toBeNull();
-		expect(result.current.filteredStaffs.find((s) => s.id === 'staff-2')).toBeUndefined();
+		expect(
+			result.current.filteredStaffs.find((s) => s.id === 'staff-2'),
+		).toBeUndefined();
 		expect(refreshMock).toHaveBeenCalledTimes(2);
 	});
 });

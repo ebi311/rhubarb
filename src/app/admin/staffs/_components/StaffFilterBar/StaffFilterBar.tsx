@@ -68,7 +68,11 @@ export const StaffFilterBar = ({ filters }: StaffFilterBarProps) => {
 						</button>
 					))}
 				</div>
-				<button type="button" className="btn btn-ghost btn-sm" onClick={handleReset}>
+				<button
+					type="button"
+					className="btn btn-ghost btn-sm"
+					onClick={handleReset}
+				>
 					リセット
 				</button>
 			</div>

@@ -5,7 +5,10 @@ type FieldErrorMessageProps = {
 	error?: FieldError;
 };
 
-export const FieldErrorMessage = ({ fieldId, error }: FieldErrorMessageProps) => {
+export const FieldErrorMessage = ({
+	fieldId,
+	error,
+}: FieldErrorMessageProps) => {
 	if (!error) return null;
 	return (
 		<p id={`${fieldId}-error`} className="label">

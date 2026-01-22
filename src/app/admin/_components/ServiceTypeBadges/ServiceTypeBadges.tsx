@@ -21,11 +21,15 @@ export const ServiceTypeBadges = ({
 	size = 'sm',
 	className = '',
 }: ServiceTypeBadgesProps) => {
-	const containerClassName = ['flex flex-wrap gap-2', className].filter(Boolean).join(' ');
+	const containerClassName = ['flex flex-wrap gap-2', className]
+		.filter(Boolean)
+		.join(' ');
 
 	if (serviceTypeIds.length === 0) {
 		return (
-			<span className={[containerClassName, 'text-base-content/60'].join(' ')}>{emptyLabel}</span>
+			<span className={[containerClassName, 'text-base-content/60'].join(' ')}>
+				{emptyLabel}
+			</span>
 		);
 	}
 

@@ -30,7 +30,9 @@ export const ClickGenerate: Story = {
 	play: async ({ canvasElement, args }) => {
 		const canvas = within(canvasElement);
 
-		const button = canvas.getByRole('button', { name: /基本スケジュールから生成/ });
+		const button = canvas.getByRole('button', {
+			name: /基本スケジュールから生成/,
+		});
 		await userEvent.click(button);
 
 		expect(args.onGenerate).toHaveBeenCalled();

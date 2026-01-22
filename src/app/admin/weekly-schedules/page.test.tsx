@@ -34,7 +34,9 @@ vi.mock('@/utils/date', async (importOriginal) => {
 
 // Server Actions のモック
 vi.mock('@/app/actions/weeklySchedules', () => ({
-	listShiftsAction: vi.fn().mockResolvedValue({ data: [], error: null, status: 200 }),
+	listShiftsAction: vi
+		.fn()
+		.mockResolvedValue({ data: [], error: null, status: 200 }),
 	generateWeeklyShiftsAction: vi.fn().mockResolvedValue({
 		data: { created: 0, skipped: 0 },
 		error: null,
@@ -43,11 +45,15 @@ vi.mock('@/app/actions/weeklySchedules', () => ({
 }));
 
 vi.mock('@/app/actions/serviceUsers', () => ({
-	getServiceUsersAction: vi.fn().mockResolvedValue({ data: [], error: null, status: 200 }),
+	getServiceUsersAction: vi
+		.fn()
+		.mockResolvedValue({ data: [], error: null, status: 200 }),
 }));
 
 vi.mock('@/app/actions/staffs', () => ({
-	listStaffsAction: vi.fn().mockResolvedValue({ data: [], error: null, status: 200 }),
+	listStaffsAction: vi
+		.fn()
+		.mockResolvedValue({ data: [], error: null, status: 200 }),
 }));
 
 beforeEach(() => {
@@ -64,7 +70,9 @@ describe('WeeklySchedulesPage', () => {
 
 			await WeeklySchedulesPage({ searchParams: Promise.resolve({}) });
 
-			expect(redirect).toHaveBeenCalledWith('/admin/weekly-schedules?week=2026-01-19');
+			expect(redirect).toHaveBeenCalledWith(
+				'/admin/weekly-schedules?week=2026-01-19',
+			);
 		});
 	});
 
@@ -76,9 +84,13 @@ describe('WeeklySchedulesPage', () => {
 				error: 'invalid_date',
 			});
 
-			await WeeklySchedulesPage({ searchParams: Promise.resolve({ week: 'invalid' }) });
+			await WeeklySchedulesPage({
+				searchParams: Promise.resolve({ week: 'invalid' }),
+			});
 
-			expect(redirect).toHaveBeenCalledWith('/admin/weekly-schedules?week=2026-01-19');
+			expect(redirect).toHaveBeenCalledWith(
+				'/admin/weekly-schedules?week=2026-01-19',
+			);
 		});
 	});
 
@@ -95,10 +107,14 @@ describe('WeeklySchedulesPage', () => {
 			vi.mocked(getMonday).mockReturnValue(monday);
 			vi.mocked(formatJstDateString).mockReturnValue('2026-01-19');
 
-			await WeeklySchedulesPage({ searchParams: Promise.resolve({ week: '2026-01-20' }) });
+			await WeeklySchedulesPage({
+				searchParams: Promise.resolve({ week: '2026-01-20' }),
+			});
 
 			expect(getMonday).toHaveBeenCalledWith(tuesday);
-			expect(redirect).toHaveBeenCalledWith('/admin/weekly-schedules?week=2026-01-19');
+			expect(redirect).toHaveBeenCalledWith(
+				'/admin/weekly-schedules?week=2026-01-19',
+			);
 		});
 	});
 
@@ -128,7 +144,9 @@ describe('WeeklySchedulesPage', () => {
 				isValid: true,
 			});
 
-			await WeeklySchedulesPage({ searchParams: Promise.resolve({ week: '2026-01-19' }) });
+			await WeeklySchedulesPage({
+				searchParams: Promise.resolve({ week: '2026-01-19' }),
+			});
 
 			expect(redirect).not.toHaveBeenCalled();
 		});

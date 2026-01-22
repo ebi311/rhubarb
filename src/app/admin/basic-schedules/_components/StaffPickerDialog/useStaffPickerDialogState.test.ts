@@ -28,7 +28,11 @@ type HookProps = {
 
 describe('useStaffPickerDialogState', () => {
 	it('フィルタ変更で絞り込み、選択状態を管理する', () => {
-		const initialProps: HookProps = { staffOptions, selectedStaffId: null, isOpen: true };
+		const initialProps: HookProps = {
+			staffOptions,
+			selectedStaffId: null,
+			isOpen: true,
+		};
 		const { result, rerender } = renderHook(
 			(props: HookProps) => useStaffPickerDialogState(props),
 			{

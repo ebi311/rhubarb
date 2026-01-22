@@ -41,7 +41,10 @@ export class StaffRepository {
 		});
 	}
 
-	private toDomainWithServiceTypes(row: StaffRow, serviceTypeIds: string[]): StaffWithServiceTypes {
+	private toDomainWithServiceTypes(
+		row: StaffRow,
+		serviceTypeIds: string[],
+	): StaffWithServiceTypes {
 		return StaffWithServiceTypesSchema.parse({
 			...row,
 			note: row.note ?? null,
@@ -51,7 +54,9 @@ export class StaffRepository {
 		});
 	}
 
-	private async fetchServiceTypeMap(staffIds: string[]): Promise<Record<string, string[]>> {
+	private async fetchServiceTypeMap(
+		staffIds: string[],
+	): Promise<Record<string, string[]>> {
 		if (staffIds.length === 0) return {};
 		const { data, error } = await this.supabase
 			.from('staff_service_type_abilities')
@@ -66,7 +71,10 @@ export class StaffRepository {
 		return map;
 	}
 
-	private async replaceServiceAbilities(staffId: string, serviceTypeIds: string[]): Promise<void> {
+	private async replaceServiceAbilities(
+		staffId: string,
+		serviceTypeIds: string[],
+	): Promise<void> {
 		const { error: deleteError } = await this.supabase
 			.from('staff_service_type_abilities')
 			.delete()
@@ -101,7 +109,9 @@ export class StaffRepository {
 		if (error) throw error;
 		const rows = data ?? [];
 		const map = await this.fetchServiceTypeMap(rows.map((row) => row.id));
-		return rows.map((row) => this.toDomainWithServiceTypes(row, map[row.id] ?? []));
+		return rows.map((row) =>
+			this.toDomainWithServiceTypes(row, map[row.id] ?? []),
+		);
 	}
 
 	async findById(id: string): Promise<Staff | null> {
@@ -115,7 +125,9 @@ export class StaffRepository {
 		return this.toDomain(data);
 	}
 
-	async findWithServiceTypesById(id: string): Promise<StaffWithServiceTypes | null> {
+	async findWithServiceTypesById(
+		id: string,
+	): Promise<StaffWithServiceTypes | null> {
 		const { data, error } = await this.supabase
 			.from('staffs')
 			.select('*')
@@ -135,13 +147,20 @@ export class StaffRepository {
 			email: input.email ?? null,
 			note: input.note ?? null,
 		};
-		const { data, error } = await this.supabase.from('staffs').insert(payload).select('*').single();
+		const { data, error } = await this.supabase
+			.from('staffs')
+			.insert(payload)
+			.select('*')
+			.single();
 		if (error || !data) throw error;
 		await this.replaceServiceAbilities(data.id, input.service_type_ids);
 		return this.toDomainWithServiceTypes(data, input.service_type_ids);
 	}
 
-	async update(id: string, input: StaffUpdateParams): Promise<StaffWithServiceTypes> {
+	async update(
+		id: string,
+		input: StaffUpdateParams,
+	): Promise<StaffWithServiceTypes> {
 		const payload = this.buildUpdatePayload(input);
 		let updatedRow: StaffRow | null = null;
 		if (Object.keys(payload).length > 0) {
@@ -154,7 +173,11 @@ export class StaffRepository {
 			if (error || !data) throw error;
 			updatedRow = data;
 		} else {
-			const { data, error } = await this.supabase.from('staffs').select('*').eq('id', id).single();
+			const { data, error } = await this.supabase
+				.from('staffs')
+				.select('*')
+				.eq('id', id)
+				.single();
 			if (error || !data) throw error;
 			updatedRow = data;
 		}
@@ -172,7 +195,10 @@ export class StaffRepository {
 		// デバッグ用: 実行されるクエリの情報を出力
 		console.log('=== findByEmail Debug ===');
 		console.log('Looking for email:', email);
-		console.log('Supabase client auth state:', await this.supabase.auth.getUser());
+		console.log(
+			'Supabase client auth state:',
+			await this.supabase.auth.getUser(),
+		);
 
 		const { data, error, status } = await this.supabase
 			.from('staffs')

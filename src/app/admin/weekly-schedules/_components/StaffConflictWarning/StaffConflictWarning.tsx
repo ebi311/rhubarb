@@ -20,7 +20,9 @@ const formatTime = (date: Date): string => {
 	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 };
 
-export const StaffConflictWarning = ({ conflictingShifts }: StaffConflictWarningProps) => {
+export const StaffConflictWarning = ({
+	conflictingShifts,
+}: StaffConflictWarningProps) => {
 	if (conflictingShifts.length === 0) return null;
 
 	return (
@@ -29,7 +31,8 @@ export const StaffConflictWarning = ({ conflictingShifts }: StaffConflictWarning
 			<div className="w-full">
 				<h3 className="font-bold">時間重複の警告</h3>
 				<div className="text-sm">
-					このスタッフは既に以下のシフトに割り当てられています（{conflictingShifts.length}
+					このスタッフは既に以下のシフトに割り当てられています（
+					{conflictingShifts.length}
 					件）
 				</div>
 				<ul className="mt-2 space-y-1 text-sm">

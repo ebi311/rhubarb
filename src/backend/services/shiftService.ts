@@ -50,8 +50,10 @@ export class ShiftService {
 		private supabase: SupabaseClient<Database>,
 		options?: ShiftServiceOptions,
 	) {
-		this.staffRepository = options?.staffRepository ?? new StaffRepository(supabase);
-		this.shiftRepository = options?.shiftRepository ?? new ShiftRepository(supabase);
+		this.staffRepository =
+			options?.staffRepository ?? new StaffRepository(supabase);
+		this.shiftRepository =
+			options?.shiftRepository ?? new ShiftRepository(supabase);
 		this.serviceUserRepository =
 			options?.serviceUserRepository ?? new ServiceUserRepository(supabase);
 	}
@@ -102,7 +104,11 @@ export class ShiftService {
 		const newStaffName = newStaff.name;
 
 		// Repository 呼び出し
-		await this.shiftRepository.updateStaffAssignment(shiftId, newStaffId, reason);
+		await this.shiftRepository.updateStaffAssignment(
+			shiftId,
+			newStaffId,
+			reason,
+		);
 
 		return {
 			oldStaffName,
@@ -133,7 +139,12 @@ export class ShiftService {
 
 		// Repository 呼び出し
 		const canceledAt = new Date();
-		await this.shiftRepository.cancelShift(shiftId, reason, category, canceledAt);
+		await this.shiftRepository.cancelShift(
+			shiftId,
+			reason,
+			category,
+			canceledAt,
+		);
 	}
 
 	/**
@@ -160,14 +171,24 @@ export class ShiftService {
 		// クライアント名を取得
 		const conflictingShiftsWithClient = await Promise.all(
 			conflictingShifts.map(async (shift) => {
-				const client = await this.serviceUserRepository.findById(shift.client_id);
+				const client = await this.serviceUserRepository.findById(
+					shift.client_id,
+				);
 				return {
 					id: shift.id,
 					clientId: shift.client_id,
 					clientName: client?.name ?? '不明',
 					date: shift.date,
-					startTime: setJstTime(shift.date, shift.time.start.hour, shift.time.start.minute),
-					endTime: setJstTime(shift.date, shift.time.end.hour, shift.time.end.minute),
+					startTime: setJstTime(
+						shift.date,
+						shift.time.start.hour,
+						shift.time.start.minute,
+					),
+					endTime: setJstTime(
+						shift.date,
+						shift.time.end.hour,
+						shift.time.end.minute,
+					),
 				};
 			}),
 		);

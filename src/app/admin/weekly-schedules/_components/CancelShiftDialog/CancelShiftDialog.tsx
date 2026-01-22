@@ -40,7 +40,8 @@ export const CancelShiftDialog = ({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { handleActionResult } = useActionResultHandler();
 
-	const canSubmit = category !== null && reason.trim().length > 0 && !isSubmitting;
+	const canSubmit =
+		category !== null && reason.trim().length > 0 && !isSubmitting;
 
 	const handleSubmit = async () => {
 		if (!category || !reason.trim()) return;
@@ -70,7 +71,11 @@ export const CancelShiftDialog = ({
 	if (!isOpen) return null;
 
 	return (
-		<div role="dialog" className="modal-open modal modal-bottom sm:modal-middle" aria-modal="true">
+		<div
+			role="dialog"
+			className="modal-open modal modal-bottom sm:modal-middle"
+			aria-modal="true"
+		>
 			<div className="modal-box max-w-2xl">
 				<div className="flex items-start justify-between gap-2">
 					<div>
@@ -96,11 +101,16 @@ export const CancelShiftDialog = ({
 					{/* キャンセル理由カテゴリ */}
 					<div>
 						<label className="label">
-							<span className="label-text font-medium">キャンセル理由カテゴリ</span>
+							<span className="label-text font-medium">
+								キャンセル理由カテゴリ
+							</span>
 						</label>
 						<div className="flex flex-wrap gap-4">
 							{CATEGORY_OPTIONS.map((option) => (
-								<label key={option.value} className="label cursor-pointer gap-2">
+								<label
+									key={option.value}
+									className="label cursor-pointer gap-2"
+								>
 									<input
 										type="radio"
 										name="cancelCategory"
@@ -118,7 +128,9 @@ export const CancelShiftDialog = ({
 					{/* キャンセル理由詳細 */}
 					<div>
 						<label className="label">
-							<span className="label-text font-medium">キャンセル理由（必須）</span>
+							<span className="label-text font-medium">
+								キャンセル理由（必須）
+							</span>
 						</label>
 						<textarea
 							className="textarea-bordered textarea w-full"
@@ -132,7 +144,12 @@ export const CancelShiftDialog = ({
 				</div>
 
 				<div className="modal-action">
-					<button type="button" className="btn btn-ghost" onClick={onClose} disabled={isSubmitting}>
+					<button
+						type="button"
+						className="btn btn-ghost"
+						onClick={onClose}
+						disabled={isSubmitting}
+					>
 						戻る
 					</button>
 					<button

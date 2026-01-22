@@ -36,8 +36,16 @@ const sampleStaff: StaffRecord = {
 	updated_at: new Date('2025-01-02T00:00:00Z'),
 };
 
-const successResult = <T,>(data: T, status = 200) => ({ data, error: null, status });
-const errorResult = (message: string, status = 400) => ({ data: null, error: message, status });
+const successResult = <T,>(data: T, status = 200) => ({
+	data,
+	error: null,
+	status,
+});
+const errorResult = (message: string, status = 400) => ({
+	data: null,
+	error: message,
+	status,
+});
 
 describe('StaffFormModal', () => {
 	beforeEach(() => {
@@ -47,7 +55,14 @@ describe('StaffFormModal', () => {
 	});
 
 	it('作成モードで初期状態のフォームが表示される', () => {
-		render(<StaffFormModal isOpen mode="create" serviceTypes={serviceTypes} onClose={vi.fn()} />);
+		render(
+			<StaffFormModal
+				isOpen
+				mode="create"
+				serviceTypes={serviceTypes}
+				onClose={vi.fn()}
+			/>,
+		);
 
 		expect(screen.getByText('担当者を追加')).toBeInTheDocument();
 		expect(screen.getByLabelText('氏名 *')).toHaveValue('');
@@ -75,7 +90,9 @@ describe('StaffFormModal', () => {
 		const user = userEvent.setup();
 		const handleClose = vi.fn();
 		const handleSuccess = vi.fn();
-		vi.mocked(createStaffAction).mockResolvedValue(successResult(sampleStaff, 201));
+		vi.mocked(createStaffAction).mockResolvedValue(
+			successResult(sampleStaff, 201),
+		);
 
 		render(
 			<StaffFormModal
@@ -88,7 +105,10 @@ describe('StaffFormModal', () => {
 		);
 
 		await user.type(screen.getByLabelText('氏名 *'), '佐藤花子');
-		await user.type(screen.getByLabelText('メールアドレス'), 'hanako@example.com');
+		await user.type(
+			screen.getByLabelText('メールアドレス'),
+			'hanako@example.com',
+		);
 		await user.click(screen.getByLabelText('ヘルパー'));
 		await user.type(screen.getByLabelText('備考 (最大500文字)'), 'テスト備考');
 		await user.click(screen.getByLabelText('生活援助'));
@@ -145,10 +165,19 @@ describe('StaffFormModal', () => {
 
 	it('API エラー時にエラーメッセージを表示する', async () => {
 		const user = userEvent.setup();
-		vi.mocked(createStaffAction).mockResolvedValue(errorResult('Validation failed'));
+		vi.mocked(createStaffAction).mockResolvedValue(
+			errorResult('Validation failed'),
+		);
 		handleActionResultMock.mockReturnValue(false);
 
-		render(<StaffFormModal isOpen mode="create" serviceTypes={serviceTypes} onClose={vi.fn()} />);
+		render(
+			<StaffFormModal
+				isOpen
+				mode="create"
+				serviceTypes={serviceTypes}
+				onClose={vi.fn()}
+			/>,
+		);
 
 		await user.type(screen.getByLabelText('氏名 *'), '佐藤花子');
 		await user.click(screen.getByRole('button', { name: '登録' }));

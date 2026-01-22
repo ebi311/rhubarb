@@ -16,7 +16,8 @@ export const ServiceTypeSelector = ({
 	disabled = false,
 }: ServiceTypeSelectorProps) => {
 	const selectedSet = new Set(selectedIds);
-	const allSelected = options.length > 0 && selectedIds.length === options.length;
+	const allSelected =
+		options.length > 0 && selectedIds.length === options.length;
 
 	const toggleOption = (id: string) => {
 		if (disabled) return;
@@ -52,7 +53,12 @@ export const ServiceTypeSelector = ({
 				<p className="text-sm text-base-content/70">
 					選択数: {selectedIds.length} / {options.length}
 				</p>
-				<button type="button" className="btn btn-xs" onClick={toggleAll} disabled={disabled}>
+				<button
+					type="button"
+					className="btn btn-xs"
+					onClick={toggleAll}
+					disabled={disabled}
+				>
 					{allSelected ? '全解除' : '全選択'}
 				</button>
 			</div>

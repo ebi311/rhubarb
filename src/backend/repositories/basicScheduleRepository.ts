@@ -5,11 +5,16 @@ import {
 	BasicScheduleWithStaffSchema,
 } from '@/models/basicSchedule';
 import { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
-import { formatTime, preprocessTime, timeToMinutes } from '@/models/valueObjects/time';
+import {
+	formatTime,
+	preprocessTime,
+	timeToMinutes,
+} from '@/models/valueObjects/time';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 type BasicScheduleRow = Database['public']['Tables']['basic_schedules']['Row'];
-type BasicScheduleInsert = Database['public']['Tables']['basic_schedules']['Insert'];
+type BasicScheduleInsert =
+	Database['public']['Tables']['basic_schedules']['Insert'];
 type BasicScheduleJoinedRow = BasicScheduleRow & {
 	basic_schedule_staff_assignments?: { staff_id: string }[];
 };
@@ -25,7 +30,9 @@ export class BasicScheduleRepository {
 				end: preprocessTime(row.end_time),
 			},
 			note: row.note ?? null,
-			staff_ids: (row.basic_schedule_staff_assignments ?? []).map((a) => a.staff_id),
+			staff_ids: (row.basic_schedule_staff_assignments ?? []).map(
+				(a) => a.staff_id,
+			),
 		});
 	}
 
@@ -44,7 +51,10 @@ export class BasicScheduleRepository {
 		};
 	}
 
-	private async replaceAssignments(scheduleId: string, staffIds: string[]): Promise<void> {
+	private async replaceAssignments(
+		scheduleId: string,
+		staffIds: string[],
+	): Promise<void> {
 		const { error: deleteError } = await this.supabase
 			.from('basic_schedule_staff_assignments')
 			.delete()
@@ -74,18 +84,24 @@ export class BasicScheduleRepository {
 		// officeId フィルタ対応: clients テーブルを join して office_id でフィルタ
 		let query = this.supabase
 			.from('basic_schedules')
-			.select('*, basic_schedule_staff_assignments(staff_id), clients!inner(office_id)');
-		if (filters.officeId) query = query.eq('clients.office_id', filters.officeId);
+			.select(
+				'*, basic_schedule_staff_assignments(staff_id), clients!inner(office_id)',
+			);
+		if (filters.officeId)
+			query = query.eq('clients.office_id', filters.officeId);
 		if (filters.weekday) query = query.eq('day_of_week', filters.weekday);
 		if (filters.client_id) query = query.eq('client_id', filters.client_id);
-		if (filters.service_type_id) query = query.eq('service_type_id', filters.service_type_id);
+		if (filters.service_type_id)
+			query = query.eq('service_type_id', filters.service_type_id);
 		if (!filters.includeDeleted) query = query.is('deleted_at', null);
 
 		const { data, error } = await query
 			.order('day_of_week', { ascending: true })
 			.order('start_time', { ascending: true });
 		if (error) throw error;
-		return (data ?? []).map((row) => this.toDomain(row as BasicScheduleJoinedRow));
+		return (data ?? []).map((row) =>
+			this.toDomain(row as BasicScheduleJoinedRow),
+		);
 	}
 
 	async findById(id: string): Promise<BasicScheduleWithStaff | null> {
@@ -103,7 +119,9 @@ export class BasicScheduleRepository {
 
 	async create(schedule: BasicSchedule, staffIds: string[]): Promise<void> {
 		const dbData = this.toDB(schedule);
-		const { error } = await this.supabase.from('basic_schedules').insert(dbData);
+		const { error } = await this.supabase
+			.from('basic_schedules')
+			.insert(dbData);
 		if (error) throw error;
 		await this.replaceAssignments(schedule.id, staffIds);
 	}
@@ -143,7 +161,9 @@ export class BasicScheduleRepository {
 		if (assignmentError) throw assignmentError;
 
 		const scheduleIds = new Set(
-			(assignmentRows ?? []).map((row) => row.basic_schedule_id).filter((id) => Boolean(id)),
+			(assignmentRows ?? [])
+				.map((row) => row.basic_schedule_id)
+				.filter((id) => Boolean(id)),
 		);
 
 		if (params.excludeId) scheduleIds.delete(params.excludeId);
@@ -162,7 +182,8 @@ export class BasicScheduleRepository {
 			parseInt(params.start_time.slice(0, 2), 10) * 60 +
 			parseInt(params.start_time.slice(2, 4), 10);
 		const targetEnd =
-			parseInt(params.end_time.slice(0, 2), 10) * 60 + parseInt(params.end_time.slice(2, 4), 10);
+			parseInt(params.end_time.slice(0, 2), 10) * 60 +
+			parseInt(params.end_time.slice(2, 4), 10);
 
 		return (schedules ?? [])
 			.map((row) => this.toDomain(row as BasicScheduleJoinedRow))

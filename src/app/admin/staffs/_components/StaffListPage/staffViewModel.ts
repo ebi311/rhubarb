@@ -2,7 +2,8 @@ import type { StaffRecord } from '@/models/staffActionSchemas';
 import { dateJst } from '@/utils/date';
 import type { StaffFilterState, StaffViewModel } from '../../_types';
 
-export const formatStaffUpdatedAt = (date: Date) => dateJst(date).format('YYYY-MM-DD HH:mm');
+export const formatStaffUpdatedAt = (date: Date) =>
+	dateJst(date).format('YYYY-MM-DD HH:mm');
 
 export const toStaffViewModel = (staff: StaffRecord): StaffViewModel => ({
 	id: staff.id,
@@ -14,7 +15,10 @@ export const toStaffViewModel = (staff: StaffRecord): StaffViewModel => ({
 	updatedAt: formatStaffUpdatedAt(staff.updated_at),
 });
 
-export const filterStaffs = (staffs: StaffViewModel[], filters: StaffFilterState) => {
+export const filterStaffs = (
+	staffs: StaffViewModel[],
+	filters: StaffFilterState,
+) => {
 	const keyword = filters.query.trim().toLowerCase();
 	return staffs.filter((staff) => {
 		const matchesKeyword =

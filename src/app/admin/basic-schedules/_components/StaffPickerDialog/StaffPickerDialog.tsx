@@ -5,7 +5,12 @@ import { StaffPickerFooter } from './StaffPickerFooter';
 import { StaffPickerTable } from './StaffPickerTable';
 import type { RoleFilter, StaffPickerDialogProps } from './types';
 import { useStaffPickerDialogState } from './useStaffPickerDialogState';
-export type { RoleFilter, StaffPickerDialogProps, StaffPickerOption, StaffRole } from './types';
+export type {
+	RoleFilter,
+	StaffPickerDialogProps,
+	StaffPickerOption,
+	StaffRole,
+} from './types';
 
 const ROLE_FILTERS: Array<{ label: string; value: RoleFilter }> = [
 	{ label: 'すべて', value: 'all' },
@@ -35,7 +40,12 @@ export const StaffPickerDialog = ({
 		selectStaff,
 	} = useStaffPickerDialogState({ staffOptions, selectedStaffId, isOpen });
 
-	const dialogClasses = ['modal', 'modal-bottom', 'sm:modal-middle', isOpen ? 'modal-open' : '']
+	const dialogClasses = [
+		'modal',
+		'modal-bottom',
+		'sm:modal-middle',
+		isOpen ? 'modal-open' : '',
+	]
 		.join(' ')
 		.trim();
 
@@ -63,7 +73,8 @@ export const StaffPickerDialog = ({
 					<div>
 						<h2 className="text-xl font-semibold">担当者を選択</h2>
 						<p className="text-sm text-base-content/70">
-							検索・フィルタで許可された担当者を絞り込み、1 名を選択してください。
+							検索・フィルタで許可された担当者を絞り込み、1
+							名を選択してください。
 						</p>
 					</div>
 					<button

@@ -1,6 +1,9 @@
 import { BasicScheduleRepository } from '@/backend/repositories/basicScheduleRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
-import { BasicScheduleService, ServiceError } from '@/backend/services/basicScheduleService';
+import {
+	BasicScheduleService,
+	ServiceError,
+} from '@/backend/services/basicScheduleService';
 import { Database } from '@/backend/types/supabase';
 import { BasicScheduleWithStaff } from '@/models/basicSchedule';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -13,7 +16,10 @@ const makeSelectBuilder = <T>(result: T) => {
 	return { select, eq, maybeSingle };
 };
 
-const makeAbilityBuilder = (result: { data: { staff_id: string }[] | null; error: unknown }) => {
+const makeAbilityBuilder = (result: {
+	data: { staff_id: string }[] | null;
+	error: unknown;
+}) => {
 	const select = vi.fn().mockReturnThis();
 	const eq = vi.fn().mockReturnThis();
 	const inFn = vi.fn().mockResolvedValue(result);

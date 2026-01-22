@@ -89,16 +89,28 @@ describe('ShiftService', () => {
 			const adminStaff = createTestStaff();
 			const shift = createTestShift();
 			const oldStaff = createTestStaff();
-			const newStaff = createTestStaff({ id: newStaffId, name: '新しいスタッフ' });
+			const newStaff = createTestStaff({
+				id: newStaffId,
+				name: '新しいスタッフ',
+			});
 
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findById.mockResolvedValueOnce(shift);
 			mockStaffRepo.findById.mockResolvedValueOnce(oldStaff); // 旧スタッフ
 			mockStaffRepo.findById.mockResolvedValueOnce(newStaff); // 新スタッフ
 
-			const result = await service.changeStaffAssignment(userId, shiftId, newStaffId, reason);
+			const result = await service.changeStaffAssignment(
+				userId,
+				shiftId,
+				newStaffId,
+				reason,
+			);
 
-			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenCalledWith(shiftId, newStaffId, reason);
+			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenCalledWith(
+				shiftId,
+				newStaffId,
+				reason,
+			);
 			expect(result).toEqual({
 				oldStaffName: 'テストスタッフ',
 				newStaffName: '新しいスタッフ',
@@ -108,7 +120,9 @@ describe('ShiftService', () => {
 		it('should throw 404 if staff not found', async () => {
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(null);
 
-			await expect(service.changeStaffAssignment('user-1', 'shift-1', 'staff-1')).rejects.toThrow(
+			await expect(
+				service.changeStaffAssignment('user-1', 'shift-1', 'staff-1'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 404,
 					message: 'Staff not found',
@@ -120,7 +134,9 @@ describe('ShiftService', () => {
 			const helperStaff = createTestStaff({ role: 'helper' });
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(helperStaff);
 
-			await expect(service.changeStaffAssignment('user-1', 'shift-1', 'staff-1')).rejects.toThrow(
+			await expect(
+				service.changeStaffAssignment('user-1', 'shift-1', 'staff-1'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 403,
 					message: 'Forbidden',
@@ -133,7 +149,9 @@ describe('ShiftService', () => {
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findById.mockResolvedValueOnce(null);
 
-			await expect(service.changeStaffAssignment('user-1', 'shift-1', 'staff-1')).rejects.toThrow(
+			await expect(
+				service.changeStaffAssignment('user-1', 'shift-1', 'staff-1'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 404,
 					message: 'Shift not found',
@@ -148,7 +166,9 @@ describe('ShiftService', () => {
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findById.mockResolvedValueOnce(canceledShift);
 
-			await expect(service.changeStaffAssignment('user-1', 'shift-1', 'staff-1')).rejects.toThrow(
+			await expect(
+				service.changeStaffAssignment('user-1', 'shift-1', 'staff-1'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 400,
 					message: 'Cannot change canceled or completed shift',
@@ -163,7 +183,9 @@ describe('ShiftService', () => {
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findById.mockResolvedValueOnce(completedShift);
 
-			await expect(service.changeStaffAssignment('user-1', 'shift-1', 'staff-1')).rejects.toThrow(
+			await expect(
+				service.changeStaffAssignment('user-1', 'shift-1', 'staff-1'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 400,
 					message: 'Cannot change canceled or completed shift',
@@ -177,14 +199,24 @@ describe('ShiftService', () => {
 			const newStaffId = '12345678-1234-1234-8234-123456789003';
 
 			const adminStaff = createTestStaff();
-			const unassignedShift = createTestShift({ staff_id: null, is_unassigned: true });
-			const newStaff = createTestStaff({ id: newStaffId, name: '新しいスタッフ' });
+			const unassignedShift = createTestShift({
+				staff_id: null,
+				is_unassigned: true,
+			});
+			const newStaff = createTestStaff({
+				id: newStaffId,
+				name: '新しいスタッフ',
+			});
 
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findById.mockResolvedValueOnce(unassignedShift);
 			mockStaffRepo.findById.mockResolvedValueOnce(newStaff);
 
-			const result = await service.changeStaffAssignment(userId, shiftId, newStaffId);
+			const result = await service.changeStaffAssignment(
+				userId,
+				shiftId,
+				newStaffId,
+			);
 
 			expect(result).toEqual({
 				oldStaffName: '未割当',
@@ -219,7 +251,9 @@ describe('ShiftService', () => {
 		it('should throw 404 if staff not found', async () => {
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(null);
 
-			await expect(service.cancelShift('user-1', 'shift-1', 'reason', 'client')).rejects.toThrow(
+			await expect(
+				service.cancelShift('user-1', 'shift-1', 'reason', 'client'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 404,
 					message: 'Staff not found',
@@ -231,7 +265,9 @@ describe('ShiftService', () => {
 			const helperStaff = createTestStaff({ role: 'helper' });
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(helperStaff);
 
-			await expect(service.cancelShift('user-1', 'shift-1', 'reason', 'client')).rejects.toThrow(
+			await expect(
+				service.cancelShift('user-1', 'shift-1', 'reason', 'client'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 403,
 					message: 'Forbidden',
@@ -244,7 +280,9 @@ describe('ShiftService', () => {
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findById.mockResolvedValueOnce(null);
 
-			await expect(service.cancelShift('user-1', 'shift-1', 'reason', 'client')).rejects.toThrow(
+			await expect(
+				service.cancelShift('user-1', 'shift-1', 'reason', 'client'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 404,
 					message: 'Shift not found',
@@ -259,7 +297,9 @@ describe('ShiftService', () => {
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
 			mockShiftRepo.findById.mockResolvedValueOnce(completedShift);
 
-			await expect(service.cancelShift('user-1', 'shift-1', 'reason', 'client')).rejects.toThrow(
+			await expect(
+				service.cancelShift('user-1', 'shift-1', 'reason', 'client'),
+			).rejects.toThrow(
 				expect.objectContaining({
 					status: 400,
 					message: 'Cannot cancel completed shift',
@@ -276,7 +316,11 @@ describe('ShiftService', () => {
 
 			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([]);
 
-			const result = await service.validateStaffAvailability(staffId, startTime, endTime);
+			const result = await service.validateStaffAvailability(
+				staffId,
+				startTime,
+				endTime,
+			);
 
 			expect(result).toEqual({ available: true });
 		});
@@ -287,13 +331,19 @@ describe('ShiftService', () => {
 			const endTime = new Date('2026-01-20T11:00:00Z');
 
 			const conflictingShift = createTestShift();
-			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([conflictingShift]);
+			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([
+				conflictingShift,
+			]);
 			mockServiceUserRepo.findById.mockResolvedValueOnce({
 				id: conflictingShift.client_id,
 				name: '田中様',
 			} as ServiceUser);
 
-			const result = await service.validateStaffAvailability(staffId, startTime, endTime);
+			const result = await service.validateStaffAvailability(
+				staffId,
+				startTime,
+				endTime,
+			);
 
 			expect(result.available).toBe(false);
 			expect(result.conflictingShifts).toBeDefined();
@@ -309,7 +359,12 @@ describe('ShiftService', () => {
 
 			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([]);
 
-			await service.validateStaffAvailability(staffId, startTime, endTime, excludeShiftId);
+			await service.validateStaffAvailability(
+				staffId,
+				startTime,
+				endTime,
+				excludeShiftId,
+			);
 
 			expect(mockShiftRepo.findConflictingShifts).toHaveBeenCalledWith(
 				staffId,

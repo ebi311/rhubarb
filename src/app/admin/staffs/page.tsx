@@ -13,7 +13,11 @@ const StaffsPage = async ({
 	]);
 
 	if (staffsResult.error) {
-		console.error('Failed to fetch staffs', staffsResult.error, staffsResult.status);
+		console.error(
+			'Failed to fetch staffs',
+			staffsResult.error,
+			staffsResult.status,
+		);
 	}
 
 	if (serviceTypesResult.error) {

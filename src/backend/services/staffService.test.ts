@@ -22,7 +22,9 @@ const ids = {
 	svc2: 'life-support',
 } as const;
 
-const mockStaff = (overrides?: Partial<StaffWithServiceTypes>): StaffWithServiceTypes => ({
+const mockStaff = (
+	overrides?: Partial<StaffWithServiceTypes>,
+): StaffWithServiceTypes => ({
 	id: ids.staff,
 	office_id: ids.office,
 	name: 'スタッフA',
@@ -110,15 +112,20 @@ describe('StaffService', () => {
 				error: null,
 			});
 			const fromMock = supabase.from as ReturnType<typeof vi.fn>;
-			fromMock.mockReturnValueOnce({ select: selectAllMock } as any).mockReturnValueOnce({
-				select: () => ({ in: inMock }),
-			} as any);
+			fromMock
+				.mockReturnValueOnce({ select: selectAllMock } as any)
+				.mockReturnValueOnce({
+					select: () => ({ in: inMock }),
+				} as any);
 
 			(staffRepository.create as any).mockResolvedValue(
 				mockStaff({ service_type_ids: defaultIds }),
 			);
 
-			const result = await service.create(ids.auth, { ...input, service_type_ids: [] });
+			const result = await service.create(ids.auth, {
+				...input,
+				service_type_ids: [],
+			});
 			expect(result.service_type_ids).toEqual(defaultIds);
 			expect(selectAllMock).toHaveBeenCalledWith('id');
 			expect(inMock).toHaveBeenCalledWith('id', defaultIds);
@@ -170,7 +177,9 @@ describe('StaffService', () => {
 			(staffRepository.findWithServiceTypesById as any).mockResolvedValue(
 				mockStaff({ office_id: ids.officeOther, id: ids.staffOther }),
 			);
-			await expect(service.delete(ids.auth, ids.staffOther)).rejects.toThrow(ServiceError);
+			await expect(service.delete(ids.auth, ids.staffOther)).rejects.toThrow(
+				ServiceError,
+			);
 		});
 	});
 });

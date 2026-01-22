@@ -4,7 +4,9 @@ type StaffSelectionSummaryProps = {
 	staff: StaffRecord | null;
 };
 
-export const StaffSelectionSummary = ({ staff }: StaffSelectionSummaryProps) => {
+export const StaffSelectionSummary = ({
+	staff,
+}: StaffSelectionSummaryProps) => {
 	if (!staff) {
 		return (
 			<p className="rounded-box border border-dashed border-base-200 p-4 text-sm text-base-content/70">
@@ -19,7 +21,9 @@ export const StaffSelectionSummary = ({ staff }: StaffSelectionSummaryProps) => 
 			<p className="text-sm text-base-content/70">
 				{staff.role === 'admin' ? '管理者' : 'ヘルパー'}
 			</p>
-			<p className="text-sm text-base-content/70">{staff.note ?? '備考は登録されていません'}</p>
+			<p className="text-sm text-base-content/70">
+				{staff.note ?? '備考は登録されていません'}
+			</p>
 		</div>
 	);
 };

@@ -1,7 +1,11 @@
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { describe, expect, it } from 'vitest';
 import type { StaffFilterState } from '../../_types';
-import { filterStaffs, formatStaffUpdatedAt, toStaffViewModel } from './staffViewModel';
+import {
+	filterStaffs,
+	formatStaffUpdatedAt,
+	toStaffViewModel,
+} from './staffViewModel';
 
 const buildStaff = (overrides: Partial<StaffRecord> = {}): StaffRecord => ({
 	id: 'staff-1',
@@ -34,7 +38,12 @@ describe('staffViewModel utilities', () => {
 		const viewModels = [
 			toStaffViewModel(buildStaff()),
 			toStaffViewModel(
-				buildStaff({ id: 'staff-2', name: '佐藤花子', role: 'helper', email: 'sato@example.com' }),
+				buildStaff({
+					id: 'staff-2',
+					name: '佐藤花子',
+					role: 'helper',
+					email: 'sato@example.com',
+				}),
 			),
 		];
 

@@ -43,52 +43,78 @@ describe('WeeklySchedulePage', () => {
 	});
 
 	it('WeekSelectorが表示される', () => {
-		render(<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />);
+		render(
+			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
+		);
 
 		expect(screen.getByText(/2026年01月19日/)).toBeInTheDocument();
 	});
 
 	it('GenerateButtonが表示される', () => {
-		render(<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />);
+		render(
+			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
+		);
 
-		expect(screen.getByRole('button', { name: /シフトを生成/ })).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: /シフトを生成/ }),
+		).toBeInTheDocument();
 	});
 
 	it('シフトがある場合はShiftTableが表示される', () => {
-		render(<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={sampleShifts} />);
+		render(
+			<WeeklySchedulePage
+				weekStartDate={weekStartDate}
+				initialShifts={sampleShifts}
+			/>,
+		);
 
 		expect(screen.getByText('田中太郎')).toBeInTheDocument();
 		expect(screen.getByText('山田花子')).toBeInTheDocument();
 	});
 
 	it('シフトがない場合はEmptyStateが表示される', () => {
-		render(<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />);
+		render(
+			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
+		);
 
-		expect(screen.getByText('この週のシフトはまだありません')).toBeInTheDocument();
+		expect(
+			screen.getByText('この週のシフトはまだありません'),
+		).toBeInTheDocument();
 	});
 
 	it('週を変更するとrouter.pushが呼ばれる', async () => {
 		const user = userEvent.setup();
-		render(<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />);
+		render(
+			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
+		);
 
 		await user.click(screen.getByRole('button', { name: '前週' }));
 
-		expect(mockPush).toHaveBeenCalledWith('/admin/weekly-schedules?week=2026-01-12');
+		expect(mockPush).toHaveBeenCalledWith(
+			'/admin/weekly-schedules?week=2026-01-12',
+		);
 	});
 
 	it('EmptyStateから生成ボタンをクリックするとgenerateWeeklyShiftsActionが呼ばれる', async () => {
 		const user = userEvent.setup();
-		render(<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />);
+		render(
+			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
+		);
 
-		await user.click(screen.getByRole('button', { name: '基本スケジュールから生成' }));
+		await user.click(
+			screen.getByRole('button', { name: '基本スケジュールから生成' }),
+		);
 
-		const { generateWeeklyShiftsAction } = await import('@/app/actions/weeklySchedules');
+		const { generateWeeklyShiftsAction } =
+			await import('@/app/actions/weeklySchedules');
 		expect(generateWeeklyShiftsAction).toHaveBeenCalledWith('2026-01-19');
 	});
 
 	it('生成完了後にrouter.refreshが呼ばれる', async () => {
 		const user = userEvent.setup();
-		render(<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />);
+		render(
+			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
+		);
 
 		await user.click(screen.getByRole('button', { name: /シフトを生成/ }));
 

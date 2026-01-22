@@ -53,7 +53,10 @@ export class ServiceUserService {
 		return this.serviceUserRepository.findAll(staff.office_id, status);
 	}
 
-	async createServiceUser(userId: string, input: ServiceUserInput): Promise<ServiceUser> {
+	async createServiceUser(
+		userId: string,
+		input: ServiceUserInput,
+	): Promise<ServiceUser> {
 		const staff = await this.getAdminStaff(userId);
 		const validation = ServiceUserInputSchema.safeParse(input);
 		if (!validation.success) {
@@ -75,7 +78,8 @@ export class ServiceUserService {
 		const staff = await this.getAdminStaff(userId);
 		const existing = await this.serviceUserRepository.findById(id);
 		if (!existing) throw new ServiceError(404, 'Service user not found');
-		if (existing.office_id !== staff.office_id) throw new ServiceError(403, 'Forbidden');
+		if (existing.office_id !== staff.office_id)
+			throw new ServiceError(403, 'Forbidden');
 
 		const validation = ServiceUserInputSchema.safeParse(input);
 		if (!validation.success) {
@@ -89,7 +93,8 @@ export class ServiceUserService {
 		const staff = await this.getAdminStaff(userId);
 		const existing = await this.serviceUserRepository.findById(id);
 		if (!existing) throw new ServiceError(404, 'Service user not found');
-		if (existing.office_id !== staff.office_id) throw new ServiceError(403, 'Forbidden');
+		if (existing.office_id !== staff.office_id)
+			throw new ServiceError(403, 'Forbidden');
 
 		return this.serviceUserRepository.suspend(id);
 	}
@@ -98,7 +103,8 @@ export class ServiceUserService {
 		const staff = await this.getAdminStaff(userId);
 		const existing = await this.serviceUserRepository.findById(id);
 		if (!existing) throw new ServiceError(404, 'Service user not found');
-		if (existing.office_id !== staff.office_id) throw new ServiceError(403, 'Forbidden');
+		if (existing.office_id !== staff.office_id)
+			throw new ServiceError(403, 'Forbidden');
 
 		return this.serviceUserRepository.resume(id);
 	}

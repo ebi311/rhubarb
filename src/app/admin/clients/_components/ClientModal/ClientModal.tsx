@@ -2,7 +2,11 @@
 
 import { FormInput } from '@/components/forms/FormInput';
 import { FormTextarea } from '@/components/forms/FormTextarea';
-import type { ContractStatus, ServiceUser, ServiceUserInput } from '@/models/serviceUser';
+import type {
+	ContractStatus,
+	ServiceUser,
+	ServiceUserInput,
+} from '@/models/serviceUser';
 import { ServiceUserInputSchema } from '@/models/serviceUser';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect } from 'react';
@@ -20,7 +24,10 @@ type EditModalProps = {
 	mode: 'edit';
 	client: ServiceUser;
 	onClose: () => void;
-	onSubmit: (data: ServiceUserInput, contractStatus?: ContractStatus) => void | Promise<void>;
+	onSubmit: (
+		data: ServiceUserInput,
+		contractStatus?: ContractStatus,
+	) => void | Promise<void>;
 };
 
 export type ClientModalProps = CreateModalProps | EditModalProps;
@@ -65,11 +72,16 @@ export const ClientModal = (props: ClientModalProps) => {
 		}
 	}, [mode, client, isOpen, reset]);
 
-	const onFormSubmit = async (data: ServiceUserInput & { contract_status?: ContractStatus }) => {
+	const onFormSubmit = async (
+		data: ServiceUserInput & { contract_status?: ContractStatus },
+	) => {
 		if (mode === 'create') {
 			await onSubmit({ name: data.name, address: data.address });
 		} else {
-			await onSubmit({ name: data.name, address: data.address }, data.contract_status ?? 'active');
+			await onSubmit(
+				{ name: data.name, address: data.address },
+				data.contract_status ?? 'active',
+			);
 		}
 		onClose();
 	};
@@ -84,7 +96,13 @@ export const ClientModal = (props: ClientModalProps) => {
 				</h3>
 
 				<form onSubmit={hookFormHandleSubmit(onFormSubmit)}>
-					<FormInput id="name" label="氏名" required control={control} name="name" />
+					<FormInput
+						id="name"
+						label="氏名"
+						required
+						control={control}
+						name="name"
+					/>
 
 					<FormTextarea
 						id="address"
@@ -152,7 +170,11 @@ export const ClientModal = (props: ClientModalProps) => {
 						<button type="button" className="btn btn-ghost" onClick={onClose}>
 							キャンセル
 						</button>
-						<button type="submit" className="btn btn-primary" disabled={!formState.isValid}>
+						<button
+							type="submit"
+							className="btn btn-primary"
+							disabled={!formState.isValid}
+						>
 							{mode === 'create' ? '登録' : '保存'}
 						</button>
 					</div>

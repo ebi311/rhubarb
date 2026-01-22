@@ -15,7 +15,9 @@ vi.mock('react-toastify', () => ({
 }));
 
 type TestHarnessProps<T> = {
-	onReady: (handle: (result: ActionResult<T>, options?: unknown) => boolean) => void;
+	onReady: (
+		handle: (result: ActionResult<T>, options?: unknown) => boolean,
+	) => void;
 };
 
 const TestHarness = <T,>({ onReady }: TestHarnessProps<T>) => {
@@ -33,7 +35,10 @@ describe('useActionResultHandler', () => {
 		await waitFor(() => {
 			expect(ready).toHaveBeenCalled();
 		});
-		return ready.mock.calls.at(-1)![0] as (result: ActionResult<T>, options?: unknown) => boolean;
+		return ready.mock.calls.at(-1)![0] as (
+			result: ActionResult<T>,
+			options?: unknown,
+		) => boolean;
 	};
 
 	beforeEach(() => {
@@ -44,9 +49,16 @@ describe('useActionResultHandler', () => {
 	it('成功結果で成功トーストを表示し、onSuccessを呼び出す', async () => {
 		const handle = await mountHandler<string>();
 		const onSuccess = vi.fn();
-		const result: ActionResult<string> = { data: 'ok', error: null, status: 200 };
+		const result: ActionResult<string> = {
+			data: 'ok',
+			error: null,
+			status: 200,
+		};
 
-		const handled = handle(result, { successMessage: '保存しました', onSuccess });
+		const handled = handle(result, {
+			successMessage: '保存しました',
+			onSuccess,
+		});
 
 		expect(handled).toBe(true);
 		expect(toastSuccess).toHaveBeenCalledWith('保存しました');
@@ -56,9 +68,16 @@ describe('useActionResultHandler', () => {
 	it('エラー結果でエラートーストを表示し、onErrorを呼び出す', async () => {
 		const handle = await mountHandler<string>();
 		const onError = vi.fn();
-		const result: ActionResult<string> = { data: null, error: '失敗しました', status: 400 };
+		const result: ActionResult<string> = {
+			data: null,
+			error: '失敗しました',
+			status: 400,
+		};
 
-		const handled = handle(result, { errorMessage: '削除に失敗しました', onError });
+		const handled = handle(result, {
+			errorMessage: '削除に失敗しました',
+			onError,
+		});
 
 		expect(handled).toBe(false);
 		expect(toastError).toHaveBeenCalledWith('削除に失敗しました');

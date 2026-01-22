@@ -39,7 +39,10 @@ describe('StaffPickerFilters', () => {
 		await user.selectOptions(screen.getByDisplayValue('すべて'), '管理者');
 		expect(handleRoleFilterChange).toHaveBeenLastCalledWith('admin');
 
-		await user.selectOptions(screen.getByDisplayValue('すべてのサービス区分'), '身体介護');
+		await user.selectOptions(
+			screen.getByDisplayValue('すべてのサービス区分'),
+			'身体介護',
+		);
 		expect(handleServiceFilterChange).toHaveBeenLastCalledWith('physical-care');
 
 		await user.click(screen.getByRole('button', { name: '選択をクリア' }));
@@ -60,6 +63,8 @@ describe('StaffPickerFilters', () => {
 			/>,
 		);
 
-		expect(screen.queryByRole('button', { name: '選択をクリア' })).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('button', { name: '選択をクリア' }),
+		).not.toBeInTheDocument();
 	});
 });

@@ -75,7 +75,9 @@ export const updateServiceUserAction = async (
 	}
 };
 
-export const suspendServiceUserAction = async (id: string): Promise<ActionResult<ServiceUser>> => {
+export const suspendServiceUserAction = async (
+	id: string,
+): Promise<ActionResult<ServiceUser>> => {
 	const supabase = await createSupabaseClient();
 	const {
 		data: { user },
@@ -94,7 +96,9 @@ export const suspendServiceUserAction = async (id: string): Promise<ActionResult
 	}
 };
 
-export const resumeServiceUserAction = async (id: string): Promise<ActionResult<ServiceUser>> => {
+export const resumeServiceUserAction = async (
+	id: string,
+): Promise<ActionResult<ServiceUser>> => {
 	const supabase = await createSupabaseClient();
 	const {
 		data: { user },

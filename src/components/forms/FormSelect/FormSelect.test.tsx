@@ -9,7 +9,14 @@ const baseOptions = [
 
 describe('FormSelect', () => {
 	it('デフォルトのクラスで options を描画する', () => {
-		render(<FormSelect value="" onChange={() => {}} options={baseOptions} aria-label="select" />);
+		render(
+			<FormSelect
+				value=""
+				onChange={() => {}}
+				options={baseOptions}
+				aria-label="select"
+			/>,
+		);
 
 		const select = screen.getByLabelText('select');
 		expect(select).toHaveClass('select select-bordered');
@@ -40,9 +47,18 @@ describe('FormSelect', () => {
 		];
 		const handleChange = vi.fn();
 
-		render(<FormSelect value="" onChange={handleChange} options={options} aria-label="change" />);
+		render(
+			<FormSelect
+				value=""
+				onChange={handleChange}
+				options={options}
+				aria-label="change"
+			/>,
+		);
 
-		fireEvent.change(screen.getByLabelText('change'), { target: { value: 'option-1' } });
+		fireEvent.change(screen.getByLabelText('change'), {
+			target: { value: 'option-1' },
+		});
 		expect(handleChange).toHaveBeenCalledTimes(1);
 
 		const disabledOption = screen.getByText('Disabled option');

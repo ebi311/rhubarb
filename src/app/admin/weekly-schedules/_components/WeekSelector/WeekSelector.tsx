@@ -8,7 +8,10 @@ export interface WeekSelectorProps {
 	onWeekChange: (date: Date) => void;
 }
 
-export const WeekSelector = ({ currentWeek, onWeekChange }: WeekSelectorProps) => {
+export const WeekSelector = ({
+	currentWeek,
+	onWeekChange,
+}: WeekSelectorProps) => {
 	const startDate = dateJst(currentWeek);
 	const endDate = startDate.add(6, 'day');
 

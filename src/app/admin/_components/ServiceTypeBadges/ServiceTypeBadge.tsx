@@ -26,7 +26,10 @@ const serviceTypeColorMap: Record<ServiceTypeId, string> = {
 		'bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-900/40 dark:text-violet-200 dark:border-violet-700',
 };
 
-const sizeClassMap: Record<NonNullable<ServiceTypeBadgeProps['size']>, string> = {
+const sizeClassMap: Record<
+	NonNullable<ServiceTypeBadgeProps['size']>,
+	string
+> = {
 	sm: 'text-xs px-2 py-0.5',
 	md: 'text-sm px-2.5 py-1',
 };

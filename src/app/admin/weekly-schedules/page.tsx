@@ -11,7 +11,9 @@ interface WeeklySchedulesPageProps {
 	searchParams: Promise<SearchParams>;
 }
 
-const WeeklySchedulesPage = async ({ searchParams }: WeeklySchedulesPageProps) => {
+const WeeklySchedulesPage = async ({
+	searchParams,
+}: WeeklySchedulesPageProps) => {
 	const params = await searchParams;
 	const parsed = parseSearchParams(params);
 
@@ -67,19 +69,28 @@ const WeeklySchedulesPage = async ({ searchParams }: WeeklySchedulesPageProps) =
 		endTime: shift.end_time,
 		clientName: clientNameMap.get(shift.client_id) ?? '不明な利用者',
 		serviceTypeId: shift.service_type_id,
-		staffName: shift.staff_id ? (staffNameMap.get(shift.staff_id) ?? '不明なスタッフ') : null,
+		staffName: shift.staff_id
+			? (staffNameMap.get(shift.staff_id) ?? '不明なスタッフ')
+			: null,
 		status: shift.status,
 	}));
 
 	return (
 		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
 			<section className="space-y-2">
-				<p className="text-sm font-semibold tracking-widest text-primary uppercase">シフト管理</p>
+				<p className="text-sm font-semibold tracking-widest text-primary uppercase">
+					シフト管理
+				</p>
 				<h1 className="text-3xl font-bold">週間スケジュール</h1>
-				<p className="text-sm text-base-content/70">週ごとのシフトを確認・生成できます。</p>
+				<p className="text-sm text-base-content/70">
+					週ごとのシフトを確認・生成できます。
+				</p>
 			</section>
 
-			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={shifts} />
+			<WeeklySchedulePage
+				weekStartDate={weekStartDate}
+				initialShifts={shifts}
+			/>
 		</div>
 	);
 };

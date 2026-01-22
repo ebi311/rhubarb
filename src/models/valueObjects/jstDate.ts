@@ -19,7 +19,10 @@ export type JstDate = z.infer<typeof JstDateSchema>;
  * フォームからは Date が、API からは文字列が来る可能性があるため両対応
  */
 export const JstDateInputSchema = z
-	.union([z.date(), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format')])
+	.union([
+		z.date(),
+		z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+	])
 	.transform((val) => {
 		if (val instanceof Date) return val;
 		return parseJstDateString(val);

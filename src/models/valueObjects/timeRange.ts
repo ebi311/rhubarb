@@ -28,7 +28,9 @@ export type TimeRange = z.infer<typeof TimeRangeSchema>;
  * timeRangeToMinutes({ start: { hour: 9, minute: 0 }, end: { hour: 12, minute: 30 } })
  * // => { start: 540, end: 750 }
  */
-export const timeRangeToMinutes = (range: TimeRange): { start: number; end: number } => {
+export const timeRangeToMinutes = (
+	range: TimeRange,
+): { start: number; end: number } => {
 	return {
 		start: timeToMinutes(range.start),
 		end: timeToMinutes(range.end),
@@ -47,7 +49,10 @@ export const timeRangeToMinutes = (range: TimeRange): { start: number; end: numb
  *   { start: { hour: 11, minute: 0 }, end: { hour: 14, minute: 0 } }
  * ) // => true
  */
-export const isTimeRangeOverlap = (range1: TimeRange, range2: TimeRange): boolean => {
+export const isTimeRangeOverlap = (
+	range1: TimeRange,
+	range2: TimeRange,
+): boolean => {
 	const r1 = timeRangeToMinutes(range1);
 	const r2 = timeRangeToMinutes(range2);
 	return r1.start < r2.end && r2.start < r1.end;

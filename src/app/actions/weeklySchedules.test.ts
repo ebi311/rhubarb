@@ -1,4 +1,7 @@
-import { ServiceError, WeeklyScheduleService } from '@/backend/services/weeklyScheduleService';
+import {
+	ServiceError,
+	WeeklyScheduleService,
+} from '@/backend/services/weeklyScheduleService';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
@@ -9,9 +12,9 @@ import {
 
 vi.mock('@/utils/supabase/server');
 vi.mock('@/backend/services/weeklyScheduleService', async () => {
-	const actual = await vi.importActual<typeof import('@/backend/services/weeklyScheduleService')>(
-		'@/backend/services/weeklyScheduleService',
-	);
+	const actual = await vi.importActual<
+		typeof import('@/backend/services/weeklyScheduleService')
+	>('@/backend/services/weeklyScheduleService');
 	return {
 		...actual,
 		WeeklyScheduleService: vi.fn(),
@@ -44,12 +47,18 @@ beforeEach(() => {
 });
 
 const mockAuthUser = (userId: string) => {
-	mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
+	mockSupabase.auth.getUser.mockResolvedValue({
+		data: { user: { id: userId } },
+		error: null,
+	});
 };
 
 describe('generateWeeklyShiftsAction', () => {
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await generateWeeklyShiftsAction('2026-01-19');
 
@@ -82,7 +91,9 @@ describe('generateWeeklyShiftsAction', () => {
 
 	it('ServiceErrorを委譲する', async () => {
 		mockAuthUser('user-1');
-		mockService.generateWeeklyShifts.mockRejectedValue(new ServiceError(403, 'Forbidden'));
+		mockService.generateWeeklyShifts.mockRejectedValue(
+			new ServiceError(403, 'Forbidden'),
+		);
 
 		const result = await generateWeeklyShiftsAction('2026-01-19');
 
@@ -93,7 +104,10 @@ describe('generateWeeklyShiftsAction', () => {
 
 describe('listShiftsAction', () => {
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await listShiftsAction({
 			startDate: '2026-01-19',
@@ -145,7 +159,10 @@ describe('listShiftsAction', () => {
 
 describe('listMyShiftsAction', () => {
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await listMyShiftsAction({
 			startDate: '2026-01-19',
@@ -185,7 +202,9 @@ describe('listMyShiftsAction', () => {
 
 	it('ServiceErrorを委譲する', async () => {
 		mockAuthUser('user-helper');
-		mockService.listMyShifts.mockRejectedValue(new ServiceError(404, 'Staff not found'));
+		mockService.listMyShifts.mockRejectedValue(
+			new ServiceError(404, 'Staff not found'),
+		);
 
 		const result = await listMyShiftsAction({
 			startDate: '2026-01-19',

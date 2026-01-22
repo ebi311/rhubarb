@@ -12,7 +12,12 @@ import { ServiceError } from './basicScheduleService';
 
 type StaffRepositoryType = Pick<
 	StaffRepository,
-	'findByAuthUserId' | 'listByOffice' | 'findWithServiceTypesById' | 'create' | 'update' | 'delete'
+	| 'findByAuthUserId'
+	| 'listByOffice'
+	| 'findWithServiceTypesById'
+	| 'create'
+	| 'update'
+	| 'delete'
 >;
 
 export class StaffService {
@@ -50,7 +55,9 @@ export class StaffService {
 	}
 
 	private async findAllServiceTypeIds(): Promise<string[]> {
-		const { data, error } = await this.supabase.from('service_types').select('id');
+		const { data, error } = await this.supabase
+			.from('service_types')
+			.select('id');
 		if (error) throw error;
 		return (data ?? []).map((row) => row.id);
 	}
@@ -69,14 +76,16 @@ export class StaffService {
 		const admin = await this.getAdminStaff(userId);
 		const staff = await this.staffRepository.findWithServiceTypesById(id);
 		if (!staff) throw new ServiceError(404, 'Staff not found');
-		if (staff.office_id !== admin.office_id) throw new ServiceError(403, 'Forbidden');
+		if (staff.office_id !== admin.office_id)
+			throw new ServiceError(403, 'Forbidden');
 		return this.toRecord(staff);
 	}
 
 	async create(userId: string, input: StaffInput): Promise<StaffRecord> {
 		const admin = await this.getAdminStaff(userId);
 		const parsed = StaffInputSchema.safeParse(input);
-		if (!parsed.success) throw new ServiceError(400, 'Validation error', parsed.error.issues);
+		if (!parsed.success)
+			throw new ServiceError(400, 'Validation error', parsed.error.issues);
 		const data = parsed.data;
 		const serviceTypeIds = data.service_type_ids?.length
 			? data.service_type_ids
@@ -93,13 +102,19 @@ export class StaffService {
 		return this.toRecord(staff);
 	}
 
-	async update(userId: string, id: string, input: StaffInput): Promise<StaffRecord> {
+	async update(
+		userId: string,
+		id: string,
+		input: StaffInput,
+	): Promise<StaffRecord> {
 		const admin = await this.getAdminStaff(userId);
 		const existing = await this.staffRepository.findWithServiceTypesById(id);
 		if (!existing) throw new ServiceError(404, 'Staff not found');
-		if (existing.office_id !== admin.office_id) throw new ServiceError(403, 'Forbidden');
+		if (existing.office_id !== admin.office_id)
+			throw new ServiceError(403, 'Forbidden');
 		const parsed = StaffInputSchema.safeParse(input);
-		if (!parsed.success) throw new ServiceError(400, 'Validation error', parsed.error.issues);
+		if (!parsed.success)
+			throw new ServiceError(400, 'Validation error', parsed.error.issues);
 		const data = parsed.data;
 		const serviceTypeIds = data.service_type_ids?.length
 			? data.service_type_ids
@@ -121,7 +136,8 @@ export class StaffService {
 		const admin = await this.getAdminStaff(userId);
 		const staff = await this.staffRepository.findWithServiceTypesById(id);
 		if (!staff) throw new ServiceError(404, 'Staff not found');
-		if (staff.office_id !== admin.office_id) throw new ServiceError(403, 'Forbidden');
+		if (staff.office_id !== admin.office_id)
+			throw new ServiceError(403, 'Forbidden');
 		await this.staffRepository.delete(id);
 	}
 }

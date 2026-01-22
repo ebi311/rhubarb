@@ -21,10 +21,17 @@ const formatTime = (date: Date): string => {
 };
 
 const formatDate = (date: Date): string => {
-	return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+	return date.toLocaleDateString('ja-JP', {
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric',
+	});
 };
 
-export const ShiftInfoCard = ({ shift, staffLabel = '現在の担当者' }: ShiftInfoCardProps) => {
+export const ShiftInfoCard = ({
+	shift,
+	staffLabel = '現在の担当者',
+}: ShiftInfoCardProps) => {
 	return (
 		<div className="rounded-lg border border-base-200 bg-base-100 p-4">
 			<h3 className="mb-2 font-semibold">シフト情報</h3>
@@ -35,7 +42,8 @@ export const ShiftInfoCard = ({ shift, staffLabel = '現在の担当者' }: Shif
 				<dd>{shift.serviceTypeName}</dd>
 				<dt className="text-right text-base-content/70">日時</dt>
 				<dd>
-					{formatDate(shift.date)} {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+					{formatDate(shift.date)} {formatTime(shift.startTime)} -{' '}
+					{formatTime(shift.endTime)}
 				</dd>
 				<dt className="text-right text-base-content/70">{staffLabel}</dt>
 				<dd className="font-medium">{shift.currentStaffName}</dd>

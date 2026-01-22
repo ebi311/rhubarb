@@ -17,7 +17,10 @@ export const StaffPickerFooter = ({
 		<div className="text-sm text-base-content/70">
 			{pendingStaff ? (
 				<span>
-					選択中: <span className="font-semibold text-base-content">{pendingStaff.name}</span>
+					選択中:{' '}
+					<span className="font-semibold text-base-content">
+						{pendingStaff.name}
+					</span>
 				</span>
 			) : (
 				<span>現在選択されている担当者はありません。</span>

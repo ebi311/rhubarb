@@ -73,7 +73,9 @@ describe('BasicScheduleTable', () => {
 			}),
 		);
 
-		expect(screen.getByText('スケジュールが登録されていません')).toBeInTheDocument();
+		expect(
+			screen.getByText('スケジュールが登録されていません'),
+		).toBeInTheDocument();
 	});
 
 	it('担当者が未設定の場合はハイフンを表示する', async () => {

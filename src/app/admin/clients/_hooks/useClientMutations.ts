@@ -27,7 +27,10 @@ const executeAction = async <T>(
 		onSuccess();
 		return true;
 	} catch (error) {
-		handleError(error instanceof Error ? error.message : 'Unknown error', errorContext);
+		handleError(
+			error instanceof Error ? error.message : 'Unknown error',
+			errorContext,
+		);
 		return false;
 	}
 };
@@ -68,7 +71,11 @@ export const useClientMutations = (onSuccess: () => void) => {
 				? () => suspendServiceUserAction(id)
 				: () => resumeServiceUserAction(id);
 
-		return executeAction(action, handleSuccess, 'Failed to update contract status');
+		return executeAction(
+			action,
+			handleSuccess,
+			'Failed to update contract status',
+		);
 	};
 
 	return { createClient, updateClient, updateContractStatus };

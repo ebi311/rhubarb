@@ -1,7 +1,12 @@
 'use client';
 
 import { useId } from 'react';
-import { FieldValues, Path, useController, type Control } from 'react-hook-form';
+import {
+	FieldValues,
+	Path,
+	useController,
+	type Control,
+} from 'react-hook-form';
 
 export type FormInputProps<T extends FieldValues> = Omit<
 	React.InputHTMLAttributes<HTMLInputElement>,

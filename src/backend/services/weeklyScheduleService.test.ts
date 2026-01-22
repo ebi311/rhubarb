@@ -119,7 +119,10 @@ describe('WeeklyScheduleService', () => {
 			staffRepo.findByAuthUserId.mockResolvedValue(adminStaff);
 
 			const service = createService();
-			const result = await service.generateWeeklyShifts(adminStaff.auth_user_id, mondayDate);
+			const result = await service.generateWeeklyShifts(
+				adminStaff.auth_user_id,
+				mondayDate,
+			);
 
 			expect(result).toEqual({ created: 3, skipped: 0, total: 3 });
 			expect(shiftRepo.createMany).toHaveBeenCalledOnce();
@@ -158,12 +161,17 @@ describe('WeeklyScheduleService', () => {
 			const existingMap = new Map<string, Set<string>>();
 			existingMap.set(
 				'client-1',
-				new Set([`client-1|${startTime.toISOString()}|${endTime.toISOString()}`]),
+				new Set([
+					`client-1|${startTime.toISOString()}|${endTime.toISOString()}`,
+				]),
 			);
 			shiftRepo.findExistingInRange.mockResolvedValue(existingMap);
 
 			const service = createService();
-			const result = await service.generateWeeklyShifts(adminStaff.auth_user_id, mondayDate);
+			const result = await service.generateWeeklyShifts(
+				adminStaff.auth_user_id,
+				mondayDate,
+			);
 
 			expect(result).toEqual({ created: 2, skipped: 1, total: 3 });
 		});
@@ -174,13 +182,13 @@ describe('WeeklyScheduleService', () => {
 			const service = createService();
 			const tuesday = new Date('2026-01-20'); // 火曜日
 
-			await expect(service.generateWeeklyShifts(adminStaff.auth_user_id, tuesday)).rejects.toThrow(
-				ServiceError,
-			);
+			await expect(
+				service.generateWeeklyShifts(adminStaff.auth_user_id, tuesday),
+			).rejects.toThrow(ServiceError);
 
-			await expect(service.generateWeeklyShifts(adminStaff.auth_user_id, tuesday)).rejects.toThrow(
-				'Week start date must be Monday',
-			);
+			await expect(
+				service.generateWeeklyShifts(adminStaff.auth_user_id, tuesday),
+			).rejects.toThrow('Week start date must be Monday');
 		});
 
 		it('throws 403 when non-admin tries to generate', async () => {
@@ -193,7 +201,10 @@ describe('WeeklyScheduleService', () => {
 			).rejects.toThrow(ServiceError);
 
 			try {
-				await service.generateWeeklyShifts(helperStaff.auth_user_id, mondayDate);
+				await service.generateWeeklyShifts(
+					helperStaff.auth_user_id,
+					mondayDate,
+				);
 			} catch (e) {
 				expect((e as ServiceError).status).toBe(403);
 			}
@@ -204,9 +215,9 @@ describe('WeeklyScheduleService', () => {
 
 			const service = createService();
 
-			await expect(service.generateWeeklyShifts('unknown-user', mondayDate)).rejects.toThrow(
-				ServiceError,
-			);
+			await expect(
+				service.generateWeeklyShifts('unknown-user', mondayDate),
+			).rejects.toThrow(ServiceError);
 
 			try {
 				await service.generateWeeklyShifts('unknown-user', mondayDate);
@@ -220,7 +231,10 @@ describe('WeeklyScheduleService', () => {
 			basicScheduleRepo.list.mockResolvedValue([]);
 
 			const service = createService();
-			const result = await service.generateWeeklyShifts(adminStaff.auth_user_id, mondayDate);
+			const result = await service.generateWeeklyShifts(
+				adminStaff.auth_user_id,
+				mondayDate,
+			);
 
 			expect(result).toEqual({ created: 0, skipped: 0, total: 0 });
 			expect(shiftRepo.createMany).not.toHaveBeenCalled();

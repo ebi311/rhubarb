@@ -38,7 +38,9 @@ describe('ServiceUserRepository', () => {
 			const mockData = [mockClientRow, mockSuspendedClientRow];
 			const mockSelect = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
-			const mockOrder = vi.fn().mockResolvedValue({ data: mockData, error: null });
+			const mockOrder = vi
+				.fn()
+				.mockResolvedValue({ data: mockData, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				select: mockSelect,
@@ -144,7 +146,9 @@ describe('ServiceUserRepository', () => {
 			const mockError = new Error('Database error');
 			const mockSelect = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
-			const mockOrder = vi.fn().mockResolvedValue({ data: null, error: mockError });
+			const mockOrder = vi
+				.fn()
+				.mockResolvedValue({ data: null, error: mockError });
 
 			(supabase.from as any).mockReturnValue({
 				select: mockSelect,
@@ -156,7 +160,9 @@ describe('ServiceUserRepository', () => {
 				order: mockOrder,
 			});
 
-			await expect(repository.findAll(testOfficeId, 'all')).rejects.toThrow('Database error');
+			await expect(repository.findAll(testOfficeId, 'all')).rejects.toThrow(
+				'Database error',
+			);
 		});
 	});
 
@@ -164,7 +170,9 @@ describe('ServiceUserRepository', () => {
 		it('指定IDの利用者を取得できる', async () => {
 			const mockSelect = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
-			const mockMaybeSingle = vi.fn().mockResolvedValue({ data: mockClientRow, error: null });
+			const mockMaybeSingle = vi
+				.fn()
+				.mockResolvedValue({ data: mockClientRow, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				select: mockSelect,
@@ -189,7 +197,9 @@ describe('ServiceUserRepository', () => {
 		it('存在しないIDの場合nullを返す', async () => {
 			const mockSelect = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
-			const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+			const mockMaybeSingle = vi
+				.fn()
+				.mockResolvedValue({ data: null, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				select: mockSelect,
@@ -201,7 +211,9 @@ describe('ServiceUserRepository', () => {
 				maybeSingle: mockMaybeSingle,
 			});
 
-			const client = await repository.findById('00000000-0000-0000-0000-000000000000');
+			const client = await repository.findById(
+				'00000000-0000-0000-0000-000000000000',
+			);
 
 			expect(client).toBeNull();
 		});
@@ -217,7 +229,9 @@ describe('ServiceUserRepository', () => {
 
 			const mockInsert = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: mockClientRow, error: null });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: mockClientRow, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				insert: mockInsert,
@@ -253,7 +267,9 @@ describe('ServiceUserRepository', () => {
 			const mockError = new Error('Insert failed');
 			const mockInsert = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: null, error: mockError });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: null, error: mockError });
 
 			(supabase.from as any).mockReturnValue({
 				insert: mockInsert,
@@ -280,7 +296,9 @@ describe('ServiceUserRepository', () => {
 			const mockUpdate = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: updatedRow, error: null });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: updatedRow, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				update: mockUpdate,
@@ -315,7 +333,9 @@ describe('ServiceUserRepository', () => {
 			const mockUpdate = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: null, error: mockError });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: null, error: mockError });
 
 			(supabase.from as any).mockReturnValue({
 				update: mockUpdate,
@@ -349,7 +369,9 @@ describe('ServiceUserRepository', () => {
 			const mockUpdate = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: suspendedRow, error: null });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: suspendedRow, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				update: mockUpdate,
@@ -375,7 +397,9 @@ describe('ServiceUserRepository', () => {
 			const mockUpdate = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: mockSuspendedClientRow, error: null });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: mockSuspendedClientRow, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				update: mockUpdate,
@@ -406,7 +430,9 @@ describe('ServiceUserRepository', () => {
 			const mockUpdate = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: activeRow, error: null });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: activeRow, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				update: mockUpdate,
@@ -432,7 +458,9 @@ describe('ServiceUserRepository', () => {
 			const mockUpdate = vi.fn().mockReturnThis();
 			const mockEq = vi.fn().mockReturnThis();
 			const mockSelect = vi.fn().mockReturnThis();
-			const mockSingle = vi.fn().mockResolvedValue({ data: mockClientRow, error: null });
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: mockClientRow, error: null });
 
 			(supabase.from as any).mockReturnValue({
 				update: mockUpdate,

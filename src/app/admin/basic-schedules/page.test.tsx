@@ -31,7 +31,9 @@ describe('BasicScheduleListPage', () => {
 
 		expect(screen.getByText('基本スケジュール')).toBeInTheDocument();
 		expect(screen.getByText('週次スケジュール一覧')).toBeInTheDocument();
-		expect(screen.getByText('登録済みの基本スケジュールを確認できます。')).toBeInTheDocument();
+		expect(
+			screen.getByText('登録済みの基本スケジュールを確認できます。'),
+		).toBeInTheDocument();
 	});
 
 	it('新規登録ボタンが表示される', async () => {

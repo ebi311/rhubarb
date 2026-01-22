@@ -31,14 +31,18 @@ const rowClassName = classNames(
 
 const TableRow = ({ schedule }: { schedule: BasicScheduleViewModel }) => (
 	<Link href="" className={rowClassName}>
-		<div className="text-lg font-bold grid-area-[client]">{schedule.clientName}</div>
+		<div className="text-lg font-bold grid-area-[client]">
+			{schedule.clientName}
+		</div>
 		<div className="grid-area-[service-type]">
 			<ServiceTypeBadge serviceTypeId={schedule.serviceTypeId} />
 		</div>
 		<div className="text-sm text-base-content/75 grid-area-[weekday]">
 			{WEEKDAY_LABELS[schedule.weekday]}
 		</div>
-		<div className="text-sm text-base-content/75 grid-area-[time-range]">{schedule.timeRange}</div>
+		<div className="text-sm text-base-content/75 grid-area-[time-range]">
+			{schedule.timeRange}
+		</div>
 		<div className="text-sm text-base-content/75 grid-area-[staff-names]">
 			{schedule.staffNames.length > 0 ? schedule.staffNames.join(', ') : '-'}
 		</div>
@@ -54,7 +58,9 @@ const EmptyState = () => (
 	</div>
 );
 
-export const BasicScheduleTable = async ({ filters }: BasicScheduleTableProps) => {
+export const BasicScheduleTable = async ({
+	filters,
+}: BasicScheduleTableProps) => {
 	const schedules = await fetchBasicSchedules(filters);
 
 	if (schedules.length === 0) {

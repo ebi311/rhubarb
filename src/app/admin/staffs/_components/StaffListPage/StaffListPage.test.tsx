@@ -26,7 +26,10 @@ const StaffFormModalMock = vi.fn((props: any) => {
 				updated_at: new Date('2025-01-03T00:00:00Z'),
 			});
 		} else if (props.staff) {
-			props.onSuccess?.({ ...props.staff, name: `${props.staff.name}（更新）` });
+			props.onSuccess?.({
+				...props.staff,
+				name: `${props.staff.name}（更新）`,
+			});
 		}
 		props.onClose();
 	};
@@ -116,7 +119,10 @@ describe('StaffListPageClient', () => {
 	it('検索フィルタで結果を絞り込む', () => {
 		render(
 			<StaffListPage
-				initialStaffs={[buildStaff(), buildStaff({ id: 'staff-2', name: '佐藤花子' })]}
+				initialStaffs={[
+					buildStaff(),
+					buildStaff({ id: 'staff-2', name: '佐藤花子' }),
+				]}
 				serviceTypes={serviceTypes}
 				filters={{ query: '佐藤花子', role: 'all' }}
 			/>,
@@ -148,7 +154,10 @@ describe('StaffListPageClient', () => {
 		const user = userEvent.setup();
 		render(
 			<StaffListPage
-				initialStaffs={[buildStaff(), buildStaff({ id: 'staff-2', name: '佐藤花子' })]}
+				initialStaffs={[
+					buildStaff(),
+					buildStaff({ id: 'staff-2', name: '佐藤花子' }),
+				]}
 				serviceTypes={serviceTypes}
 				filters={{ query: '', role: 'all' }}
 			/>,
@@ -166,7 +175,10 @@ describe('StaffListPageClient', () => {
 		const user = userEvent.setup();
 		render(
 			<StaffListPage
-				initialStaffs={[buildStaff(), buildStaff({ id: 'staff-2', name: '佐藤花子' })]}
+				initialStaffs={[
+					buildStaff(),
+					buildStaff({ id: 'staff-2', name: '佐藤花子' }),
+				]}
 				serviceTypes={serviceTypes}
 				filters={{ query: '', role: 'all' }}
 			/>,

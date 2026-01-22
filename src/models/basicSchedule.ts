@@ -22,4 +22,6 @@ export const BasicScheduleWithStaffSchema = BasicScheduleSchema.extend({
 	staff_ids: z.array(z.uuid()),
 });
 
-export type BasicScheduleWithStaff = z.infer<typeof BasicScheduleWithStaffSchema>;
+export type BasicScheduleWithStaff = z.infer<
+	typeof BasicScheduleWithStaffSchema
+>;

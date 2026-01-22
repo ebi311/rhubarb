@@ -22,7 +22,9 @@ export const computeAllowedStaffIds = (
 	if (!serviceTypeId) return new Set<string>();
 	return new Set(
 		staffs
-			.filter((staff) => staff.service_type_ids.includes(serviceTypeId as ServiceTypeId))
+			.filter((staff) =>
+				staff.service_type_ids.includes(serviceTypeId as ServiceTypeId),
+			)
 			.map((staff) => staff.id),
 	);
 };
@@ -41,7 +43,10 @@ export const mapStaffPickerOptions = (
 			serviceTypeIds: staff.service_type_ids,
 		}));
 
-export const getStaffStatusMessage = (serviceTypeId?: string, optionCount: number = 0) => {
+export const getStaffStatusMessage = (
+	serviceTypeId?: string,
+	optionCount: number = 0,
+) => {
 	if (!serviceTypeId) {
 		return 'サービス区分を選択すると担当者を選べます。';
 	}
@@ -51,7 +56,10 @@ export const getStaffStatusMessage = (serviceTypeId?: string, optionCount: numbe
 	return `${optionCount}名の担当者が選択可能です。`;
 };
 
-export const getSelectedStaff = (staffMap: Map<string, StaffRecord>, staffId: string | null) => {
+export const getSelectedStaff = (
+	staffMap: Map<string, StaffRecord>,
+	staffId: string | null,
+) => {
 	if (!staffId) return null;
 	return staffMap.get(staffId) ?? null;
 };
@@ -70,17 +78,25 @@ export const getFieldDescriptionId = (hasError: boolean, fieldId: string) =>
 export const getSubmitButtonClass = (isSubmitting: boolean) =>
 	isSubmitting ? 'btn btn-primary loading' : 'btn btn-primary';
 
-export const shouldDisableStaffPickerButton = (canOpen: boolean, isSubmitting: boolean) =>
-	!canOpen || isSubmitting;
+export const shouldDisableStaffPickerButton = (
+	canOpen: boolean,
+	isSubmitting: boolean,
+) => !canOpen || isSubmitting;
 
-export const shouldDisableClearButton = (hasSelection: boolean, isSubmitting: boolean) =>
-	!hasSelection || isSubmitting;
+export const shouldDisableClearButton = (
+	hasSelection: boolean,
+	isSubmitting: boolean,
+) => !hasSelection || isSubmitting;
 
-export const shouldDisableSubmitButton = (isValid: boolean, isSubmitting: boolean) =>
-	!isValid || isSubmitting;
+export const shouldDisableSubmitButton = (
+	isValid: boolean,
+	isSubmitting: boolean,
+) => !isValid || isSubmitting;
 
-export const resolveStaffPickerClearHandler = (staff: StaffRecord | null, onClear: () => void) =>
-	staff ? onClear : undefined;
+export const resolveStaffPickerClearHandler = (
+	staff: StaffRecord | null,
+	onClear: () => void,
+) => (staff ? onClear : undefined);
 
 export const WEEKDAY_LABELS: Record<Weekday, string> = {
 	Sun: '日曜日',

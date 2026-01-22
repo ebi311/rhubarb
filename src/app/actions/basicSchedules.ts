@@ -1,6 +1,9 @@
 'use server';
 
-import { BasicScheduleService, ServiceError } from '@/backend/services/basicScheduleService';
+import {
+	BasicScheduleService,
+	ServiceError,
+} from '@/backend/services/basicScheduleService';
 import type {
 	BasicScheduleFilters,
 	BasicScheduleInput,
@@ -25,7 +28,10 @@ export const listBasicSchedulesAction = async (
 	} = await supabase.auth.getUser();
 	if (authError || !user) return errorResult('Unauthorized', 401);
 
-	const parsed = BasicScheduleFilterSchema.safeParse({ includeDeleted: false, ...filters });
+	const parsed = BasicScheduleFilterSchema.safeParse({
+		includeDeleted: false,
+		...filters,
+	});
 	if (!parsed.success) {
 		return errorResult('Validation failed', 400, parsed.error.flatten());
 	}
@@ -94,7 +100,11 @@ export const updateBasicScheduleAction = async (
 
 	const service = new BasicScheduleService(supabase);
 	try {
-		const schedule = await service.update(user.id, parsedId.data, parsedInput.data);
+		const schedule = await service.update(
+			user.id,
+			parsedId.data,
+			parsedInput.data,
+		);
 		return successResult(schedule);
 	} catch (e) {
 		if (e instanceof ServiceError) {
@@ -104,7 +114,9 @@ export const updateBasicScheduleAction = async (
 	}
 };
 
-export const deleteBasicScheduleAction = async (id: string): Promise<ActionResult<null>> => {
+export const deleteBasicScheduleAction = async (
+	id: string,
+): Promise<ActionResult<null>> => {
 	const supabase = await createSupabaseClient();
 
 	const {

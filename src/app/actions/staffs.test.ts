@@ -12,9 +12,9 @@ import {
 
 vi.mock('@/utils/supabase/server');
 vi.mock('@/backend/services/staffService', async () => {
-	const actual = await vi.importActual<typeof import('@/backend/services/staffService')>(
-		'@/backend/services/staffService',
-	);
+	const actual = await vi.importActual<
+		typeof import('@/backend/services/staffService')
+	>('@/backend/services/staffService');
 	return {
 		...actual,
 		StaffService: vi.fn(),
@@ -62,12 +62,18 @@ beforeEach(() => {
 });
 
 const mockAuthUser = (userId: string) => {
-	mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
+	mockSupabase.auth.getUser.mockResolvedValue({
+		data: { user: { id: userId } },
+		error: null,
+	});
 };
 
 describe('listStaffsAction', () => {
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await listStaffsAction();
 
@@ -77,7 +83,9 @@ describe('listStaffsAction', () => {
 
 	it('ServiceErrorを委譲する', async () => {
 		mockAuthUser('user-1');
-		mockService.list.mockRejectedValue(new ServiceError(404, 'Staff not found'));
+		mockService.list.mockRejectedValue(
+			new ServiceError(404, 'Staff not found'),
+		);
 
 		const result = await listStaffsAction();
 
@@ -98,7 +106,10 @@ describe('listStaffsAction', () => {
 
 describe('getStaffAction', () => {
 	it('未認証は401', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await getStaffAction(sampleStaff.id);
 		expect(result.status).toBe(401);
@@ -146,7 +157,10 @@ describe('createStaffAction', () => {
 	};
 
 	it('未認証は401', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await createStaffAction(validInput);
 		expect(result.status).toBe(401);
@@ -193,7 +207,10 @@ describe('updateStaffAction', () => {
 	};
 
 	it('未認証は401', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await updateStaffAction(sampleStaff.id, validInput);
 		expect(result.status).toBe(401);
@@ -210,7 +227,10 @@ describe('updateStaffAction', () => {
 	it('入力が不正なら400', async () => {
 		mockAuthUser('user-1');
 
-		const result = await updateStaffAction(sampleStaff.id, { ...validInput, name: '' });
+		const result = await updateStaffAction(sampleStaff.id, {
+			...validInput,
+			name: '',
+		});
 
 		expect(result.status).toBe(400);
 		expect(mockService.update).not.toHaveBeenCalled();
@@ -218,7 +238,9 @@ describe('updateStaffAction', () => {
 
 	it('ServiceErrorを返す', async () => {
 		mockAuthUser('user-1');
-		mockService.update.mockRejectedValue(new ServiceError(404, 'Staff not found'));
+		mockService.update.mockRejectedValue(
+			new ServiceError(404, 'Staff not found'),
+		);
 
 		const result = await updateStaffAction(sampleStaff.id, validInput);
 
@@ -231,7 +253,11 @@ describe('updateStaffAction', () => {
 
 		const result = await updateStaffAction(sampleStaff.id, validInput);
 
-		expect(mockService.update).toHaveBeenCalledWith('user-1', sampleStaff.id, validInput);
+		expect(mockService.update).toHaveBeenCalledWith(
+			'user-1',
+			sampleStaff.id,
+			validInput,
+		);
 		expect(result.status).toBe(200);
 		expect(result.data).toEqual(sampleStaff);
 	});
@@ -239,7 +265,10 @@ describe('updateStaffAction', () => {
 
 describe('deleteStaffAction', () => {
 	it('未認証は401', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await deleteStaffAction(sampleStaff.id);
 		expect(result.status).toBe(401);
@@ -256,7 +285,9 @@ describe('deleteStaffAction', () => {
 
 	it('ServiceErrorを返す', async () => {
 		mockAuthUser('user-1');
-		mockService.delete.mockRejectedValue(new ServiceError(404, 'Staff not found'));
+		mockService.delete.mockRejectedValue(
+			new ServiceError(404, 'Staff not found'),
+		);
 
 		const result = await deleteStaffAction(sampleStaff.id);
 

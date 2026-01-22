@@ -13,7 +13,10 @@ export interface WeeklySchedulePageProps {
 	initialShifts: ShiftDisplayRow[];
 }
 
-export const WeeklySchedulePage = ({ weekStartDate, initialShifts }: WeeklySchedulePageProps) => {
+export const WeeklySchedulePage = ({
+	weekStartDate,
+	initialShifts,
+}: WeeklySchedulePageProps) => {
 	const router = useRouter();
 
 	const handleWeekChange = (date: Date) => {
@@ -26,7 +29,9 @@ export const WeeklySchedulePage = ({ weekStartDate, initialShifts }: WeeklySched
 	};
 
 	const handleGenerateFromEmpty = async () => {
-		const result = await generateWeeklyShiftsAction(formatJstDateString(weekStartDate));
+		const result = await generateWeeklyShiftsAction(
+			formatJstDateString(weekStartDate),
+		);
 		if (result.data) {
 			router.refresh();
 		}
@@ -37,7 +42,10 @@ export const WeeklySchedulePage = ({ weekStartDate, initialShifts }: WeeklySched
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-wrap items-center justify-between gap-4">
-				<WeekSelector currentWeek={weekStartDate} onWeekChange={handleWeekChange} />
+				<WeekSelector
+					currentWeek={weekStartDate}
+					onWeekChange={handleWeekChange}
+				/>
 				<GenerateButton
 					weekStartDate={weekStartDate}
 					onGenerated={handleGenerated}
@@ -48,7 +56,10 @@ export const WeeklySchedulePage = ({ weekStartDate, initialShifts }: WeeklySched
 			{hasShifts ? (
 				<ShiftTable shifts={initialShifts} />
 			) : (
-				<EmptyState weekStartDate={weekStartDate} onGenerate={handleGenerateFromEmpty} />
+				<EmptyState
+					weekStartDate={weekStartDate}
+					onGenerate={handleGenerateFromEmpty}
+				/>
 			)}
 		</div>
 	);

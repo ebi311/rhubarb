@@ -6,7 +6,11 @@ import classNames from 'classnames';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ChangeEvent } from 'react';
 import { parseFiltersFromSearchParams } from '../../parseFiltersFromParams';
-import type { BasicScheduleFilterState, ClientOption, ServiceTypeOption } from './types';
+import type {
+	BasicScheduleFilterState,
+	ClientOption,
+	ServiceTypeOption,
+} from './types';
 
 interface BasicScheduleFilterBarProps {
 	clients: ClientOption[];
@@ -33,7 +37,10 @@ const labeledControlClassNames = classNames(
 	'md:w-auto',
 );
 
-export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleFilterBarProps) => {
+export const BasicScheduleFilterBar = ({
+	clients,
+	serviceTypes,
+}: BasicScheduleFilterBarProps) => {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const filters = parseFiltersFromSearchParams(searchParams);
@@ -50,7 +57,10 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 
 	const serviceTypeOptions = [
 		{ value: '', label: 'すべて' },
-		...serviceTypes.map((serviceType) => ({ value: serviceType.id, label: serviceType.name })),
+		...serviceTypes.map((serviceType) => ({
+			value: serviceType.id,
+			label: serviceType.name,
+		})),
 	];
 
 	const updateFilters = (newFilters: BasicScheduleFilterState) => {
@@ -74,12 +84,17 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 	};
 
 	const handleServiceTypeChange = (event: ChangeEvent<HTMLSelectElement>) => {
-		const value = event.target.value as BasicScheduleFilterState['serviceTypeId'];
+		const value = event.target
+			.value as BasicScheduleFilterState['serviceTypeId'];
 		updateFilters({ ...filters, serviceTypeId: value || undefined });
 	};
 
 	const handleReset = () => {
-		updateFilters({ weekday: undefined, clientId: undefined, serviceTypeId: undefined });
+		updateFilters({
+			weekday: undefined,
+			clientId: undefined,
+			serviceTypeId: undefined,
+		});
 	};
 
 	return (
@@ -119,7 +134,11 @@ export const BasicScheduleFilterBar = ({ clients, serviceTypes }: BasicScheduleF
 				</label>
 			</div>
 
-			<button type="button" className="btn btn-ghost btn-sm" onClick={handleReset}>
+			<button
+				type="button"
+				className="btn btn-ghost btn-sm"
+				onClick={handleReset}
+			>
 				リセット
 			</button>
 		</div>

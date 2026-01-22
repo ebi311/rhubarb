@@ -1,6 +1,9 @@
 'use server';
 
-import { ServiceError, WeeklyScheduleService } from '@/backend/services/weeklyScheduleService';
+import {
+	ServiceError,
+	WeeklyScheduleService,
+} from '@/backend/services/weeklyScheduleService';
 import type { Shift } from '@/models/shift';
 import {
 	GenerateResultSchema,
@@ -52,7 +55,10 @@ export const generateWeeklyShiftsAction = async (
 
 	const service = new WeeklyScheduleService(supabase);
 	try {
-		const result = await service.generateWeeklyShifts(user.id, parsed.data.weekStartDate);
+		const result = await service.generateWeeklyShifts(
+			user.id,
+			parsed.data.weekStartDate,
+		);
 		return successResult(GenerateResultSchema.parse(result), 201);
 	} catch (e) {
 		if (e instanceof ServiceError) {

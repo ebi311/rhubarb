@@ -1,4 +1,7 @@
-import { ServiceTypeLabels, type ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+import {
+	ServiceTypeLabels,
+	type ServiceTypeId,
+} from '@/models/valueObjects/serviceTypeId';
 import { useEffect, useMemo, useState } from 'react';
 import type { RoleFilter, StaffPickerOption } from './types';
 
@@ -29,8 +32,12 @@ export const useStaffPickerDialogState = ({
 }: UseStaffPickerDialogStateParams): UseStaffPickerDialogState => {
 	const [keyword, setKeyword] = useState('');
 	const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
-	const [serviceFilter, setServiceFilter] = useState<ServiceTypeId | 'all'>('all');
-	const [pendingSelection, setPendingSelection] = useState<string | null>(selectedStaffId);
+	const [serviceFilter, setServiceFilter] = useState<ServiceTypeId | 'all'>(
+		'all',
+	);
+	const [pendingSelection, setPendingSelection] = useState<string | null>(
+		selectedStaffId,
+	);
 
 	useEffect(() => {
 		setPendingSelection(selectedStaffId);
@@ -59,7 +66,8 @@ export const useStaffPickerDialogState = ({
 		return staffOptions.filter((option) => {
 			const matchesRole = roleFilter === 'all' || option.role === roleFilter;
 			const matchesService =
-				serviceFilter === 'all' || option.serviceTypeIds.includes(serviceFilter);
+				serviceFilter === 'all' ||
+				option.serviceTypeIds.includes(serviceFilter);
 			const matchesKeyword =
 				keywordLower.length === 0 ||
 				option.name.toLowerCase().includes(keywordLower) ||

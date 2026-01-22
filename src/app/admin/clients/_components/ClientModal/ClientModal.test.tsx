@@ -18,7 +18,14 @@ const mockClient: ServiceUser = {
 
 describe('ClientModal', () => {
 	it('新規作成モードで空のフォームが表示される', () => {
-		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={vi.fn()} />);
+		render(
+			<ClientModal
+				isOpen={true}
+				mode="create"
+				onClose={vi.fn()}
+				onSubmit={vi.fn()}
+			/>,
+		);
 
 		expect(screen.getByText('利用者の新規登録')).toBeInTheDocument();
 		expect(screen.getByRole('textbox', { name: /氏名/ })).toHaveValue('');
@@ -39,7 +46,9 @@ describe('ClientModal', () => {
 
 		expect(screen.getByText('利用者情報の編集')).toBeInTheDocument();
 		expect(screen.getByDisplayValue('山田太郎')).toBeInTheDocument();
-		expect(screen.getByDisplayValue('東京都千代田区丸の内1-1-1')).toBeInTheDocument();
+		expect(
+			screen.getByDisplayValue('東京都千代田区丸の内1-1-1'),
+		).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
 	});
 
@@ -81,7 +90,14 @@ describe('ClientModal', () => {
 
 	it('バリデーションエラーがある場合はボタンが無効化される', async () => {
 		const user = userEvent.setup();
-		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={vi.fn()} />);
+		render(
+			<ClientModal
+				isOpen={true}
+				mode="create"
+				onClose={vi.fn()}
+				onSubmit={vi.fn()}
+			/>,
+		);
 
 		// 初期状態では空なのでボタンが無効
 		const submitButton = screen.getByRole('button', { name: '登録' });
@@ -109,7 +125,14 @@ describe('ClientModal', () => {
 
 	it('必須項目が未入力の場合、エラーメッセージが表示される', async () => {
 		const user = userEvent.setup();
-		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={vi.fn()} />);
+		render(
+			<ClientModal
+				isOpen={true}
+				mode="create"
+				onClose={vi.fn()}
+				onSubmit={vi.fn()}
+			/>,
+		);
 
 		const nameInput = screen.getByRole('textbox', { name: /氏名/ });
 		const addressInput = screen.getByRole('textbox', { name: /住所/ });
@@ -135,7 +158,14 @@ describe('ClientModal', () => {
 
 	it('空白のみの入力の場合、エラーメッセージが表示される', async () => {
 		const user = userEvent.setup();
-		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={vi.fn()} />);
+		render(
+			<ClientModal
+				isOpen={true}
+				mode="create"
+				onClose={vi.fn()}
+				onSubmit={vi.fn()}
+			/>,
+		);
 
 		const nameInput = screen.getByRole('textbox', { name: /氏名/ });
 		const addressInput = screen.getByRole('textbox', { name: /住所/ });
@@ -145,7 +175,9 @@ describe('ClientModal', () => {
 		await user.click(addressInput);
 
 		await waitFor(() => {
-			expect(screen.getByText('氏名に空白のみは使用できません')).toBeInTheDocument();
+			expect(
+				screen.getByText('氏名に空白のみは使用できません'),
+			).toBeInTheDocument();
 		});
 
 		// 住所に空白のみ入力
@@ -153,14 +185,23 @@ describe('ClientModal', () => {
 		await user.click(nameInput);
 
 		await waitFor(() => {
-			expect(screen.getByText('住所に空白のみは使用できません')).toBeInTheDocument();
+			expect(
+				screen.getByText('住所に空白のみは使用できません'),
+			).toBeInTheDocument();
 		});
 	});
 
 	it('保存ボタンクリックでonSubmitが呼ばれる（作成）', async () => {
 		const user = userEvent.setup();
 		const handleSubmit = vi.fn();
-		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={handleSubmit} />);
+		render(
+			<ClientModal
+				isOpen={true}
+				mode="create"
+				onClose={vi.fn()}
+				onSubmit={handleSubmit}
+			/>,
+		);
 
 		const nameInput = screen.getByRole('textbox', { name: /氏名/ });
 		const addressInput = screen.getByRole('textbox', { name: /住所/ });
@@ -218,14 +259,28 @@ describe('ClientModal', () => {
 	it('キャンセルボタンクリックでonCloseが呼ばれる', async () => {
 		const user = userEvent.setup();
 		const handleClose = vi.fn();
-		render(<ClientModal isOpen={true} mode="create" onClose={handleClose} onSubmit={vi.fn()} />);
+		render(
+			<ClientModal
+				isOpen={true}
+				mode="create"
+				onClose={handleClose}
+				onSubmit={vi.fn()}
+			/>,
+		);
 
 		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
 		expect(handleClose).toHaveBeenCalled();
 	});
 
 	it('新規作成モードでは契約ステータスが表示されない', () => {
-		render(<ClientModal isOpen={true} mode="create" onClose={vi.fn()} onSubmit={vi.fn()} />);
+		render(
+			<ClientModal
+				isOpen={true}
+				mode="create"
+				onClose={vi.fn()}
+				onSubmit={vi.fn()}
+			/>,
+		);
 
 		expect(screen.queryByLabelText('契約中')).not.toBeInTheDocument();
 		expect(screen.queryByLabelText('中断中')).not.toBeInTheDocument();

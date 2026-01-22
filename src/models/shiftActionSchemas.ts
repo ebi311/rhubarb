@@ -8,11 +8,16 @@ import { TimestampSchema } from './valueObjects/timestamp';
 
 // 週間シフト生成入力スキーマ
 export const GenerateWeeklyShiftsInputSchema = z.object({
-	weekStartDate: JstDateInputSchema.refine((date) => getJstDayOfWeek(date) === 1, {
-		message: 'weekStartDate must be a Monday',
-	}),
+	weekStartDate: JstDateInputSchema.refine(
+		(date) => getJstDayOfWeek(date) === 1,
+		{
+			message: 'weekStartDate must be a Monday',
+		},
+	),
 });
-export type GenerateWeeklyShiftsInput = z.infer<typeof GenerateWeeklyShiftsInputSchema>;
+export type GenerateWeeklyShiftsInput = z.infer<
+	typeof GenerateWeeklyShiftsInputSchema
+>;
 
 // 生成結果スキーマ
 export const GenerateResultSchema = z.object({
@@ -78,7 +83,9 @@ export const ChangeShiftStaffOutputSchema = z.object({
 	newStaffName: z.string(),
 });
 
-export type ChangeShiftStaffOutput = z.infer<typeof ChangeShiftStaffOutputSchema>;
+export type ChangeShiftStaffOutput = z.infer<
+	typeof ChangeShiftStaffOutputSchema
+>;
 
 // cancelShiftAction の入力スキーマ
 export const CancelShiftCategorySchema = z.enum(['client', 'staff', 'other']);
@@ -101,7 +108,9 @@ export const ValidateStaffAvailabilityInputSchema = z.object({
 	excludeShiftId: z.string().uuid().optional(),
 });
 
-export type ValidateStaffAvailabilityInput = z.infer<typeof ValidateStaffAvailabilityInputSchema>;
+export type ValidateStaffAvailabilityInput = z.infer<
+	typeof ValidateStaffAvailabilityInputSchema
+>;
 
 // validateStaffAvailabilityAction の出力スキーマ
 export const ValidateStaffAvailabilityOutputSchema = z.object({
@@ -118,4 +127,6 @@ export const ValidateStaffAvailabilityOutputSchema = z.object({
 		.optional(),
 });
 
-export type ValidateStaffAvailabilityOutput = z.infer<typeof ValidateStaffAvailabilityOutputSchema>;
+export type ValidateStaffAvailabilityOutput = z.infer<
+	typeof ValidateStaffAvailabilityOutputSchema
+>;

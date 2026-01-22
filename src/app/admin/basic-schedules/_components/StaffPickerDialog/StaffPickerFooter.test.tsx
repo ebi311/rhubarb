@@ -54,7 +54,9 @@ describe('StaffPickerFooter', () => {
 			/>,
 		);
 
-		expect(screen.getByText('現在選択されている担当者はありません。')).toBeInTheDocument();
+		expect(
+			screen.getByText('現在選択されている担当者はありません。'),
+		).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: '確定する' })).toBeDisabled();
 	});
 });

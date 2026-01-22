@@ -1,5 +1,8 @@
 import { FormSelect } from '@/components/forms/FormSelect';
-import { ServiceTypeLabels, type ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+import {
+	ServiceTypeLabels,
+	type ServiceTypeId,
+} from '@/models/valueObjects/serviceTypeId';
 import type { RoleFilter } from './types';
 
 type StaffPickerFiltersProps = {
@@ -37,15 +40,23 @@ export const StaffPickerFilters = ({
 			className="select-bordered select w-full sm:max-w-40"
 			value={roleFilter}
 			onChange={(event) => onRoleFilterChange(event.target.value as RoleFilter)}
-			options={roleFilterOptions.map((option) => ({ value: option.value, label: option.label }))}
+			options={roleFilterOptions.map((option) => ({
+				value: option.value,
+				label: option.label,
+			}))}
 		/>
 		<FormSelect
 			className="select-bordered select w-full sm:max-w-48"
 			value={serviceFilter}
-			onChange={(event) => onServiceFilterChange(event.target.value as ServiceTypeId | 'all')}
+			onChange={(event) =>
+				onServiceFilterChange(event.target.value as ServiceTypeId | 'all')
+			}
 			options={[
 				{ value: 'all', label: 'すべてのサービス区分' },
-				...serviceTypeOptions.map((id) => ({ value: id, label: ServiceTypeLabels[id] })),
+				...serviceTypeOptions.map((id) => ({
+					value: id,
+					label: ServiceTypeLabels[id],
+				})),
 			]}
 		/>
 		{onClear && (

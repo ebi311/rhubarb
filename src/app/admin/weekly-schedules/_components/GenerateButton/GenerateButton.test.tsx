@@ -24,7 +24,9 @@ describe('GenerateButton', () => {
 	it('「シフトを生成」ボタンが表示される', () => {
 		render(<GenerateButton {...defaultProps} />);
 
-		expect(screen.getByRole('button', { name: /シフトを生成/ })).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: /シフトを生成/ }),
+		).toBeInTheDocument();
 	});
 
 	it('クリック時に generateWeeklyShiftsAction が呼ばれる', async () => {
@@ -56,7 +58,11 @@ describe('GenerateButton', () => {
 		await user.click(screen.getByRole('button', { name: /シフトを生成/ }));
 
 		await waitFor(() => {
-			expect(onGenerated).toHaveBeenCalledWith({ created: 5, skipped: 2, total: 7 });
+			expect(onGenerated).toHaveBeenCalledWith({
+				created: 5,
+				skipped: 2,
+				total: 7,
+			});
 		});
 	});
 
@@ -76,7 +82,11 @@ describe('GenerateButton', () => {
 		expect(screen.getByRole('button')).toBeDisabled();
 
 		// Promise を解決
-		resolvePromise!({ data: { created: 0, skipped: 0 }, error: null, status: 200 });
+		resolvePromise!({
+			data: { created: 0, skipped: 0 },
+			error: null,
+			status: 200,
+		});
 	});
 
 	it('disabled が true の場合はボタンが無効化される', () => {

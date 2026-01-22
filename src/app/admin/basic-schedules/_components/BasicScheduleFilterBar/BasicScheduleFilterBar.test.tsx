@@ -32,27 +32,48 @@ const sampleServiceTypes = [
 
 describe('BasicScheduleFilterBar', () => {
 	it('曜日セレクトで曜日を選択できる', () => {
-		render(<BasicScheduleFilterBar clients={sampleClients} serviceTypes={sampleServiceTypes} />);
+		render(
+			<BasicScheduleFilterBar
+				clients={sampleClients}
+				serviceTypes={sampleServiceTypes}
+			/>,
+		);
 
-		fireEvent.change(screen.getByLabelText('曜日'), { target: { value: 'Mon' } });
+		fireEvent.change(screen.getByLabelText('曜日'), {
+			target: { value: 'Mon' },
+		});
 
 		expect(replaceMock).toHaveBeenCalledWith('?weekday=Mon');
 	});
 
 	it('利用者セレクトで利用者を選択できる', () => {
-		render(<BasicScheduleFilterBar clients={sampleClients} serviceTypes={sampleServiceTypes} />);
+		render(
+			<BasicScheduleFilterBar
+				clients={sampleClients}
+				serviceTypes={sampleServiceTypes}
+			/>,
+		);
 
 		fireEvent.change(screen.getByLabelText('利用者'), {
 			target: { value: '8f14e45f-e7c5-4c8d-8a4d-2c7d7f5b51a4' },
 		});
 
-		expect(replaceMock).toHaveBeenCalledWith('?clientId=8f14e45f-e7c5-4c8d-8a4d-2c7d7f5b51a4');
+		expect(replaceMock).toHaveBeenCalledWith(
+			'?clientId=8f14e45f-e7c5-4c8d-8a4d-2c7d7f5b51a4',
+		);
 	});
 
 	it('サービス区分セレクトでサービス区分を選択できる', () => {
-		render(<BasicScheduleFilterBar clients={sampleClients} serviceTypes={sampleServiceTypes} />);
+		render(
+			<BasicScheduleFilterBar
+				clients={sampleClients}
+				serviceTypes={sampleServiceTypes}
+			/>,
+		);
 
-		fireEvent.change(screen.getByLabelText('サービス区分'), { target: { value: 'st-1' } });
+		fireEvent.change(screen.getByLabelText('サービス区分'), {
+			target: { value: 'st-1' },
+		});
 
 		expect(replaceMock).toHaveBeenCalledWith('?serviceTypeId=st-1');
 	});
@@ -66,7 +87,12 @@ describe('BasicScheduleFilterBar', () => {
 			}) as any,
 		);
 
-		render(<BasicScheduleFilterBar clients={sampleClients} serviceTypes={sampleServiceTypes} />);
+		render(
+			<BasicScheduleFilterBar
+				clients={sampleClients}
+				serviceTypes={sampleServiceTypes}
+			/>,
+		);
 
 		fireEvent.click(screen.getByRole('button', { name: 'リセット' }));
 
@@ -81,10 +107,17 @@ describe('BasicScheduleFilterBar', () => {
 			}) as any,
 		);
 
-		render(<BasicScheduleFilterBar clients={sampleClients} serviceTypes={sampleServiceTypes} />);
+		render(
+			<BasicScheduleFilterBar
+				clients={sampleClients}
+				serviceTypes={sampleServiceTypes}
+			/>,
+		);
 
 		expect(screen.getByLabelText('曜日')).toHaveValue('Tue');
-		expect(screen.getByLabelText('利用者')).toHaveValue('c9f0f895-ef3a-4c4a-9b70-1f3d8c2b8bbb');
+		expect(screen.getByLabelText('利用者')).toHaveValue(
+			'c9f0f895-ef3a-4c4a-9b70-1f3d8c2b8bbb',
+		);
 		expect(screen.getByLabelText('サービス区分')).toHaveValue('');
 	});
 
@@ -93,7 +126,12 @@ describe('BasicScheduleFilterBar', () => {
 			createMockSearchParams({ weekday: 'Invalid' }) as any,
 		);
 
-		render(<BasicScheduleFilterBar clients={sampleClients} serviceTypes={sampleServiceTypes} />);
+		render(
+			<BasicScheduleFilterBar
+				clients={sampleClients}
+				serviceTypes={sampleServiceTypes}
+			/>,
+		);
 
 		expect(screen.getByLabelText('曜日')).toHaveValue('');
 	});

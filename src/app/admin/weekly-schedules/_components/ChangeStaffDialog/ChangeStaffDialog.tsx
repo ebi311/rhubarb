@@ -94,7 +94,9 @@ export const ChangeStaffDialog = ({
 						</div>
 
 						{/* 時間重複警告 */}
-						{isChecking && <div className="alert alert-info">可用性を確認中...</div>}
+						{isChecking && (
+							<div className="alert alert-info">可用性を確認中...</div>
+						)}
 						{!isChecking && conflictingShifts.length > 0 && (
 							<StaffConflictWarning conflictingShifts={conflictingShifts} />
 						)}

@@ -35,7 +35,8 @@ export class BasicScheduleService {
 	) {
 		this.basicScheduleRepository =
 			options?.basicScheduleRepository ?? new BasicScheduleRepository(supabase);
-		this.staffRepository = options?.staffRepository ?? new StaffRepository(supabase);
+		this.staffRepository =
+			options?.staffRepository ?? new StaffRepository(supabase);
 	}
 
 	private async getAdminStaff(userId: string) {
@@ -60,7 +61,10 @@ export class BasicScheduleService {
 			});
 	}
 
-	private async assertStaffsPermitted(serviceTypeId: string, staffIds: string[]) {
+	private async assertStaffsPermitted(
+		serviceTypeId: string,
+		staffIds: string[],
+	) {
 		if (staffIds.length === 0) return;
 		const { data, error } = await this.supabase
 			.from('staff_service_type_abilities')
@@ -130,7 +134,10 @@ export class BasicScheduleService {
 		return schedules.map((s) => this.toRecord(s));
 	}
 
-	async create(userId: string, input: BasicScheduleInput): Promise<BasicScheduleRecord> {
+	async create(
+		userId: string,
+		input: BasicScheduleInput,
+	): Promise<BasicScheduleRecord> {
 		const staff = await this.getAdminStaff(userId);
 		const parsed = BasicScheduleInputSchema.safeParse(input);
 		if (!parsed.success) {
@@ -172,7 +179,8 @@ export class BasicScheduleService {
 		const existing = await this.basicScheduleRepository.findById(id);
 		if (!existing) throw new ServiceError(404, 'Basic schedule not found');
 		const parsed = BasicScheduleInputSchema.safeParse(input);
-		if (!parsed.success) throw new ServiceError(400, 'Validation error', parsed.error.issues);
+		if (!parsed.success)
+			throw new ServiceError(400, 'Validation error', parsed.error.issues);
 		const data = parsed.data;
 
 		await this.assertClientActive(data.client_id, staff.office_id);

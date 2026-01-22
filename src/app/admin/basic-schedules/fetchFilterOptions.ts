@@ -1,5 +1,8 @@
 import { createSupabaseClient } from '@/utils/supabase/server';
-import type { ClientOption, ServiceTypeOption } from './_components/BasicScheduleFilterBar/types';
+import type {
+	ClientOption,
+	ServiceTypeOption,
+} from './_components/BasicScheduleFilterBar/types';
 
 export const fetchFilterOptions = async (): Promise<{
 	clients: ClientOption[];

@@ -7,7 +7,12 @@ import { StaffInputSchema } from '@/models/staffActionSchemas';
 import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { z } from 'zod';
-import { ActionResult, errorResult, logServerError, successResult } from './utils/actionResult';
+import {
+	ActionResult,
+	errorResult,
+	logServerError,
+	successResult,
+} from './utils/actionResult';
 
 const ServiceTypeOptionSchema = z.object({
 	id: ServiceTypeIdSchema,
@@ -36,7 +41,9 @@ const handleServiceError = <T>(error: unknown): ActionResult<T> => {
 	throw error;
 };
 
-export const listStaffsAction = async (): Promise<ActionResult<StaffRecord[]>> => {
+export const listStaffsAction = async (): Promise<
+	ActionResult<StaffRecord[]>
+> => {
 	const { supabase, user, error } = await getAuthUser();
 	if (error || !user) return errorResult('Unauthorized', 401);
 
@@ -49,7 +56,9 @@ export const listStaffsAction = async (): Promise<ActionResult<StaffRecord[]>> =
 	}
 };
 
-export const getStaffAction = async (id: string): Promise<ActionResult<StaffRecord>> => {
+export const getStaffAction = async (
+	id: string,
+): Promise<ActionResult<StaffRecord>> => {
 	const { supabase, user, error } = await getAuthUser();
 	if (error || !user) return errorResult('Unauthorized', 401);
 
@@ -67,7 +76,9 @@ export const getStaffAction = async (id: string): Promise<ActionResult<StaffReco
 	}
 };
 
-export const createStaffAction = async (input: StaffInput): Promise<ActionResult<StaffRecord>> => {
+export const createStaffAction = async (
+	input: StaffInput,
+): Promise<ActionResult<StaffRecord>> => {
 	const { supabase, user, error } = await getAuthUser();
 	if (error || !user) return errorResult('Unauthorized', 401);
 
@@ -104,14 +115,20 @@ export const updateStaffAction = async (
 
 	const service = new StaffService(supabase);
 	try {
-		const staff = await service.update(user.id, parsedId.data, parsedInput.data);
+		const staff = await service.update(
+			user.id,
+			parsedId.data,
+			parsedInput.data,
+		);
 		return successResult(staff);
 	} catch (err) {
 		return handleServiceError<StaffRecord>(err);
 	}
 };
 
-export const deleteStaffAction = async (id: string): Promise<ActionResult<null>> => {
+export const deleteStaffAction = async (
+	id: string,
+): Promise<ActionResult<null>> => {
 	const { supabase, user, error } = await getAuthUser();
 	if (error || !user) return errorResult('Unauthorized', 401);
 
@@ -129,7 +146,9 @@ export const deleteStaffAction = async (id: string): Promise<ActionResult<null>>
 	}
 };
 
-export const listServiceTypesAction = async (): Promise<ActionResult<ServiceTypeOption[]>> => {
+export const listServiceTypesAction = async (): Promise<
+	ActionResult<ServiceTypeOption[]>
+> => {
 	const { supabase, user, error } = await getAuthUser();
 	if (error || !user) return errorResult('Unauthorized', 401);
 
@@ -139,7 +158,8 @@ export const listServiceTypesAction = async (): Promise<ActionResult<ServiceType
 		.eq('auth_user_id', user.id)
 		.maybeSingle<{ office_id: string; role: string }>();
 
-	if (staffError) return errorResult('Failed to resolve staff context', 500, staffError);
+	if (staffError)
+		return errorResult('Failed to resolve staff context', 500, staffError);
 	if (!staff) return errorResult('Staff not found', 404);
 	if (staff.role !== 'admin') return errorResult('Forbidden', 403);
 
@@ -149,11 +169,16 @@ export const listServiceTypesAction = async (): Promise<ActionResult<ServiceType
 		// .eq('office_id', staff.office_id)
 		.order('name', { ascending: true });
 
-	if (serviceTypeError) return errorResult('Failed to fetch service types', 500, serviceTypeError);
+	if (serviceTypeError)
+		return errorResult('Failed to fetch service types', 500, serviceTypeError);
 
 	const parsed = ServiceTypeOptionSchema.array().safeParse(data ?? []);
 	if (!parsed.success) {
-		return errorResult('Invalid service type data', 500, z.treeifyError(parsed.error));
+		return errorResult(
+			'Invalid service type data',
+			500,
+			z.treeifyError(parsed.error),
+		);
 	}
 
 	return successResult(parsed.data);

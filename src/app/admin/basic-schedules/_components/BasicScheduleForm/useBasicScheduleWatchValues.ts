@@ -10,13 +10,20 @@ type WatchedFormValues = {
 
 export const useBasicScheduleWatchValues = (
 	control: Control<BasicScheduleFormValues>,
-	defaults: Pick<BasicScheduleFormValues, 'clientId' | 'serviceTypeId' | 'staffId' | 'note'>,
+	defaults: Pick<
+		BasicScheduleFormValues,
+		'clientId' | 'serviceTypeId' | 'staffId' | 'note'
+	>,
 ): WatchedFormValues => {
-	const values = useWatch({ control }) as Partial<BasicScheduleFormValues> | undefined;
+	const values = useWatch({ control }) as
+		| Partial<BasicScheduleFormValues>
+		| undefined;
 	return {
 		clientId: values?.clientId ?? defaults.clientId,
 		serviceTypeId: values?.serviceTypeId ?? defaults.serviceTypeId,
-		selectedStaffId: (values?.staffId ?? defaults.staffId) as WatchedFormValues['selectedStaffId'],
-		noteValue: (values?.note ?? defaults.note) as WatchedFormValues['noteValue'],
+		selectedStaffId: (values?.staffId ??
+			defaults.staffId) as WatchedFormValues['selectedStaffId'],
+		noteValue: (values?.note ??
+			defaults.note) as WatchedFormValues['noteValue'],
 	};
 };

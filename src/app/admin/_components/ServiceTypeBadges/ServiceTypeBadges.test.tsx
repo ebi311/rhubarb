@@ -22,7 +22,9 @@ describe('ServiceTypeBadge', () => {
 
 describe('ServiceTypeBadges', () => {
 	it('renders badges for each provided service type id', () => {
-		render(<ServiceTypeBadges serviceTypeIds={['physical-care', 'life-support']} />);
+		render(
+			<ServiceTypeBadges serviceTypeIds={['physical-care', 'life-support']} />,
+		);
 
 		expect(screen.getByText('身体介護')).toBeInTheDocument();
 		expect(screen.getByText('生活支援')).toBeInTheDocument();
@@ -37,7 +39,9 @@ describe('ServiceTypeBadges', () => {
 
 	it('renders all three service types', () => {
 		render(
-			<ServiceTypeBadges serviceTypeIds={['physical-care', 'life-support', 'commute-support']} />,
+			<ServiceTypeBadges
+				serviceTypeIds={['physical-care', 'life-support', 'commute-support']}
+			/>,
 		);
 
 		expect(screen.getByText('身体介護')).toBeInTheDocument();

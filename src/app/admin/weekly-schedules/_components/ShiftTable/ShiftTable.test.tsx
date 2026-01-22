@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import { ShiftTable, type ShiftDisplayRow } from './ShiftTable';
 
-const createShift = (overrides: Partial<ShiftDisplayRow> = {}): ShiftDisplayRow => ({
+const createShift = (
+	overrides: Partial<ShiftDisplayRow> = {},
+): ShiftDisplayRow => ({
 	id: 'shift-1',
 	date: new Date('2026-01-19'),
 	startTime: { hour: 9, minute: 0 },
@@ -20,12 +22,24 @@ describe('ShiftTable', () => {
 		const shifts = [createShift()];
 		render(<ShiftTable shifts={shifts} />);
 
-		expect(screen.getByRole('columnheader', { name: /日付/ })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: /時間/ })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: /利用者/ })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: /サービス区分/ })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: /担当者/ })).toBeInTheDocument();
-		expect(screen.getByRole('columnheader', { name: /ステータス/ })).toBeInTheDocument();
+		expect(
+			screen.getByRole('columnheader', { name: /日付/ }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('columnheader', { name: /時間/ }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('columnheader', { name: /利用者/ }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('columnheader', { name: /サービス区分/ }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('columnheader', { name: /担当者/ }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('columnheader', { name: /ステータス/ }),
+		).toBeInTheDocument();
 	});
 
 	it('シフトデータが表示される', () => {

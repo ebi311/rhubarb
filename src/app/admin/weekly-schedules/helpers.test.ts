@@ -93,7 +93,9 @@ describe('parseSearchParams', () => {
 			expect(result.error).toBeUndefined();
 			expect(result.weekStartDate).not.toBeNull();
 			// JST 2026-01-19 00:00:00 = UTC 2026-01-18 15:00:00
-			expect(result.weekStartDate?.toISOString()).toBe('2026-01-18T15:00:00.000Z');
+			expect(result.weekStartDate?.toISOString()).toBe(
+				'2026-01-18T15:00:00.000Z',
+			);
 		});
 
 		it('別の月曜日でも正常にパースする', () => {

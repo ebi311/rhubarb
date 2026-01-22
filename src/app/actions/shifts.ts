@@ -14,7 +14,12 @@ import {
 	ValidateStaffAvailabilityInputSchema,
 } from '@/models/shiftActionSchemas';
 import { createSupabaseClient } from '@/utils/supabase/server';
-import { ActionResult, errorResult, logServerError, successResult } from './utils/actionResult';
+import {
+	ActionResult,
+	errorResult,
+	logServerError,
+	successResult,
+} from './utils/actionResult';
 
 const getAuthUser = async () => {
 	const supabase = await createSupabaseClient();
@@ -67,7 +72,9 @@ export const changeShiftStaffAction = async (
 /**
  * シフトをキャンセルする
  */
-export const cancelShiftAction = async (input: CancelShiftInput): Promise<ActionResult<null>> => {
+export const cancelShiftAction = async (
+	input: CancelShiftInput,
+): Promise<ActionResult<null>> => {
 	const { supabase, user, error } = await getAuthUser();
 	if (error || !user) return errorResult('Unauthorized', 401);
 

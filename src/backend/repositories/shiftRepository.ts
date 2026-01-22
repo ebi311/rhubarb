@@ -1,6 +1,11 @@
 import { Database } from '@/backend/types/supabase';
 import { Shift, ShiftSchema } from '@/models/shift';
-import { getJstDateOnly, getJstHours, getJstMinutes, setJstTime } from '@/utils/date';
+import {
+	getJstDateOnly,
+	getJstHours,
+	getJstMinutes,
+	setJstTime,
+} from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 type ShiftRow = Database['public']['Tables']['shifts']['Row'];
@@ -32,7 +37,10 @@ export class ShiftRepository {
 			// date は start_time の JST 日付部分から導出
 			date: getJstDateOnly(startTime),
 			time: {
-				start: { hour: getJstHours(startTime), minute: getJstMinutes(startTime) },
+				start: {
+					hour: getJstHours(startTime),
+					minute: getJstMinutes(startTime),
+				},
 				end: { hour: getJstHours(endTime), minute: getJstMinutes(endTime) },
 			},
 		});
@@ -44,9 +52,17 @@ export class ShiftRepository {
 	 */
 	private toDB(entity: Shift): ShiftInsert {
 		// date と time.start/end を組み合わせて timestamptz を作成（JST ベース）
-		const startTime = setJstTime(entity.date, entity.time.start.hour, entity.time.start.minute);
+		const startTime = setJstTime(
+			entity.date,
+			entity.time.start.hour,
+			entity.time.start.minute,
+		);
 
-		const endTime = setJstTime(entity.date, entity.time.end.hour, entity.time.end.minute);
+		const endTime = setJstTime(
+			entity.date,
+			entity.time.end.hour,
+			entity.time.end.minute,
+		);
 
 		return {
 			id: entity.id,
@@ -73,8 +89,11 @@ export class ShiftRepository {
 		type Query = typeof baseQuery;
 
 		// 条件付きフィルタ適用ヘルパー（分岐をここに閉じ込める）
-		const applyIf = <T>(query: Query, value: T | undefined, apply: (q: Query, v: T) => Query) =>
-			value !== undefined ? apply(query, value) : query;
+		const applyIf = <T>(
+			query: Query,
+			value: T | undefined,
+			apply: (q: Query, v: T) => Query,
+		) => (value !== undefined ? apply(query, value) : query);
 
 		let query = baseQuery;
 		query = applyIf(query, filters.startDate, (q, d) =>
@@ -118,7 +137,10 @@ export class ShiftRepository {
 
 	async update(shift: Shift): Promise<void> {
 		const dbData = this.toDB(shift);
-		const { error } = await this.supabase.from('shifts').update(dbData).eq('id', shift.id);
+		const { error } = await this.supabase
+			.from('shifts')
+			.update(dbData)
+			.eq('id', shift.id);
 		if (error) throw error;
 	}
 
@@ -137,9 +159,17 @@ export class ShiftRepository {
 		startTime: { hour: number; minute: number };
 		endTime: { hour: number; minute: number };
 	}): Promise<boolean> {
-		const startDateTime = setJstTime(params.date, params.startTime.hour, params.startTime.minute);
+		const startDateTime = setJstTime(
+			params.date,
+			params.startTime.hour,
+			params.startTime.minute,
+		);
 
-		const endDateTime = setJstTime(params.date, params.endTime.hour, params.endTime.minute);
+		const endDateTime = setJstTime(
+			params.date,
+			params.endTime.hour,
+			params.endTime.minute,
+		);
 
 		const { count, error } = await this.supabase
 			.from('shifts')
@@ -195,7 +225,11 @@ export class ShiftRepository {
 	/**
 	 * 担当者を変更する
 	 */
-	async updateStaffAssignment(shiftId: string, staffId: string, notes?: string): Promise<void> {
+	async updateStaffAssignment(
+		shiftId: string,
+		staffId: string,
+		notes?: string,
+	): Promise<void> {
 		const { error } = await this.supabase
 			.from('shifts')
 			.update({
@@ -249,7 +283,9 @@ export class ShiftRepository {
 			.select('*')
 			.eq('staff_id', staffId)
 			.neq('status', 'canceled')
-			.or(`and(start_time.lt.${endTime.toISOString()},end_time.gt.${startTime.toISOString()})`);
+			.or(
+				`and(start_time.lt.${endTime.toISOString()},end_time.gt.${startTime.toISOString()})`,
+			);
 
 		if (excludeShiftId) {
 			query = query.neq('id', excludeShiftId);

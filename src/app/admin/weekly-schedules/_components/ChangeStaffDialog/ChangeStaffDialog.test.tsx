@@ -1,4 +1,7 @@
-import { changeShiftStaffAction, validateStaffAvailabilityAction } from '@/app/actions/shifts';
+import {
+	changeShiftStaffAction,
+	validateStaffAvailabilityAction,
+} from '@/app/actions/shifts';
 import { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -8,8 +11,18 @@ import { ChangeStaffDialog } from './ChangeStaffDialog';
 vi.mock('@/app/actions/shifts');
 
 const mockStaffOptions: StaffPickerOption[] = [
-	{ id: 'staff-1', name: '山田太郎', role: 'helper' as const, serviceTypeIds: ['life-support'] },
-	{ id: 'staff-2', name: '鈴木花子', role: 'helper' as const, serviceTypeIds: ['physical-care'] },
+	{
+		id: 'staff-1',
+		name: '山田太郎',
+		role: 'helper' as const,
+		serviceTypeIds: ['life-support'],
+	},
+	{
+		id: 'staff-2',
+		name: '鈴木花子',
+		role: 'helper' as const,
+		serviceTypeIds: ['physical-care'],
+	},
 ];
 
 const mockShift = {

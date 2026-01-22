@@ -26,9 +26,21 @@ const buildBasicSchedulesQuery = async (
 
 	// フィルタ適用
 	const filterMap = [
-		{ condition: filters.weekday, column: 'day_of_week', value: filters.weekday },
-		{ condition: filters.clientId, column: 'client_id', value: filters.clientId },
-		{ condition: filters.serviceTypeId, column: 'service_type_id', value: filters.serviceTypeId },
+		{
+			condition: filters.weekday,
+			column: 'day_of_week',
+			value: filters.weekday,
+		},
+		{
+			condition: filters.clientId,
+			column: 'client_id',
+			value: filters.clientId,
+		},
+		{
+			condition: filters.serviceTypeId,
+			column: 'service_type_id',
+			value: filters.serviceTypeId,
+		},
 	];
 
 	for (const filter of filterMap) {

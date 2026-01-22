@@ -47,12 +47,22 @@ describe('StaffTable', () => {
 		const handleEdit = vi.fn();
 		const handleDelete = vi.fn();
 
-		render(<StaffTable staffs={mockStaffs} onEdit={handleEdit} onDelete={handleDelete} />);
+		render(
+			<StaffTable
+				staffs={mockStaffs}
+				onEdit={handleEdit}
+				onDelete={handleDelete}
+			/>,
+		);
 
 		await user.click(screen.getAllByRole('button', { name: '編集' })[0]);
 		await user.click(screen.getAllByRole('button', { name: '削除' })[1]);
 
-		expect(handleEdit).toHaveBeenCalledWith('019b1d20-0000-4000-8000-000000000111');
-		expect(handleDelete).toHaveBeenCalledWith('019b1d20-0000-4000-8000-000000000222');
+		expect(handleEdit).toHaveBeenCalledWith(
+			'019b1d20-0000-4000-8000-000000000111',
+		);
+		expect(handleDelete).toHaveBeenCalledWith(
+			'019b1d20-0000-4000-8000-000000000222',
+		);
 	});
 });

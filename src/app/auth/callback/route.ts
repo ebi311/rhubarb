@@ -20,7 +20,10 @@ export async function GET(request: Request) {
 
 			if (user && user.email) {
 				const authService = new AuthService(supabase);
-				const isSuccess = await authService.handlePostLogin(user.email, user.id);
+				const isSuccess = await authService.handlePostLogin(
+					user.email,
+					user.id,
+				);
 
 				if (isSuccess) {
 					return NextResponse.redirect(`${origin}${next}`);

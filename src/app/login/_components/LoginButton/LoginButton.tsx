@@ -23,7 +23,11 @@ export default function LoginButton() {
 	};
 
 	return (
-		<button onClick={handleLogin} disabled={isLoading} className="btn w-full btn-primary">
+		<button
+			onClick={handleLogin}
+			disabled={isLoading}
+			className="btn w-full btn-primary"
+		>
 			{isLoading ? <span className="loading loading-spinner"></span> : null}
 			Googleでログイン
 		</button>

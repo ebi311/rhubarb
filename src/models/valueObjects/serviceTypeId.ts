@@ -4,7 +4,11 @@ import { z } from 'zod';
  * サービス種別IDの値オブジェクト
  * 固定の3種類のサービス種別を定義
  */
-export const ServiceTypeIdValues = ['life-support', 'physical-care', 'commute-support'] as const;
+export const ServiceTypeIdValues = [
+	'life-support',
+	'physical-care',
+	'commute-support',
+] as const;
 
 export const ServiceTypeIdSchema = z.enum(ServiceTypeIdValues, {
 	message:

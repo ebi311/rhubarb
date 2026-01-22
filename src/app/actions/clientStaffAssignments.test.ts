@@ -42,12 +42,18 @@ beforeEach(() => {
 });
 
 const mockAuthUser = (userId: string) => {
-	mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
+	mockSupabase.auth.getUser.mockResolvedValue({
+		data: { user: { id: userId } },
+		error: null,
+	});
 };
 
 describe('listClientStaffAssignmentsAction', () => {
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await listClientStaffAssignmentsAction();
 
@@ -74,7 +80,10 @@ describe('listClientStaffAssignmentsAction', () => {
 			data: { office_id: 'office-1', role: 'admin' },
 			error: null,
 		});
-		assignmentQuery.eq.mockResolvedValue({ data: null, error: { message: 'db-error' } });
+		assignmentQuery.eq.mockResolvedValue({
+			data: null,
+			error: { message: 'db-error' },
+		});
 
 		const result = await listClientStaffAssignmentsAction();
 
@@ -109,7 +118,10 @@ describe('listClientStaffAssignmentsAction', () => {
 		expect(assignmentQuery.select).toHaveBeenCalledWith(
 			'client_id, service_type_id, staff_id, clients!inner(office_id)',
 		);
-		expect(assignmentQuery.eq).toHaveBeenCalledWith('clients.office_id', 'office-1');
+		expect(assignmentQuery.eq).toHaveBeenCalledWith(
+			'clients.office_id',
+			'office-1',
+		);
 		expect(result).toEqual({
 			data: [
 				{
@@ -135,7 +147,13 @@ describe('listClientStaffAssignmentsAction', () => {
 			error: null,
 		});
 		assignmentQuery.eq.mockResolvedValue({
-			data: [{ client_id: 'client-1', service_type_id: 'physical-care', staff_id: null }],
+			data: [
+				{
+					client_id: 'client-1',
+					service_type_id: 'physical-care',
+					staff_id: null,
+				},
+			],
 			error: null,
 		});
 

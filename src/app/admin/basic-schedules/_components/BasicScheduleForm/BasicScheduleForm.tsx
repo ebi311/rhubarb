@@ -19,9 +19,17 @@ import {
 	type Dispatch,
 	type SetStateAction,
 } from 'react';
-import { FormProvider, useForm, type SubmitHandler, type UseFormReset } from 'react-hook-form';
+import {
+	FormProvider,
+	useForm,
+	type SubmitHandler,
+	type UseFormReset,
+} from 'react-hook-form';
 import { z } from 'zod';
-import { StaffPickerDialog, type StaffPickerOption } from '../StaffPickerDialog';
+import {
+	StaffPickerDialog,
+	type StaffPickerOption,
+} from '../StaffPickerDialog';
 import {
 	ClientSelectField,
 	NoteField,
@@ -61,8 +69,14 @@ const BasicScheduleFormSchema = z
 			.string()
 			.min(1, { message: '終了時刻を入力してください' })
 			.regex(TIME_PATTERN, '終了時刻はHH:MM形式で入力してください'),
-		note: z.string().max(500, { message: '備考は500文字以内で入力してください' }).optional(),
-		staffId: z.uuid('担当者IDはUUID形式で指定してください').nullable().optional(),
+		note: z
+			.string()
+			.max(500, { message: '備考は500文字以内で入力してください' })
+			.optional(),
+		staffId: z
+			.uuid('担当者IDはUUID形式で指定してください')
+			.nullable()
+			.optional(),
 	})
 	.superRefine((values, ctx) => {
 		// serviceTypeId が空の場合はエラーを追加
@@ -91,7 +105,13 @@ export type BasicScheduleFormValues = z.infer<typeof BasicScheduleFormSchema>;
 export type BasicScheduleFormInitialValues = Partial<
 	Pick<
 		BasicScheduleFormValues,
-		'clientId' | 'serviceTypeId' | 'weekday' | 'startTime' | 'endTime' | 'note' | 'staffId'
+		| 'clientId'
+		| 'serviceTypeId'
+		| 'weekday'
+		| 'startTime'
+		| 'endTime'
+		| 'note'
+		| 'staffId'
 	>
 >;
 
@@ -136,7 +156,9 @@ const WATCH_VALUE_DEFAULTS: Pick<
 
 type SubmitHandlerDeps = {
 	setApiError: (message: string | null) => void;
-	handleActionResult: ReturnType<typeof useActionResultHandler>['handleActionResult'];
+	handleActionResult: ReturnType<
+		typeof useActionResultHandler
+	>['handleActionResult'];
 	reset: UseFormReset<BasicScheduleFormValues>;
 	initialValues?: BasicScheduleFormInitialValues;
 	onCreated?: (schedule: BasicScheduleRecord) => void;
@@ -226,10 +248,8 @@ export const BasicScheduleForm = ({
 		}
 	}, [initialValues, reset]);
 
-	const { serviceTypeId, selectedStaffId, noteValue } = useBasicScheduleWatchValues(
-		control,
-		WATCH_VALUE_DEFAULTS,
-	);
+	const { serviceTypeId, selectedStaffId, noteValue } =
+		useBasicScheduleWatchValues(control, WATCH_VALUE_DEFAULTS);
 
 	const staffMap = useMemo(() => createStaffMap(staffs), [staffs]);
 
@@ -273,11 +293,20 @@ export const BasicScheduleForm = ({
 	}, [setValue]);
 
 	const hasSelectedStaff = Boolean(selectedStaff);
-	const staffPickerDisabled = shouldDisableStaffPickerButton(canOpenStaffPicker, isSubmitting);
-	const staffClearDisabled = shouldDisableClearButton(hasSelectedStaff, isSubmitting);
+	const staffPickerDisabled = shouldDisableStaffPickerButton(
+		canOpenStaffPicker,
+		isSubmitting,
+	);
+	const staffClearDisabled = shouldDisableClearButton(
+		hasSelectedStaff,
+		isSubmitting,
+	);
 	const submitButtonClass = getSubmitButtonClass(isSubmitting);
 	const isSubmitDisabled = shouldDisableSubmitButton(isValid, isSubmitting);
-	const staffPickerClearHandler = resolveStaffPickerClearHandler(selectedStaff, handleStaffClear);
+	const staffPickerClearHandler = resolveStaffPickerClearHandler(
+		selectedStaff,
+		handleStaffClear,
+	);
 
 	const onSubmit = handleSubmit(
 		createOnSubmit({
@@ -315,7 +344,9 @@ export const BasicScheduleForm = ({
 								<div className="flex flex-col items-start justify-center gap-3">
 									<div>
 										<p className="fieldset-legend">デフォルト担当者</p>
-										<p className="text-sm text-base-content/70">{staffStatusMessage}</p>
+										<p className="text-sm text-base-content/70">
+											{staffStatusMessage}
+										</p>
 									</div>
 									<StaffSelectionSummary staff={selectedStaff} />
 									<div className="flex flex-wrap gap-2">
@@ -345,7 +376,11 @@ export const BasicScheduleForm = ({
 						<ApiErrorMessage message={apiError} />
 					</div>
 					<div className="flex justify-end">
-						<button type="submit" className={submitButtonClass} disabled={isSubmitDisabled}>
+						<button
+							type="submit"
+							className={submitButtonClass}
+							disabled={isSubmitDisabled}
+						>
 							スケジュールを登録
 						</button>
 					</div>

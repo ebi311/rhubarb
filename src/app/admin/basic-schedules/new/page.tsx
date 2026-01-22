@@ -19,15 +19,19 @@ const safeData = <T,>(label: string, result: ActionResult<T[]>): T[] => {
 };
 
 const fetchPageData = async () => {
-	const [serviceUsersResult, serviceTypesResult, staffsResult] = await Promise.all([
-		getServiceUsersAction('active'),
-		listServiceTypesAction(),
-		listStaffsAction(),
-	]);
+	const [serviceUsersResult, serviceTypesResult, staffsResult] =
+		await Promise.all([
+			getServiceUsersAction('active'),
+			listServiceTypesAction(),
+			listStaffsAction(),
+		]);
 
 	return {
 		serviceUsers: safeData<ServiceUser>('service users', serviceUsersResult),
-		serviceTypes: safeData<ServiceTypeOption>('service types', serviceTypesResult),
+		serviceTypes: safeData<ServiceTypeOption>(
+			'service types',
+			serviceTypesResult,
+		),
 		staffs: safeData<StaffRecord>('staffs', staffsResult),
 	};
 };
@@ -46,7 +50,11 @@ const BasicSchedulesPage = async () => {
 					契約中の利用者について、曜日と時間帯、サービス区分、デフォルト担当者を設定します。
 				</p>
 			</section>
-			<BasicScheduleForm serviceUsers={serviceUsers} serviceTypes={serviceTypes} staffs={staffs} />
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+			/>
 		</div>
 	);
 };

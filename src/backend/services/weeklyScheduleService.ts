@@ -52,8 +52,10 @@ export class WeeklyScheduleService {
 	) {
 		this.basicScheduleRepository =
 			options?.basicScheduleRepository ?? new BasicScheduleRepository(supabase);
-		this.shiftRepository = options?.shiftRepository ?? new ShiftRepository(supabase);
-		this.staffRepository = options?.staffRepository ?? new StaffRepository(supabase);
+		this.shiftRepository =
+			options?.shiftRepository ?? new ShiftRepository(supabase);
+		this.staffRepository =
+			options?.staffRepository ?? new StaffRepository(supabase);
 	}
 
 	private async getAdminStaff(userId: string) {
@@ -89,7 +91,8 @@ export class WeeklyScheduleService {
 		shiftDate: Date,
 	): Shift {
 		const now = new Date();
-		const staffId = basicSchedule.staff_ids.length > 0 ? basicSchedule.staff_ids[0] : null;
+		const staffId =
+			basicSchedule.staff_ids.length > 0 ? basicSchedule.staff_ids[0] : null;
 		const isUnassigned = staffId === null;
 
 		return {
@@ -114,7 +117,10 @@ export class WeeklyScheduleService {
 	 * @param userId 実行ユーザーのAuth ID
 	 * @param weekStartDate 週の開始日（月曜日）
 	 */
-	async generateWeeklyShifts(userId: string, weekStartDate: Date): Promise<GenerateResult> {
+	async generateWeeklyShifts(
+		userId: string,
+		weekStartDate: Date,
+	): Promise<GenerateResult> {
 		const staff = await this.getAdminStaff(userId);
 		const officeId = staff.office_id;
 		this.assertIsMonday(weekStartDate);
@@ -143,7 +149,10 @@ export class WeeklyScheduleService {
 		let skipped = 0;
 
 		for (const basicSchedule of basicSchedules) {
-			const shiftDate = this.calculateDate(weekStartDate, basicSchedule.day_of_week);
+			const shiftDate = this.calculateDate(
+				weekStartDate,
+				basicSchedule.day_of_week,
+			);
 
 			// JST ベースで timestamptz 形式のキーを生成
 			const startDateTime = setJstTime(

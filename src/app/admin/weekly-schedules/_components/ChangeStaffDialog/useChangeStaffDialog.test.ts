@@ -132,7 +132,9 @@ describe('useChangeStaffDialog', () => {
 		const onSuccess = vi.fn();
 		const onClose = vi.fn();
 
-		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true, onSuccess, onClose));
+		const { result } = renderHook(() =>
+			useChangeStaffDialog(mockShift, true, onSuccess, onClose),
+		);
 
 		// スタッフを選択
 		act(() => {
@@ -158,7 +160,9 @@ describe('useChangeStaffDialog', () => {
 	it('スタッフが選択されていない場合はhandleSubmitが何もしない', async () => {
 		const onSuccess = vi.fn();
 
-		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true, onSuccess, vi.fn()));
+		const { result } = renderHook(() =>
+			useChangeStaffDialog(mockShift, true, onSuccess, vi.fn()),
+		);
 
 		await act(async () => {
 			await result.current.handleSubmit();
@@ -169,7 +173,9 @@ describe('useChangeStaffDialog', () => {
 	});
 
 	it('理由が空の場合はundefinedで送信される', async () => {
-		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true, vi.fn(), vi.fn()));
+		const { result } = renderHook(() =>
+			useChangeStaffDialog(mockShift, true, vi.fn(), vi.fn()),
+		);
 
 		act(() => {
 			result.current.setSelectedStaffId('staff-2');

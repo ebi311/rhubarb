@@ -13,13 +13,17 @@ describe('EmptyState', () => {
 	it('空状態メッセージが表示される', () => {
 		render(<EmptyState {...defaultProps} />);
 
-		expect(screen.getByText(/この週のシフトはまだありません/)).toBeInTheDocument();
+		expect(
+			screen.getByText(/この週のシフトはまだありません/),
+		).toBeInTheDocument();
 	});
 
 	it('生成ボタンが表示される', () => {
 		render(<EmptyState {...defaultProps} />);
 
-		expect(screen.getByRole('button', { name: /基本スケジュールから生成/ })).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: /基本スケジュールから生成/ }),
+		).toBeInTheDocument();
 	});
 
 	it('ボタンクリック時に onGenerate が呼ばれる', async () => {
@@ -28,7 +32,9 @@ describe('EmptyState', () => {
 
 		render(<EmptyState {...defaultProps} onGenerate={onGenerate} />);
 
-		await user.click(screen.getByRole('button', { name: /基本スケジュールから生成/ }));
+		await user.click(
+			screen.getByRole('button', { name: /基本スケジュールから生成/ }),
+		);
 
 		expect(onGenerate).toHaveBeenCalledTimes(1);
 	});

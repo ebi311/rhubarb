@@ -67,7 +67,9 @@ export const ShiftTable = ({ shifts, loading = false }: ShiftTableProps) => {
 	}
 
 	if (shifts.length === 0) {
-		return <div className="py-8 text-center text-gray-500">シフトがありません</div>;
+		return (
+			<div className="py-8 text-center text-gray-500">シフトがありません</div>
+		);
 	}
 
 	return (
@@ -111,7 +113,9 @@ export const ShiftTable = ({ shifts, loading = false }: ShiftTableProps) => {
 						<div className="text-lg grid-area-[time] lg:text-base">
 							{formatTime(shift.startTime)} - {formatTime(shift.endTime)}
 						</div>
-						<div className="text-lg grid-area-[client] lg:text-base">{shift.clientName}</div>
+						<div className="text-lg grid-area-[client] lg:text-base">
+							{shift.clientName}
+						</div>
 						<div className="grid-area-[service]">
 							<ServiceTypeBadge serviceTypeId={shift.serviceTypeId} size="sm" />
 						</div>

@@ -23,7 +23,9 @@ vi.mock('./_components/StaffListPage');
 beforeEach(() => {
 	vi.clearAllMocks();
 	vi.mocked(listStaffsAction).mockImplementation(mockListStaffsAction);
-	vi.mocked(listServiceTypesAction).mockImplementation(mockListServiceTypesAction);
+	vi.mocked(listServiceTypesAction).mockImplementation(
+		mockListServiceTypesAction,
+	);
 	vi.mocked(StaffListPage).mockImplementation(mockStaffListPage);
 });
 
@@ -64,9 +66,19 @@ describe('AdminStaffsPage', () => {
 	});
 
 	it('エラー時は空配列で描画しログを出力する', async () => {
-		const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-		mockListStaffsAction.mockResolvedValue({ data: null, error: 'Unauthorized', status: 401 });
-		mockListServiceTypesAction.mockResolvedValue({ data: null, error: 'Forbidden', status: 403 });
+		const consoleErrorSpy = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => {});
+		mockListStaffsAction.mockResolvedValue({
+			data: null,
+			error: 'Unauthorized',
+			status: 401,
+		});
+		mockListServiceTypesAction.mockResolvedValue({
+			data: null,
+			error: 'Forbidden',
+			status: 403,
+		});
 
 		const searchParams = vi.fn().mockResolvedValue({}) as any;
 		render(await StaffsPage({ searchParams }));

@@ -5,7 +5,10 @@ export interface ClientFilterTabsProps {
 	onFilterChange: (filter: FilterStatus) => void;
 }
 
-export const ClientFilterTabs = ({ activeFilter, onFilterChange }: ClientFilterTabsProps) => {
+export const ClientFilterTabs = ({
+	activeFilter,
+	onFilterChange,
+}: ClientFilterTabsProps) => {
 	return (
 		<div role="tablist" className="tabs-box tabs">
 			<button

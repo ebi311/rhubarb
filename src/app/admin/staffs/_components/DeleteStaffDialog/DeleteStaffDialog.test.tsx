@@ -10,7 +10,9 @@ vi.mock('@/app/actions/staffs', () => ({
 
 const handleActionResultMock = vi.fn();
 vi.mock('@/hooks/useActionResultHandler', () => ({
-	useActionResultHandler: () => ({ handleActionResult: handleActionResultMock }),
+	useActionResultHandler: () => ({
+		handleActionResult: handleActionResultMock,
+	}),
 }));
 
 const mockStaff = {
@@ -19,7 +21,11 @@ const mockStaff = {
 };
 
 const successResult = { data: null, error: null, status: 204 };
-const errorResult = (message: string) => ({ data: null, error: message, status: 400 });
+const errorResult = (message: string) => ({
+	data: null,
+	error: message,
+	status: 400,
+});
 
 describe('DeleteStaffDialog', () => {
 	beforeEach(() => {
@@ -60,10 +66,14 @@ describe('DeleteStaffDialog', () => {
 		await user.click(screen.getByRole('button', { name: '削除' }));
 
 		await waitFor(() => {
-			expect(deleteStaffAction).toHaveBeenCalledWith('019b1d20-0000-4000-8000-000000000aaa');
+			expect(deleteStaffAction).toHaveBeenCalledWith(
+				'019b1d20-0000-4000-8000-000000000aaa',
+			);
 		});
 
-		expect(handleDeleted).toHaveBeenCalledWith('019b1d20-0000-4000-8000-000000000aaa');
+		expect(handleDeleted).toHaveBeenCalledWith(
+			'019b1d20-0000-4000-8000-000000000aaa',
+		);
 		expect(handleClose).toHaveBeenCalled();
 		expect(handleActionResultMock).toHaveBeenCalled();
 	});
@@ -71,10 +81,14 @@ describe('DeleteStaffDialog', () => {
 	it('API エラー時はエラーメッセージを表示する', async () => {
 		const user = userEvent.setup();
 		const handleClose = vi.fn();
-		vi.mocked(deleteStaffAction).mockResolvedValue(errorResult('削除に失敗しました'));
+		vi.mocked(deleteStaffAction).mockResolvedValue(
+			errorResult('削除に失敗しました'),
+		);
 		handleActionResultMock.mockReturnValue(false);
 
-		render(<DeleteStaffDialog isOpen staff={mockStaff} onClose={handleClose} />);
+		render(
+			<DeleteStaffDialog isOpen staff={mockStaff} onClose={handleClose} />,
+		);
 
 		await user.type(screen.getByLabelText('削除する担当者名'), '山田太郎');
 		await user.click(screen.getByRole('button', { name: '削除' }));

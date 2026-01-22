@@ -387,7 +387,10 @@ export interface ClientRepository {
 	 * @param status フィルター（'active' | 'suspended' | 'all'）
 	 * @returns 利用者の配列
 	 */
-	findAll(officeId: string, status?: 'active' | 'suspended' | 'all'): Promise<Client[]>;
+	findAll(
+		officeId: string,
+		status?: 'active' | 'suspended' | 'all',
+	): Promise<Client[]>;
 
 	/**
 	 * 利用者を1件取得

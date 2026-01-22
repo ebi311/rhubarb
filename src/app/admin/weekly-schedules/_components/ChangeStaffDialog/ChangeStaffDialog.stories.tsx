@@ -20,14 +20,24 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const mockStaffOptions: StaffPickerOption[] = [
-	{ id: 'staff-1', name: '山田太郎', role: 'helper' as const, serviceTypeIds: ['life-support'] },
+	{
+		id: 'staff-1',
+		name: '山田太郎',
+		role: 'helper' as const,
+		serviceTypeIds: ['life-support'],
+	},
 	{
 		id: 'staff-2',
 		name: '鈴木花子',
 		role: 'helper' as const,
 		serviceTypeIds: ['physical-care'],
 	},
-	{ id: 'staff-3', name: '佐藤次郎', role: 'admin' as const, serviceTypeIds: ['life-support'] },
+	{
+		id: 'staff-3',
+		name: '佐藤次郎',
+		role: 'admin' as const,
+		serviceTypeIds: ['life-support'],
+	},
 ];
 
 const mockShift = {

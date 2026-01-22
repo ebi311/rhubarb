@@ -11,7 +11,9 @@ const ClientStaffAssignmentLinkSchema = ClientStaffAssignmentSchema.pick({
 	staff_id: true,
 });
 
-export type ClientStaffAssignmentLink = z.infer<typeof ClientStaffAssignmentLinkSchema>;
+export type ClientStaffAssignmentLink = z.infer<
+	typeof ClientStaffAssignmentLinkSchema
+>;
 
 type StaffContext = {
 	office_id: string;
@@ -56,7 +58,11 @@ export const listClientStaffAssignmentsAction = async (): Promise<
 		.eq('clients.office_id', staffContext.office_id);
 
 	if (assignmentError) {
-		return errorResult('Failed to fetch client staff assignments', 500, assignmentError);
+		return errorResult(
+			'Failed to fetch client staff assignments',
+			500,
+			assignmentError,
+		);
 	}
 
 	const parsed = ClientStaffAssignmentLinkSchema.array().safeParse(
@@ -68,7 +74,11 @@ export const listClientStaffAssignmentsAction = async (): Promise<
 	);
 
 	if (!parsed.success) {
-		return errorResult('Invalid client staff assignment data', 500, z.treeifyError(parsed.error));
+		return errorResult(
+			'Invalid client staff assignment data',
+			500,
+			z.treeifyError(parsed.error),
+		);
 	}
 
 	return successResult(parsed.data);

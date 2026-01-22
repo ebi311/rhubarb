@@ -15,7 +15,9 @@ vi.mock('@/utils/supabase/client', () => ({
 describe('LoginButton', () => {
 	it('renders correctly', () => {
 		render(<LoginButton />);
-		expect(screen.getByRole('button', { name: /Googleでログイン/i })).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: /Googleでログイン/i }),
+		).toBeInTheDocument();
 	});
 
 	it('calls signInWithOAuth when clicked', async () => {

@@ -1,4 +1,7 @@
-import { changeShiftStaffAction, validateStaffAvailabilityAction } from '@/app/actions/shifts';
+import {
+	changeShiftStaffAction,
+	validateStaffAvailabilityAction,
+} from '@/app/actions/shifts';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import { useCallback, useEffect, useState } from 'react';
 import type { ConflictingShift } from '../StaffConflictWarning';
@@ -13,7 +16,9 @@ export const useChangeStaffDialog = (
 	const [showStaffPicker, setShowStaffPicker] = useState(false);
 	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 	const [reason, setReason] = useState('');
-	const [conflictingShifts, setConflictingShifts] = useState<ConflictingShift[]>([]);
+	const [conflictingShifts, setConflictingShifts] = useState<
+		ConflictingShift[]
+	>([]);
 	const [isChecking, setIsChecking] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { handleActionResult } = useActionResultHandler();
@@ -45,7 +50,11 @@ export const useChangeStaffDialog = (
 					excludeShiftId: shift.id,
 				});
 
-				if (result.data && !result.data.available && result.data.conflictingShifts) {
+				if (
+					result.data &&
+					!result.data.available &&
+					result.data.conflictingShifts
+				) {
 					setConflictingShifts(
 						result.data.conflictingShifts.map((s) => ({
 							...s,
@@ -92,7 +101,14 @@ export const useChangeStaffDialog = (
 		} finally {
 			setIsSubmitting(false);
 		}
-	}, [selectedStaffId, shift.id, reason, handleActionResult, onSuccess, onClose]);
+	}, [
+		selectedStaffId,
+		shift.id,
+		reason,
+		handleActionResult,
+		onSuccess,
+		onClose,
+	]);
 
 	return {
 		showStaffPicker,

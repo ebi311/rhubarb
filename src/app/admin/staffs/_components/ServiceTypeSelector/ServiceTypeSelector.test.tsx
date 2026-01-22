@@ -29,7 +29,13 @@ describe('ServiceTypeSelector', () => {
 	it('個別のサービス区分をトグルするとonChangeが呼ばれる', async () => {
 		const user = userEvent.setup();
 		const handleChange = vi.fn();
-		render(<ServiceTypeSelector options={serviceTypes} selectedIds={[]} onChange={handleChange} />);
+		render(
+			<ServiceTypeSelector
+				options={serviceTypes}
+				selectedIds={[]}
+				onChange={handleChange}
+			/>,
+		);
 
 		await user.click(screen.getByLabelText('生活支援'));
 
@@ -48,7 +54,11 @@ describe('ServiceTypeSelector', () => {
 		);
 
 		await user.click(screen.getByRole('button', { name: '全選択' }));
-		expect(handleChange).toHaveBeenCalledWith(['physical-care', 'life-support', 'commute-support']);
+		expect(handleChange).toHaveBeenCalledWith([
+			'physical-care',
+			'life-support',
+			'commute-support',
+		]);
 
 		rerender(
 			<ServiceTypeSelector
@@ -63,8 +73,16 @@ describe('ServiceTypeSelector', () => {
 
 	it('サービス区分がない場合はメッセージを表示する', () => {
 		const handleChange = vi.fn();
-		render(<ServiceTypeSelector options={[]} selectedIds={[]} onChange={handleChange} />);
+		render(
+			<ServiceTypeSelector
+				options={[]}
+				selectedIds={[]}
+				onChange={handleChange}
+			/>,
+		);
 
-		expect(screen.getByText('サービス区分が登録されていません')).toBeInTheDocument();
+		expect(
+			screen.getByText('サービス区分が登録されていません'),
+		).toBeInTheDocument();
 	});
 });

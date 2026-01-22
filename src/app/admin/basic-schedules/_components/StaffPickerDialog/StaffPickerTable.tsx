@@ -19,7 +19,11 @@ const handleRowKeyDown = (
 	}
 };
 
-export const StaffPickerTable = ({ staffs, selectedStaffId, onSelect }: StaffPickerTableProps) => (
+export const StaffPickerTable = ({
+	staffs,
+	selectedStaffId,
+	onSelect,
+}: StaffPickerTableProps) => (
 	<table className="table table-zebra">
 		<thead>
 			<tr>
@@ -36,7 +40,9 @@ export const StaffPickerTable = ({ staffs, selectedStaffId, onSelect }: StaffPic
 				return (
 					<tr
 						key={staff.id}
-						className={['cursor-pointer', isSelected ? 'bg-primary/10' : ''].join(' ').trim()}
+						className={['cursor-pointer', isSelected ? 'bg-primary/10' : '']
+							.join(' ')
+							.trim()}
 						onClick={() => onSelect(staff.id)}
 						onKeyDown={(event) => handleRowKeyDown(event, staff.id, onSelect)}
 						tabIndex={0}
@@ -60,9 +66,14 @@ export const StaffPickerTable = ({ staffs, selectedStaffId, onSelect }: StaffPic
 							</span>
 						</td>
 						<td>
-							<ServiceTypeBadges serviceTypeIds={staff.serviceTypeIds} size="md" />
+							<ServiceTypeBadges
+								serviceTypeIds={staff.serviceTypeIds}
+								size="md"
+							/>
 						</td>
-						<td className="text-sm text-base-content/70">{staff.note ?? '-'}</td>
+						<td className="text-sm text-base-content/70">
+							{staff.note ?? '-'}
+						</td>
 					</tr>
 				);
 			})}

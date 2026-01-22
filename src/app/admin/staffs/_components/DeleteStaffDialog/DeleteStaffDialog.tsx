@@ -18,7 +18,9 @@ const buildConfirmationSchema = (targetName: string) =>
 			}),
 	});
 
-type DeleteStaffFormValues = z.infer<ReturnType<typeof buildConfirmationSchema>>;
+type DeleteStaffFormValues = z.infer<
+	ReturnType<typeof buildConfirmationSchema>
+>;
 
 type DeleteStaffDialogProps = {
 	isOpen: boolean;
@@ -34,14 +36,18 @@ export const DeleteStaffDialog = ({
 	onDeleted,
 }: DeleteStaffDialogProps) => {
 	const [apiError, setApiError] = useState<string | null>(null);
-	const confirmationSchema = useMemo(() => buildConfirmationSchema(staff.name), [staff.name]);
+	const confirmationSchema = useMemo(
+		() => buildConfirmationSchema(staff.name),
+		[staff.name],
+	);
 	const { handleActionResult } = useActionResultHandler();
 
-	const { register, handleSubmit, reset, formState } = useForm<DeleteStaffFormValues>({
-		resolver: zodResolver(confirmationSchema),
-		mode: 'onChange',
-		defaultValues: { confirmationName: '' },
-	});
+	const { register, handleSubmit, reset, formState } =
+		useForm<DeleteStaffFormValues>({
+			resolver: zodResolver(confirmationSchema),
+			mode: 'onChange',
+			defaultValues: { confirmationName: '' },
+		});
 
 	const isSubmitting = formState.isSubmitting;
 	const fieldError = formState.errors.confirmationName?.message;
@@ -84,7 +90,8 @@ export const DeleteStaffDialog = ({
 				<div>
 					<h3 className="text-lg font-bold">担当者を削除</h3>
 					<p className="text-sm text-base-content/70">
-						この操作は取り消せません。続行するには担当者名「{staff.name}」を入力してください。
+						この操作は取り消せません。続行するには担当者名「{staff.name}
+						」を入力してください。
 					</p>
 				</div>
 				<form className="space-y-4" onSubmit={onSubmit}>

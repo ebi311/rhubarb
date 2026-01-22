@@ -9,9 +9,9 @@ import {
 
 vi.mock('@/utils/supabase/server');
 vi.mock('@/backend/services/shiftService', async () => {
-	const actual = await vi.importActual<typeof import('@/backend/services/shiftService')>(
-		'@/backend/services/shiftService',
-	);
+	const actual = await vi.importActual<
+		typeof import('@/backend/services/shiftService')
+	>('@/backend/services/shiftService');
 	return {
 		...actual,
 		ShiftService: vi.fn(),
@@ -44,7 +44,10 @@ beforeEach(() => {
 });
 
 const mockAuthUser = (userId: string) => {
-	mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
+	mockSupabase.auth.getUser.mockResolvedValue({
+		data: { user: { id: userId } },
+		error: null,
+	});
 };
 
 describe('changeShiftStaffAction', () => {
@@ -55,7 +58,10 @@ describe('changeShiftStaffAction', () => {
 	};
 
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await changeShiftStaffAction(validInput);
 
@@ -91,7 +97,9 @@ describe('changeShiftStaffAction', () => {
 
 	it('ServiceErrorを委譲する（404）', async () => {
 		mockAuthUser('user-1');
-		mockService.changeStaffAssignment.mockRejectedValue(new ServiceError(404, 'Shift not found'));
+		mockService.changeStaffAssignment.mockRejectedValue(
+			new ServiceError(404, 'Shift not found'),
+		);
 
 		const result = await changeShiftStaffAction(validInput);
 
@@ -101,7 +109,9 @@ describe('changeShiftStaffAction', () => {
 
 	it('ServiceErrorを委譲する（403）', async () => {
 		mockAuthUser('user-1');
-		mockService.changeStaffAssignment.mockRejectedValue(new ServiceError(403, 'Forbidden'));
+		mockService.changeStaffAssignment.mockRejectedValue(
+			new ServiceError(403, 'Forbidden'),
+		);
 
 		const result = await changeShiftStaffAction(validInput);
 
@@ -161,7 +171,10 @@ describe('cancelShiftAction', () => {
 	};
 
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await cancelShiftAction(validInput);
 
@@ -210,7 +223,9 @@ describe('cancelShiftAction', () => {
 
 	it('ServiceErrorを委譲する（404）', async () => {
 		mockAuthUser('user-1');
-		mockService.cancelShift.mockRejectedValue(new ServiceError(404, 'Shift not found'));
+		mockService.cancelShift.mockRejectedValue(
+			new ServiceError(404, 'Shift not found'),
+		);
 
 		const result = await cancelShiftAction(validInput);
 
@@ -259,7 +274,10 @@ describe('validateStaffAvailabilityAction', () => {
 	};
 
 	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
 
 		const result = await validateStaffAvailabilityAction(validInput);
 
