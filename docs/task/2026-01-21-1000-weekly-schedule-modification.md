@@ -57,31 +57,31 @@ Service を呼び出す Server Actions を実装し、ActionResult パターン�
 
 ### タスク
 
-- [ ] **shifts.ts Action の作成**
-  - [ ] `changeShiftStaffAction(shiftId, newStaffId, reason?)` 実装
-    - [ ] 入力スキーマ定義（Zod）
-    - [ ] 認証チェック
-    - [ ] Service 呼び出し
-    - [ ] ServiceError → ActionResult 変換
-    - [ ] 元の担当者名と新担当者名を返却（メッセージ用）
-  - [ ] `cancelShiftAction(shiftId, reason, category)` 実装
-    - [ ] 入力スキーマ定義（Zod）
-    - [ ] 認証チェック
-    - [ ] Service 呼び出し
-    - [ ] ServiceError → ActionResult 変換
-  - [ ] `validateStaffAvailabilityAction(staffId, startTime, endTime, excludeShiftId?)` 実装
-    - [ ] 入力スキーマ定義（Zod）
-    - [ ] 認証チェック
-    - [ ] Service 呼び出し
-    - [ ] 結果を ActionResult で返却
-  - [ ] 単体テスト作成（全 Action）
-    - [ ] 正常系
-    - [ ] バリデーションエラー
-    - [ ] 未認証エラー
+- [x] **shifts.ts Action の作成**
+  - [x] `changeShiftStaffAction(shiftId, newStaffId, reason?)` 実装
+    - [x] 入力スキーマ定義（Zod）
+    - [x] 認証チェック
+    - [x] Service 呼び出し
+    - [x] ServiceError → ActionResult 変換
+    - [x] 元の担当者名と新担当者名を返却（メッセージ用）
+  - [x] `cancelShiftAction(shiftId, reason, category)` 実装
+    - [x] 入力スキーマ定義（Zod）
+    - [x] 認証チェック
+    - [x] Service 呼び出し
+    - [x] ServiceError → ActionResult 変換
+  - [x] `validateStaffAvailabilityAction(staffId, startTime, endTime, excludeShiftId?)` 実装
+    - [x] 入力スキーマ定義（Zod）
+    - [x] 認証チェック
+    - [x] Service 呼び出し
+    - [x] 結果を ActionResult で返却
+  - [x] 単体テスト作成（全 Action）
+    - [x] 正常系
+    - [x] バリデーションエラー
+    - [x] 未認証エラー
 
 ### レビュー & コミット
 
-Server Actions が完成し、すべてのテストが通ることを確認してコミット。
+✅ Server Actions が完成し、すべてのテストが通ることを確認してコミット。
 
 ---
 
