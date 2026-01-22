@@ -31,6 +31,7 @@ const createShift = (
 		serviceTypeId: 'physical-care',
 		staffName: '山田花子',
 		status: 'scheduled',
+		isUnassigned: false,
 		...overrides,
 	};
 };
@@ -46,6 +47,7 @@ const sampleShifts: ShiftDisplayRow[] = [
 		clientName: '鈴木一郎',
 		serviceTypeId: 'life-support',
 		staffName: null,
+		isUnassigned: true,
 	}),
 	createShift('3', 1, {
 		startTime: { hour: 10, minute: 0 },
@@ -91,11 +93,12 @@ export const Loading: Story = {
 export const WithUnassigned: Story = {
 	args: {
 		shifts: [
-			createShift('1', 0, { staffName: null }),
+			createShift('1', 0, { staffName: null, isUnassigned: true }),
 			createShift('2', 0, {
 				startTime: { hour: 11, minute: 0 },
 				endTime: { hour: 12, minute: 0 },
 				staffName: null,
+				isUnassigned: true,
 			}),
 			createShift('3', 1, { staffName: '山田花子' }),
 		],

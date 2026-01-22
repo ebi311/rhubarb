@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ShiftTable, type ShiftDisplayRow } from './ShiftTable';
 
@@ -14,6 +15,7 @@ const createShift = (
 	serviceTypeId: 'physical-care',
 	staffName: '山田花子',
 	status: 'scheduled',
+	isUnassigned: false,
 	...overrides,
 });
 
@@ -86,7 +88,11 @@ describe('ShiftTable', () => {
 		expect(screen.getByText('予定')).toBeInTheDocument();
 		expect(screen.getByText('確定')).toBeInTheDocument();
 		expect(screen.getByText('完了')).toBeInTheDocument();
-		expect(screen.getByText('キャンセル')).toBeInTheDocument();
+		// キャンセルはバッジとボタンの両方にあるため、badge クラスを持つものを確認
+		const cancelBadges = screen.getAllByText('キャンセル');
+		expect(cancelBadges.some((el) => el.classList.contains('badge'))).toBe(
+			true,
+		);
 	});
 
 	it('loading が true の場合はローディング表示される', () => {
@@ -99,5 +105,75 @@ describe('ShiftTable', () => {
 		render(<ShiftTable shifts={[]} />);
 
 		expect(screen.getByText(/シフトがありません/)).toBeInTheDocument();
+	});
+
+	it('操作列のヘッダーが表示される', () => {
+		const shifts = [createShift()];
+		render(<ShiftTable shifts={shifts} />);
+
+		expect(
+			screen.getByRole('columnheader', { name: /操作/ }),
+		).toBeInTheDocument();
+	});
+
+	it('scheduledステータスの行に変更ボタンとキャンセルボタンが表示される', () => {
+		const shifts = [createShift({ status: 'scheduled', isUnassigned: false })];
+		render(<ShiftTable shifts={shifts} />);
+
+		expect(screen.getByRole('button', { name: '変更' })).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: 'キャンセル' }),
+		).toBeInTheDocument();
+	});
+
+	it('未割当の行に割り当てボタンとキャンセルボタンが表示される', () => {
+		const shifts = [
+			createShift({ status: 'scheduled', isUnassigned: true, staffName: null }),
+		];
+		render(<ShiftTable shifts={shifts} />);
+
+		expect(
+			screen.getByRole('button', { name: '割り当て' }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: 'キャンセル' }),
+		).toBeInTheDocument();
+	});
+
+	it('変更ボタンクリック時にonChangeStaffが呼ばれる', async () => {
+		const user = userEvent.setup();
+		const onChangeStaff = vi.fn();
+		const shift = createShift({ status: 'scheduled', isUnassigned: false });
+		render(<ShiftTable shifts={[shift]} onChangeStaff={onChangeStaff} />);
+
+		await user.click(screen.getByRole('button', { name: '変更' }));
+
+		expect(onChangeStaff).toHaveBeenCalledWith(shift);
+	});
+
+	it('キャンセルボタンクリック時にonCancelShiftが呼ばれる', async () => {
+		const user = userEvent.setup();
+		const onCancelShift = vi.fn();
+		const shift = createShift({ status: 'scheduled' });
+		render(<ShiftTable shifts={[shift]} onCancelShift={onCancelShift} />);
+
+		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+		expect(onCancelShift).toHaveBeenCalledWith(shift);
+	});
+
+	it('割り当てボタンクリック時にonAssignStaffが呼ばれる', async () => {
+		const user = userEvent.setup();
+		const onAssignStaff = vi.fn();
+		const shift = createShift({
+			status: 'scheduled',
+			isUnassigned: true,
+			staffName: null,
+		});
+		render(<ShiftTable shifts={[shift]} onAssignStaff={onAssignStaff} />);
+
+		await user.click(screen.getByRole('button', { name: '割り当て' }));
+
+		expect(onAssignStaff).toHaveBeenCalledWith(shift);
 	});
 });

@@ -2,7 +2,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShiftDisplayRow } from '../ShiftTable';
-import { WeeklySchedulePage } from './WeeklySchedulePage';
+import {
+	WeeklySchedulePage,
+	type WeeklySchedulePageProps,
+} from './WeeklySchedulePage';
 
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
@@ -35,25 +38,28 @@ describe('WeeklySchedulePage', () => {
 			serviceTypeId: 'physical-care',
 			staffName: '山田花子',
 			status: 'scheduled',
+			isUnassigned: false,
 		},
 	];
+
+	const defaultProps: WeeklySchedulePageProps = {
+		weekStartDate,
+		initialShifts: [],
+		staffOptions: [],
+	};
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
 
 	it('WeekSelectorが表示される', () => {
-		render(
-			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
-		);
+		render(<WeeklySchedulePage {...defaultProps} />);
 
 		expect(screen.getByText(/2026年01月19日/)).toBeInTheDocument();
 	});
 
 	it('GenerateButtonが表示される', () => {
-		render(
-			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
-		);
+		render(<WeeklySchedulePage {...defaultProps} />);
 
 		expect(
 			screen.getByRole('button', { name: /シフトを生成/ }),
@@ -62,10 +68,7 @@ describe('WeeklySchedulePage', () => {
 
 	it('シフトがある場合はShiftTableが表示される', () => {
 		render(
-			<WeeklySchedulePage
-				weekStartDate={weekStartDate}
-				initialShifts={sampleShifts}
-			/>,
+			<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
 		);
 
 		expect(screen.getByText('田中太郎')).toBeInTheDocument();
@@ -73,9 +76,7 @@ describe('WeeklySchedulePage', () => {
 	});
 
 	it('シフトがない場合はEmptyStateが表示される', () => {
-		render(
-			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
-		);
+		render(<WeeklySchedulePage {...defaultProps} />);
 
 		expect(
 			screen.getByText('この週のシフトはまだありません'),
@@ -84,9 +85,7 @@ describe('WeeklySchedulePage', () => {
 
 	it('週を変更するとrouter.pushが呼ばれる', async () => {
 		const user = userEvent.setup();
-		render(
-			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
-		);
+		render(<WeeklySchedulePage {...defaultProps} />);
 
 		await user.click(screen.getByRole('button', { name: '前週' }));
 
@@ -97,9 +96,7 @@ describe('WeeklySchedulePage', () => {
 
 	it('EmptyStateから生成ボタンをクリックするとgenerateWeeklyShiftsActionが呼ばれる', async () => {
 		const user = userEvent.setup();
-		render(
-			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
-		);
+		render(<WeeklySchedulePage {...defaultProps} />);
 
 		await user.click(
 			screen.getByRole('button', { name: '基本スケジュールから生成' }),
@@ -112,9 +109,7 @@ describe('WeeklySchedulePage', () => {
 
 	it('生成完了後にrouter.refreshが呼ばれる', async () => {
 		const user = userEvent.setup();
-		render(
-			<WeeklySchedulePage weekStartDate={weekStartDate} initialShifts={[]} />,
-		);
+		render(<WeeklySchedulePage {...defaultProps} />);
 
 		await user.click(screen.getByRole('button', { name: /シフトを生成/ }));
 

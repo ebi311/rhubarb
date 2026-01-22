@@ -2,6 +2,7 @@ import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDayOfWeek } from '@/utils/date';
 import classNames from 'classnames';
+import { ShiftActionButtons } from '../ShiftActionButtons';
 
 export type ShiftStatus = 'scheduled' | 'confirmed' | 'completed' | 'canceled';
 
@@ -14,11 +15,15 @@ export type ShiftDisplayRow = {
 	serviceTypeId: ServiceTypeId;
 	staffName: string | null;
 	status: ShiftStatus;
+	isUnassigned: boolean;
 };
 
 export interface ShiftTableProps {
 	shifts: ShiftDisplayRow[];
 	loading?: boolean;
+	onChangeStaff?: (shift: ShiftDisplayRow) => void;
+	onAssignStaff?: (shift: ShiftDisplayRow) => void;
+	onCancelShift?: (shift: ShiftDisplayRow) => void;
 }
 
 const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
@@ -51,13 +56,19 @@ const GRID_COLS = classNames(
 	'grid',
 	'grid-cols-[8rem_10rem_1fr]',
 	'grid-areas-["date_time_client""staff_service_status"]',
-	'lg:grid-cols-[8rem_8rem_1fr_8rem_8rem_6rem]',
-	"lg:grid-areas-['date_time_client_staff_service_status']",
+	'lg:grid-cols-[8rem_8rem_1fr_8rem_8rem_6rem_8rem]',
+	"lg:grid-areas-['date_time_client_staff_service_status_action']",
 	'gap-2',
 	'px-4',
 );
 
-export const ShiftTable = ({ shifts, loading = false }: ShiftTableProps) => {
+export const ShiftTable = ({
+	shifts,
+	loading = false,
+	onChangeStaff,
+	onAssignStaff,
+	onCancelShift,
+}: ShiftTableProps) => {
 	if (loading) {
 		return (
 			<div className="flex justify-center py-8" role="status">
@@ -98,6 +109,9 @@ export const ShiftTable = ({ shifts, loading = false }: ShiftTableProps) => {
 				<div role="columnheader" className="grid-area-[status]">
 					ステータス
 				</div>
+				<div role="columnheader" className="hidden grid-area-[action] lg:block">
+					操作
+				</div>
 			</div>
 			{/* Body */}
 			<div role="rowgroup">
@@ -130,6 +144,15 @@ export const ShiftTable = ({ shifts, loading = false }: ShiftTableProps) => {
 							<span className={`badge ${STATUS_BADGE_CLASSES[shift.status]}`}>
 								{STATUS_LABELS[shift.status]}
 							</span>
+						</div>
+						<div className="hidden grid-area-[action] lg:block">
+							<ShiftActionButtons
+								status={shift.status}
+								isUnassigned={shift.isUnassigned}
+								onChangeStaff={() => onChangeStaff?.(shift)}
+								onAssignStaff={() => onAssignStaff?.(shift)}
+								onCancelShift={() => onCancelShift?.(shift)}
+							/>
 						</div>
 					</div>
 				))}

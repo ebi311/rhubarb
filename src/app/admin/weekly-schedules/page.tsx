@@ -73,6 +73,14 @@ const WeeklySchedulesPage = async ({
 			? (staffNameMap.get(shift.staff_id) ?? '不明なスタッフ')
 			: null,
 		status: shift.status,
+		isUnassigned: !shift.staff_id,
+	}));
+
+	// スタッフオプションをピッカー用に変換
+	const staffOptions = (staffsResult.data ?? []).map((staff) => ({
+		id: staff.id,
+		name: staff.name,
+		serviceTypes: staff.qualifications ?? [],
 	}));
 
 	return (
@@ -90,6 +98,7 @@ const WeeklySchedulesPage = async ({
 			<WeeklySchedulePage
 				weekStartDate={weekStartDate}
 				initialShifts={shifts}
+				staffOptions={staffOptions}
 			/>
 		</div>
 	);

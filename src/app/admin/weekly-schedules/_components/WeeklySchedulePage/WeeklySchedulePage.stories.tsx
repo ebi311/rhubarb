@@ -1,3 +1,4 @@
+import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { fn } from 'storybook/test';
 import type { ShiftDisplayRow } from '../ShiftTable';
@@ -30,6 +31,16 @@ type Story = StoryObj<typeof WeeklySchedulePage>;
 
 const weekStartDate = new Date('2026-01-19T00:00:00');
 
+const sampleStaffOptions: StaffPickerOption[] = [
+	{
+		id: 'staff-1',
+		name: '山田花子',
+		serviceTypes: ['physical-care', 'life-support'],
+	},
+	{ id: 'staff-2', name: '佐々木健太', serviceTypes: ['commute-support'] },
+	{ id: 'staff-3', name: '田村美咲', serviceTypes: ['physical-care'] },
+];
+
 const sampleShifts: ShiftDisplayRow[] = [
 	{
 		id: 'shift-1',
@@ -40,6 +51,7 @@ const sampleShifts: ShiftDisplayRow[] = [
 		serviceTypeId: 'physical-care',
 		staffName: '山田花子',
 		status: 'scheduled',
+		isUnassigned: false,
 	},
 	{
 		id: 'shift-2',
@@ -50,6 +62,7 @@ const sampleShifts: ShiftDisplayRow[] = [
 		serviceTypeId: 'life-support',
 		staffName: null,
 		status: 'scheduled',
+		isUnassigned: true,
 	},
 	{
 		id: 'shift-3',
@@ -60,6 +73,7 @@ const sampleShifts: ShiftDisplayRow[] = [
 		serviceTypeId: 'commute-support',
 		staffName: '佐々木健太',
 		status: 'confirmed',
+		isUnassigned: false,
 	},
 	{
 		id: 'shift-4',
@@ -70,6 +84,7 @@ const sampleShifts: ShiftDisplayRow[] = [
 		serviceTypeId: 'physical-care',
 		staffName: '田村美咲',
 		status: 'completed',
+		isUnassigned: false,
 	},
 ];
 
@@ -77,6 +92,7 @@ export const WithShifts: Story = {
 	args: {
 		weekStartDate,
 		initialShifts: sampleShifts,
+		staffOptions: sampleStaffOptions,
 	},
 };
 
@@ -84,6 +100,7 @@ export const Empty: Story = {
 	args: {
 		weekStartDate,
 		initialShifts: [],
+		staffOptions: sampleStaffOptions,
 	},
 };
 
@@ -101,6 +118,7 @@ export const ManyShifts: Story = {
 				serviceTypeId: 'life-support',
 				staffName: '中村由美',
 				status: 'scheduled',
+				isUnassigned: false,
 			},
 			{
 				id: 'shift-6',
@@ -111,6 +129,7 @@ export const ManyShifts: Story = {
 				serviceTypeId: 'physical-care',
 				staffName: null,
 				status: 'scheduled',
+				isUnassigned: true,
 			},
 			{
 				id: 'shift-7',
@@ -121,7 +140,9 @@ export const ManyShifts: Story = {
 				serviceTypeId: 'commute-support',
 				staffName: '加藤裕子',
 				status: 'canceled',
+				isUnassigned: false,
 			},
 		],
+		staffOptions: sampleStaffOptions,
 	},
 };
