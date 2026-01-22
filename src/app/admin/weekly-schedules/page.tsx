@@ -80,7 +80,8 @@ const WeeklySchedulesPage = async ({
 	const staffOptions = (staffsResult.data ?? []).map((staff) => ({
 		id: staff.id,
 		name: staff.name,
-		serviceTypes: staff.qualifications ?? [],
+		role: staff.role,
+		serviceTypeIds: staff.service_type_ids,
 	}));
 
 	return (

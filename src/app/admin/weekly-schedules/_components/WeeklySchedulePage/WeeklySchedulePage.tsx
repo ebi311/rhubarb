@@ -2,8 +2,8 @@
 
 import { generateWeeklyShiftsAction } from '@/app/actions/weeklySchedules';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
-import { SERVICE_TYPE_LABELS } from '@/models/valueObjects/serviceTypeId';
-import { formatJstDateString, toJstMidnight } from '@/utils/date';
+import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
+import { formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
@@ -29,7 +29,7 @@ const shiftToDateTime = (
 	date: Date,
 	time: { hour: number; minute: number },
 ): Date => {
-	const midnight = toJstMidnight(date);
+	const midnight = getJstDateOnly(date);
 	return new Date(
 		midnight.getTime() + time.hour * 3600000 + time.minute * 60000,
 	);
@@ -40,7 +40,7 @@ const createChangeStaffDialogShift = (
 ): ChangeStaffDialogShift => ({
 	id: shift.id,
 	clientName: shift.clientName,
-	serviceTypeName: SERVICE_TYPE_LABELS[shift.serviceTypeId],
+	serviceTypeName: ServiceTypeLabels[shift.serviceTypeId],
 	date: shift.date,
 	startTime: shiftToDateTime(shift.date, shift.startTime),
 	endTime: shiftToDateTime(shift.date, shift.endTime),
@@ -53,7 +53,7 @@ const createCancelShiftDialogShift = (
 ): CancelShiftDialogShift => ({
 	id: shift.id,
 	clientName: shift.clientName,
-	serviceTypeName: SERVICE_TYPE_LABELS[shift.serviceTypeId],
+	serviceTypeName: ServiceTypeLabels[shift.serviceTypeId],
 	date: shift.date,
 	startTime: shiftToDateTime(shift.date, shift.startTime),
 	endTime: shiftToDateTime(shift.date, shift.endTime),

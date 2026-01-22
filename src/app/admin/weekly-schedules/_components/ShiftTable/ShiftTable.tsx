@@ -1,3 +1,4 @@
+import { Icon } from '@/app/_components/Icon';
 import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDayOfWeek } from '@/utils/date';
@@ -133,11 +134,35 @@ export const ShiftTable = ({
 						<div className="grid-area-[service]">
 							<ServiceTypeBadge serviceTypeId={shift.serviceTypeId} size="sm" />
 						</div>
-						<div className="grid-area-[staff]">
+						<div className="flex items-center gap-1 grid-area-[staff]">
 							{shift.staffName ? (
-								shift.staffName
+								<>
+									<span>{shift.staffName}</span>
+									{shift.status === 'scheduled' && (
+										<button
+											type="button"
+											className="btn btn-circle btn-ghost btn-xs"
+											onClick={() => onChangeStaff?.(shift)}
+											aria-label="担当者を変更"
+										>
+											<Icon name="person_edit" className="text-base" />
+										</button>
+									)}
+								</>
 							) : (
-								<span className="badge badge-warning">未割当</span>
+								<>
+									<span className="badge badge-warning">未割当</span>
+									{shift.status === 'scheduled' && (
+										<button
+											type="button"
+											className="btn btn-circle text-primary btn-ghost btn-xs"
+											onClick={() => onAssignStaff?.(shift)}
+											aria-label="担当者を割り当て"
+										>
+											<Icon name="person_add" className="text-base" />
+										</button>
+									)}
+								</>
 							)}
 						</div>
 						<div className="grid-area-status">
@@ -148,9 +173,6 @@ export const ShiftTable = ({
 						<div className="hidden grid-area-[action] lg:block">
 							<ShiftActionButtons
 								status={shift.status}
-								isUnassigned={shift.isUnassigned}
-								onChangeStaff={() => onChangeStaff?.(shift)}
-								onAssignStaff={() => onAssignStaff?.(shift)}
 								onCancelShift={() => onCancelShift?.(shift)}
 							/>
 						</div>

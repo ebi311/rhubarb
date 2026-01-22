@@ -116,37 +116,39 @@ describe('ShiftTable', () => {
 		).toBeInTheDocument();
 	});
 
-	it('scheduledステータスの行に変更ボタンとキャンセルボタンが表示される', () => {
+	it('scheduledステータスの行に担当者変更アイコンとキャンセルボタンが表示される', () => {
 		const shifts = [createShift({ status: 'scheduled', isUnassigned: false })];
 		render(<ShiftTable shifts={shifts} />);
 
-		expect(screen.getByRole('button', { name: '変更' })).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: '担当者を変更' }),
+		).toBeInTheDocument();
 		expect(
 			screen.getByRole('button', { name: 'キャンセル' }),
 		).toBeInTheDocument();
 	});
 
-	it('未割当の行に割り当てボタンとキャンセルボタンが表示される', () => {
+	it('未割当の行に担当者割り当てアイコンとキャンセルボタンが表示される', () => {
 		const shifts = [
 			createShift({ status: 'scheduled', isUnassigned: true, staffName: null }),
 		];
 		render(<ShiftTable shifts={shifts} />);
 
 		expect(
-			screen.getByRole('button', { name: '割り当て' }),
+			screen.getByRole('button', { name: '担当者を割り当て' }),
 		).toBeInTheDocument();
 		expect(
 			screen.getByRole('button', { name: 'キャンセル' }),
 		).toBeInTheDocument();
 	});
 
-	it('変更ボタンクリック時にonChangeStaffが呼ばれる', async () => {
+	it('担当者変更アイコンクリック時にonChangeStaffが呼ばれる', async () => {
 		const user = userEvent.setup();
 		const onChangeStaff = vi.fn();
 		const shift = createShift({ status: 'scheduled', isUnassigned: false });
 		render(<ShiftTable shifts={[shift]} onChangeStaff={onChangeStaff} />);
 
-		await user.click(screen.getByRole('button', { name: '変更' }));
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
 
 		expect(onChangeStaff).toHaveBeenCalledWith(shift);
 	});
@@ -162,7 +164,7 @@ describe('ShiftTable', () => {
 		expect(onCancelShift).toHaveBeenCalledWith(shift);
 	});
 
-	it('割り当てボタンクリック時にonAssignStaffが呼ばれる', async () => {
+	it('担当者割り当てアイコンクリック時にonAssignStaffが呼ばれる', async () => {
 		const user = userEvent.setup();
 		const onAssignStaff = vi.fn();
 		const shift = createShift({
@@ -172,7 +174,7 @@ describe('ShiftTable', () => {
 		});
 		render(<ShiftTable shifts={[shift]} onAssignStaff={onAssignStaff} />);
 
-		await user.click(screen.getByRole('button', { name: '割り当て' }));
+		await user.click(screen.getByRole('button', { name: '担当者を割り当て' }));
 
 		expect(onAssignStaff).toHaveBeenCalledWith(shift);
 	});

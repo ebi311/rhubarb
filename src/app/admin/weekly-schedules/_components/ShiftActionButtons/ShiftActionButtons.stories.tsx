@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { ShiftActionButtons } from './ShiftActionButtons';
 
 const meta: Meta<typeof ShiftActionButtons> = {
@@ -14,22 +14,9 @@ export default meta;
 
 type Story = StoryObj<typeof ShiftActionButtons>;
 
-export const ScheduledWithStaff: Story = {
+export const Scheduled: Story = {
 	args: {
 		status: 'scheduled',
-		isUnassigned: false,
-		onChangeStaff: () => console.log('Change staff'),
-		onAssignStaff: () => console.log('Assign staff'),
-		onCancelShift: () => console.log('Cancel'),
-	},
-};
-
-export const ScheduledUnassigned: Story = {
-	args: {
-		status: 'scheduled',
-		isUnassigned: true,
-		onChangeStaff: () => console.log('Change staff'),
-		onAssignStaff: () => console.log('Assign staff'),
 		onCancelShift: () => console.log('Cancel'),
 	},
 };
@@ -37,9 +24,6 @@ export const ScheduledUnassigned: Story = {
 export const Confirmed: Story = {
 	args: {
 		status: 'confirmed',
-		isUnassigned: false,
-		onChangeStaff: () => console.log('Change staff'),
-		onAssignStaff: () => console.log('Assign staff'),
 		onCancelShift: () => console.log('Cancel'),
 	},
 };
@@ -47,9 +31,6 @@ export const Confirmed: Story = {
 export const Completed: Story = {
 	args: {
 		status: 'completed',
-		isUnassigned: false,
-		onChangeStaff: () => console.log('Change staff'),
-		onAssignStaff: () => console.log('Assign staff'),
 		onCancelShift: () => console.log('Cancel'),
 	},
 };
@@ -57,9 +38,6 @@ export const Completed: Story = {
 export const Canceled: Story = {
 	args: {
 		status: 'canceled',
-		isUnassigned: false,
-		onChangeStaff: () => console.log('Change staff'),
-		onAssignStaff: () => console.log('Assign staff'),
 		onCancelShift: () => console.log('Cancel'),
 	},
 };

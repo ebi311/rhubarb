@@ -16,6 +16,8 @@ export const ICON_NAMES = [
 	'home',
 	'info',
 	'menu',
+	'person_add',
+	'person_edit',
 	'schedule',
 	'search',
 	'settings',

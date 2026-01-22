@@ -35,10 +35,21 @@ const sampleStaffOptions: StaffPickerOption[] = [
 	{
 		id: 'staff-1',
 		name: '山田花子',
-		serviceTypes: ['physical-care', 'life-support'],
+		role: 'helper',
+		serviceTypeIds: ['physical-care', 'life-support'],
 	},
-	{ id: 'staff-2', name: '佐々木健太', serviceTypes: ['commute-support'] },
-	{ id: 'staff-3', name: '田村美咲', serviceTypes: ['physical-care'] },
+	{
+		id: 'staff-2',
+		name: '佐々木健太',
+		role: 'helper',
+		serviceTypeIds: ['commute-support'],
+	},
+	{
+		id: 'staff-3',
+		name: '田村美咲',
+		role: 'admin',
+		serviceTypeIds: ['physical-care'],
+	},
 ];
 
 const sampleShifts: ShiftDisplayRow[] = [
