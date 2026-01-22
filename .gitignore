@@ -48,3 +48,4 @@ src/stories
 .github/instructions/daisyui.instructions.md
 .secrets/*
 !.secrets/.gitkeep
+.vscode/sessions.json
