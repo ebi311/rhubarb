@@ -171,27 +171,27 @@ ShiftTable にアクション列を追加し、各ダイアログを統合する
 
 ### タスク
 
-- [ ] **ShiftActionButtons コンポーネント**
-  - [ ] コンポーネント本体作成
-    - [ ] ステータスと is_unassigned に応じたボタン表示ロジック
-    - [ ] 担当者変更ボタン（scheduled かつ is_unassigned=false）
-    - [ ] 割り当てボタン（scheduled かつ is_unassigned=true）
-    - [ ] キャンセルボタン（scheduled のみ）
-    - [ ] 各ボタンクリックでダイアログを開く
-  - [ ] テスト作成
-  - [ ] Storybook ストーリー作成
-    - [ ] 各ステータスのパターン
-  - [ ] index.ts でエクスポート
+- [x] **ShiftActionButtons コンポーネント**
+  - [x] コンポーネント本体作成
+    - [x] ステータスと is_unassigned に応じたボタン表示ロジック
+    - [x] 担当者変更ボタン（scheduled かつ is_unassigned=false）
+    - [x] 割り当てボタン（scheduled かつ is_unassigned=true）
+    - [x] キャンセルボタン（scheduled のみ）
+    - [x] 各ボタンクリックでダイアログを開く
+  - [x] テスト作成
+  - [x] Storybook ストーリー作成
+    - [x] 各ステータスのパターン
+  - [x] index.ts でエクスポート
 
-- [ ] **ShiftTable の拡張**
-  - [ ] アクション列を追加
-  - [ ] ShiftActionButtons を配置
-  - [ ] ダイアログの状態管理（どのダイアログが開いているか）
-  - [ ] ChangeStaffDialog を配置
-  - [ ] CancelShiftDialog を配置
-  - [ ] アクション完了後のリフレッシュ処理
-  - [ ] テスト更新
-  - [ ] Storybook ストーリー更新
+- [x] **ShiftTable の拡張**
+  - [x] アクション列を追加
+  - [x] ShiftActionButtons を配置
+  - [x] ダイアログの状態管理（どのダイアログが開いているか）
+  - [x] ChangeStaffDialog を配置
+  - [x] CancelShiftDialog を配置
+  - [x] アクション完了後のリフレッシュ処理
+  - [x] テスト更新
+  - [x] Storybook ストーリー更新
 
 ### レビュー & コミット
 
