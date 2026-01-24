@@ -8,6 +8,7 @@ export const ICON_NAMES = [
 	'calendar_month',
 	'calendar_today',
 	'calendar_view_week',
+	'cancel',
 	'check_circle',
 	'check',
 	'close',
@@ -23,9 +24,12 @@ export const ICON_NAMES = [
 	'settings',
 	'task_alt',
 	'task',
+	'undo',
 	'view_week',
 	'warning',
 ] as const;
+
+export type IconType = (typeof ICON_NAMES)[number];
 
 type Props = {
 	name: (typeof ICON_NAMES)[number];

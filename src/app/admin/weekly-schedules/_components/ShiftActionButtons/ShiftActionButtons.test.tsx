@@ -15,7 +15,7 @@ describe('ShiftActionButtons', () => {
 		render(<ShiftActionButtons {...defaultProps} status="scheduled" />);
 
 		expect(
-			screen.getByRole('button', { name: 'キャンセル' }),
+			screen.getByRole('button', { name: 'シフトをキャンセル' }),
 		).toBeInTheDocument();
 	});
 
@@ -23,10 +23,10 @@ describe('ShiftActionButtons', () => {
 		render(<ShiftActionButtons {...defaultProps} status="confirmed" />);
 
 		expect(
-			screen.queryByRole('button', { name: 'キャンセル' }),
+			screen.queryByRole('button', { name: 'シフトをキャンセル' }),
 		).not.toBeInTheDocument();
 		expect(
-			screen.queryByRole('button', { name: '復元' }),
+			screen.queryByRole('button', { name: 'キャンセルの取り消し' }),
 		).not.toBeInTheDocument();
 	});
 
@@ -44,9 +44,11 @@ describe('ShiftActionButtons', () => {
 	it('canceledの場合、復元ボタンが表示される', () => {
 		render(<ShiftActionButtons {...defaultProps} status="canceled" />);
 
-		expect(screen.getByRole('button', { name: '復元' })).toBeInTheDocument();
 		expect(
-			screen.queryByRole('button', { name: 'キャンセル' }),
+			screen.getByRole('button', { name: 'キャンセルの取り消し' }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole('button', { name: 'シフトをキャンセル' }),
 		).not.toBeInTheDocument();
 	});
 
@@ -62,7 +64,9 @@ describe('ShiftActionButtons', () => {
 			/>,
 		);
 
-		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+		await user.click(
+			screen.getByRole('button', { name: 'シフトをキャンセル' }),
+		);
 
 		expect(onCancelShift).toHaveBeenCalled();
 	});
@@ -79,7 +83,9 @@ describe('ShiftActionButtons', () => {
 			/>,
 		);
 
-		await user.click(screen.getByRole('button', { name: '復元' }));
+		await user.click(
+			screen.getByRole('button', { name: 'キャンセルの取り消し' }),
+		);
 
 		expect(onRestoreShift).toHaveBeenCalled();
 	});

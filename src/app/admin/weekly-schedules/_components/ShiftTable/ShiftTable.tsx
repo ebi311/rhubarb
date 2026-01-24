@@ -1,4 +1,5 @@
 import { Icon } from '@/app/_components/Icon';
+import { IconType } from '@/app/_components/Icon/Icon';
 import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDayOfWeek } from '@/utils/date';
@@ -50,6 +51,13 @@ const STATUS_LABELS: Record<ShiftStatus, string> = {
 	canceled: 'キャンセル',
 };
 
+const STATUS_ICON_NAMES: Record<ShiftStatus, IconType> = {
+	scheduled: 'schedule',
+	confirmed: 'check_circle',
+	completed: 'check_circle',
+	canceled: 'cancel',
+};
+
 const STATUS_BADGE_CLASSES: Record<ShiftStatus, string> = {
 	scheduled: 'badge-info',
 	confirmed: 'badge-success',
@@ -58,11 +66,10 @@ const STATUS_BADGE_CLASSES: Record<ShiftStatus, string> = {
 };
 
 const GRID_COLS = classNames(
-	'grid',
-	'grid-cols-[8rem_8rem_1fr_6rem]',
-	'grid-areas-["date_time_client_client""staff_service_status_action"]',
-	'lg:grid-cols-[8rem_8rem_1fr_8rem_8rem_6rem_8rem]',
-	"lg:grid-areas-['date_time_client_staff_service_status_action']",
+	'grid-cols-[6rem_1fr_8rem_4rem]',
+	'grid-areas-["status_date_time_acton""status_client_client_action""status_staff_service_action"]',
+	'lg:grid-cols-[6rem_8rem_8rem_1fr_8rem_8rem_8rem]',
+	"lg:grid-areas-['status_date_time_client_staff_service_action']",
 	'gap-2',
 	'px-4',
 );
@@ -93,7 +100,7 @@ export const ShiftTable = ({
 		<div className="max-w-2xl min-w-md lg:w-full lg:max-w-full">
 			{/* Header */}
 			<div
-				className={`${GRID_COLS} border-b border-base-300 bg-base-200 py-2 text-sm font-semibold`}
+				className={`hidden lg:grid ${GRID_COLS} border-b border-base-300 bg-base-200 py-2 text-sm font-semibold`}
 				role="row"
 				aria-label="ヘッダー行"
 			>
@@ -124,7 +131,7 @@ export const ShiftTable = ({
 				{shifts.map((shift) => (
 					<div
 						key={shift.id}
-						className={`${GRID_COLS} items-center border-b border-base-300 py-3 text-sm odd:bg-base-200`}
+						className={`grid ${GRID_COLS} items-center border-b border-base-300 py-3 text-sm odd:bg-base-200`}
 						role="row"
 					>
 						<div className="text-lg grid-area-[date] lg:text-base">
@@ -171,9 +178,21 @@ export const ShiftTable = ({
 							)}
 						</div>
 						<div className="grid-area-status">
-							<span className={`badge ${STATUS_BADGE_CLASSES[shift.status]}`}>
+							<span
+								className={`badge hidden lg:inline-block ${STATUS_BADGE_CLASSES[shift.status]}`}
+							>
 								{STATUS_LABELS[shift.status]}
 							</span>
+							<Icon
+								name={STATUS_ICON_NAMES[shift.status]}
+								className={classNames('lg:!hidden', {
+									'text-success':
+										shift.status === 'confirmed' ||
+										shift.status === 'completed',
+									'text-info': shift.status === 'scheduled',
+									'text-error': shift.status === 'canceled',
+								})}
+							/>
 						</div>
 						<div className="grid-area-[action] lg:block">
 							<ShiftActionButtons

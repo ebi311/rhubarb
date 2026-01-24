@@ -1,3 +1,4 @@
+import { Icon } from '@/app/_components/Icon';
 import type { ShiftStatus } from '../ShiftTable';
 
 type ShiftActionButtonsProps = {
@@ -18,8 +19,10 @@ export const ShiftActionButtons = ({
 				type="button"
 				className="btn btn-outline btn-xs btn-primary"
 				onClick={onRestoreShift}
+				title="キャンセルの取り消し"
+				aria-label="キャンセルの取り消し"
 			>
-				復元
+				<Icon name="undo" />
 			</button>
 		);
 	}
@@ -32,10 +35,12 @@ export const ShiftActionButtons = ({
 	return (
 		<button
 			type="button"
-			className="btn btn-outline btn-xs btn-error"
+			className="btn btn-ghost btn-xs btn-error"
 			onClick={onCancelShift}
+			title="シフトをキャンセル"
+			aria-label="シフトをキャンセル"
 		>
-			キャンセル
+			<Icon name="cancel" />
 		</button>
 	);
 };

@@ -124,7 +124,7 @@ describe('ShiftTable', () => {
 			screen.getByRole('button', { name: '担当者を変更' }),
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole('button', { name: 'キャンセル' }),
+			screen.getByRole('button', { name: 'シフトをキャンセル' }),
 		).toBeInTheDocument();
 	});
 
@@ -138,7 +138,7 @@ describe('ShiftTable', () => {
 			screen.getByRole('button', { name: '担当者を割り当て' }),
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole('button', { name: 'キャンセル' }),
+			screen.getByRole('button', { name: 'シフトをキャンセル' }),
 		).toBeInTheDocument();
 	});
 
@@ -159,7 +159,9 @@ describe('ShiftTable', () => {
 		const shift = createShift({ status: 'scheduled' });
 		render(<ShiftTable shifts={[shift]} onCancelShift={onCancelShift} />);
 
-		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+		await user.click(
+			screen.getByRole('button', { name: 'シフトをキャンセル' }),
+		);
 
 		expect(onCancelShift).toHaveBeenCalledWith(shift);
 	});
