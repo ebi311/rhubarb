@@ -33,6 +33,8 @@ describe('CancelShiftDialog', () => {
 			error: null,
 			status: 200,
 		});
+		// window.confirm をモック
+		vi.spyOn(window, 'confirm').mockReturnValue(true);
 	});
 
 	it('ダイアログが開閉する', async () => {
@@ -157,5 +159,29 @@ describe('CancelShiftDialog', () => {
 		await user.click(screen.getByRole('button', { name: '閉じる' }));
 
 		expect(onClose).toHaveBeenCalled();
+	});
+
+	it('確認ダイアログでキャンセルした場合は送信されない', async () => {
+		const user = userEvent.setup();
+		vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+		render(
+			<CancelShiftDialog isOpen={true} shift={mockShift} onClose={vi.fn()} />,
+		);
+
+		// カテゴリを選択
+		await user.click(screen.getByLabelText('利用者都合'));
+
+		// 理由を入力
+		await user.type(
+			screen.getByPlaceholderText(/キャンセル理由/),
+			'体調不良のため',
+		);
+
+		// 送信（確認ダイアログでキャンセル）
+		await user.click(screen.getByRole('button', { name: 'キャンセルする' }));
+
+		expect(window.confirm).toHaveBeenCalled();
+		expect(cancelShiftAction).not.toHaveBeenCalled();
 	});
 });

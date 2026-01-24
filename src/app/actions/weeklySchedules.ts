@@ -29,6 +29,9 @@ const toShiftRecord = (shift: Shift): ShiftRecord => ({
 	end_time: shift.time.end,
 	status: shift.status,
 	is_unassigned: shift.is_unassigned,
+	canceled_reason: shift.canceled_reason ?? null,
+	canceled_category: shift.canceled_category ?? null,
+	canceled_at: shift.canceled_at ?? null,
 	created_at: shift.created_at,
 	updated_at: shift.updated_at,
 });

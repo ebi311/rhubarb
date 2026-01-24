@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
 	cancelShiftAction,
 	changeShiftStaffAction,
+	restoreShiftAction,
 	validateStaffAvailabilityAction,
 } from './shifts';
 
@@ -27,6 +28,7 @@ const mockSupabase = {
 const createMockService = () => ({
 	changeStaffAssignment: vi.fn(),
 	cancelShift: vi.fn(),
+	restoreShift: vi.fn(),
 	validateStaffAvailability: vi.fn(),
 });
 
@@ -256,6 +258,77 @@ describe('cancelShiftAction', () => {
 			validInput.shiftId,
 			validInput.reason,
 			validInput.category,
+		);
+		expect(result).toEqual({
+			data: null,
+			error: null,
+			status: 200,
+		});
+	});
+});
+
+describe('restoreShiftAction', () => {
+	const validInput = {
+		shiftId: '12345678-1234-1234-8234-123456789abc',
+	};
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result = await restoreShiftAction(validInput);
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+		expect(mockService.restoreShift).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す（shiftIdが不正）', async () => {
+		mockAuthUser('user-1');
+
+		const result = await restoreShiftAction({
+			shiftId: 'invalid-uuid',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.restoreShift).not.toHaveBeenCalled();
+	});
+
+	it('ServiceErrorを委譲する（404）', async () => {
+		mockAuthUser('user-1');
+		mockService.restoreShift.mockRejectedValue(
+			new ServiceError(404, 'Shift not found'),
+		);
+
+		const result = await restoreShiftAction(validInput);
+
+		expect(result.status).toBe(404);
+		expect(result.error).toBe('Shift not found');
+	});
+
+	it('ServiceErrorを委譲する（400 - shift is not canceled）', async () => {
+		mockAuthUser('user-1');
+		mockService.restoreShift.mockRejectedValue(
+			new ServiceError(400, 'Shift is not canceled'),
+		);
+
+		const result = await restoreShiftAction(validInput);
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Shift is not canceled');
+	});
+
+	it('復元に成功する', async () => {
+		mockAuthUser('user-1');
+		mockService.restoreShift.mockResolvedValue(undefined);
+
+		const result = await restoreShiftAction(validInput);
+
+		expect(mockService.restoreShift).toHaveBeenCalledWith(
+			'user-1',
+			validInput.shiftId,
 		);
 		expect(result).toEqual({
 			data: null,

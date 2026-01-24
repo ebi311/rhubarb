@@ -78,6 +78,19 @@
 - **制約**: UC1 と同様
 - **成功メッセージ**: 「未割当 → ○○さんに割り当てました」
 
+### UC4: キャンセルの取り消し（シフト復元）
+
+- **トリガー**: キャンセル済みシフト行の「復元」ボタン
+- **入力**: なし（確認ダイアログのみ）
+- **処理**:
+  - `status` を `scheduled` に戻す
+  - `canceled_at`、`cancel_reason`、`cancel_category` をクリア（null に設定）
+- **制約**:
+  - `canceled` 状態のシフトのみ復元可能
+  - 元の担当者が同時間帯に他のシフトを持っている場合は警告表示
+- **成功メッセージ**: 「シフトを復元しました」
+- **確認ダイアログ**: 「このシフトを復元しますか？」
+
 ## UI 設計
 
 ### シフト一覧テーブルの拡張
@@ -89,7 +102,7 @@
 | 1/20 | 10:00-11:00 | 田中太郎 | 身体介護 | 山田花子 | scheduled  | [担当者変更] [キャンセル] |
 | 1/20 | 14:00-15:00 | 鈴木次郎 | 生活援助 | 未割当   | scheduled  | [割り当て] [キャンセル]   |
 | 1/21 | 09:00-10:00 | 佐藤三郎 | 身体介護 | 田中一郎 | scheduled  | [担当者変更] [キャンセル] |
-| 1/21 | 11:00-12:00 | 高橋四郎 | 生活援助 | 山田花子 | canceled   | -                         |
+| 1/21 | 11:00-12:00 | 高橋四郎 | 生活援助 | 山田花子 | canceled   | [復元]                    |
 
 ### ボタン表示ロジック
 
@@ -97,7 +110,7 @@
 | ---------- | ------------- | ------------------------- |
 | scheduled  | true          | [割り当て] [キャンセル]   |
 | scheduled  | false         | [担当者変更] [キャンセル] |
-| canceled   | -             | （操作不可）              |
+| canceled   | -             | [復元]                    |
 | completed  | -             | （操作不可）              |
 
 ### ダイアログ仕様
@@ -129,12 +142,26 @@
     - ○ その他
   - キャンセル理由詳細（テキストエリア、必須）
 - **ボタン**: [戻る] [キャンセルする]
-- **確認**: 「このシフトをキャンセルしますか？この操作は取り消せません。」
+- **確認**: 「このシフトをキャンセルしますか？」
 
 #### 3. 割り当てダイアログ
 
 - **タイトル**: 「担当者を割り当て」
 - **内容**: 担当者変更ダイアログと同様（現在の担当者が「未割当」）
+
+#### 4. 復元確認ダイアログ
+
+- **タイトル**: 「シフトを復元」
+- **内容**:
+  - シフト情報（読み取り専用）
+    - 日付・時間
+    - 利用者名
+    - サービス区分
+    - 担当者（または「未割当」）
+  - キャンセル理由（参考情報として表示）
+  - ⚠️ 時間重複警告（該当する場合のみ表示）
+- **ボタン**: [戻る] [復元する]
+- **確認**: 「このシフトを復元しますか？ステータスが「予定」に戻ります。」
 
 ### モバイル対応
 
@@ -188,6 +215,9 @@ class ShiftService {
 		category: 'client' | 'staff' | 'other',
 	): Promise<void>;
 
+	// シフト復元（キャンセル取り消し）
+	async restoreShift(userId: string, shiftId: string): Promise<void>;
+
 	// バリデーション: スタッフの時間重複チェック
 	async validateStaffAvailability(
 		staffId: string,
@@ -224,6 +254,11 @@ validateStaffAvailabilityAction(
   endTime: string,
   excludeShiftId?: string
 ): Promise<ActionResult<{ available: boolean; conflictingShifts?: ShiftRecord[] }>>
+
+// シフト復元
+restoreShiftAction(
+  shiftId: string,
+): Promise<ActionResult<void>>
 ```
 
 ## バリデーション規則
@@ -239,6 +274,11 @@ validateStaffAvailabilityAction(
 - キャンセル理由が入力されていること
 - シフトが completed でないこと
 
+### シフト復元
+
+- シフトが `canceled` 状態であること
+- 担当者が設定されている場合、同時間帯に他のシフトを持っていないこと（警告のみ、強制ではない）
+
 ## エラーハンドリング
 
 | 状況                         | HTTP Status | メッセージ                  |
@@ -246,6 +286,7 @@ validateStaffAvailabilityAction(
 | シフトが存在しない           | 404         | Shift not found             |
 | 権限なし                     | 403         | Forbidden                   |
 | 不正なステータス遷移         | 400         | Invalid status transition   |
+| キャンセル状態でない         | 400         | Shift is not canceled       |
 | 時間重複（エラー扱いの場合） | 409         | Staff has conflicting shift |
 
 ## セキュリティ・権限
@@ -287,10 +328,15 @@ validateStaffAvailabilityAction(
     │   ├── CancelShiftDialog.test.tsx
     │   ├── CancelShiftDialog.stories.tsx
     │   └── index.ts
-    └── StaffConflictWarning/               # NEW: 時間重複警告
-        ├── StaffConflictWarning.tsx
-        ├── StaffConflictWarning.test.tsx
-        ├── StaffConflictWarning.stories.tsx
+    ├── StaffConflictWarning/               # NEW: 時間重複警告
+    │   ├── StaffConflictWarning.tsx
+    │   ├── StaffConflictWarning.test.tsx
+    │   ├── StaffConflictWarning.stories.tsx
+    │   └── index.ts
+    └── RestoreShiftDialog/                 # NEW: 復元確認ダイアログ
+        ├── RestoreShiftDialog.tsx
+        ├── RestoreShiftDialog.test.tsx
+        ├── RestoreShiftDialog.stories.tsx
         └── index.ts
 ```
 
@@ -306,6 +352,7 @@ validateStaffAvailabilityAction(
    - ChangeStaffDialog 実装（スタッフピッカー統合）
    - CancelShiftDialog 実装
    - StaffConflictWarning 実装
+   - RestoreShiftDialog 実装
 
 3. **フロントエンド - 統合**
    - ShiftActionButtons コンポーネント実装
@@ -324,6 +371,7 @@ validateStaffAvailabilityAction(
 
 - 担当者変更: 正常に更新される、理由が記録される
 - キャンセル: ステータスが canceled になる、理由が記録される
+- 復元: ステータスが scheduled に戻る、キャンセル情報がクリアされる
 - バリデーション: 不正なステータス遷移は拒否される
 - 時間重複チェック: 重複がある場合は検出される
 
@@ -342,6 +390,10 @@ validateStaffAvailabilityAction(
 - [ ] 未割当シフトに担当者を割り当てられる
 - [ ] 各アクションのボタンが適切なステータスで表示される
 - [ ] キャンセル・完了したシフトは変更不可
+- [ ] 管理者がキャンセル済みシフトを復元できる
+- [ ] 復元時に時間重複がチェックされ、警告が表示される
+- [ ] 復元後のステータスが `scheduled` になる
+- [ ] キャンセル理由等がクリアされる
 - [ ] トースト通知で結果が表示される（「○○さん → △△さんに変更しました」形式）
 - [ ] テストと Storybook が通る
 

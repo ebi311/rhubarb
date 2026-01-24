@@ -69,11 +69,14 @@ const WeeklySchedulesPage = async ({
 		endTime: shift.end_time,
 		clientName: clientNameMap.get(shift.client_id) ?? '不明な利用者',
 		serviceTypeId: shift.service_type_id,
+		staffId: shift.staff_id,
 		staffName: shift.staff_id
 			? (staffNameMap.get(shift.staff_id) ?? '不明なスタッフ')
 			: null,
 		status: shift.status,
 		isUnassigned: !shift.staff_id,
+		cancelReason: shift.canceled_reason,
+		cancelCategory: shift.canceled_category,
 	}));
 
 	// スタッフオプションをピッカー用に変換

@@ -265,6 +265,7 @@ export type Database = {
 			shifts: {
 				Row: {
 					canceled_at: string | null;
+					canceled_category: string | null;
 					canceled_reason: string | null;
 					client_id: string;
 					created_at: string;
@@ -280,6 +281,7 @@ export type Database = {
 				};
 				Insert: {
 					canceled_at?: string | null;
+					canceled_category?: string | null;
 					canceled_reason?: string | null;
 					client_id: string;
 					created_at?: string;
@@ -295,6 +297,7 @@ export type Database = {
 				};
 				Update: {
 					canceled_at?: string | null;
+					canceled_category?: string | null;
 					canceled_reason?: string | null;
 					client_id?: string;
 					created_at?: string;

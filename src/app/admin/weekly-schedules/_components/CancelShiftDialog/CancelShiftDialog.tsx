@@ -46,6 +46,12 @@ export const CancelShiftDialog = ({
 	const handleSubmit = async () => {
 		if (!category || !reason.trim()) return;
 
+		// 最終確認
+		const confirmed = window.confirm(
+			'このシフトをキャンセルしてもよろしいですか？',
+		);
+		if (!confirmed) return;
+
 		setIsSubmitting(true);
 		try {
 			const result = await cancelShiftAction({

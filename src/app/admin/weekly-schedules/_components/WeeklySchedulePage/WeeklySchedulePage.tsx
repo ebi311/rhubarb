@@ -16,6 +16,10 @@ import {
 } from '../ChangeStaffDialog';
 import { EmptyState } from '../EmptyState';
 import { GenerateButton, type GenerateResult } from '../GenerateButton';
+import {
+	RestoreShiftDialog,
+	type RestoreShiftDialogShift,
+} from '../RestoreShiftDialog';
 import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
 
@@ -45,7 +49,7 @@ const createChangeStaffDialogShift = (
 	startTime: shiftToDateTime(shift.date, shift.startTime),
 	endTime: shiftToDateTime(shift.date, shift.endTime),
 	currentStaffName: shift.staffName ?? '未割当',
-	currentStaffId: null, // ShiftDisplayRowにはstaffIdがないため
+	currentStaffId: shift.staffId,
 });
 
 const createCancelShiftDialogShift = (
@@ -60,6 +64,21 @@ const createCancelShiftDialogShift = (
 	currentStaffName: shift.staffName ?? '未割当',
 });
 
+const createRestoreShiftDialogShift = (
+	shift: ShiftDisplayRow,
+): RestoreShiftDialogShift => ({
+	id: shift.id,
+	clientName: shift.clientName,
+	serviceTypeName: ServiceTypeLabels[shift.serviceTypeId],
+	date: shift.date,
+	startTime: shiftToDateTime(shift.date, shift.startTime),
+	endTime: shiftToDateTime(shift.date, shift.endTime),
+	currentStaffName: shift.staffName ?? '未割当',
+	staffId: shift.staffId,
+	cancelReason: shift.cancelReason ?? undefined,
+	cancelCategory: shift.cancelCategory ?? undefined,
+});
+
 export const WeeklySchedulePage = ({
 	weekStartDate,
 	initialShifts,
@@ -69,6 +88,8 @@ export const WeeklySchedulePage = ({
 	const [changeDialogShift, setChangeDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
 	const [cancelDialogShift, setCancelDialogShift] =
+		useState<ShiftDisplayRow | null>(null);
+	const [restoreDialogShift, setRestoreDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
 
 	const handleWeekChange = (date: Date) => {
@@ -102,9 +123,14 @@ export const WeeklySchedulePage = ({
 		setCancelDialogShift(shift);
 	};
 
+	const handleRestoreShift = (shift: ShiftDisplayRow) => {
+		setRestoreDialogShift(shift);
+	};
+
 	const handleDialogSuccess = () => {
 		setChangeDialogShift(null);
 		setCancelDialogShift(null);
+		setRestoreDialogShift(null);
 		router.refresh();
 	};
 
@@ -130,6 +156,7 @@ export const WeeklySchedulePage = ({
 					onChangeStaff={handleChangeStaff}
 					onAssignStaff={handleAssignStaff}
 					onCancelShift={handleCancelShift}
+					onRestoreShift={handleRestoreShift}
 				/>
 			) : (
 				<EmptyState
@@ -153,6 +180,15 @@ export const WeeklySchedulePage = ({
 					isOpen={!!cancelDialogShift}
 					shift={createCancelShiftDialogShift(cancelDialogShift)}
 					onClose={() => setCancelDialogShift(null)}
+					onSuccess={handleDialogSuccess}
+				/>
+			)}
+
+			{restoreDialogShift && (
+				<RestoreShiftDialog
+					isOpen={!!restoreDialogShift}
+					shift={createRestoreShiftDialogShift(restoreDialogShift)}
+					onClose={() => setRestoreDialogShift(null)}
 					onSuccess={handleDialogSuccess}
 				/>
 			)}

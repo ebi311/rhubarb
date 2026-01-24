@@ -63,6 +63,9 @@ export const ShiftRecordSchema = z.object({
 	end_time: TimeValueSchema,
 	status: ShiftStatusSchema,
 	is_unassigned: z.boolean(),
+	canceled_reason: z.string().nullable(),
+	canceled_category: z.string().nullable(),
+	canceled_at: TimestampSchema.nullable(),
 	created_at: TimestampSchema,
 	updated_at: TimestampSchema,
 });
@@ -99,6 +102,13 @@ export const CancelShiftInputSchema = z.object({
 });
 
 export type CancelShiftInput = z.infer<typeof CancelShiftInputSchema>;
+
+// restoreShiftAction の入力スキーマ
+export const RestoreShiftInputSchema = z.object({
+	shiftId: z.string().uuid(),
+});
+
+export type RestoreShiftInput = z.infer<typeof RestoreShiftInputSchema>;
 
 // validateStaffAvailabilityAction の入力スキーマ
 export const ValidateStaffAvailabilityInputSchema = z.object({

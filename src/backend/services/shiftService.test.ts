@@ -21,6 +21,7 @@ const createMockShiftRepository = (): Mocked<ShiftRepository> => {
 		findById: vi.fn(),
 		updateStaffAssignment: vi.fn(),
 		cancelShift: vi.fn(),
+		restoreShift: vi.fn(),
 		findConflictingShifts: vi.fn(),
 	} as unknown as Mocked<ShiftRepository>;
 };
@@ -303,6 +304,89 @@ describe('ShiftService', () => {
 				expect.objectContaining({
 					status: 400,
 					message: 'Cannot cancel completed shift',
+				}),
+			);
+		});
+	});
+
+	describe('restoreShift', () => {
+		it('should successfully restore canceled shift', async () => {
+			const userId = 'auth-user-1';
+			const shiftId = '12345678-1234-1234-8234-123456789011';
+
+			const adminStaff = createTestStaff();
+			const canceledShift = createTestShift({ status: 'canceled' });
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(canceledShift);
+
+			await service.restoreShift(userId, shiftId);
+
+			expect(mockShiftRepo.restoreShift).toHaveBeenCalledWith(shiftId);
+		});
+
+		it('should throw 404 if staff not found', async () => {
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(null);
+
+			await expect(service.restoreShift('user-1', 'shift-1')).rejects.toThrow(
+				expect.objectContaining({
+					status: 404,
+					message: 'Staff not found',
+				}),
+			);
+		});
+
+		it('should throw 403 if user is not admin', async () => {
+			const helperStaff = createTestStaff({ role: 'helper' });
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(helperStaff);
+
+			await expect(service.restoreShift('user-1', 'shift-1')).rejects.toThrow(
+				expect.objectContaining({
+					status: 403,
+					message: 'Forbidden',
+				}),
+			);
+		});
+
+		it('should throw 404 if shift not found', async () => {
+			const adminStaff = createTestStaff();
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(null);
+
+			await expect(service.restoreShift('user-1', 'shift-1')).rejects.toThrow(
+				expect.objectContaining({
+					status: 404,
+					message: 'Shift not found',
+				}),
+			);
+		});
+
+		it('should throw 400 if shift is not canceled (scheduled)', async () => {
+			const adminStaff = createTestStaff();
+			const scheduledShift = createTestShift({ status: 'scheduled' });
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(scheduledShift);
+
+			await expect(service.restoreShift('user-1', 'shift-1')).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'Shift is not canceled',
+				}),
+			);
+		});
+
+		it('should throw 400 if shift is not canceled (completed)', async () => {
+			const adminStaff = createTestStaff();
+			const completedShift = createTestShift({ status: 'completed' });
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(completedShift);
+
+			await expect(service.restoreShift('user-1', 'shift-1')).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'Shift is not canceled',
 				}),
 			);
 		});

@@ -105,6 +105,7 @@ describe('ShiftRepository', () => {
 			expect(mockSupabase._mockQuery.update).toHaveBeenCalledWith({
 				status: 'canceled',
 				canceled_reason: reason,
+				canceled_category: category,
 				canceled_at: canceledAt.toISOString(),
 				updated_at: expect.any(String),
 			});
@@ -118,6 +119,38 @@ describe('ShiftRepository', () => {
 			await expect(
 				repository.cancelShift('shift-1', 'reason', 'client', new Date()),
 			).rejects.toThrow('Cancel failed');
+		});
+	});
+
+	describe('restoreShift', () => {
+		it('should update status to scheduled and clear cancel info', async () => {
+			const shiftId = 'shift-1';
+
+			mockSupabase._mockQuery.eq.mockResolvedValueOnce({
+				data: null,
+				error: null,
+			});
+
+			await repository.restoreShift(shiftId);
+
+			expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
+			expect(mockSupabase._mockQuery.update).toHaveBeenCalledWith({
+				status: 'scheduled',
+				canceled_reason: null,
+				canceled_category: null,
+				canceled_at: null,
+				updated_at: expect.any(String),
+			});
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith('id', shiftId);
+		});
+
+		it('should throw error if restore fails', async () => {
+			const error = new Error('Restore failed');
+			mockSupabase._mockQuery.eq.mockResolvedValueOnce({ data: null, error });
+
+			await expect(repository.restoreShift('shift-1')).rejects.toThrow(
+				'Restore failed',
+			);
 		});
 	});
 

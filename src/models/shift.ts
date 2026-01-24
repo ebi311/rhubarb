@@ -20,6 +20,9 @@ export const ShiftSchema = z.object({
 	time: TimeRangeSchema,
 	status: ShiftStatusSchema.default('scheduled'),
 	is_unassigned: z.boolean().default(false),
+	canceled_reason: z.string().nullable().optional(),
+	canceled_category: z.string().nullable().optional(),
+	canceled_at: TimestampSchema.nullable().optional(),
 	created_at: TimestampSchema,
 	updated_at: TimestampSchema,
 });

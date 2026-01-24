@@ -148,6 +148,26 @@ export class ShiftService {
 	}
 
 	/**
+	 * キャンセル済みシフトを復元する
+	 */
+	async restoreShift(userId: string, shiftId: string): Promise<void> {
+		// 認可チェック
+		await this.getAdminStaff(userId);
+
+		// シフトの存在確認
+		const shift = await this.shiftRepository.findById(shiftId);
+		if (!shift) throw new ServiceError(404, 'Shift not found');
+
+		// ステータス検証（canceled のみ復元可能）
+		if (shift.status !== 'canceled') {
+			throw new ServiceError(400, 'Shift is not canceled');
+		}
+
+		// Repository 呼び出し
+		await this.shiftRepository.restoreShift(shiftId);
+	}
+
+	/**
 	 * スタッフの時間重複チェック
 	 */
 	async validateStaffAvailability(

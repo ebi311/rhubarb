@@ -18,6 +18,7 @@ export const Scheduled: Story = {
 	args: {
 		status: 'scheduled',
 		onCancelShift: () => console.log('Cancel'),
+		onRestoreShift: () => console.log('Restore'),
 	},
 };
 
@@ -25,6 +26,7 @@ export const Confirmed: Story = {
 	args: {
 		status: 'confirmed',
 		onCancelShift: () => console.log('Cancel'),
+		onRestoreShift: () => console.log('Restore'),
 	},
 };
 
@@ -32,6 +34,7 @@ export const Completed: Story = {
 	args: {
 		status: 'completed',
 		onCancelShift: () => console.log('Cancel'),
+		onRestoreShift: () => console.log('Restore'),
 	},
 };
 
@@ -39,5 +42,6 @@ export const Canceled: Story = {
 	args: {
 		status: 'canceled',
 		onCancelShift: () => console.log('Cancel'),
+		onRestoreShift: () => console.log('Restore'),
 	},
 };

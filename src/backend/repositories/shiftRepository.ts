@@ -257,7 +257,27 @@ export class ShiftRepository {
 			.update({
 				status: 'canceled',
 				canceled_reason: reason,
+				canceled_category: category,
 				canceled_at: canceledAt.toISOString(),
+				updated_at: new Date().toISOString(),
+			})
+			.eq('id', shiftId);
+
+		if (error) throw error;
+	}
+
+	/**
+	 * キャンセル済みシフトを復元する
+	 * ステータスをscheduledに戻し、キャンセル関連情報をクリアする
+	 */
+	async restoreShift(shiftId: string): Promise<void> {
+		const { error } = await this.supabase
+			.from('shifts')
+			.update({
+				status: 'scheduled',
+				canceled_reason: null,
+				canceled_category: null,
+				canceled_at: null,
 				updated_at: new Date().toISOString(),
 			})
 			.eq('id', shiftId);

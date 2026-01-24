@@ -5,12 +5,14 @@ import type {
 	CancelShiftInput,
 	ChangeShiftStaffInput,
 	ChangeShiftStaffOutput,
+	RestoreShiftInput,
 	ValidateStaffAvailabilityInput,
 	ValidateStaffAvailabilityOutput,
 } from '@/models/shiftActionSchemas';
 import {
 	CancelShiftInputSchema,
 	ChangeShiftStaffInputSchema,
+	RestoreShiftInputSchema,
 	ValidateStaffAvailabilityInputSchema,
 } from '@/models/shiftActionSchemas';
 import { createSupabaseClient } from '@/utils/supabase/server';
@@ -91,6 +93,29 @@ export const cancelShiftAction = async (
 			parsedInput.data.reason,
 			parsedInput.data.category,
 		);
+		return successResult(null);
+	} catch (err) {
+		return handleServiceError<null>(err);
+	}
+};
+
+/**
+ * キャンセル済みシフトを復元する
+ */
+export const restoreShiftAction = async (
+	input: RestoreShiftInput,
+): Promise<ActionResult<null>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput = RestoreShiftInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		await service.restoreShift(user.id, parsedInput.data.shiftId);
 		return successResult(null);
 	} catch (err) {
 		return handleServiceError<null>(err);

@@ -14,9 +14,12 @@ export type ShiftDisplayRow = {
 	endTime: { hour: number; minute: number };
 	clientName: string;
 	serviceTypeId: ServiceTypeId;
+	staffId: string | null;
 	staffName: string | null;
 	status: ShiftStatus;
 	isUnassigned: boolean;
+	cancelReason?: string | null;
+	cancelCategory?: string | null;
 };
 
 export interface ShiftTableProps {
@@ -25,6 +28,7 @@ export interface ShiftTableProps {
 	onChangeStaff?: (shift: ShiftDisplayRow) => void;
 	onAssignStaff?: (shift: ShiftDisplayRow) => void;
 	onCancelShift?: (shift: ShiftDisplayRow) => void;
+	onRestoreShift?: (shift: ShiftDisplayRow) => void;
 }
 
 const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
@@ -69,6 +73,7 @@ export const ShiftTable = ({
 	onChangeStaff,
 	onAssignStaff,
 	onCancelShift,
+	onRestoreShift,
 }: ShiftTableProps) => {
 	if (loading) {
 		return (
@@ -174,6 +179,7 @@ export const ShiftTable = ({
 							<ShiftActionButtons
 								status={shift.status}
 								onCancelShift={() => onCancelShift?.(shift)}
+								onRestoreShift={() => onRestoreShift?.(shift)}
 							/>
 						</div>
 					</div>
