@@ -1,0 +1,1 @@
+export { WeeklyScheduleSkeleton } from './WeeklyScheduleSkeleton';

@@ -59,8 +59,8 @@ const STATUS_BADGE_CLASSES: Record<ShiftStatus, string> = {
 
 const GRID_COLS = classNames(
 	'grid',
-	'grid-cols-[8rem_10rem_1fr]',
-	'grid-areas-["date_time_client""staff_service_status"]',
+	'grid-cols-[8rem_8rem_1fr_6rem]',
+	'grid-areas-["date_time_client_client""staff_service_status_action"]',
 	'lg:grid-cols-[8rem_8rem_1fr_8rem_8rem_6rem_8rem]',
 	"lg:grid-areas-['date_time_client_staff_service_status_action']",
 	'gap-2',
@@ -90,7 +90,7 @@ export const ShiftTable = ({
 	}
 
 	return (
-		<div className="min-w-md lg:w-full">
+		<div className="max-w-2xl min-w-md lg:w-full lg:max-w-full">
 			{/* Header */}
 			<div
 				className={`${GRID_COLS} border-b border-base-300 bg-base-200 py-2 text-sm font-semibold`}
@@ -115,7 +115,7 @@ export const ShiftTable = ({
 				<div role="columnheader" className="grid-area-[status]">
 					ステータス
 				</div>
-				<div role="columnheader" className="hidden grid-area-[action] lg:block">
+				<div role="columnheader" className="grid-area-[action]">
 					操作
 				</div>
 			</div>
@@ -175,7 +175,7 @@ export const ShiftTable = ({
 								{STATUS_LABELS[shift.status]}
 							</span>
 						</div>
-						<div className="hidden grid-area-[action] lg:block">
+						<div className="grid-area-[action] lg:block">
 							<ShiftActionButtons
 								status={shift.status}
 								onCancelShift={() => onCancelShift?.(shift)}
