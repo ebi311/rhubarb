@@ -1,15 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { BasicScheduleViewModel } from '../BasicScheduleTable/types';
 import { BasicScheduleList } from './BasicScheduleList';
-
-// モック: データ取得関数
-const mockFetchSchedules = vi.fn<() => Promise<BasicScheduleViewModel[]>>();
-
-// モック設定
-vi.mock('../BasicScheduleTable/fetchBasicSchedules', () => ({
-	fetchBasicSchedules: () => mockFetchSchedules(),
-}));
 
 const sampleSchedules: BasicScheduleViewModel[] = [
 	{
@@ -33,18 +25,8 @@ const sampleSchedules: BasicScheduleViewModel[] = [
 ];
 
 describe('BasicScheduleList', () => {
-	it('スケジュールデータを正しく表示する', async () => {
-		mockFetchSchedules.mockResolvedValue(sampleSchedules);
-
-		render(
-			await BasicScheduleList({
-				filters: {
-					clientId: undefined,
-					serviceTypeId: undefined,
-					weekday: undefined,
-				},
-			}),
-		);
+	it('スケジュールデータを正しく表示する', () => {
+		render(<BasicScheduleList schedules={sampleSchedules} />);
 
 		// データ行の確認
 		expect(screen.getByText('山田太郎')).toBeInTheDocument();
@@ -58,52 +40,26 @@ describe('BasicScheduleList', () => {
 		expect(screen.getByText('火曜日')).toBeInTheDocument();
 	});
 
-	it('データがない場合は空状態を表示する', async () => {
-		mockFetchSchedules.mockResolvedValue([]);
-
-		render(
-			await BasicScheduleList({
-				filters: {
-					clientId: undefined,
-					serviceTypeId: undefined,
-					weekday: undefined,
-				},
-			}),
-		);
+	it('データがない場合は空状態を表示する', () => {
+		render(<BasicScheduleList schedules={[]} />);
 
 		expect(
 			screen.getByText('スケジュールが登録されていません'),
 		).toBeInTheDocument();
 	});
 
-	it('担当者が未設定の場合はハイフンを表示する', async () => {
-		mockFetchSchedules.mockResolvedValue([sampleSchedules[1]]);
-
-		render(
-			await BasicScheduleList({
-				filters: {
-					clientId: undefined,
-					serviceTypeId: undefined,
-					weekday: undefined,
-				},
-			}),
-		);
+	it('担当者が未設定の場合はハイフンを表示する', () => {
+		render(<BasicScheduleList schedules={[sampleSchedules[1]]} />);
 
 		// 担当者列と備考列の両方がハイフン
 		const hyphens = screen.getAllByText('-');
 		expect(hyphens).toHaveLength(2);
 	});
 
-	it('フィルタをfetchBasicSchedulesに渡す', async () => {
-		mockFetchSchedules.mockResolvedValue([]);
-		const filters = {
-			weekday: 'Mon' as const,
-			clientId: 'client-1',
-			serviceTypeId: 'life-support' as const,
-		};
+	it('複数のスケジュールを表示できる', () => {
+		render(<BasicScheduleList schedules={sampleSchedules} />);
 
-		render(await BasicScheduleList({ filters }));
-
-		expect(mockFetchSchedules).toHaveBeenCalled();
+		expect(screen.getByText('山田太郎')).toBeInTheDocument();
+		expect(screen.getByText('鈴木花子')).toBeInTheDocument();
 	});
 });

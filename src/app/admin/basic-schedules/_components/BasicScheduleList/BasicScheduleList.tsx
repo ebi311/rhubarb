@@ -3,12 +3,10 @@ import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import classNames from 'classnames';
 import Link from 'next/link';
-import type { BasicScheduleFilterState } from '../BasicScheduleFilterBar/types';
-import { fetchBasicSchedules } from '../BasicScheduleTable/fetchBasicSchedules';
 import type { BasicScheduleViewModel } from '../BasicScheduleTable/types';
 
 interface BasicScheduleListProps {
-	filters: BasicScheduleFilterState;
+	schedules: BasicScheduleViewModel[];
 }
 
 const WEEKDAY_LABELS: Record<DayOfWeek, string> = {
@@ -58,11 +56,7 @@ const EmptyState = () => (
 	</div>
 );
 
-export const BasicScheduleList = async ({
-	filters,
-}: BasicScheduleListProps) => {
-	const schedules = await fetchBasicSchedules(filters);
-
+export const BasicScheduleList = ({ schedules }: BasicScheduleListProps) => {
 	if (schedules.length === 0) {
 		return <EmptyState />;
 	}
