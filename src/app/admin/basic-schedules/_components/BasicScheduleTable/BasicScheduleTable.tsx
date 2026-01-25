@@ -9,6 +9,7 @@ import type { BasicScheduleViewModel } from './types';
 
 interface BasicScheduleTableProps {
 	filters: BasicScheduleFilterState;
+	render?: (schedules: BasicScheduleViewModel[]) => React.ReactNode;
 }
 
 const rowClassName = classNames(
@@ -50,6 +51,7 @@ const EmptyState = () => (
 
 export const BasicScheduleTable = async ({
 	filters,
+	render,
 }: BasicScheduleTableProps) => {
 	const schedules = await fetchBasicSchedules(filters);
 
@@ -57,6 +59,12 @@ export const BasicScheduleTable = async ({
 		return <EmptyState />;
 	}
 
+	// renderプロップが指定されている場合はそれを使用
+	if (render) {
+		return <>{render(schedules)}</>;
+	}
+
+	// デフォルトはテーブル表示
 	return (
 		<div>
 			{schedules.map((schedule) => (
