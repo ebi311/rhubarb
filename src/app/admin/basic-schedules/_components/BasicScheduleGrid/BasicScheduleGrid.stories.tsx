@@ -122,6 +122,71 @@ const multiSchedulesInCell: BasicScheduleGridViewModel[] = [
 	},
 ];
 
+const twoSchedulesSameDay: BasicScheduleGridViewModel[] = [
+	{
+		clientId: '1',
+		clientName: '山田太郎',
+		schedulesByWeekday: {
+			Mon: [
+				{
+					id: '1',
+					timeRange: '09:00-10:30',
+					serviceTypeId: 'physical-care',
+					staffNames: ['スタッフA'],
+					note: null,
+				},
+				{
+					id: '2',
+					timeRange: '14:00-15:00',
+					serviceTypeId: 'life-support',
+					staffNames: ['スタッフB'],
+					note: null,
+				},
+			],
+			Wed: [
+				{
+					id: '3',
+					timeRange: '10:00-11:00',
+					serviceTypeId: 'physical-care',
+					staffNames: ['スタッフC'],
+					note: null,
+				},
+			],
+		},
+	},
+	{
+		clientId: '2',
+		clientName: '佐藤花子',
+		schedulesByWeekday: {
+			Tue: [
+				{
+					id: '4',
+					timeRange: '08:00-09:00',
+					serviceTypeId: 'physical-care',
+					staffNames: ['スタッフD'],
+					note: null,
+				},
+			],
+			Thu: [
+				{
+					id: '5',
+					timeRange: '11:00-12:00',
+					serviceTypeId: 'life-support',
+					staffNames: ['スタッフE'],
+					note: null,
+				},
+				{
+					id: '6',
+					timeRange: '16:00-17:00',
+					serviceTypeId: 'physical-care',
+					staffNames: ['スタッフF'],
+					note: null,
+				},
+			],
+		},
+	},
+];
+
 const longTextSchedules: BasicScheduleGridViewModel[] = [
 	{
 		clientId: '1',
@@ -147,6 +212,12 @@ const longTextSchedules: BasicScheduleGridViewModel[] = [
 export const Default: Story = {
 	args: {
 		schedules: sampleSchedules,
+	},
+};
+
+export const TwoSchedulesSameDay: Story = {
+	args: {
+		schedules: twoSchedulesSameDay,
 	},
 };
 
