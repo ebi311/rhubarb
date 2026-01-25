@@ -1,4 +1,3 @@
-import { ServiceTypeBadges } from '@/app/admin/_components/ServiceTypeBadges';
 import { WEEKDAYS, WEEKDAY_FULL_LABELS } from '@/models/valueObjects/dayOfWeek';
 import React from 'react';
 import type { BasicScheduleCell, BasicScheduleGridViewModel } from './types';
@@ -76,14 +75,23 @@ interface ScheduleCellProps {
 	cell: BasicScheduleCell;
 }
 
-const ScheduleCell = ({ cell }: ScheduleCellProps) => (
-	<div className="rounded border border-base-300 bg-base-100 p-2">
-		<div className="mb-1 text-sm font-semibold">{cell.timeRange}</div>
-		<div className="mb-1">
-			<ServiceTypeBadges serviceTypeIds={[cell.serviceTypeId]} />
+/**
+ * サービス区分ごとの背景色設定（Googleカレンダー風）
+ */
+const serviceTypeBackgroundMap: Record<string, string> = {
+	'physical-care': 'bg-blue-500 text-white',
+	'life-support': 'bg-emerald-500 text-white',
+	'commute-support': 'bg-violet-500 text-white',
+};
+
+const ScheduleCell = ({ cell }: ScheduleCellProps) => {
+	const bgColorClass =
+		serviceTypeBackgroundMap[cell.serviceTypeId] || 'bg-gray-500 text-white';
+
+	return (
+		<div className={`rounded p-2 ${bgColorClass}`}>
+			<div className="mb-1 text-sm font-semibold">{cell.timeRange}</div>
+			<div className="text-xs opacity-90">{cell.staffNames.join(', ')}</div>
 		</div>
-		<div className="text-sm text-base-content/80">
-			{cell.staffNames.join(', ')}
-		</div>
-	</div>
-);
+	);
+};
