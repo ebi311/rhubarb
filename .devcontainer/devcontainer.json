@@ -56,7 +56,8 @@
 				"cweijan.vscode-database-client2",
 				"bradlc.vscode-tailwindcss",
 				"cweijan.vscode-redis-client",
-				"oderwat.indent-rainbow"
+				"oderwat.indent-rainbow",
+				"alefragnani.Bookmarks"
 			]
 		}
 	}

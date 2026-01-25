@@ -1,6 +1,6 @@
 import { classNameConsts } from '@/app/_components/classNameConsts';
 import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
-import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
+import { WEEKDAY_FULL_LABELS } from '@/models/valueObjects/dayOfWeek';
 import classNames from 'classnames';
 import Link from 'next/link';
 import type { BasicScheduleFilterState } from '../BasicScheduleFilterBar/types';
@@ -10,16 +10,6 @@ import type { BasicScheduleViewModel } from './types';
 interface BasicScheduleTableProps {
 	filters: BasicScheduleFilterState;
 }
-
-const WEEKDAY_LABELS: Record<DayOfWeek, string> = {
-	Mon: '月曜日',
-	Tue: '火曜日',
-	Wed: '水曜日',
-	Thu: '木曜日',
-	Fri: '金曜日',
-	Sat: '土曜日',
-	Sun: '日曜日',
-};
 
 const rowClassName = classNames(
 	'grid-cols-[6rem_4rem_6rem_1fr]',
@@ -38,7 +28,7 @@ const TableRow = ({ schedule }: { schedule: BasicScheduleViewModel }) => (
 			<ServiceTypeBadge serviceTypeId={schedule.serviceTypeId} />
 		</div>
 		<div className="text-sm text-base-content/75 grid-area-[weekday]">
-			{WEEKDAY_LABELS[schedule.weekday]}
+			{WEEKDAY_FULL_LABELS[schedule.weekday]}
 		</div>
 		<div className="text-sm text-base-content/75 grid-area-[time-range]">
 			{schedule.timeRange}

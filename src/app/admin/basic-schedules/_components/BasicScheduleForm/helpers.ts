@@ -1,4 +1,3 @@
-import type { Weekday } from '@/models/basicScheduleActionSchemas';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import type { TimeValue } from '@/models/valueObjects/time';
@@ -97,13 +96,3 @@ export const resolveStaffPickerClearHandler = (
 	staff: StaffRecord | null,
 	onClear: () => void,
 ) => (staff ? onClear : undefined);
-
-export const WEEKDAY_LABELS: Record<Weekday, string> = {
-	Sun: '日曜日',
-	Mon: '月曜日',
-	Tue: '火曜日',
-	Wed: '水曜日',
-	Thu: '木曜日',
-	Fri: '金曜日',
-	Sat: '土曜日',
-};

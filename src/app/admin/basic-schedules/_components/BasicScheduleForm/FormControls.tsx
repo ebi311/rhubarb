@@ -4,15 +4,12 @@ import { FormInput } from '@/components/forms/FormInput';
 import { FormSelect } from '@/components/forms/FormSelect';
 import { FormTextarea } from '@/components/forms/FormTextarea';
 import type { ServiceUser } from '@/models/serviceUser';
+import { WEEKDAY_FULL_LABELS, WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
 import { useId } from 'react';
 import { useFormContext } from 'react-hook-form';
 import type { BasicScheduleFormValues } from './BasicScheduleForm';
 import { FieldErrorMessage } from './FormMessages';
-import {
-	getFieldDescriptionId,
-	getSelectClassName,
-	WEEKDAY_LABELS,
-} from './helpers';
+import { getFieldDescriptionId, getSelectClassName } from './helpers';
 
 type ClientSelectFieldProps = {
 	serviceUsers: ServiceUser[];
@@ -121,11 +118,9 @@ export const WeekdayField = () => {
 				className="select"
 				disabled={isSubmitting}
 				aria-labelledby={`${fieldId}-label`}
-				options={(
-					Object.keys(WEEKDAY_LABELS) as Array<keyof typeof WEEKDAY_LABELS>
-				).map((weekday) => ({
+				options={WEEKDAYS.map((weekday) => ({
 					value: weekday,
-					label: WEEKDAY_LABELS[weekday],
+					label: WEEKDAY_FULL_LABELS[weekday],
 				}))}
 				{...register('weekday')}
 			/>

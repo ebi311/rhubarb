@@ -2,6 +2,7 @@
 
 import { FormSelect } from '@/components/forms/FormSelect';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
+import { WEEKDAYS, WEEKDAY_FULL_LABELS } from '@/models/valueObjects/dayOfWeek';
 import classNames from 'classnames';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ChangeEvent } from 'react';
@@ -16,16 +17,6 @@ interface BasicScheduleFilterBarProps {
 	clients: ClientOption[];
 	serviceTypes: ServiceTypeOption[];
 }
-
-const WEEKDAYS: { value: DayOfWeek; label: string }[] = [
-	{ value: 'Mon', label: '月曜日' },
-	{ value: 'Tue', label: '火曜日' },
-	{ value: 'Wed', label: '水曜日' },
-	{ value: 'Thu', label: '木曜日' },
-	{ value: 'Fri', label: '金曜日' },
-	{ value: 'Sat', label: '土曜日' },
-	{ value: 'Sun', label: '日曜日' },
-];
 
 const labeledControlClassNames = classNames(
 	'form-control',
@@ -47,7 +38,7 @@ export const BasicScheduleFilterBar = ({
 
 	const weekdayOptions = [
 		{ value: '', label: 'すべて' },
-		...WEEKDAYS.map((day) => ({ value: day.value, label: day.label })),
+		...WEEKDAYS.map((day) => ({ value: day, label: WEEKDAY_FULL_LABELS[day] })),
 	];
 
 	const clientOptions = [
