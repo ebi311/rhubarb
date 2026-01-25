@@ -85,8 +85,5 @@ const ScheduleCell = ({ cell }: ScheduleCellProps) => (
 		<div className="text-sm text-base-content/80">
 			{cell.staffNames.join(', ')}
 		</div>
-		{cell.note && (
-			<div className="mt-1 text-xs text-base-content/60">{cell.note}</div>
-		)}
 	</div>
 );

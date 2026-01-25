@@ -111,28 +111,4 @@ describe('BasicScheduleGrid', () => {
 			screen.getByText('条件に一致する基本スケジュールがありません'),
 		).toBeInTheDocument();
 	});
-
-	it('備考がある場合、表示される', () => {
-		const schedules: BasicScheduleGridViewModel[] = [
-			{
-				clientId: '1',
-				clientName: '山田太郎',
-				schedulesByWeekday: {
-					Mon: [
-						{
-							id: '1',
-							timeRange: '09:00-10:00',
-							serviceTypeId: 'physical-care',
-							staffNames: ['スタッフA'],
-							note: '入浴介助あり',
-						},
-					],
-				},
-			},
-		];
-
-		render(<BasicScheduleGrid schedules={schedules} />);
-
-		expect(screen.getByText('入浴介助あり')).toBeInTheDocument();
-	});
 });
