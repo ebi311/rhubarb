@@ -16,7 +16,7 @@
 		"build-storybook": "storybook build",
 		"supa:start": "supabase start",
 		"supa:stop": "supabase stop",
-		"supa:reset": "supabase reset",
+		"supa:reset": "supabase db reset",
 		"supa:types": "supabase gen types typescript --local > ./src/backend/types/supabase.ts",
 		"supa:migrate": "supabase migration up",
 		"format": "prettier --write .",

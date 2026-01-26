@@ -99,11 +99,11 @@ VALUES
 -- 次郎: 火・木の午後
 INSERT INTO public.staff_availabilities (staff_id, day_of_week, start_time, end_time, priority)
 VALUES
-  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Mon', '0900', '1200', 'High'),
-  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Wed', '0900', '1200', 'High'),
-  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Fri', '0900', '1200', 'High'),
-  ('019b179f-c863-774e-ad83-4adc56163d05', 'Tue', '1300', '1700', 'High'),
-  ('019b179f-c863-774e-ad83-4adc56163d05', 'Thu', '1300', '1700', 'High');
+  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Mon', '09:00:00+09:00', '12:00:00+09:00', 'High'),
+  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Wed', '09:00:00+09:00', '12:00:00+09:00', 'High'),
+  ('019b179f-c7db-7248-bcdc-745cfa30edad', 'Fri', '09:00:00+09:00', '12:00:00+09:00', 'High'),
+  ('019b179f-c863-774e-ad83-4adc56163d05', 'Tue', '13:00:00+09:00', '17:00:00+09:00', 'High'),
+  ('019b179f-c863-774e-ad83-4adc56163d05', 'Thu', '13:00:00+09:00', '17:00:00+09:00', 'High');
 
 -- 7. Client Staff Assignments (担当許可) - text型ID使用
 -- A子さんは、太郎の身体介護OK
@@ -124,25 +124,25 @@ DECLARE
 BEGIN
   -- A子さん: 月曜 10:00-11:00 身体介護 (担当: 太郎)
   INSERT INTO public.basic_schedules (id, client_id, service_type_id, day_of_week, start_time, end_time)
-  VALUES (schedule_id_1, '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 'physical-care', 'Mon', '1000', '1100');
+  VALUES (schedule_id_1, '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 'physical-care', 'Mon', '10:00:00+09:00', '11:00:00+09:00');
   INSERT INTO public.basic_schedule_staff_assignments (basic_schedule_id, staff_id)
   VALUES (schedule_id_1, '019b179f-c7db-7248-bcdc-745cfa30edad');
 
   -- B男さん: 火曜 14:00-15:00 生活支援 (担当: 次郎)
   INSERT INTO public.basic_schedules (id, client_id, service_type_id, day_of_week, start_time, end_time)
-  VALUES (schedule_id_2, '019b179f-c977-717a-ab85-8d61b628550e', 'life-support', 'Tue', '1400', '1500');
+  VALUES (schedule_id_2, '019b179f-c977-717a-ab85-8d61b628550e', 'life-support', 'Tue', '14:00:00+09:00', '15:00:00+09:00');
   INSERT INTO public.basic_schedule_staff_assignments (basic_schedule_id, staff_id)
   VALUES (schedule_id_2, '019b179f-c863-774e-ad83-4adc56163d05');
 
   -- C美さん: 水曜 11:00-12:00 通院サポート (担当: 三子)
   INSERT INTO public.basic_schedules (id, client_id, service_type_id, day_of_week, start_time, end_time)
-  VALUES (schedule_id_3, '019b179f-ca8a-7453-a912-1e3f4d6b8c2e', 'commute-support', 'Wed', '1100', '1200');
+  VALUES (schedule_id_3, '019b179f-ca8a-7453-a912-1e3f4d6b8c2e', 'commute-support', 'Wed', '11:00:00+09:00', '12:00:00+09:00');
   INSERT INTO public.basic_schedule_staff_assignments (basic_schedule_id, staff_id)
   VALUES (schedule_id_3, '019b179f-c8f0-7777-aaaa-123456789abc');
 
   -- A子さん: 金曜 09:00-10:00 身体介護 (担当なし = 未割当)
   INSERT INTO public.basic_schedules (id, client_id, service_type_id, day_of_week, start_time, end_time)
-  VALUES (schedule_id_4, '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 'physical-care', 'Fri', '0900', '1000');
+  VALUES (schedule_id_4, '019b179f-c8ec-7098-a1d7-7d2dc84f4b8d', 'physical-care', 'Fri', '09:00:00+09:00', '10:00:00+09:00');
   -- 担当なしなので basic_schedule_staff_assignments には挿入しない
 END $$;
 

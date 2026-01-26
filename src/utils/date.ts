@@ -91,3 +91,22 @@ export const getJstDateOnly = (date: Date): Date => {
 export const addJstDays = (date: Date, days: number): Date => {
 	return dayjs(date).tz(JST).add(days, 'day').toDate();
 };
+
+/**
+ * time with time zone 形式の文字列を HH:mm 形式にフォーマット
+ * 例: "09:00:00+00" -> "09:00"
+ * 例: "13:30:00+09" -> "13:30"
+ */
+export const formatTime = (timeString: string): string => {
+	if (!/^\d{2}:\d{2}(:\d{2})?[+-](\d{2}|\d{4}|\d{2}:\d{2})$/.test(timeString)) {
+		throw new Error(`Invalid time string: ${timeString}`);
+	}
+	// 最後が [+-]HH$ の場合は、末尾に "00" を追加する
+	const normalizedTimeString = timeString.replace(/([+-]\d{2})$/, '$100');
+	const dt = dayjs(`1970-01-01T${normalizedTimeString}`);
+	if (!dt.isValid()) {
+		throw new Error(`Invalid time string: ${timeString}`);
+	}
+	const dtJST = dt.tz(JST);
+	return dtJST.format('HH:mm');
+};
