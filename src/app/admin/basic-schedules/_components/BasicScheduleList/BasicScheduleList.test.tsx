@@ -51,9 +51,10 @@ describe('BasicScheduleList', () => {
 	it('担当者が未設定の場合はハイフンを表示する', () => {
 		render(<BasicScheduleList schedules={[sampleSchedules[1]]} />);
 
-		// 担当者列と備考列の両方がハイフン
-		const hyphens = screen.getAllByText('-');
-		expect(hyphens).toHaveLength(2);
+		// 担当者は "(未設定)" を表示
+		expect(screen.getByText('(未設定)')).toBeInTheDocument();
+		// 備考はハイフン
+		expect(screen.getByText('-')).toBeInTheDocument();
 	});
 
 	it('複数のスケジュールを表示できる', () => {

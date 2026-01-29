@@ -45,7 +45,7 @@ describe('BasicScheduleGrid', () => {
 		expect(screen.getByText('佐藤花子')).toBeInTheDocument();
 	});
 
-	it('スケジュールセルに時間帯とスタッフ名が表示される', () => {
+	it('スケジュールセルに時間帯とスタッフ名が表示される。スタッフがいない場合は "(未設定)" が表示される', () => {
 		const schedules: BasicScheduleGridViewModel[] = [
 			{
 				clientId: '1',
@@ -59,6 +59,13 @@ describe('BasicScheduleGrid', () => {
 							staffNames: ['スタッフA'],
 							note: null,
 						},
+						{
+							id: '2',
+							timeRange: '10:00-11:00',
+							serviceTypeId: 'life-support',
+							staffNames: [],
+							note: null,
+						},
 					],
 				},
 			},
@@ -66,8 +73,15 @@ describe('BasicScheduleGrid', () => {
 
 		render(<BasicScheduleGrid schedules={schedules} />);
 
-		expect(screen.getByText('09:00-10:00')).toBeInTheDocument();
-		expect(screen.getByText('スタッフA')).toBeInTheDocument();
+		const cell1 = screen.getByTestId('basic-schedule-cell-1');
+		expect(cell1).toBeInTheDocument();
+		expect(cell1).toHaveTextContent('09:00-10:00');
+		expect(cell1).toHaveTextContent('スタッフA');
+
+		const cell2 = screen.getByTestId('basic-schedule-cell-2');
+		expect(cell2).toBeInTheDocument();
+		expect(cell2).toHaveTextContent('10:00-11:00');
+		expect(cell2).toHaveTextContent('(未設定)');
 	});
 
 	it('1つのセルに複数のスケジュールがある場合、全て表示される', () => {
@@ -98,10 +112,15 @@ describe('BasicScheduleGrid', () => {
 
 		render(<BasicScheduleGrid schedules={schedules} />);
 
-		expect(screen.getByText('09:00-10:00')).toBeInTheDocument();
-		expect(screen.getByText('スタッフA')).toBeInTheDocument();
-		expect(screen.getByText('14:00-15:00')).toBeInTheDocument();
-		expect(screen.getByText('スタッフB')).toBeInTheDocument();
+		const cell1 = screen.getByTestId('basic-schedule-cell-1');
+		expect(cell1).toBeInTheDocument();
+		expect(cell1).toHaveTextContent('09:00-10:00');
+		expect(cell1).toHaveTextContent('スタッフA');
+
+		const cell2 = screen.getByTestId('basic-schedule-cell-2');
+		expect(cell2).toBeInTheDocument();
+		expect(cell2).toHaveTextContent('14:00-15:00');
+		expect(cell2).toHaveTextContent('スタッフB');
 	});
 
 	it('スケジュールが0件の場合、メッセージが表示される', () => {

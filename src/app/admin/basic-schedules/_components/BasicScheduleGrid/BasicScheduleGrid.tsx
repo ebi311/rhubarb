@@ -88,10 +88,17 @@ const ScheduleCell = ({ cell }: ScheduleCellProps) => {
 	const bgColorClass =
 		serviceTypeBackgroundMap[cell.serviceTypeId] || 'bg-gray-500 text-white';
 
+	const staffText =
+		cell.staffNames.length > 0 ? cell.staffNames.join(', ') : '(未設定)';
+
 	return (
-		<div className={`rounded p-2 ${bgColorClass}`}>
+		<div
+			className={`rounded p-2 ${bgColorClass}`}
+			data-testid={`basic-schedule-cell-${cell.id}`}
+			aria-label={`${cell.timeRange} 担当: ${staffText}`}
+		>
 			<div className="mb-1 text-sm font-semibold">{cell.timeRange}</div>
-			<div className="text-xs opacity-90">{cell.staffNames.join(', ')}</div>
+			<div className="text-xs opacity-90">{staffText}</div>
 		</div>
 	);
 };

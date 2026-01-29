@@ -32,7 +32,9 @@ const ListRow = ({ schedule }: { schedule: BasicScheduleViewModel }) => (
 			{schedule.timeRange}
 		</div>
 		<div className="text-sm text-base-content/75 grid-area-[staff-names]">
-			{schedule.staffNames.length > 0 ? schedule.staffNames.join(', ') : '-'}
+			{schedule.staffNames.length > 0
+				? schedule.staffNames.join(', ')
+				: '(未設定)'}
 		</div>
 		<div className="overflow-clip text-sm whitespace-nowrap grid-area-[note]">
 			{schedule.note ?? '-'}
