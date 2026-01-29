@@ -18,8 +18,19 @@ export const BasicScheduleSchema = z.object({
 
 export type BasicSchedule = z.infer<typeof BasicScheduleSchema>;
 
-export const BasicScheduleWithStaffSchema = BasicScheduleSchema.extend({
-	staff_ids: z.array(z.uuid()),
+export const BasicScheduleWithStaffSchema = BasicScheduleSchema.omit({
+	client_id: true,
+}).extend({
+	assignedStaffs: z.array(
+		z.object({
+			id: z.uuid(),
+			name: z.string(),
+		}),
+	),
+	clients: z.object({
+		id: z.uuid(),
+		name: z.string(),
+	}),
 });
 
 export type BasicScheduleWithStaff = z.infer<

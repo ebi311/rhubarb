@@ -54,9 +54,17 @@ export type BasicScheduleFilters = z.infer<typeof BasicScheduleFilterSchema>;
 export const BasicScheduleRecordSchema = withTimeRangeValidation(
 	z.object({
 		id: z.uuid(),
-		client_id: z.uuid(),
+		client: z.object({
+			id: z.uuid(),
+			name: z.string(),
+		}),
 		service_type_id: ServiceTypeIdSchema,
-		staff_ids: z.array(z.uuid()),
+		staffs: z.array(
+			z.object({
+				id: z.uuid(),
+				name: z.string(),
+			}),
+		),
 		weekday: WeekdaySchema,
 		start_time: TimeValueSchema,
 		end_time: TimeValueSchema,

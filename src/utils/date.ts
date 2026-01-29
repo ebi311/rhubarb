@@ -1,3 +1,4 @@
+import { TimeValue } from '@/models/valueObjects/time';
 import dayjs, { Dayjs } from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -109,4 +110,26 @@ export const formatTime = (timeString: string): string => {
 	}
 	const dtJST = dt.tz(JST);
 	return dtJST.format('HH:mm');
+};
+
+export const parseTimeString = (
+	timeString: string,
+): { hour: number; minute: number } => {
+	const formatted = formatTime(timeString);
+	const [hourStr, minuteStr] = formatted.split(':');
+	return {
+		hour: parseInt(hourStr, 10),
+		minute: parseInt(minuteStr, 10),
+	};
+};
+
+export const timeObjectToString = (time: TimeValue): string => {
+	const hourStr = time.hour.toString().padStart(2, '0');
+	const minuteStr = time.minute.toString().padStart(2, '0');
+	return `${hourStr}:${minuteStr}`;
+};
+export const timeObjectToStringWithTimezone = (time: TimeValue): string => {
+	const hourStr = time.hour.toString().padStart(2, '0');
+	const minuteStr = time.minute.toString().padStart(2, '0');
+	return `${hourStr}:${minuteStr}+09:00`;
 };

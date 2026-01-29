@@ -5,18 +5,16 @@ import {
 	BasicScheduleWithStaffSchema,
 } from '@/models/basicSchedule';
 import { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
-import {
-	formatTime,
-	preprocessTime,
-	timeToMinutes,
-} from '@/models/valueObjects/time';
+import { timeToMinutes } from '@/models/valueObjects/time';
+import { parseTimeString, timeObjectToString } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 type BasicScheduleRow = Database['public']['Tables']['basic_schedules']['Row'];
 type BasicScheduleInsert =
 	Database['public']['Tables']['basic_schedules']['Insert'];
 type BasicScheduleJoinedRow = BasicScheduleRow & {
-	basic_schedule_staff_assignments?: { staff_id: string }[];
+	basic_schedule_staff_assignments?: { staffs: { id: string; name: string } }[];
+	clients: { id: string; office_id: string; name: string };
 };
 
 export class BasicScheduleRepository {
@@ -26,13 +24,19 @@ export class BasicScheduleRepository {
 		return BasicScheduleWithStaffSchema.parse({
 			...row,
 			time: {
-				start: preprocessTime(row.start_time),
-				end: preprocessTime(row.end_time),
+				start: parseTimeString(row.start_time),
+				end: parseTimeString(row.end_time),
 			},
 			note: row.note ?? null,
-			staff_ids: (row.basic_schedule_staff_assignments ?? []).map(
-				(a) => a.staff_id,
-			),
+			assignedStaffs:
+				row.basic_schedule_staff_assignments?.map((assignment) => ({
+					id: assignment.staffs.id,
+					name: assignment.staffs.name,
+				})) ?? [],
+			clients: {
+				id: row.clients.id,
+				name: row.clients.name,
+			},
 		});
 	}
 
@@ -42,8 +46,8 @@ export class BasicScheduleRepository {
 			client_id: entity.client_id,
 			service_type_id: entity.service_type_id,
 			day_of_week: entity.day_of_week,
-			start_time: formatTime(entity.time.start),
-			end_time: formatTime(entity.time.end),
+			start_time: timeObjectToString(entity.time.start),
+			end_time: timeObjectToString(entity.time.end),
 			note: entity.note ?? null,
 			created_at: entity.created_at.toISOString(),
 			updated_at: entity.updated_at.toISOString(),
@@ -85,7 +89,7 @@ export class BasicScheduleRepository {
 		let query = this.supabase
 			.from('basic_schedules')
 			.select(
-				'*, basic_schedule_staff_assignments(staff_id), clients!inner(office_id)',
+				'*, basic_schedule_staff_assignments(staffs(id, name)), clients!inner(id, office_id, name)',
 			);
 		if (filters.officeId)
 			query = query.eq('clients.office_id', filters.officeId);
@@ -99,6 +103,7 @@ export class BasicScheduleRepository {
 			.order('day_of_week', { ascending: true })
 			.order('start_time', { ascending: true });
 		if (error) throw error;
+		console.dir({ data }, { depth: null, colors: true });
 		return (data ?? []).map((row) =>
 			this.toDomain(row as BasicScheduleJoinedRow),
 		);
@@ -107,7 +112,9 @@ export class BasicScheduleRepository {
 	async findById(id: string): Promise<BasicScheduleWithStaff | null> {
 		const { data, error } = await this.supabase
 			.from('basic_schedules')
-			.select('*, basic_schedule_staff_assignments(staff_id)')
+			.select(
+				'*, basic_schedule_staff_assignments(staffs(id, name)), clients!inner(id, office_id, name)',
+			)
 			.eq('id', id)
 			.maybeSingle();
 
@@ -171,7 +178,9 @@ export class BasicScheduleRepository {
 
 		const { data: schedules, error } = await this.supabase
 			.from('basic_schedules')
-			.select('*, basic_schedule_staff_assignments(staff_id)')
+			.select(
+				'*, basic_schedule_staff_assignments(staffs(id, name)), clients!inner(id, office_id, name)',
+			)
 			.in('id', Array.from(scheduleIds))
 			.eq('day_of_week', params.weekday)
 			.is('deleted_at', null);

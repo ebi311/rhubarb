@@ -62,7 +62,10 @@ const adminStaff = {
 
 const basicScheduleTemplate: BasicScheduleWithStaff = {
 	id: '22222222-2222-4222-8222-222222222222',
-	client_id: '33333333-3333-4333-8333-333333333333',
+	clients: {
+		id: '33333333-3333-4333-8333-333333333333',
+		name: 'Client A',
+	},
 	service_type_id: 'life-support',
 	day_of_week: 'Mon',
 	time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
@@ -70,7 +73,16 @@ const basicScheduleTemplate: BasicScheduleWithStaff = {
 	deleted_at: null,
 	created_at: new Date(),
 	updated_at: new Date(),
-	staff_ids: ['55555555-5555-4555-8555-555555555555'],
+	assignedStaffs: [
+		{
+			id: '44444444-4444-4444-8444-444444444444',
+			name: 'Staff A',
+		},
+		{
+			id: '55555555-5555-4555-8555-555555555555',
+			name: 'Staff B',
+		},
+	],
 };
 
 describe('BasicScheduleService', () => {
@@ -96,17 +108,20 @@ describe('BasicScheduleService', () => {
 		const supabase = makeSupabaseMock({
 			clientResult: {
 				data: {
-					id: basicScheduleTemplate.client_id,
+					id: basicScheduleTemplate.clients.id,
 					office_id: adminStaff.office_id,
 					contract_status: 'active',
 				},
 				error: null,
 			},
 			abilityResult: {
-				data: basicScheduleTemplate.staff_ids.map((id) => ({ staff_id: id })),
+				data: basicScheduleTemplate.assignedStaffs.map((staff) => ({
+					staff_id: staff.id,
+				})),
 				error: null,
 			},
 		});
+		basicRepo.findById.mockResolvedValue(basicScheduleTemplate);
 		basicRepo.findOverlaps.mockResolvedValue([]);
 
 		const service = new BasicScheduleService(supabase, {
@@ -114,33 +129,51 @@ describe('BasicScheduleService', () => {
 			staffRepository: staffRepo,
 		});
 		const result = await service.create(adminStaff.auth_user_id!, {
-			client_id: basicScheduleTemplate.client_id,
+			client_id: basicScheduleTemplate.clients.id,
 			service_type_id: basicScheduleTemplate.service_type_id,
-			staff_ids: basicScheduleTemplate.staff_ids,
+			staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
 			weekday: 'Mon',
 			start_time: { hour: 9, minute: 0 },
 			end_time: { hour: 10, minute: 0 },
 			note: 'メモ',
 		});
 
-		expect(result.client_id).toBe(basicScheduleTemplate.client_id);
+		expect(result.id).toBe(basicScheduleTemplate.id);
 		expect(result.weekday).toBe('Mon');
-		expect(result.staff_ids).toEqual(basicScheduleTemplate.staff_ids);
-		expect(basicRepo.create).toHaveBeenCalled();
+		expect(result.staffs).toEqual(basicScheduleTemplate.assignedStaffs);
+		expect(basicRepo.create).toHaveBeenCalledWith(
+			{
+				id: expect.any(String),
+				client_id: basicScheduleTemplate.clients.id,
+				service_type_id: basicScheduleTemplate.service_type_id,
+				day_of_week: 'Mon',
+				time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
+				note: 'メモ',
+				deleted_at: null,
+				created_at: expect.any(Date),
+				updated_at: expect.any(Date),
+			},
+			[
+				'44444444-4444-4444-8444-444444444444',
+				'55555555-5555-4555-8555-555555555555',
+			],
+		);
 	});
 
 	it('rejects creation when client is not active', async () => {
 		const supabase = makeSupabaseMock({
 			clientResult: {
 				data: {
-					id: basicScheduleTemplate.client_id,
+					id: basicScheduleTemplate.clients.id,
 					office_id: adminStaff.office_id,
 					contract_status: 'suspended',
 				},
 				error: null,
 			},
 			abilityResult: {
-				data: basicScheduleTemplate.staff_ids.map((id) => ({ staff_id: id })),
+				data: basicScheduleTemplate.assignedStaffs.map((staff) => ({
+					staff_id: staff.id,
+				})),
 				error: null,
 			},
 		});
@@ -152,9 +185,9 @@ describe('BasicScheduleService', () => {
 
 		await expect(
 			service.create(adminStaff.auth_user_id!, {
-				client_id: basicScheduleTemplate.client_id,
+				client_id: basicScheduleTemplate.clients.id,
 				service_type_id: basicScheduleTemplate.service_type_id,
-				staff_ids: basicScheduleTemplate.staff_ids,
+				staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
 				weekday: 'Mon',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },
@@ -167,7 +200,7 @@ describe('BasicScheduleService', () => {
 		const supabase = makeSupabaseMock({
 			clientResult: {
 				data: {
-					id: basicScheduleTemplate.client_id,
+					id: basicScheduleTemplate.clients.id,
 					office_id: adminStaff.office_id,
 					contract_status: 'active',
 				},
@@ -183,9 +216,9 @@ describe('BasicScheduleService', () => {
 
 		await expect(
 			service.create(adminStaff.auth_user_id!, {
-				client_id: basicScheduleTemplate.client_id,
+				client_id: basicScheduleTemplate.clients.id,
 				service_type_id: basicScheduleTemplate.service_type_id,
-				staff_ids: basicScheduleTemplate.staff_ids,
+				staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
 				weekday: 'Mon',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },
@@ -198,14 +231,16 @@ describe('BasicScheduleService', () => {
 		const supabase = makeSupabaseMock({
 			clientResult: {
 				data: {
-					id: basicScheduleTemplate.client_id,
+					id: basicScheduleTemplate.clients.id,
 					office_id: adminStaff.office_id,
 					contract_status: 'active',
 				},
 				error: null,
 			},
 			abilityResult: {
-				data: basicScheduleTemplate.staff_ids.map((id) => ({ staff_id: id })),
+				data: basicScheduleTemplate.assignedStaffs.map((staff) => ({
+					staff_id: staff.id,
+				})),
 				error: null,
 			},
 		});
@@ -217,9 +252,9 @@ describe('BasicScheduleService', () => {
 
 		await expect(
 			service.create(adminStaff.auth_user_id!, {
-				client_id: basicScheduleTemplate.client_id,
+				client_id: basicScheduleTemplate.clients.id,
 				service_type_id: basicScheduleTemplate.service_type_id,
-				staff_ids: basicScheduleTemplate.staff_ids,
+				staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
 				weekday: 'Mon',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },
@@ -232,14 +267,16 @@ describe('BasicScheduleService', () => {
 		const supabase = makeSupabaseMock({
 			clientResult: {
 				data: {
-					id: basicScheduleTemplate.client_id,
+					id: basicScheduleTemplate.clients.id,
 					office_id: adminStaff.office_id,
 					contract_status: 'active',
 				},
 				error: null,
 			},
 			abilityResult: {
-				data: basicScheduleTemplate.staff_ids.map((id) => ({ staff_id: id })),
+				data: basicScheduleTemplate.assignedStaffs.map((staff) => ({
+					staff_id: staff.id,
+				})),
 				error: null,
 			},
 		});
@@ -251,9 +288,9 @@ describe('BasicScheduleService', () => {
 
 		await expect(
 			service.update(adminStaff.auth_user_id!, 'not-found', {
-				client_id: basicScheduleTemplate.client_id,
+				client_id: basicScheduleTemplate.clients.id,
 				service_type_id: basicScheduleTemplate.service_type_id,
-				staff_ids: basicScheduleTemplate.staff_ids,
+				staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
 				weekday: 'Mon',
 				start_time: { hour: 9, minute: 0 },
 				end_time: { hour: 10, minute: 0 },

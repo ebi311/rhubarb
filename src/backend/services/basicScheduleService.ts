@@ -107,9 +107,9 @@ export class BasicScheduleService {
 	private toRecord(schedule: BasicScheduleWithStaff): BasicScheduleRecord {
 		return {
 			id: schedule.id,
-			client_id: schedule.client_id,
+			client: schedule.clients,
 			service_type_id: schedule.service_type_id,
-			staff_ids: schedule.staff_ids,
+			staffs: schedule.assignedStaffs,
 			weekday: schedule.day_of_week,
 			start_time: schedule.time.start,
 			end_time: schedule.time.end,
@@ -132,6 +132,12 @@ export class BasicScheduleService {
 		await this.getAdminStaff(userId);
 		const schedules = await this.basicScheduleRepository.list(filters);
 		return schedules.map((s) => this.toRecord(s));
+	}
+
+	async findById(id: string): Promise<BasicScheduleRecord | null> {
+		const schedule = await this.basicScheduleRepository.findById(id);
+		if (!schedule) return null;
+		return this.toRecord(schedule);
 	}
 
 	async create(
@@ -167,7 +173,10 @@ export class BasicScheduleService {
 		};
 
 		await this.basicScheduleRepository.create(schedule, data.staff_ids);
-		return this.toRecord({ ...schedule, staff_ids: data.staff_ids });
+		const newSchedule = await this.findById(schedule.id);
+		if (!newSchedule)
+			throw new ServiceError(500, 'Failed to retrieve created schedule');
+		return newSchedule;
 	}
 
 	async update(
@@ -205,7 +214,10 @@ export class BasicScheduleService {
 		};
 
 		await this.basicScheduleRepository.update(updated, data.staff_ids);
-		return this.toRecord({ ...updated, staff_ids: data.staff_ids });
+		const updatedSchedule = await this.findById(id);
+		if (!updatedSchedule)
+			throw new ServiceError(500, 'Failed to retrieve updated schedule');
+		return updatedSchedule;
 	}
 
 	async delete(userId: string, id: string): Promise<void> {

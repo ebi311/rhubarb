@@ -57,7 +57,8 @@
 				"bradlc.vscode-tailwindcss",
 				"cweijan.vscode-redis-client",
 				"oderwat.indent-rainbow",
-				"alefragnani.Bookmarks"
+				"alefragnani.Bookmarks",
+				"nguyenngoclong.terminal-keeper"
 			]
 		}
 	}
