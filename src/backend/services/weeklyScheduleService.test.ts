@@ -34,7 +34,10 @@ const helperStaff = {
 const basicSchedules: BasicScheduleWithStaff[] = [
 	{
 		id: 'bs-1',
-		client_id: 'client-1',
+		clients: {
+			id: 'client-1',
+			name: '利用者A',
+		},
 		service_type_id: 'life-support',
 		day_of_week: 'Mon',
 		time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
@@ -42,11 +45,19 @@ const basicSchedules: BasicScheduleWithStaff[] = [
 		deleted_at: null,
 		created_at: new Date(),
 		updated_at: new Date(),
-		staff_ids: ['staff-1'],
+		assignedStaffs: [
+			{
+				id: 'staff-1',
+				name: 'スタッフA',
+			},
+		],
 	},
 	{
 		id: 'bs-2',
-		client_id: 'client-2',
+		clients: {
+			id: 'client-2',
+			name: '利用者B',
+		},
 		service_type_id: 'physical-care',
 		day_of_week: 'Wed',
 		time: { start: { hour: 14, minute: 0 }, end: { hour: 15, minute: 30 } },
@@ -54,11 +65,14 @@ const basicSchedules: BasicScheduleWithStaff[] = [
 		deleted_at: null,
 		created_at: new Date(),
 		updated_at: new Date(),
-		staff_ids: [], // 未割当
+		assignedStaffs: [],
 	},
 	{
 		id: 'bs-3',
-		client_id: 'client-1',
+		clients: {
+			id: 'client-1',
+			name: '利用者A',
+		},
 		service_type_id: 'life-support',
 		day_of_week: 'Fri',
 		time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
@@ -66,7 +80,16 @@ const basicSchedules: BasicScheduleWithStaff[] = [
 		deleted_at: null,
 		created_at: new Date(),
 		updated_at: new Date(),
-		staff_ids: ['staff-2', 'staff-3'],
+		assignedStaffs: [
+			{
+				id: 'staff-2',
+				name: 'スタッフB',
+			},
+			{
+				id: 'staff-3',
+				name: 'スタッフC',
+			},
+		],
 	},
 ];
 
@@ -141,7 +164,7 @@ describe('WeeklyScheduleService', () => {
 			// Wed (offset 2) -> 2026-01-21
 			const wedShift = createdShifts.find((s) => s.client_id === 'client-2');
 			expect(wedShift?.date.toISOString().slice(0, 10)).toBe('2026-01-21');
-			expect(wedShift?.staff_id).toBeNull();
+			expect(wedShift?.staff_id).toBeNullable();
 			expect(wedShift?.is_unassigned).toBe(true);
 
 			// Fri (offset 4) -> 2026-01-23

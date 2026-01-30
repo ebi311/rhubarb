@@ -61,9 +61,17 @@ const successResult = <T,>(data: T) => ({ data, error: null, status: 200 });
 
 const sampleSchedule: BasicScheduleRecord = {
 	id: '019b8917-62a6-703d-9acf-502cf1dc5f7c',
-	client_id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
+	client: {
+		id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
+		name: '利用者A',
+	},
 	service_type_id: 'physical-care',
-	staff_ids: ['019b8916-5594-773b-aaf3-f04e0f2b0ac7'],
+	staffs: [
+		{
+			id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
+			name: '山田太郎',
+		},
+	],
 	weekday: 'Mon',
 	start_time: { hour: 9, minute: 0 },
 	end_time: { hour: 10, minute: 0 },

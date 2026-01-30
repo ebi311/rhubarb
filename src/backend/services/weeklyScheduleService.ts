@@ -92,14 +92,16 @@ export class WeeklyScheduleService {
 	): Shift {
 		const now = new Date();
 		const staffId =
-			basicSchedule.staff_ids.length > 0 ? basicSchedule.staff_ids[0] : null;
+			basicSchedule.assignedStaffs.length > 0
+				? basicSchedule.assignedStaffs[0]
+				: null;
 		const isUnassigned = staffId === null;
 
 		return {
 			id: crypto.randomUUID(),
-			client_id: basicSchedule.client_id,
+			client_id: basicSchedule.clients.id,
 			service_type_id: basicSchedule.service_type_id,
-			staff_id: staffId,
+			staff_id: staffId?.id,
 			date: shiftDate,
 			time: {
 				start: basicSchedule.time.start,
@@ -167,8 +169,8 @@ export class WeeklyScheduleService {
 			);
 
 			// 重複チェック（リポジトリと同じキー形式を使用）
-			const key = `${basicSchedule.client_id}|${startDateTime.toISOString()}|${endDateTime.toISOString()}`;
-			const clientExisting = existingShiftsMap.get(basicSchedule.client_id);
+			const key = `${basicSchedule.clients.id}|${startDateTime.toISOString()}|${endDateTime.toISOString()}`;
+			const clientExisting = existingShiftsMap.get(basicSchedule.clients.id);
 			if (clientExisting?.has(key)) {
 				skipped++;
 				continue;
