@@ -6,7 +6,7 @@ import { FormTextarea } from '@/components/forms/FormTextarea';
 import type { ServiceUser } from '@/models/serviceUser';
 import { WEEKDAY_FULL_LABELS, WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
 import { useId } from 'react';
-import { useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import type { BasicScheduleFormValues } from './BasicScheduleForm';
 import { FieldErrorMessage } from './FormMessages';
 import { getFieldDescriptionId, getSelectClassName } from './helpers';
@@ -68,7 +68,6 @@ export const ServiceTypeSelectField = ({
 }: ServiceTypeSelectFieldProps) => {
 	const fieldId = useId();
 	const {
-		register,
 		formState: { errors, isSubmitting },
 	} = useFormContext<BasicScheduleFormValues>();
 	const hasError = Boolean(errors.serviceTypeId);
@@ -93,13 +92,19 @@ export const ServiceTypeSelectField = ({
 							hasError ? 'border-error' : 'border-base-300'
 						}`}
 					>
-						<input
-							type="radio"
-							className="radio radio-sm radio-primary"
-							value={type.id}
-							disabled={isSubmitting}
-							{...register('serviceTypeId')}
-						/>
+						<Controller
+							name="serviceTypeId"
+							render={({ field: { value, ...rest } }) => (
+								<input
+									type="radio"
+									className="radio radio-sm radio-primary"
+									value={type.id}
+									checked={value === type.id}
+									disabled={isSubmitting}
+									{...rest}
+								/>
+							)}
+						></Controller>
 						<ServiceTypeBadge serviceTypeId={type.id} />
 					</label>
 				))}
@@ -112,7 +117,6 @@ export const ServiceTypeSelectField = ({
 export const WeekdayField = () => {
 	const fieldId = useId();
 	const {
-		register,
 		formState: { isSubmitting },
 	} = useFormContext<BasicScheduleFormValues>();
 
@@ -121,16 +125,21 @@ export const WeekdayField = () => {
 			<legend id={`${fieldId}-label`} className="fieldset-legend">
 				曜日 *
 			</legend>
-			<FormSelect
-				id={fieldId}
-				className="select"
-				disabled={isSubmitting}
-				aria-labelledby={`${fieldId}-label`}
-				options={WEEKDAYS.map((weekday) => ({
-					value: weekday,
-					label: WEEKDAY_FULL_LABELS[weekday],
-				}))}
-				{...register('weekday')}
+			<Controller
+				name="weekday"
+				render={({ field: { value: _, ...rest } }) => (
+					<FormSelect
+						id={fieldId}
+						className="select"
+						disabled={isSubmitting}
+						aria-labelledby={`${fieldId}-label`}
+						options={WEEKDAYS.map((weekday) => ({
+							value: weekday,
+							label: WEEKDAY_FULL_LABELS[weekday],
+						}))}
+						{...rest}
+					/>
+				)}
 			/>
 		</fieldset>
 	);

@@ -58,7 +58,8 @@
 				"cweijan.vscode-redis-client",
 				"oderwat.indent-rainbow",
 				"alefragnani.Bookmarks",
-				"nguyenngoclong.terminal-keeper"
+				"nguyenngoclong.terminal-keeper",
+				"WallabyJs.console-ninja"
 			]
 		}
 	}
