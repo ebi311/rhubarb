@@ -61,7 +61,7 @@ describe('BasicScheduleGrid', () => {
 						},
 						{
 							id: '2',
-							timeRange: '10:00-11:00',
+							timeRange: '13:00-14:00',
 							serviceTypeId: 'life-support',
 							staffNames: [],
 							note: null,
@@ -73,15 +73,40 @@ describe('BasicScheduleGrid', () => {
 
 		render(<BasicScheduleGrid schedules={schedules} />);
 
-		const cell1 = screen.getByTestId('basic-schedule-cell-1');
-		expect(cell1).toBeInTheDocument();
-		expect(cell1).toHaveTextContent('09:00-10:00');
-		expect(cell1).toHaveTextContent('スタッフA');
+		expect(screen.getByText('09:00-10:00')).toBeInTheDocument();
+		expect(screen.getByText('スタッフA')).toBeInTheDocument();
+		expect(screen.getByText('13:00-14:00')).toBeInTheDocument();
+		expect(screen.getByText('(未設定)')).toBeInTheDocument();
+	});
 
-		const cell2 = screen.getByTestId('basic-schedule-cell-2');
-		expect(cell2).toBeInTheDocument();
-		expect(cell2).toHaveTextContent('10:00-11:00');
-		expect(cell2).toHaveTextContent('(未設定)');
+	it('スケジュールセルがリンクになっている', () => {
+		const schedules: BasicScheduleGridViewModel[] = [
+			{
+				clientId: '1',
+				clientName: '山田太郎',
+				schedulesByWeekday: {
+					Mon: [
+						{
+							id: 'schedule-123',
+							timeRange: '09:00-10:00',
+							serviceTypeId: 'physical-care',
+							staffNames: ['スタッフA'],
+							note: null,
+						},
+					],
+				},
+			},
+		];
+
+		render(<BasicScheduleGrid schedules={schedules} />);
+
+		const link = screen.getByRole('link', {
+			name: /09:00-10:00 担当: スタッフA/,
+		});
+		expect(link).toHaveAttribute(
+			'href',
+			'/admin/basic-schedules/schedule-123/edit',
+		);
 	});
 
 	it('1つのセルに複数のスケジュールがある場合、全て表示される', () => {

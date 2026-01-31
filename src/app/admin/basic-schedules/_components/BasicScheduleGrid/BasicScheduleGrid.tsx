@@ -1,4 +1,5 @@
 import { WEEKDAYS, WEEKDAY_FULL_LABELS } from '@/models/valueObjects/dayOfWeek';
+import Link from 'next/link';
 import React from 'react';
 import type { BasicScheduleCell, BasicScheduleGridViewModel } from './types';
 
@@ -92,13 +93,14 @@ const ScheduleCell = ({ cell }: ScheduleCellProps) => {
 		cell.staffNames.length > 0 ? cell.staffNames.join(', ') : '(未設定)';
 
 	return (
-		<div
-			className={`rounded p-2 ${bgColorClass}`}
+		<Link
+			href={`/admin/basic-schedules/${cell.id}/edit`}
+			className={`block rounded p-2 ${bgColorClass} transition-opacity hover:opacity-80`}
 			data-testid={`basic-schedule-cell-${cell.id}`}
 			aria-label={`${cell.timeRange} 担当: ${staffText}`}
 		>
 			<div className="mb-1 text-sm font-semibold">{cell.timeRange}</div>
 			<div className="text-xs opacity-90">{staffText}</div>
-		</div>
+		</Link>
 	);
 };

@@ -111,4 +111,32 @@ describe('StaffBasicScheduleGrid', () => {
 		expect(screen.getByText('利用者A')).toBeInTheDocument();
 		expect(screen.getByText('利用者B')).toBeInTheDocument();
 	});
+
+	it('スケジュールセルがリンクになっている', () => {
+		const schedules: StaffBasicScheduleGridViewModel[] = [
+			{
+				staffId: '1',
+				staffName: 'スタッフ太郎',
+				schedulesByWeekday: {
+					Mon: [
+						{
+							id: 'schedule-123',
+							timeRange: '09:00 - 12:00',
+							serviceTypeId: 'physical-care',
+							clientName: '利用者A',
+							note: null,
+						},
+					],
+				},
+			},
+		];
+
+		render(<StaffBasicScheduleGrid schedules={schedules} />);
+
+		const link = screen.getByRole('link', { name: /09:00 - 12:00 利用者A/ });
+		expect(link).toHaveAttribute(
+			'href',
+			'/admin/basic-schedules/schedule-123/edit',
+		);
+	});
 });

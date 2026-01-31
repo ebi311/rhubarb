@@ -1,18 +1,8 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 import { Suspense } from 'react';
+import { BasicScheduleContent } from './_components/BasicScheduleContent';
 import { BasicScheduleFilterBar } from './_components/BasicScheduleFilterBar';
-import { BasicScheduleGrid } from './_components/BasicScheduleGrid';
-import { transformToGridViewModel } from './_components/BasicScheduleGrid/transformToGridViewModel';
-import { BasicScheduleList } from './_components/BasicScheduleList';
 import { BasicScheduleTable } from './_components/BasicScheduleTable';
-import type { BasicScheduleViewModel } from './_components/BasicScheduleTable/types';
-import {
-	StaffBasicScheduleGrid,
-	transformToStaffGridViewModel,
-} from './_components/StaffBasicScheduleGrid';
-import type { ViewMode } from './_components/ViewToggleButton';
-import { ViewToggleButton } from './_components/ViewToggleButton';
 import { fetchFilterOptions } from './fetchFilterOptions';
 import { parseFiltersFromSearchParams } from './parseFiltersFromParams';
 
@@ -22,28 +12,11 @@ interface BasicScheduleListPageProps {
 		| Record<string, string | string[] | undefined>;
 }
 
-/** 各表示モードのレンダリング関数マップ */
-const viewRenderers: Record<
-	ViewMode,
-	(schedules: BasicScheduleViewModel[]) => ReactNode
-> = {
-	list: (schedules) => <BasicScheduleList schedules={schedules} />,
-	grid: (schedules) => {
-		const gridData = transformToGridViewModel(schedules);
-		return <BasicScheduleGrid schedules={gridData} />;
-	},
-	'staff-grid': (schedules) => {
-		const staffGridData = transformToStaffGridViewModel(schedules);
-		return <StaffBasicScheduleGrid schedules={staffGridData} />;
-	},
-};
-
 const BasicScheduleListPage = async ({
 	searchParams,
 }: BasicScheduleListPageProps) => {
 	const params = await searchParams;
 	const filters = parseFiltersFromSearchParams(params);
-	const view = (params.view as ViewMode) || 'list';
 	const { clients, serviceTypes } = await fetchFilterOptions();
 
 	return (
@@ -59,7 +32,6 @@ const BasicScheduleListPage = async ({
 			</section>
 
 			<div className="flex justify-end gap-2">
-				<ViewToggleButton currentView={view} />
 				<Link href="/admin/basic-schedules/new" className="btn btn-primary">
 					新規登録
 				</Link>
@@ -77,7 +49,12 @@ const BasicScheduleListPage = async ({
 						</div>
 					}
 				>
-					<BasicScheduleTable filters={filters} render={viewRenderers[view]} />
+					<BasicScheduleTable
+						filters={filters}
+						render={(schedules) => (
+							<BasicScheduleContent schedules={schedules} />
+						)}
+					/>
 				</Suspense>
 			</div>
 		</div>

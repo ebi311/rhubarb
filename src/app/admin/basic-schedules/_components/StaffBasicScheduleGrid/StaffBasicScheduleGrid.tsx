@@ -1,5 +1,6 @@
 import { WEEKDAYS, WEEKDAY_FULL_LABELS } from '@/models/valueObjects/dayOfWeek';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+import Link from 'next/link';
 import React from 'react';
 import type {
 	StaffBasicScheduleGridViewModel,
@@ -111,12 +112,13 @@ const ScheduleCell = ({ cell }: ScheduleCellProps) => {
 	const colors = SERVICE_TYPE_COLORS[cell.serviceTypeId];
 
 	return (
-		<div
-			className={`rounded p-2 text-sm ${colors.bg} ${colors.text}`}
+		<Link
+			href={`/admin/basic-schedules/${cell.id}/edit`}
+			className={`block rounded p-2 text-sm ${colors.bg} ${colors.text} transition-opacity hover:opacity-80`}
 			title={cell.note || undefined}
 		>
 			<div className="font-medium">{cell.timeRange}</div>
 			<div className="mt-1">{cell.clientName}</div>
-		</div>
+		</Link>
 	);
 };

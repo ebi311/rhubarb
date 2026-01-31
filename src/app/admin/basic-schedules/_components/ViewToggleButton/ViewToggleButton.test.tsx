@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { ViewToggleButton } from './ViewToggleButton';
 
 describe('ViewToggleButton', () => {
@@ -47,15 +48,25 @@ describe('ViewToggleButton', () => {
 		expect(staffGridButton).toHaveClass('btn-active');
 	});
 
-	it('各ボタンのhrefが正しい', () => {
-		render(<ViewToggleButton currentView="list" />);
+	it('ボタンクリック時にonViewChangeが呼ばれる', async () => {
+		const handleViewChange = vi.fn();
+		const user = userEvent.setup();
+
+		render(
+			<ViewToggleButton currentView="list" onViewChange={handleViewChange} />,
+		);
 
 		const listButton = screen.getByLabelText('リスト表示');
 		const gridButton = screen.getByLabelText('利用者別グリッド表示');
 		const staffGridButton = screen.getByLabelText('スタッフ別グリッド表示');
 
-		expect(listButton).toHaveAttribute('href', '?view=list');
-		expect(gridButton).toHaveAttribute('href', '?view=grid');
-		expect(staffGridButton).toHaveAttribute('href', '?view=staff-grid');
+		await user.click(listButton);
+		expect(handleViewChange).toHaveBeenCalledWith('list');
+
+		await user.click(gridButton);
+		expect(handleViewChange).toHaveBeenCalledWith('grid');
+
+		await user.click(staffGridButton);
+		expect(handleViewChange).toHaveBeenCalledWith('staff-grid');
 	});
 });

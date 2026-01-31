@@ -1,0 +1,1 @@
+export { BasicScheduleContent } from './BasicScheduleContent';
