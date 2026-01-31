@@ -127,7 +127,7 @@ export const WeekdayField = () => {
 			</legend>
 			<Controller
 				name="weekday"
-				render={({ field: { value: _, ...rest } }) => (
+				render={({ field }) => (
 					<FormSelect
 						id={fieldId}
 						className="select"
@@ -137,7 +137,7 @@ export const WeekdayField = () => {
 							value: weekday,
 							label: WEEKDAY_FULL_LABELS[weekday],
 						}))}
-						{...rest}
+						{...field}
 					/>
 				)}
 			/>
