@@ -18,7 +18,10 @@ const rowClassName = classNames(
 );
 
 const ListRow = ({ schedule }: { schedule: BasicScheduleViewModel }) => (
-	<Link href="" className={rowClassName}>
+	<Link
+		href={`/admin/basic-schedules/${schedule.id}/edit`}
+		className={rowClassName}
+	>
 		<div className="text-lg font-bold grid-area-[client]">
 			{schedule.clientName}
 		</div>

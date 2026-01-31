@@ -1,35 +1,16 @@
 'use client';
 
-import { createBasicScheduleAction } from '@/app/actions/basicSchedules';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
-import { useActionResultHandler } from '@/hooks/useActionResultHandler';
-import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
 import { WeekdaySchema } from '@/models/basicScheduleActionSchemas';
 import type { ServiceUser } from '@/models/serviceUser';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { timeToMinutes } from '@/models/valueObjects/time';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'next/navigation';
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useState,
-	type Dispatch,
-	type SetStateAction,
-} from 'react';
-import {
-	FormProvider,
-	useForm,
-	type SubmitHandler,
-	type UseFormReset,
-} from 'react-hook-form';
+import { useEffect } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
-import {
-	StaffPickerDialog,
-	type StaffPickerOption,
-} from '../StaffPickerDialog';
+import { StaffPickerDialog } from '../StaffPickerDialog';
 import {
 	ClientSelectField,
 	NoteField,
@@ -40,21 +21,16 @@ import {
 import { ApiErrorMessage } from './FormMessages';
 import {
 	TIME_PATTERN,
-	computeAllowedStaffIds,
-	createStaffMap,
-	getSelectedStaff,
-	getStaffStatusMessage,
 	getSubmitButtonClass,
-	mapStaffPickerOptions,
 	parseTimeString,
-	resolveStaffPickerClearHandler,
-	sanitizeNote,
-	shouldDisableClearButton,
-	shouldDisableStaffPickerButton,
 	shouldDisableSubmitButton,
 } from './helpers';
+import { MODE_CONFIG } from './modeConfig';
 import { StaffSelectionSummary } from './StaffSelectionSummary';
+import { useBasicScheduleFormSubmit } from './useBasicScheduleFormSubmit';
 import { useBasicScheduleWatchValues } from './useBasicScheduleWatchValues';
+import { useDeleteSchedule } from './useDeleteSchedule';
+import { useStaffSelection } from './useStaffSelection';
 
 const BasicScheduleFormSchema = z
 	.object({
@@ -79,7 +55,6 @@ const BasicScheduleFormSchema = z
 			.optional(),
 	})
 	.superRefine((values, ctx) => {
-		// serviceTypeId が空の場合はエラーを追加
 		if (!values.serviceTypeId) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
@@ -115,11 +90,15 @@ export type BasicScheduleFormInitialValues = Partial<
 	>
 >;
 
+export type BasicScheduleFormMode = 'create' | 'edit';
+
 export type BasicScheduleFormProps = {
 	serviceUsers: ServiceUser[];
 	serviceTypes: ServiceTypeOption[];
 	staffs: StaffRecord[];
 	initialValues?: BasicScheduleFormInitialValues;
+	mode?: BasicScheduleFormMode;
+	scheduleId?: string;
 };
 
 const DEFAULT_FORM_VALUES: BasicScheduleFormValues = {
@@ -134,15 +113,12 @@ const DEFAULT_FORM_VALUES: BasicScheduleFormValues = {
 
 const buildDefaultValues = (
 	initialValues?: BasicScheduleFormInitialValues,
-): BasicScheduleFormValues => {
-	const overrides: BasicScheduleFormInitialValues = initialValues ?? {};
-	return {
-		...DEFAULT_FORM_VALUES,
-		...overrides,
-		note: overrides.note ?? '',
-		staffId: overrides.staffId ?? null,
-	};
-};
+): BasicScheduleFormValues => ({
+	...DEFAULT_FORM_VALUES,
+	...initialValues,
+	note: initialValues?.note ?? '',
+	staffId: initialValues?.staffId ?? null,
+});
 
 const WATCH_VALUE_DEFAULTS: Pick<
 	BasicScheduleFormValues,
@@ -154,79 +130,16 @@ const WATCH_VALUE_DEFAULTS: Pick<
 	note: DEFAULT_FORM_VALUES.note,
 };
 
-type SubmitHandlerDeps = {
-	setApiError: (message: string | null) => void;
-	handleActionResult: ReturnType<
-		typeof useActionResultHandler
-	>['handleActionResult'];
-	reset: UseFormReset<BasicScheduleFormValues>;
-	initialValues?: BasicScheduleFormInitialValues;
-	onCreated?: (schedule: BasicScheduleRecord) => void;
-	setStaffPickerOpen: Dispatch<SetStateAction<boolean>>;
-	router: ReturnType<typeof useRouter>;
-};
-
-const createOnSubmit = ({
-	setApiError,
-	handleActionResult,
-	reset,
-	initialValues,
-	onCreated,
-	setStaffPickerOpen,
-	router,
-}: SubmitHandlerDeps): SubmitHandler<BasicScheduleFormValues> => {
-	return async (values) => {
-		setApiError(null);
-		const start = parseTimeString(values.startTime);
-		const end = parseTimeString(values.endTime);
-		if (!start || !end) {
-			setApiError('時刻の変換に失敗しました');
-			return;
-		}
-		if (!values.serviceTypeId) {
-			setApiError('サービス区分を選択してください');
-			return;
-		}
-		const payload = {
-			client_id: values.clientId,
-			service_type_id: values.serviceTypeId,
-			weekday: values.weekday,
-			start_time: start,
-			end_time: end,
-			staff_ids: values.staffId ? [values.staffId] : [],
-			note: sanitizeNote(values.note),
-		};
-
-		const result = await createBasicScheduleAction(payload);
-		const handled = handleActionResult(result, {
-			successMessage: '基本スケジュールを登録しました',
-			errorMessage: '基本スケジュールの登録に失敗しました',
-			onSuccess: (data) => {
-				if (data) onCreated?.(data);
-			},
-		});
-
-		if (!handled) {
-			setApiError(result.error ?? '不明なエラーが発生しました');
-			return;
-		}
-
-		reset(buildDefaultValues(initialValues));
-		setStaffPickerOpen(false);
-		router.push('/admin/basic-schedules');
-	};
-};
-
 export const BasicScheduleForm = ({
 	serviceUsers,
 	serviceTypes,
 	staffs,
 	initialValues,
+	mode = 'create',
+	scheduleId,
 }: BasicScheduleFormProps) => {
-	const router = useRouter();
-	const [apiError, setApiError] = useState<string | null>(null);
-	const [isStaffPickerOpen, setStaffPickerOpen] = useState(false);
-	const { handleActionResult } = useActionResultHandler();
+	const isEditMode = mode === 'edit';
+	const config = MODE_CONFIG[mode];
 
 	const formMethods = useForm<BasicScheduleFormValues>({
 		resolver: zodResolver(BasicScheduleFormSchema),
@@ -251,86 +164,42 @@ export const BasicScheduleForm = ({
 	const { serviceTypeId, selectedStaffId, noteValue } =
 		useBasicScheduleWatchValues(control, WATCH_VALUE_DEFAULTS);
 
-	const staffMap = useMemo(() => createStaffMap(staffs), [staffs]);
-
-	const allowedStaffIds = useMemo(
-		() => computeAllowedStaffIds(staffs, serviceTypeId),
-		[staffs, serviceTypeId],
-	);
-
-	const staffPickerOptions: StaffPickerOption[] = useMemo(
-		() => mapStaffPickerOptions(staffs, allowedStaffIds),
-		[staffs, allowedStaffIds],
-	);
-
-	useEffect(() => {
-		if (selectedStaffId && !allowedStaffIds.has(selectedStaffId)) {
-			setValue('staffId', null);
-		}
-	}, [allowedStaffIds, selectedStaffId, setValue]);
-
-	const selectedStaff = useMemo(
-		() => getSelectedStaff(staffMap, selectedStaffId),
-		[staffMap, selectedStaffId],
-	);
-
-	const staffStatusMessage = useMemo(
-		() => getStaffStatusMessage(serviceTypeId, staffPickerOptions.length),
-		[serviceTypeId, staffPickerOptions.length],
-	);
-	const canOpenStaffPicker = Boolean(serviceTypeId);
-
-	const handleStaffConfirm = useCallback(
-		(staffId: string) => {
-			setValue('staffId', staffId, { shouldValidate: true });
-			setStaffPickerOpen(false);
-		},
-		[setValue],
-	);
-
-	const handleStaffClear = useCallback(() => {
-		setValue('staffId', null, { shouldValidate: true });
-	}, [setValue]);
-
-	const hasSelectedStaff = Boolean(selectedStaff);
-	const staffPickerDisabled = shouldDisableStaffPickerButton(
-		canOpenStaffPicker,
+	const staffSelection = useStaffSelection({
+		staffs,
+		serviceTypeId,
+		selectedStaffId,
+		setValue,
 		isSubmitting,
-	);
-	const staffClearDisabled = shouldDisableClearButton(
-		hasSelectedStaff,
-		isSubmitting,
-	);
+	});
+
+	const { apiError, onSubmit } = useBasicScheduleFormSubmit({
+		mode,
+		scheduleId,
+		initialValues,
+		reset,
+		closeStaffPicker: staffSelection.closeStaffPicker,
+	});
+
+	const { isDeleting, handleDelete } = useDeleteSchedule({ scheduleId });
+
 	const submitButtonClass = getSubmitButtonClass(isSubmitting);
 	const isSubmitDisabled = shouldDisableSubmitButton(isValid, isSubmitting);
-	const staffPickerClearHandler = resolveStaffPickerClearHandler(
-		selectedStaff,
-		handleStaffClear,
-	);
-
-	const onSubmit = handleSubmit(
-		createOnSubmit({
-			setApiError,
-			handleActionResult,
-			reset,
-			initialValues,
-			setStaffPickerOpen,
-			router,
-		}),
-	);
 
 	return (
 		<section className="rounded-box border border-base-200 bg-base-100 p-6 shadow-sm">
 			<header className="mb-6 space-y-1">
-				<h2 className="text-2xl font-semibold">新規基本スケジュール</h2>
+				<h2 className="text-2xl font-semibold">{config.headerTitle}</h2>
 				<p className="text-sm text-base-content/70">
-					必要な情報を入力し、「スケジュールを登録」を押してください。
+					{config.headerDescription}
 				</p>
 			</header>
 			<FormProvider {...formMethods}>
-				<form className="space-y-6" onSubmit={onSubmit}>
+				<form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
 					<div className="flex flex-col gap-4">
-						<ClientSelectField serviceUsers={serviceUsers} />
+						<ClientSelectField
+							serviceUsers={serviceUsers}
+							disabled={isEditMode}
+						/>
 						<ServiceTypeSelectField serviceTypes={serviceTypes} />
 						<WeekdayField />
 						<div className="flex items-baseline gap-4">
@@ -345,24 +214,24 @@ export const BasicScheduleForm = ({
 									<div>
 										<p className="fieldset-legend">デフォルト担当者</p>
 										<p className="text-sm text-base-content/70">
-											{staffStatusMessage}
+											{staffSelection.staffStatusMessage}
 										</p>
 									</div>
-									<StaffSelectionSummary staff={selectedStaff} />
+									<StaffSelectionSummary staff={staffSelection.selectedStaff} />
 									<div className="flex flex-wrap gap-2">
 										<button
 											type="button"
 											className="btn btn-sm"
-											onClick={() => setStaffPickerOpen(true)}
-											disabled={staffPickerDisabled}
+											onClick={staffSelection.openStaffPicker}
+											disabled={staffSelection.staffPickerDisabled}
 										>
 											担当者を選択
 										</button>
 										<button
 											type="button"
 											className="btn btn-ghost btn-sm"
-											onClick={handleStaffClear}
-											disabled={staffClearDisabled}
+											onClick={staffSelection.handleStaffClear}
+											disabled={staffSelection.staffClearDisabled}
 										>
 											クリア
 										</button>
@@ -372,28 +241,40 @@ export const BasicScheduleForm = ({
 						</div>
 
 						<NoteField valueLength={noteValue.length} />
-
 						<ApiErrorMessage message={apiError} />
 					</div>
-					<div className="flex justify-end">
+
+					<div className="flex justify-between">
+						{isEditMode ? (
+							<button
+								type="button"
+								className="btn btn-outline btn-error"
+								onClick={handleDelete}
+								disabled={isDeleting || isSubmitting}
+							>
+								{isDeleting ? '削除中...' : '削除する'}
+							</button>
+						) : (
+							<div />
+						)}
 						<button
 							type="submit"
 							className={submitButtonClass}
 							disabled={isSubmitDisabled}
 						>
-							スケジュールを登録
+							{config.submitButtonText}
 						</button>
 					</div>
 				</form>
 			</FormProvider>
 
 			<StaffPickerDialog
-				isOpen={isStaffPickerOpen}
-				staffOptions={staffPickerOptions}
+				isOpen={staffSelection.isStaffPickerOpen}
+				staffOptions={staffSelection.staffPickerOptions}
 				selectedStaffId={selectedStaffId}
-				onClose={() => setStaffPickerOpen(false)}
-				onSelect={handleStaffConfirm}
-				onClear={staffPickerClearHandler}
+				onClose={staffSelection.closeStaffPicker}
+				onSelect={staffSelection.handleStaffConfirm}
+				onClear={staffSelection.staffPickerClearHandler}
 			/>
 		</section>
 	);

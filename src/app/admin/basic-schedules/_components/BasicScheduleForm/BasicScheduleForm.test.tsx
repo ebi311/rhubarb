@@ -1,4 +1,8 @@
-import { createBasicScheduleAction } from '@/app/actions/basicSchedules';
+import {
+	createBasicScheduleAction,
+	deleteBasicScheduleAction,
+	updateBasicScheduleAction,
+} from '@/app/actions/basicSchedules';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import * as actionResultHandler from '@/hooks/useActionResultHandler';
 import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
@@ -18,6 +22,8 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/app/actions/basicSchedules', () => ({
 	createBasicScheduleAction: vi.fn(),
+	updateBasicScheduleAction: vi.fn(),
+	deleteBasicScheduleAction: vi.fn(),
 }));
 
 vi.spyOn(actionResultHandler, 'useActionResultHandler');
@@ -160,5 +166,156 @@ describe('BasicScheduleForm', () => {
 
 		// 成功後に一覧ページへ遷移することを確認
 		expect(mockPush).toHaveBeenCalledWith('/admin/basic-schedules');
+	});
+});
+
+describe('BasicScheduleForm (edit mode)', () => {
+	const scheduleId = '019b8917-62a6-703d-9acf-502cf1dc5f7c';
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		handleActionResultMock.mockReset();
+		mockPush.mockClear();
+	});
+
+	it('編集モードでは利用者選択が無効化される', async () => {
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				mode="edit"
+				scheduleId={scheduleId}
+				initialValues={{
+					clientId: serviceUsers[0].id,
+					serviceTypeId: 'physical-care',
+					weekday: 'Mon',
+					startTime: '09:00',
+					endTime: '10:00',
+				}}
+			/>,
+		);
+
+		const clientSelect = screen.getByLabelText(/利用者/);
+		expect(clientSelect).toBeDisabled();
+	});
+
+	it('編集モードで更新ボタンと削除ボタンが表示される', async () => {
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				mode="edit"
+				scheduleId={scheduleId}
+				initialValues={{
+					clientId: serviceUsers[0].id,
+					serviceTypeId: 'physical-care',
+					weekday: 'Mon',
+					startTime: '09:00',
+					endTime: '10:00',
+				}}
+			/>,
+		);
+
+		expect(
+			screen.getByRole('button', { name: '更新する' }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: '削除する' }),
+		).toBeInTheDocument();
+	});
+
+	it('編集モードでフォーム送信時にupdateBasicScheduleActionが呼ばれる', async () => {
+		const user = userEvent.setup();
+		vi.mocked(updateBasicScheduleAction).mockResolvedValue(
+			successResult(sampleSchedule),
+		);
+
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				mode="edit"
+				scheduleId={scheduleId}
+				initialValues={{
+					clientId: serviceUsers[0].id,
+					serviceTypeId: 'physical-care',
+					weekday: 'Mon',
+					startTime: '09:00',
+					endTime: '10:00',
+				}}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '更新する' }));
+
+		await waitFor(() => {
+			expect(updateBasicScheduleAction).toHaveBeenCalledWith(scheduleId, {
+				client_id: serviceUsers[0].id,
+				service_type_id: 'physical-care',
+				weekday: 'Mon',
+				start_time: { hour: 9, minute: 0 },
+				end_time: { hour: 10, minute: 0 },
+				staff_ids: [],
+				note: null,
+			});
+		});
+	});
+
+	it('削除ボタンをクリックして確認するとdeleteBasicScheduleActionが呼ばれる', async () => {
+		const user = userEvent.setup();
+		vi.spyOn(window, 'confirm').mockReturnValue(true);
+		vi.mocked(deleteBasicScheduleAction).mockResolvedValue(successResult(null));
+
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				mode="edit"
+				scheduleId={scheduleId}
+				initialValues={{
+					clientId: serviceUsers[0].id,
+					serviceTypeId: 'physical-care',
+					weekday: 'Mon',
+					startTime: '09:00',
+					endTime: '10:00',
+				}}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '削除する' }));
+
+		await waitFor(() => {
+			expect(deleteBasicScheduleAction).toHaveBeenCalledWith(scheduleId);
+		});
+	});
+
+	it('削除確認をキャンセルするとアクションは呼ばれない', async () => {
+		const user = userEvent.setup();
+		vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				mode="edit"
+				scheduleId={scheduleId}
+				initialValues={{
+					clientId: serviceUsers[0].id,
+					serviceTypeId: 'physical-care',
+					weekday: 'Mon',
+					startTime: '09:00',
+					endTime: '10:00',
+				}}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '削除する' }));
+
+		expect(deleteBasicScheduleAction).not.toHaveBeenCalled();
 	});
 });

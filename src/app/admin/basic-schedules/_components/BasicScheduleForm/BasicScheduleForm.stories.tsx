@@ -97,3 +97,32 @@ export const WithPreselectedStaff: Story = {
 export const NoAssignments: Story = {
 	args: {},
 };
+
+const editModeDefaults: BasicScheduleFormInitialValues = {
+	clientId: serviceUsers[0]?.id,
+	serviceTypeId: 'physical-care',
+	weekday: 'Mon',
+	startTime: '10:00',
+	endTime: '12:00',
+	note: '週次定期訪問',
+	staffId: staffs[0]?.id,
+};
+
+export const EditMode: Story = {
+	args: {
+		initialValues: editModeDefaults,
+		mode: 'edit',
+		scheduleId: '019b8b17-5b02-74ed-a77e-724d384629ef',
+	},
+};
+
+export const EditModeWithoutStaff: Story = {
+	args: {
+		initialValues: {
+			...editModeDefaults,
+			staffId: null,
+		},
+		mode: 'edit',
+		scheduleId: '019b8b17-5b02-74ed-a77e-724d384629ef',
+	},
+};

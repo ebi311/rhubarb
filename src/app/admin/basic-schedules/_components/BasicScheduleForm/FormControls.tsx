@@ -13,9 +13,13 @@ import { getFieldDescriptionId, getSelectClassName } from './helpers';
 
 type ClientSelectFieldProps = {
 	serviceUsers: ServiceUser[];
+	disabled?: boolean;
 };
 
-export const ClientSelectField = ({ serviceUsers }: ClientSelectFieldProps) => {
+export const ClientSelectField = ({
+	serviceUsers,
+	disabled = false,
+}: ClientSelectFieldProps) => {
 	const fieldId = useId();
 	const {
 		register,
@@ -24,16 +28,20 @@ export const ClientSelectField = ({ serviceUsers }: ClientSelectFieldProps) => {
 	const hasError = Boolean(errors.clientId);
 	const selectClass = getSelectClassName(hasError);
 	const describedBy = getFieldDescriptionId(hasError, fieldId);
+	const isDisabled = disabled || isSubmitting;
 
 	return (
 		<fieldset className="fieldset">
 			<legend id={`${fieldId}-label`} className="fieldset-legend">
 				利用者 *
+				{disabled && (
+					<span className="ml-2 text-xs text-base-content/60">(変更不可)</span>
+				)}
 			</legend>
 			<FormSelect
 				id={fieldId}
 				className={selectClass}
-				disabled={isSubmitting}
+				disabled={isDisabled}
 				aria-labelledby={`${fieldId}-label`}
 				aria-invalid={hasError}
 				aria-describedby={describedBy}

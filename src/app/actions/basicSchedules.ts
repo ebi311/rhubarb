@@ -48,6 +48,37 @@ export const listBasicSchedulesAction = async (
 	}
 };
 
+export const getBasicScheduleByIdAction = async (
+	id: string,
+): Promise<ActionResult<BasicScheduleRecord>> => {
+	const supabase = await createSupabaseClient();
+
+	const {
+		data: { user },
+		error: authError,
+	} = await supabase.auth.getUser();
+	if (authError || !user) return errorResult('Unauthorized', 401);
+
+	const parsedId = z.string().uuid().safeParse(id);
+	if (!parsedId.success) {
+		return errorResult('Validation failed', 400, parsedId.error.flatten());
+	}
+
+	const service = new BasicScheduleService(supabase);
+	try {
+		const schedule = await service.findById(parsedId.data);
+		if (!schedule) {
+			return errorResult('Basic schedule not found', 404);
+		}
+		return successResult(schedule);
+	} catch (e) {
+		if (e instanceof ServiceError) {
+			return errorResult(e.message, e.status, e.details);
+		}
+		throw e;
+	}
+};
+
 export const createBasicScheduleAction = async (
 	input: BasicScheduleInput,
 ): Promise<ActionResult<BasicScheduleRecord>> => {

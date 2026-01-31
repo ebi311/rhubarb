@@ -6,7 +6,7 @@ import {
 } from '@/models/basicSchedule';
 import { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { timeToMinutes } from '@/models/valueObjects/time';
-import { parseTimeString, timeObjectToString } from '@/utils/date';
+import { parseTimeString, timeObjectToStringWithTimezone } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 type BasicScheduleRow = Database['public']['Tables']['basic_schedules']['Row'];
@@ -46,8 +46,8 @@ export class BasicScheduleRepository {
 			client_id: entity.client_id,
 			service_type_id: entity.service_type_id,
 			day_of_week: entity.day_of_week,
-			start_time: timeObjectToString(entity.time.start),
-			end_time: timeObjectToString(entity.time.end),
+			start_time: timeObjectToStringWithTimezone(entity.time.start),
+			end_time: timeObjectToStringWithTimezone(entity.time.end),
 			note: entity.note ?? null,
 			created_at: entity.created_at.toISOString(),
 			updated_at: entity.updated_at.toISOString(),
