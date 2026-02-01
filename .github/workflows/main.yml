@@ -9,15 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: [actions/checkout@v4]
+        uses: actions/checkout@v4
 
       - name: Install pnpm
-        uses: [pnpm/action-setup@v3]
+        uses: pnpm/action-setup@v3
         with:
           version: 10 # 利用中のpnpmバージョンに合わせてください
 
       - name: Set up Node.js
-        uses: [actions/setup-node@v4]
+        uses: actions/setup-node@v4
         with:
           node-version: 24 # Next.jsの推奨バージョン
           cache: 'pnpm'
