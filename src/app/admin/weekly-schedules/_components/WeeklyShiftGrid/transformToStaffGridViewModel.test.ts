@@ -23,6 +23,7 @@ describe('transformToStaffGridViewModel', () => {
 		endTime: { hour: endHour, minute: 0 },
 		serviceTypeId,
 		status,
+		isUnassigned: staffId === null,
 		cancelReason: null,
 		cancelCategory: null,
 	});

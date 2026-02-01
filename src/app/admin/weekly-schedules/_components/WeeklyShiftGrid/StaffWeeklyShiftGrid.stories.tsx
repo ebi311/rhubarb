@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import type { ShiftDisplayRow } from '../ShiftTable';
 import { StaffWeeklyShiftGrid } from './StaffWeeklyShiftGrid';
 
@@ -37,6 +37,7 @@ const createShift = (
 	endTime: { hour: endHour, minute: endMinute },
 	serviceTypeId,
 	status,
+	isUnassigned: staffId === null,
 	cancelReason: cancelReason ?? null,
 	cancelCategory: cancelCategory ?? null,
 });
