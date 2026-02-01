@@ -25,5 +25,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
       - name: Run Vitest
         run: pnpm test --run
