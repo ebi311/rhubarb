@@ -83,11 +83,10 @@ src/app/{path}/_components/{ComponentName}/
 ## 開発プロセス
 
 1. 要件は `docs/MVP.md` を参照
-2. 機能仕様は `docs/features/{yyyy-MM-dd HH:mm}-{name}.md` に保存
-3. タスクは `docs/task/{yyyy-MM-dd HH:mm}-{name}.md` に分解
-4. **TDD**: テストを先に書き、最小限の実装で動作確認しながら進める
-5. 関数は Arrow Function を原則使用（クラスメソッド除く）
-6. `as any` は原則禁止（UT で型が重要でない場合のみ例外）
+2. ドキュメントは `docs/` に保存
+3. **TDD**: テストを先に書き、最小限の実装で動作確認しながら進める
+4. 関数は Arrow Function を原則使用（クラスメソッド除く）
+5. `as any` は原則禁止（UT, Storybook で型が重要でない場合のみ例外）
 
 ## Git ルール
 
