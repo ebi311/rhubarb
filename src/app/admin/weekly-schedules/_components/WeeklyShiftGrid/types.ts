@@ -30,3 +30,27 @@ export interface WeeklyShiftGridViewModel {
 		[dateKey: string]: WeeklyShiftCell[]; // キーは 'YYYY-MM-DD'
 	};
 }
+
+/** スタッフ別グリッド表示用のセル情報 */
+export interface StaffWeeklyShiftCell {
+	id: string;
+	date: Date;
+	timeRange: string; // "HH:MM - HH:MM"
+	serviceTypeId: ServiceTypeId;
+	clientName: string;
+	status: ShiftStatus;
+	cancelReason?: string | null;
+	cancelCategory?: string | null;
+}
+
+/** スタッフ × 日付のマトリクス構造 */
+export interface StaffWeeklyShiftGridViewModel {
+	/** スタッフID（未割り当ての場合はnull） */
+	staffId: string | null;
+	/** スタッフ名（未割り当ての場合は「未割当」） */
+	staffName: string;
+	/** 日付ごとのシフト */
+	shiftsByDate: {
+		[dateKey: string]: StaffWeeklyShiftCell[]; // キーは 'YYYY-MM-DD'
+	};
+}

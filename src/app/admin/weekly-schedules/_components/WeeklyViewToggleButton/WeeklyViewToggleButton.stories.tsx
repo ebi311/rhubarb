@@ -24,3 +24,9 @@ export const GridView: Story = {
 		currentView: 'grid',
 	},
 };
+
+export const StaffGridView: Story = {
+	args: {
+		currentView: 'staff-grid',
+	},
+};

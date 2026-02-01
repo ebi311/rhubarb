@@ -22,7 +22,7 @@ import {
 } from '../RestoreShiftDialog';
 import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
-import { WeeklyShiftGrid } from '../WeeklyShiftGrid';
+import { StaffWeeklyShiftGrid, WeeklyShiftGrid } from '../WeeklyShiftGrid';
 import {
 	WeeklyViewToggleButton,
 	type WeeklyViewMode,
@@ -171,12 +171,20 @@ export const WeeklySchedulePage = ({
 						onCancelShift={handleCancelShift}
 						onRestoreShift={handleRestoreShift}
 					/>
-				) : (
+				) : viewMode === 'grid' ? (
 					<WeeklyShiftGrid
 						shifts={initialShifts}
 						weekStartDate={weekStartDate}
 						onChangeStaff={handleChangeStaff}
 						onAssignStaff={handleAssignStaff}
+						onCancelShift={handleCancelShift}
+						onRestoreShift={handleRestoreShift}
+					/>
+				) : (
+					<StaffWeeklyShiftGrid
+						shifts={initialShifts}
+						weekStartDate={weekStartDate}
+						onChangeStaff={handleChangeStaff}
 						onCancelShift={handleCancelShift}
 						onRestoreShift={handleRestoreShift}
 					/>
