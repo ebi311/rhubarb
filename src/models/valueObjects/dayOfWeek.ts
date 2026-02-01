@@ -36,3 +36,17 @@ export const WEEKDAY_FULL_LABELS: Record<DayOfWeek, string> = {
 	Sat: '土曜日',
 	Sun: '日曜日',
 };
+
+/**
+ * JavaScript の Date.getDay() のインデックス (0=日曜, 1=月曜, ..., 6=土曜) に対応する日本語ラベル
+ * getJstDayOfWeek() の戻り値をそのまま使用できる
+ */
+export const DAY_OF_WEEK_LABELS_BY_INDEX: readonly string[] = [
+	'日',
+	'月',
+	'火',
+	'水',
+	'木',
+	'金',
+	'土',
+];
