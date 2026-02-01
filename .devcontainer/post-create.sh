@@ -20,6 +20,15 @@ curl -L https://daisyui.com/llms.txt --create-dirs -o .github/instructions/daisy
 	&& sudo apt update \
 	&& sudo apt install gh -y
 
+# python　をインストール ai agent が使いたがる
+sudo apt update
+sudo apt install python3 -y
+sudo apt install python3-pip -y
+
+# .zshrc に環境変数を追加
+echo 'export GH_PAGER=""' >> ~/.zshrc
+echo 'export PAGER=""' >> ~/.zshrc
+
 # post-create-custom.sh ファイルが存在する場合、それを実行
 if [ -f ".devcontainer/post-create-custom.sh" ]; then
   echo "post-create-custom.sh を実行します..."

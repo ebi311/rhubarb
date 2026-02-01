@@ -1,4 +1,5 @@
 ---
+name: pr
 description: 指定されたイシューと実装に対するプルリクエストを作成します。
 tools:
   [

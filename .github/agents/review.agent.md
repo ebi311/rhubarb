@@ -1,4 +1,5 @@
 ---
+name: review
 description: 実装内容をレビューし、建設的なフィードバックを提供します。
 tools:
   [

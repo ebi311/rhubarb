@@ -1,14 +1,15 @@
 ---
+name: issue
 description: 要件と仕様を洗練させて、イシューの報告や機能リクエストをサポートします。
 tools:
   [
-    'edit',
     'execute',
     'read',
+    'edit',
     'search',
-    'todo',
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
+    'todo',
   ]
 ---
 

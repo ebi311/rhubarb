@@ -1,4 +1,5 @@
 ---
+name: implement
 description: TDD の原則に従って、指定された計画に基づいて実装を実行します。
 tools:
   [
@@ -9,6 +10,8 @@ tools:
     'todo',
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
+    'supabase/*',
+    'storybook-mcp/*',
   ]
 ---
 
