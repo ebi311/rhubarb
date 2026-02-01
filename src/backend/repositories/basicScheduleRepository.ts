@@ -103,7 +103,6 @@ export class BasicScheduleRepository {
 			.order('day_of_week', { ascending: true })
 			.order('start_time', { ascending: true });
 		if (error) throw error;
-		console.dir({ data }, { depth: null, colors: true });
 		return (data ?? []).map((row) =>
 			this.toDomain(row as BasicScheduleJoinedRow),
 		);
