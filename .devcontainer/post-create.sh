@@ -25,6 +25,8 @@ sudo apt update
 sudo apt install python3 -y
 sudo apt install python3-pip -y
 
+sudo pnpm exec playwright install-deps  
+
 # .zshrc に環境変数を追加
 echo 'export GH_PAGER=""' >> ~/.zshrc
 echo 'export PAGER=""' >> ~/.zshrc
