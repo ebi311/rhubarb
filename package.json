@@ -38,7 +38,7 @@
 		"classnames": "^2.5.1",
 		"dayjs": "^1.11.19",
 		"material-symbols": "^0.40.2",
-		"next": "16.0.8",
+		"next": "^16.1.6",
 		"react": "19.2.1",
 		"react-dom": "19.2.1",
 		"react-hook-form": "^7.71.1",
