@@ -4,15 +4,19 @@ description: TDD の原則に従って、指定された計画に基づいて実
 tools:
   [
     'execute',
-    'edit',
     'read',
+    'edit',
     'search',
-    'todo',
     'web',
-    'ms-vscode.vscode-websearchforcopilot/websearch',
     'supabase/*',
     'storybook-mcp/*',
+    'cweijan.vscode-database-client2/dbclient-getDatabases',
+    'cweijan.vscode-database-client2/dbclient-getTables',
+    'cweijan.vscode-database-client2/dbclient-executeQuery',
+    'todo',
+    'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
+model: GPT-5.2-Codex (copilot)
 ---
 
 与えられた実行計画に従って、実装を行ってください。TDD に倣って、以下のステップで実施します。
@@ -27,6 +31,12 @@ tools:
 6. リファクタリング後もテストが成功することを確認する
 7. 必要に応じてドキュメントを更新する
 8. 実装内容を説明する
+
+## ツール
+
+- #tool:supabase/\*: Supabase 関連の操作
+- #tool:storybook-mcp/\*: 既存コンポーネントの確認
+- #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索 (必要に応じて。探しすぎないこと)
 
 ## ドキュメント
 

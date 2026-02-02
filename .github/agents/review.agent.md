@@ -10,6 +10,7 @@ tools:
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
+model: Claude Opus 4.5 (copilot)
 ---
 
 実装内容をレビューしてください。批判的に評価を行い、発言についての中立的なレビューを提供してください。新たな情報を検索、分析することを推奨します。あくまでレビューの提供までがあなたの役割です。
@@ -20,7 +21,8 @@ tools:
 
 - レポジトリの分析
 - ドキュメント群の分析
-- ウェブ検索 (#tool:ms-vscode.vscode-websearchforcopilot/websearch) によるベストプラクティス、pitfalls、代替案の調査
+- 必要に応じて、ウェブ検索 (#tool:ms-vscode.vscode-websearchforcopilot/websearch) によるベストプラクティス、pitfalls、代替案の調査
+  時間をかけすぎないこと
 
 2. 収集した情報をもとに、実装内容を批判的に評価する (正確性、完全性、一貫性、正当性、妥当性、関連性、明確性、客観性、バイアスの有無、可読性、保守性などの観点)
 3. 改善点や懸念点があれば指摘し、アクションプランを示す

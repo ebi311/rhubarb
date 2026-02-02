@@ -10,6 +10,7 @@ tools:
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
+model: Gemini 3 Pro Preview (gemini)
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。
@@ -32,8 +33,8 @@ tools:
 
 ## ツール
 
-- #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
 - `gh`: GitHub リポジトリの操作
+- #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
 
 ## ドキュメント
 

@@ -10,6 +10,7 @@ tools:
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
+model: Claude Opus 4.5 (copilot)
 ---
 
 与えられたイシューの実装計画を立ててください。
