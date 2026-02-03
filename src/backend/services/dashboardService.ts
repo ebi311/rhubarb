@@ -9,6 +9,7 @@ import type {
 } from '@/models/dashboardActionSchemas';
 import { Shift } from '@/models/shift';
 import { timeToMinutes } from '@/models/valueObjects/time';
+import { dateJst, timeObjectToString } from '@/utils/date';
 
 export interface DashboardServiceDeps {
 	shiftRepository: ShiftRepository;
@@ -21,30 +22,14 @@ export interface DashboardServiceDeps {
  * 週の開始日（月曜日）を取得
  */
 const getWeekStartDate = (date: Date): Date => {
-	const d = new Date(date);
-	const day = d.getDay();
-	const diff = day === 0 ? -6 : 1 - day; // 日曜は-6, それ以外は1-曜日番号
-	d.setDate(d.getDate() + diff);
-	d.setHours(0, 0, 0, 0);
-	return d;
+	return dateJst(date).startOf('week').add(1, 'day').toDate();
 };
 
 /**
  * 週の終了日（日曜日）を取得
  */
 const getWeekEndDate = (date: Date): Date => {
-	const start = getWeekStartDate(date);
-	const end = new Date(start);
-	end.setDate(end.getDate() + 6);
-	end.setHours(23, 59, 59, 999);
-	return end;
-};
-
-/**
- * 時刻を "HH:MM" 形式にフォーマット
- */
-const formatTimeDisplay = (time: { hour: number; minute: number }): string => {
-	return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`;
+	return dateJst(date).endOf('week').add(1, 'day').toDate();
 };
 
 export class DashboardService {
@@ -170,7 +155,7 @@ export class DashboardService {
 
 	private toAlertItem(shift: Shift): AlertItem {
 		const clientName = this.clientMap.get(shift.client_id) ?? '不明';
-		const timeStr = formatTimeDisplay(shift.time.start);
+		const timeStr = timeObjectToString(shift.time.start);
 
 		return {
 			id: shift.id,

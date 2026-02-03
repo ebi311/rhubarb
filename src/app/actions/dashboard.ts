@@ -1,5 +1,6 @@
 'use server';
 
+import { ServiceTypeRepository } from '@/backend/repositories/serviceTypeRepository';
 import { ServiceUserRepository } from '@/backend/repositories/serviceUserRepository';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
@@ -32,35 +33,35 @@ export const getDashboardDataAction = async (): Promise<
 	if (error || !user) return errorResult('Unauthorized', 401);
 
 	try {
-		// 現在のユーザーに紐づくスタッフ情報を取得してoffice_idを特定
+		// リポジトリを初期化
 		const staffRepo = new StaffRepository(supabase);
+		const serviceTypeRepo = new ServiceTypeRepository(supabase);
+		const serviceUserRepo = new ServiceUserRepository(supabase);
+		const shiftRepo = new ShiftRepository(supabase);
+
+		// 現在のユーザーに紐づくスタッフ情報を取得してoffice_idを特定
 		const currentStaff = await staffRepo.findByAuthUserId(user.id);
 		if (!currentStaff) return errorResult('Staff not found', 404);
 
 		const officeId = currentStaff.office_id;
 		const today = new Date();
 
-		// マスタデータを取得
-		const { data: serviceTypes } = await supabase
-			.from('service_types')
-			.select('id, name');
-		const serviceTypeMap = new Map<string, string>(
-			(serviceTypes ?? []).map((st) => [st.id, st.name]),
-		);
+		// マスタデータを並列で取得
+		const [serviceTypes, clients, staffs] = await Promise.all([
+			serviceTypeRepo.findAll(),
+			serviceUserRepo.findAll(officeId, 'all'),
+			staffRepo.listByOffice(officeId),
+		]);
 
-		// クライアント一覧を取得
-		const serviceUserRepo = new ServiceUserRepository(supabase);
-		const clients = await serviceUserRepo.findAll(officeId, 'all');
+		const serviceTypeMap = new Map<string, string>(
+			serviceTypes.map((st) => [st.id, st.name]),
+		);
 		const clientMap = new Map<string, string>(
 			clients.map((c) => [c.id, c.name]),
 		);
-
-		// スタッフ一覧を取得
-		const staffs = await staffRepo.listByOffice(officeId);
 		const staffMap = new Map<string, string>(staffs.map((s) => [s.id, s.name]));
 
 		// ダッシュボードサービスを構築
-		const shiftRepo = new ShiftRepository(supabase);
 		const service = new DashboardService({
 			shiftRepository: shiftRepo,
 			serviceTypeMap,
