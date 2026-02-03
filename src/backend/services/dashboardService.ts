@@ -22,14 +22,14 @@ export interface DashboardServiceDeps {
  * 週の開始日（月曜日）を取得
  */
 const getWeekStartDate = (date: Date): Date => {
-	return dateJst(date).startOf('week').add(1, 'day').toDate();
+	return dateJst(date).startOf('isoWeek').toDate();
 };
 
 /**
  * 週の終了日（日曜日）を取得
  */
 const getWeekEndDate = (date: Date): Date => {
-	return dateJst(date).endOf('week').add(1, 'day').toDate();
+	return dateJst(date).endOf('isoWeek').toDate();
 };
 
 export class DashboardService {
