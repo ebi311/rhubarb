@@ -56,7 +56,7 @@ export const getDashboardDataAction = async (): Promise<
 		);
 
 		// スタッフ一覧を取得
-		const staffs = await staffRepo.findAll(officeId);
+		const staffs = await staffRepo.listByOffice(officeId);
 		const staffMap = new Map<string, string>(staffs.map((s) => [s.id, s.name]));
 
 		// ダッシュボードサービスを構築

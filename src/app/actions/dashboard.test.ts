@@ -25,7 +25,9 @@ vi.mock('@/backend/repositories/staffRepository', () => ({
 				name: 'Admin',
 				role: 'admin',
 			}),
-			findAll: vi.fn().mockResolvedValue([{ id: 'staff-1', name: '田中一郎' }]),
+			listByOffice: vi
+				.fn()
+				.mockResolvedValue([{ id: 'staff-1', name: '田中一郎' }]),
 		};
 	}),
 }));
