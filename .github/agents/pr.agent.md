@@ -10,7 +10,7 @@ tools:
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
-model: Gemini 3 Pro Preview (gemini)
+model: Claude Opus 4.5 (copilot)
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。

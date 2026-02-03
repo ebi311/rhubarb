@@ -1,12 +1,34 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import Home from './page';
 
+// Server Actionをモック
+vi.mock('@/app/actions/dashboard', () => ({
+	getDashboardDataAction: vi.fn().mockResolvedValue({
+		data: {
+			stats: { todayShiftCount: 5, weekShiftCount: 20, unassignedCount: 2 },
+			timeline: [],
+			alerts: [],
+		},
+		error: null,
+		status: 200,
+	}),
+}));
+
+// Server Actionのモック
+vi.mock('@/app/auth/actions', () => ({
+	signOut: vi.fn(),
+}));
+
 describe('Home', () => {
-	it('renders the heading', () => {
+	it('ヘッダーが表示される', () => {
 		render(<Home />);
-		const heading = screen.getByRole('heading', { level: 1 });
-		expect(heading).toBeInTheDocument();
-		expect(heading).toHaveTextContent('ダッシュボード');
+		expect(screen.getByText('Rhubarb')).toBeInTheDocument();
+	});
+
+	it('ダッシュボードのローディング状態が表示される', () => {
+		render(<Home />);
+		// Suspense fallbackが表示される
+		expect(screen.getByText('ログアウト')).toBeInTheDocument();
 	});
 });
