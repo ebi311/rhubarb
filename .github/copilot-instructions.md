@@ -56,7 +56,7 @@ throw new ServiceError(400, 'Validation error', zodError.issues);
 ```bash
 pnpm dev              # 開発サーバー起動
 pnpm test:ut --run    # ユニットテスト（単発実行）
-pnpm test:storybook   # Storybook テスト
+pnpm test:storybook --run  # Storybook テスト
 pnpm storybook        # Storybook 起動 (port 6006)
 pnpm supa:start       # ローカル Supabase 起動
 pnpm supa:reset       # Supabase リセット（マイグレーション再適用）

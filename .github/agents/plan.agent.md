@@ -28,6 +28,10 @@ model: Claude Opus 4.5 (copilot)
 - #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
 - `gh`: GitHub リポジトリの操作
 
+## 参照すべき Skill
+
+- `utilities` - 既存ユーティリティ関数・コンポーネントの一覧。計画時に既存リソースを確認
+
 ## ドキュメント
 
 - `docs/`
