@@ -16,7 +16,7 @@ tools:
     'todo',
     'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
-model: GPT-5.2-Codex (copilot)
+model: Claude Opus 4.5 (copilot)
 ---
 
 与えられた実行計画に従って、実装を行ってください。TDD に倣って、以下のステップで実施します。
