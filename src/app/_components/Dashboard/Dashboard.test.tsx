@@ -101,6 +101,25 @@ describe('Dashboard', () => {
 		});
 	});
 
+	describe('クイックアクセスセクション', () => {
+		it('クイックアクセスセクションが表示される', () => {
+			renderComponent();
+			expect(screen.getByText('クイックアクセス')).toBeInTheDocument();
+		});
+
+		it('基本スケジュールへのリンクが表示される', () => {
+			renderComponent();
+			const link = screen.getByRole('link', { name: /基本スケジュール/ });
+			expect(link).toHaveAttribute('href', '/admin/basic-schedules');
+		});
+
+		it('週次スケジュールへのリンクが表示される', () => {
+			renderComponent();
+			const link = screen.getByRole('link', { name: /週次スケジュール/ });
+			expect(link).toHaveAttribute('href', '/admin/weekly-schedules');
+		});
+	});
+
 	describe('レスポンシブ対応', () => {
 		it('ダッシュボードコンテナが存在する', () => {
 			renderComponent();

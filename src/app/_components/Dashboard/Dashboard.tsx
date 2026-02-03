@@ -1,4 +1,5 @@
 import { DashboardAlerts } from '@/app/_components/DashboardAlerts';
+import { DashboardQuickAccess } from '@/app/_components/DashboardQuickAccess';
 import { DashboardStats } from '@/app/_components/DashboardStats';
 import { DashboardTimeline } from '@/app/_components/DashboardTimeline';
 import type { DashboardData } from '@/models/dashboardActionSchemas';
@@ -19,6 +20,9 @@ export const Dashboard = ({ data }: Props) => {
 			<section>
 				<DashboardStats {...stats} />
 			</section>
+
+			{/* クイックアクセス */}
+			<DashboardQuickAccess />
 
 			{/* 今日のタイムライン */}
 			<DashboardTimeline timeline={timeline} />
