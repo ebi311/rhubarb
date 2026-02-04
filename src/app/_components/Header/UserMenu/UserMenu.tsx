@@ -1,6 +1,4 @@
-'use client';
-
-import { signOutAction } from '@/app/actions/auth';
+import { signOut } from '@/app/auth/actions';
 
 type Props = {
 	userName: string;
@@ -8,18 +6,15 @@ type Props = {
 
 export const UserMenu = ({ userName }: Props) => {
 	return (
-		<div className="dropdown dropdown-end">
-			<div tabIndex={0} role="button" className="btn btn-ghost">
-				{userName}
-			</div>
-			<ul
-				tabIndex={0}
-				className="dropdown-content menu z-10 w-52 rounded-box bg-base-100 p-2 shadow"
-			>
+		<details className="dropdown dropdown-end">
+			<summary className="btn btn-ghost">{userName}</summary>
+			<ul className="dropdown-content menu z-10 w-52 rounded-box bg-base-100 p-2 shadow">
 				<li>
-					<button onClick={() => signOutAction()}>ログアウト</button>
+					<form action={signOut}>
+						<button type="submit">ログアウト</button>
+					</form>
 				</li>
 			</ul>
-		</div>
+		</details>
 	);
 };
