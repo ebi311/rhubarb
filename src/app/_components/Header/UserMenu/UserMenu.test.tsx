@@ -1,3 +1,4 @@
+import { signOut } from '@/app/auth/actions';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,6 +34,6 @@ describe('UserMenu', () => {
 		await user.click(logoutButton);
 
 		// クリックが正常に動作すること（エラーが発生しないこと）を確認
-		expect(logoutButton).toBeInTheDocument();
+		expect(signOut).toHaveBeenCalled();
 	});
 });
