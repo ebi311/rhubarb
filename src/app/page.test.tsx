@@ -16,8 +16,18 @@ vi.mock('@/app/actions/dashboard', () => ({
 }));
 
 // Server Actionのモック
-vi.mock('@/app/auth/actions', () => ({
-	signOut: vi.fn(),
+vi.mock('@/app/actions/auth', () => ({
+	signOutAction: vi.fn(),
+}));
+
+// async Header コンポーネントをモック
+vi.mock('@/app/_components/Header', () => ({
+	Header: () => (
+		<header>
+			<span>Rhubarb</span>
+			<button>ログアウト</button>
+		</header>
+	),
 }));
 
 describe('Home', () => {
