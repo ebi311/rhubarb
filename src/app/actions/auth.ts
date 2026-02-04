@@ -1,10 +1,2 @@
-'use server';
-
-import { createSupabaseClient } from '@/utils/supabase/server';
-import { redirect } from 'next/navigation';
-
-export async function signOutAction() {
-	const supabase = await createSupabaseClient();
-	await supabase.auth.signOut();
-	redirect('/login');
-}
+// 既存の signOut を再エクスポート（コードの重複を解消）
+export { signOut as signOutAction } from '@/app/auth/actions';

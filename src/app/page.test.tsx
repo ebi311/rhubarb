@@ -16,8 +16,8 @@ vi.mock('@/app/actions/dashboard', () => ({
 }));
 
 // Server Actionのモック
-vi.mock('@/app/actions/auth', () => ({
-	signOutAction: vi.fn(),
+vi.mock('@/app/auth/actions', () => ({
+	signOut: vi.fn(),
 }));
 
 // async Header コンポーネントをモック
