@@ -60,7 +60,8 @@
 				"alefragnani.Bookmarks",
 				"nguyenngoclong.terminal-keeper",
 				"WallabyJs.console-ninja",
-				"ms-vscode.vscode-websearchforcopilot"
+				"ms-vscode.vscode-websearchforcopilot",
+				"vitest.explorer"
 			]
 		}
 	}
