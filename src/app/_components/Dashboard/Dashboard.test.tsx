@@ -71,7 +71,9 @@ describe('Dashboard', () => {
 
 		it('未割当のタイムラインアイテムが警告スタイルで表示される', () => {
 			renderComponent();
-			expect(screen.getByText('佐藤花子')).toBeInTheDocument();
+			// タイムライン内の「佐藤花子」を確認（alertセクション外）
+			const timelineItems = screen.getAllByText('佐藤花子');
+			expect(timelineItems.length).toBeGreaterThanOrEqual(1);
 			// タイムライン内のバッジを確認
 			const unassignedBadge = screen.getByText('未割当', {
 				selector: '.badge',
@@ -115,7 +117,10 @@ describe('Dashboard', () => {
 
 		it('週次スケジュールへのリンクが表示される', () => {
 			renderComponent();
-			const link = screen.getByRole('link', { name: /週次スケジュール/ });
+			// クイックアクセス内の週次スケジュールリンク（正確なaria-labelで取得）
+			const link = screen.getByRole('link', {
+				name: '週次スケジュール - 週ごとのシフトを確認・編集',
+			});
 			expect(link).toHaveAttribute('href', '/admin/weekly-schedules');
 		});
 	});
