@@ -21,6 +21,7 @@ model: Claude Opus 4.5 (copilot)
 
 - レポジトリの分析
 - ドキュメント群の分析
+- 実行計画を確認する
 - 必要に応じて、ウェブ検索 (#tool:ms-vscode.vscode-websearchforcopilot/websearch) によるベストプラクティス、pitfalls、代替案の調査
   時間をかけすぎないこと
 
@@ -38,6 +39,10 @@ model: Claude Opus 4.5 (copilot)
 
 - 1つのコンポーネントに複数の責務が混在していないか
 - 長大なコンポーネント（50行以上）は分離を推奨
+
+## 実行計画に従っているか
+
+- 実行計画で指定された要件や仕様が満たされているか
 
 ### パフォーマンス
 

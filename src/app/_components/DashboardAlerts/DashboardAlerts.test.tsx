@@ -92,6 +92,28 @@ describe('DashboardAlerts', () => {
 		});
 	});
 
+	describe('日曜日のエッジケース', () => {
+		it('日曜日の場合、前週の月曜日にリンクする', () => {
+			const sundayAlert: AlertItem[] = [
+				{
+					id: 'alert-sunday',
+					type: 'unassigned',
+					date: new Date('2026-02-08'), // 日曜日
+					startTime: { hour: 9, minute: 0 },
+					clientName: 'テスト太郎',
+					message: 'テスト',
+				},
+			];
+			render(<DashboardAlerts alerts={sundayAlert} />);
+			const link = screen.getByRole('link');
+			// 2026-02-08(日)の前週の月曜日は 2026-02-02
+			expect(link).toHaveAttribute(
+				'href',
+				'/admin/weekly-schedules?week=2026-02-02',
+			);
+		});
+	});
+
 	describe('空の状態', () => {
 		it('アラートがない場合、何も表示されない', () => {
 			renderComponent({ alerts: [] });

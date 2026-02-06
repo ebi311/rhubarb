@@ -21,11 +21,11 @@ const mockAlerts: AlertItem[] = [
 	},
 	{
 		id: 'alert-3',
-		type: 'cancelled',
+		type: 'shortage',
 		date: new Date('2026-02-10'),
 		startTime: { hour: 9, minute: 0 },
 		clientName: '山田太郎',
-		message: 'スタッフがキャンセルされました',
+		message: 'スタッフ不足です',
 	},
 ];
 

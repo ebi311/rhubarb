@@ -1,6 +1,7 @@
 import { Icon } from '@/app/_components/Icon';
+import { getMonday } from '@/app/admin/weekly-schedules/helpers';
 import type { AlertItem } from '@/models/dashboardActionSchemas';
-import { dateJst, timeObjectToString } from '@/utils/date';
+import { dateJst, formatJstDateString, timeObjectToString } from '@/utils/date';
 import Link from 'next/link';
 
 type Props = {
@@ -8,8 +9,8 @@ type Props = {
 };
 
 const getWeeklyScheduleUrl = (date: Date) => {
-	const monday = dateJst(date).startOf('isoWeek').format('YYYY-MM-DD');
-	return `/admin/weekly-schedules?week=${monday}`;
+	const monday = getMonday(date);
+	return `/admin/weekly-schedules?week=${formatJstDateString(monday)}`;
 };
 
 const formatDateMD = (date: Date) => dateJst(date).format('M/D');
@@ -32,7 +33,7 @@ export const DashboardAlerts = ({ alerts }: Props) => {
 						key={alert.id}
 						href={getWeeklyScheduleUrl(alert.date)}
 						aria-label={ariaLabel}
-						className={`alert ${alert.type === 'unassigned' ? 'alert-warning' : 'alert-error'}`}
+						className={`alert ${alert.type === 'unassigned' ? 'alert-warning' : 'alert-error'} transition-all hover:opacity-80 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none`}
 					>
 						<Icon name="warning" className="h-6 w-6 shrink-0" />
 						<div>
