@@ -30,12 +30,8 @@ describe('BasicScheduleContent', () => {
 			weekday: 'Mon',
 			timeRange: '09:00 - 10:00',
 			serviceTypeId: 'physical-care',
-			serviceTypeName: '身体介護',
-			staffIds: ['1'],
 			staffNames: ['スタッフA'],
 			note: null,
-			createdAt: '2026-01-01T00:00:00Z',
-			updatedAt: '2026-01-01T00:00:00Z',
 		},
 	];
 

@@ -1,5 +1,5 @@
 name: Vitest Run
-on: 
+on:
   pull_request:
     branches: [main, develop] # 必要に応じてブランチ名を調整
   push:
@@ -9,15 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: [actions/checkout@v4](https://github.com)
+        uses: actions/checkout@v4
 
       - name: Install pnpm
-        uses: [pnpm/action-setup@v3](https://github.com)
+        uses: pnpm/action-setup@v3
         with:
           version: 10 # 利用中のpnpmバージョンに合わせてください
 
       - name: Set up Node.js
-        uses: [actions/setup-node@v4](https://github.com)
+        uses: actions/setup-node@v4
         with:
           node-version: 24 # Next.jsの推奨バージョン
           cache: 'pnpm'
@@ -25,5 +25,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
       - name: Run Vitest
         run: pnpm test --run

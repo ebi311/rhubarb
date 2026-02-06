@@ -1,6 +1,7 @@
 import { Icon } from '@/app/_components/Icon';
 import { IconType } from '@/app/_components/Icon/Icon';
 import { ServiceTypeBadge } from '@/app/admin/_components/ServiceTypeBadges';
+import { DAY_OF_WEEK_LABELS_BY_INDEX } from '@/models/valueObjects/dayOfWeek';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDayOfWeek } from '@/utils/date';
 import classNames from 'classnames';
@@ -32,15 +33,13 @@ export interface ShiftTableProps {
 	onRestoreShift?: (shift: ShiftDisplayRow) => void;
 }
 
-const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
-
 const formatTime = (time: { hour: number; minute: number }): string => {
 	return `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
 };
 
 const formatDateWithDay = (date: Date): string => {
 	const dateStr = formatJstDateString(date).replace(/-/g, '/');
-	const dayOfWeek = DAY_NAMES[getJstDayOfWeek(date)];
+	const dayOfWeek = DAY_OF_WEEK_LABELS_BY_INDEX[getJstDayOfWeek(date)];
 	return `${dateStr}(${dayOfWeek})`;
 };
 

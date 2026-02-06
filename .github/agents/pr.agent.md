@@ -10,6 +10,7 @@ tools:
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
+model: Claude Opus 4.5 (copilot)
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。
@@ -25,6 +26,13 @@ tools:
 2. 作成にふさわしくない状況だと判断される場合、修正案を示して終了します。そうでなければ PR を作成します。
 3. 作成された PR の内容とリンクをユーザーに通知します。
 
+## PR作成ルール
+
+- PR作成後、Copilot をレビュアーとして追加する:
+  ```bash
+  gh pr edit <PR番号> --add-reviewer "copilot"
+  ```
+
 ## Notes
 
 - 関連する Issue がある場合、その Issue 番号を含めてください (e.g., `Closes #<number>`)
@@ -32,8 +40,8 @@ tools:
 
 ## ツール
 
-- #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
 - `gh`: GitHub リポジトリの操作
+- #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
 
 ## ドキュメント
 

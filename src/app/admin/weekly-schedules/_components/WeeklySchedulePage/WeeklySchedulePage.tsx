@@ -22,6 +22,11 @@ import {
 } from '../RestoreShiftDialog';
 import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
+import { StaffWeeklyShiftGrid, WeeklyShiftGrid } from '../WeeklyShiftGrid';
+import {
+	WeeklyViewToggleButton,
+	type WeeklyViewMode,
+} from '../WeeklyViewToggleButton';
 
 export interface WeeklySchedulePageProps {
 	weekStartDate: Date;
@@ -85,6 +90,7 @@ export const WeeklySchedulePage = ({
 	staffOptions,
 }: WeeklySchedulePageProps) => {
 	const router = useRouter();
+	const [viewMode, setViewMode] = useState<WeeklyViewMode>('list');
 	const [changeDialogShift, setChangeDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
 	const [cancelDialogShift, setCancelDialogShift] =
@@ -143,21 +149,46 @@ export const WeeklySchedulePage = ({
 					currentWeek={weekStartDate}
 					onWeekChange={handleWeekChange}
 				/>
-				<GenerateButton
-					weekStartDate={weekStartDate}
-					onGenerated={handleGenerated}
-					disabled={false}
-				/>
+				<div className="flex items-center gap-2">
+					<WeeklyViewToggleButton
+						currentView={viewMode}
+						onViewChange={setViewMode}
+					/>
+					<GenerateButton
+						weekStartDate={weekStartDate}
+						onGenerated={handleGenerated}
+						disabled={false}
+					/>
+				</div>
 			</div>
 
 			{hasShifts ? (
-				<ShiftTable
-					shifts={initialShifts}
-					onChangeStaff={handleChangeStaff}
-					onAssignStaff={handleAssignStaff}
-					onCancelShift={handleCancelShift}
-					onRestoreShift={handleRestoreShift}
-				/>
+				viewMode === 'list' ? (
+					<ShiftTable
+						shifts={initialShifts}
+						onChangeStaff={handleChangeStaff}
+						onAssignStaff={handleAssignStaff}
+						onCancelShift={handleCancelShift}
+						onRestoreShift={handleRestoreShift}
+					/>
+				) : viewMode === 'grid' ? (
+					<WeeklyShiftGrid
+						shifts={initialShifts}
+						weekStartDate={weekStartDate}
+						onChangeStaff={handleChangeStaff}
+						onAssignStaff={handleAssignStaff}
+						onCancelShift={handleCancelShift}
+						onRestoreShift={handleRestoreShift}
+					/>
+				) : (
+					<StaffWeeklyShiftGrid
+						shifts={initialShifts}
+						weekStartDate={weekStartDate}
+						onChangeStaff={handleChangeStaff}
+						onCancelShift={handleCancelShift}
+						onRestoreShift={handleRestoreShift}
+					/>
+				)
 			) : (
 				<EmptyState
 					weekStartDate={weekStartDate}

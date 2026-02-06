@@ -7,6 +7,8 @@ sb.mock(
 	import('../src/app/admin/basic-schedules/_components/BasicScheduleTable/fetchBasicSchedules.ts'),
 );
 sb.mock(import('../src/app/actions/weeklySchedules.ts'));
+sb.mock(import('../src/utils/supabase/server.ts'));
+sb.mock(import('../src/app/actions/auth.ts'));
 
 const preview: Preview = {
 	parameters: {

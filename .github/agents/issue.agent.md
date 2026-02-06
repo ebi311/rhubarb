@@ -11,6 +11,7 @@ tools:
     'ms-vscode.vscode-websearchforcopilot/websearch',
     'todo',
   ]
+model: Claude Opus 4.5 (copilot)
 ---
 
 # Issue 管理エージェント
@@ -22,14 +23,14 @@ tools:
 ## 手順 (#tool:todo)
 
 1. 現状/要件を理解する
+   - 情報が不足する場合、ユーザーに問い合わせるか、必要に応じて #tool:ms-vscode.vscode-websearchforcopilot/websearch でウェブ検索を行い、要件の理解を深める
 2. 必要に応じリモート レポジトリと同期する
 3. 現在のローカル レポジトリ状況を確認する
 4. 現在の GitHub Issues の状況を確認する
-5. #tool:ms-vscode.vscode-websearchforcopilot/websearch でウェブ検索を行い、要件の理解を深める
-6. 要件と調査結果に基づき、Issue を作成/更新する
-7. 作成された Issue に対して批判的にレビューを行う
-8. レビュー内容に基づき、Issue を改善する
-9. ユーザーに作成した Issue を報告する
+5. 要件と調査結果に基づき、Issue を作成/更新する
+6. 作成された Issue に対して批判的にレビューを行う
+7. レビュー内容に基づき、Issue を改善する
+8. ユーザーに作成した Issue を報告する
 
 ## ツール
 

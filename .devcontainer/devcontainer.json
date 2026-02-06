@@ -59,7 +59,9 @@
 				"oderwat.indent-rainbow",
 				"alefragnani.Bookmarks",
 				"nguyenngoclong.terminal-keeper",
-				"WallabyJs.console-ninja"
+				"WallabyJs.console-ninja",
+				"ms-vscode.vscode-websearchforcopilot",
+				"vitest.explorer"
 			]
 		}
 	}

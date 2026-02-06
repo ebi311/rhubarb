@@ -10,6 +10,7 @@ tools:
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
+model: Claude Opus 4.5 (copilot)
 ---
 
 与えられたイシューの実装計画を立ててください。
@@ -26,6 +27,10 @@ tools:
 
 - #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
 - `gh`: GitHub リポジトリの操作
+
+## 参照すべき Skill
+
+- `utilities` - 既存ユーティリティ関数・コンポーネントの一覧。計画時に既存リソースを確認
 
 ## ドキュメント
 

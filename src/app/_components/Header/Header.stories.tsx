@@ -1,15 +1,31 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { Header } from './Header';
+import { HeaderPresentational } from './Header';
 
-const meta: Meta<typeof Header> = {
+const meta: Meta<typeof HeaderPresentational> = {
 	title: 'App/Header',
-	component: Header,
+	component: HeaderPresentational,
 	parameters: {
 		layout: 'fullscreen',
 	},
 };
 
 export default meta;
-type Story = StoryObj<typeof Header>;
+type Story = StoryObj<typeof HeaderPresentational>;
 
-export const Default: Story = {};
+export const Default: Story = {
+	args: {
+		userName: 'デモユーザー',
+	},
+};
+
+export const WithEmail: Story = {
+	args: {
+		userName: 'user@example.com',
+	},
+};
+
+export const Guest: Story = {
+	args: {
+		userName: 'ゲスト',
+	},
+};
