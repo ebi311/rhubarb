@@ -18,7 +18,7 @@ Supabase では、以下の3つの PostgreSQL ロールが自動的に設定さ�
 // ケース1: 未認証状態（'anon' ロール）
 const supabase = createClient(
 	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // ← 'anon' ロールで接続
+	process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, // ← 'anon' ロールで接続
 );
 
 // ケース2: ログイン後（'authenticated' ロールに自動変更）
@@ -183,7 +183,7 @@ import { createServerClient } from "@supabase/ssr";
 export async function createClient() {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // ← authenticated ロール
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, // ← authenticated ロール
     { cookies: { ... } }
   );
 }
@@ -207,7 +207,7 @@ import { createBrowserClient } from '@supabase/ssr';
 export function createClient() {
 	return createBrowserClient(
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // ← authenticated ロール
+		process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, // ← authenticated ロール
 	);
 }
 ```
