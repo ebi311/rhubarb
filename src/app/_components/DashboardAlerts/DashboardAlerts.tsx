@@ -1,10 +1,19 @@
 import { Icon } from '@/app/_components/Icon';
+import { getMonday } from '@/app/admin/weekly-schedules/helpers';
 import type { AlertItem } from '@/models/dashboardActionSchemas';
-import { timeObjectToString } from '@/utils/date';
+import { dateJst, formatJstDateString, timeObjectToString } from '@/utils/date';
+import Link from 'next/link';
 
 type Props = {
 	alerts: AlertItem[];
 };
+
+const getWeeklyScheduleUrl = (date: Date) => {
+	const monday = getMonday(date);
+	return `/admin/weekly-schedules?week=${formatJstDateString(monday)}`;
+};
+
+const formatDateMD = (date: Date) => dateJst(date).format('M/D');
 
 export const DashboardAlerts = ({ alerts }: Props) => {
 	if (alerts.length === 0) {
@@ -14,21 +23,30 @@ export const DashboardAlerts = ({ alerts }: Props) => {
 	return (
 		<section className="space-y-2">
 			<h2 className="text-lg font-bold">注意が必要な予定</h2>
-			{alerts.map((alert) => (
-				<div
-					key={alert.id}
-					role="alert"
-					className={`alert ${alert.type === 'unassigned' ? 'alert-warning' : 'alert-error'}`}
-				>
-					<Icon name="warning" className="h-6 w-6 shrink-0" />
-					<div>
-						<div className="font-bold">
-							{alert.clientName} - {timeObjectToString(alert.startTime)}
+			{alerts.map((alert) => {
+				const dateMD = formatDateMD(alert.date);
+				const timeStr = timeObjectToString(alert.startTime);
+				const ariaLabel = `${dateMD} ${alert.clientName} ${timeStr} の週次スケジュールを表示`;
+
+				return (
+					<Link
+						key={alert.id}
+						href={getWeeklyScheduleUrl(alert.date)}
+						aria-label={ariaLabel}
+						className={`alert ${alert.type === 'unassigned' ? 'alert-warning' : 'alert-error'} transition-all hover:opacity-80 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none`}
+					>
+						<Icon name="warning" className="h-6 w-6 shrink-0" />
+						<div>
+							<div className="font-bold">
+								<span>{dateMD}</span>
+								<span className="mx-1">{alert.clientName}</span>
+								<span>{timeStr}</span>
+							</div>
+							<div className="text-sm">{alert.message}</div>
 						</div>
-						<div className="text-sm">{alert.message}</div>
-					</div>
-				</div>
-			))}
+					</Link>
+				);
+			})}
 		</section>
 	);
 };
