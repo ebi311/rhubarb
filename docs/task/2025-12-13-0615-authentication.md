@@ -3,7 +3,7 @@
 ## 前提条件
 
 - Supabase プロジェクトで Google プロバイダーが有効化されていること。
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` が環境変数に設定されていること。
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` が環境変数に設定されていること。
 
 ## ステップ
 
