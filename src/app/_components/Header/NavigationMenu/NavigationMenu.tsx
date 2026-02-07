@@ -1,5 +1,6 @@
 import { Icon } from '@/app/_components/Icon';
 import Link from 'next/link';
+import React from 'react';
 
 type MenuItem = {
 	label: string;
@@ -29,15 +30,18 @@ export const NavigationMenu = () => {
 			</summary>
 			<ul className="dropdown-content menu z-10 w-52 rounded-box border border-base-300 bg-base-100 p-2 shadow">
 				{MENU_ITEMS.map((group, groupIndex) => (
-					<li key={`group-${groupIndex}`}>
-						<ul>
-							{group.map((item) => (
-								<li key={item.href}>
-									<Link href={item.href}>{item.label}</Link>
-								</li>
-							))}
-						</ul>
-					</li>
+					<React.Fragment key={`group-${groupIndex}`}>
+						{groupIndex > 0 && (
+							<li>
+								<hr className="my-1" />
+							</li>
+						)}
+						{group.map((item) => (
+							<li key={item.href}>
+								<Link href={item.href}>{item.label}</Link>
+							</li>
+						))}
+					</React.Fragment>
 				))}
 			</ul>
 		</details>
