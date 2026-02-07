@@ -29,7 +29,7 @@ export const StaffBasicScheduleGrid = ({
 			<div
 				className="grid gap-px bg-base-300"
 				style={{
-					gridTemplateColumns: '200px repeat(7, minmax(150px, 1fr))',
+					gridTemplateColumns: '10rem repeat(7, minmax(150px, 1fr))',
 				}}
 			>
 				{/* ヘッダー行 */}
