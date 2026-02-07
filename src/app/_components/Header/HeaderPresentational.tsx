@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useContext } from 'react';
 import { pageContext } from './context';
+import { NavigationMenu } from './NavigationMenu';
 import { UserMenu } from './UserMenu';
 
 type Props = {
@@ -37,12 +38,7 @@ export const HeaderPresentational = ({ userName }: Props) => {
 				<h1 className="text-xl font-bold">{title}</h1>
 			</div>
 			<div className="flex-none">
-				<Link href="/admin/staffs" className="btn btn-ghost btn-sm">
-					スタッフ管理
-				</Link>
-				<Link href="/admin/clients" className="btn btn-ghost btn-sm">
-					利用者管理
-				</Link>
+				<NavigationMenu />
 				<UserMenu userName={userName} />
 			</div>
 		</header>
