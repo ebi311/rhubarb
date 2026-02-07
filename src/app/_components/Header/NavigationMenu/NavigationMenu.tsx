@@ -50,11 +50,7 @@ export const NavigationMenu = () => {
 			<ul className="dropdown-content menu z-10 w-52 rounded-box border border-base-300 bg-base-100 p-2 shadow">
 				{MENU_ITEMS.map((group, groupIndex) => (
 					<React.Fragment key={`group-${groupIndex}`}>
-						{groupIndex > 0 && (
-							<li>
-								<hr className="my-1" />
-							</li>
-						)}
+						{groupIndex > 0 && <li></li>}
 						{group.map((item) => (
 							<li key={item.href}>
 								<Link href={item.href} onClick={closeMenu}>

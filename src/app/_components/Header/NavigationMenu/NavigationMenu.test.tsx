@@ -58,12 +58,6 @@ describe('NavigationMenu', () => {
 		expect(screen.getByText('menu')).toBeInTheDocument();
 	});
 
-	it('メニューグループ間に区切り線が表示される', () => {
-		render(<NavigationMenu />);
-		const separator = document.querySelector('hr.my-1');
-		expect(separator).toBeInTheDocument();
-	});
-
 	it('リンクをクリックするとドロップダウンが閉じる', async () => {
 		const user = userEvent.setup();
 		render(<NavigationMenu />);
