@@ -1,5 +1,6 @@
 'use client';
 
+import { useSetPageTitle } from '@/app/_components/Header/context';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import type { ServiceTypeOption, StaffFilterState } from '../../_types';
 import { DeleteStaffDialog } from '../DeleteStaffDialog';
@@ -20,6 +21,7 @@ export const StaffListPage = ({
 	serviceTypes,
 	filters,
 }: StaffListPageClientProps) => {
+	useSetPageTitle('スタッフ管理');
 	const { filteredStaffs, modals, actions, handlers } = useStaffListState({
 		initialStaffs,
 		filters,

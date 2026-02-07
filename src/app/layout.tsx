@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { Suspense } from 'react';
+import { Header } from './_components/Header';
+import { PageContextProvider } from './_components/Header/context';
 import { ToastProvider } from './_components/ToastProvider';
 import './globals.css';
 
@@ -28,8 +31,13 @@ export default function RootLayout({
 			<body
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
-				{children}
-				<ToastProvider />
+				<PageContextProvider>
+					<Suspense fallback={<div>loading..</div>}>
+						<Header />
+						{children}
+					</Suspense>
+					<ToastProvider />
+				</PageContextProvider>
 			</body>
 		</html>
 	);

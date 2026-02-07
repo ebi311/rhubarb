@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fetchModule from './fetchFilterOptions';
 
 // モック設定
+vi.mock('../../_components/Header/context', () => ({
+	PageTitle: ({ title }: { title: string }) => <h1>{title}</h1>,
+}));
 vi.mock('./fetchFilterOptions', () => ({
 	fetchFilterOptions: vi.fn(),
 }));
@@ -29,10 +32,9 @@ describe('BasicScheduleListPage', () => {
 	it('ページタイトルと説明が表示される', async () => {
 		render(await BasicScheduleListPage({ searchParams: {} }));
 
-		expect(screen.getByText('基本スケジュール')).toBeInTheDocument();
-		expect(screen.getByText('週次スケジュール一覧')).toBeInTheDocument();
+		expect(screen.getByText('基本スケジュール管理')).toBeInTheDocument();
 		expect(
-			screen.getByText('登録済みの基本スケジュールを確認できます。'),
+			screen.getByText('登録済みの基本スケジュールを確認・編集できます。'),
 		).toBeInTheDocument();
 	});
 

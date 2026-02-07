@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { Header, HeaderPresentational } from './Header';
+import { Header } from './Header';
+import { HeaderPresentational } from './HeaderPresentational';
 
 // Mock the server action
 vi.mock('@/app/auth/actions', () => ({
@@ -41,6 +42,20 @@ describe('HeaderPresentational', () => {
 		const link = screen.getByRole('link', { name: 'Rhubarb' });
 		expect(link).toBeInTheDocument();
 		expect(link).toHaveAttribute('href', '/');
+	});
+
+	it('ユーザーメンテナンスリンクが表示される', () => {
+		render(<HeaderPresentational userName="テストユーザー" />);
+		const link = screen.getByRole('link', { name: 'スタッフ管理' });
+		expect(link).toBeInTheDocument();
+		expect(link).toHaveAttribute('href', '/admin/staffs');
+	});
+
+	it('利用者管理リンクが表示される', () => {
+		render(<HeaderPresentational userName="テストユーザー" />);
+		const link = screen.getByRole('link', { name: '利用者管理' });
+		expect(link).toBeInTheDocument();
+		expect(link).toHaveAttribute('href', '/admin/clients');
 	});
 
 	it('ログアウトボタンが表示される', () => {

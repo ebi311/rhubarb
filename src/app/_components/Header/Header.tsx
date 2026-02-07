@@ -1,28 +1,6 @@
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { createSupabaseClient } from '@/utils/supabase/server';
-import Link from 'next/link';
-import { UserMenu } from './UserMenu';
-
-type HeaderPresentationalProps = {
-	userName: string;
-};
-
-export const HeaderPresentational = ({
-	userName,
-}: HeaderPresentationalProps) => {
-	return (
-		<header className="navbar bg-base-100 shadow-sm">
-			<div className="flex-1">
-				<Link href="/" className="btn text-xl btn-ghost">
-					Rhubarb
-				</Link>
-			</div>
-			<div className="flex-none">
-				<UserMenu userName={userName} />
-			</div>
-		</header>
-	);
-};
+import { HeaderPresentational } from './HeaderPresentational';
 
 export const Header = async () => {
 	const supabase = await createSupabaseClient();

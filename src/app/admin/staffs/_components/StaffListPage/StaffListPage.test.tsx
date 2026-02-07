@@ -110,7 +110,6 @@ describe('StaffListPageClient', () => {
 			/>,
 		);
 
-		expect(screen.getByText('担当者管理')).toBeInTheDocument();
 		expect(screen.getByText('山田太郎')).toBeInTheDocument();
 		expect(screen.getByText('佐藤花子')).toBeInTheDocument();
 		expect(screen.getAllByText('身体介護')).toHaveLength(2);
@@ -142,7 +141,7 @@ describe('StaffListPageClient', () => {
 			/>,
 		);
 
-		await user.click(screen.getByRole('button', { name: '＋ 担当者を追加' }));
+		await user.click(screen.getByRole('button', { name: /担当者を追加/ }));
 		expect(screen.getByTestId('staff-form-create')).toBeInTheDocument();
 		await user.click(screen.getByRole('button', { name: 'create-submit' }));
 
