@@ -27,8 +27,6 @@ const ClientsPage = async ({ searchParams }: PageProps) => {
 
 	return (
 		<div className="container mx-auto p-4">
-			<h1 className="mb-6 text-3xl font-bold">利用者管理</h1>
-
 			<Suspense
 				fallback={<div className="loading loading-lg loading-spinner"></div>}
 			>

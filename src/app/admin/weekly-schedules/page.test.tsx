@@ -1,11 +1,13 @@
+import { formatJstDateString } from '@/utils/date';
 import { render, screen } from '@testing-library/react';
 import { redirect } from 'next/navigation';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { formatJstDateString } from '@/utils/date';
-
 import { getMonday, parseSearchParams } from './helpers';
 import WeeklySchedulesPage from './page';
+
+vi.mock('../../_components/Header/context', () => ({
+	PageTitle: ({ title }: { title: string }) => <h1>{title}</h1>,
+}));
 
 // redirect のモック
 vi.mock('next/navigation', () => ({
@@ -133,7 +135,7 @@ describe('WeeklySchedulesPage', () => {
 
 			render(result as React.ReactElement);
 
-			expect(screen.getByText('週間スケジュール')).toBeInTheDocument();
+			expect(screen.getByText('週間スケジュール管理')).toBeInTheDocument();
 		});
 
 		it('リダイレクトされない', async () => {

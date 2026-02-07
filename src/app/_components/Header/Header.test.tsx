@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { Header, HeaderPresentational } from './Header';
+import { Header } from './Header';
+import { HeaderPresentational } from './HeaderPresentational';
 
 // Mock the server action
 vi.mock('@/app/auth/actions', () => ({

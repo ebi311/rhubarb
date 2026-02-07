@@ -1,5 +1,4 @@
 import { Dashboard } from '@/app/_components/Dashboard';
-import { Header } from '@/app/_components/Header';
 import { getDashboardDataAction } from '@/app/actions/dashboard';
 import { Suspense } from 'react';
 
@@ -64,13 +63,10 @@ const DashboardContent = async () => {
 
 export default function Home() {
 	return (
-		<div className="min-h-screen bg-base-100">
-			<Header />
-			<main>
-				<Suspense fallback={<DashboardLoading />}>
-					<DashboardContent />
-				</Suspense>
-			</main>
-		</div>
+		<main>
+			<Suspense fallback={<DashboardLoading />}>
+				<DashboardContent />
+			</Suspense>
+		</main>
 	);
 }

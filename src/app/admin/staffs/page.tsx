@@ -35,13 +35,13 @@ const StaffsPage = async ({
 	};
 
 	return (
-		<div className="container mx-auto max-w-6xl p-4">
+		<main className="container mx-auto max-w-6xl p-4">
 			<StaffListPage
 				initialStaffs={staffsResult.data ?? []}
 				serviceTypes={serviceTypesResult.data ?? []}
 				filters={filters}
 			/>
-		</div>
+		</main>
 	);
 };
 

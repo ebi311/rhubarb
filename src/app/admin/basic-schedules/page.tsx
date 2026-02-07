@@ -1,3 +1,4 @@
+import { PageTitle } from '@/app/_components/Header/context';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { BasicScheduleContent } from './_components/BasicScheduleContent';
@@ -20,44 +21,46 @@ const BasicScheduleListPage = async ({
 	const { clients, serviceTypes } = await fetchFilterOptions();
 
 	return (
-		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
-			<section className="space-y-2">
-				<p className="text-sm font-semibold tracking-widest text-primary uppercase">
-					基本スケジュール
-				</p>
-				<h1 className="text-3xl font-bold">週次スケジュール一覧</h1>
-				<p className="text-sm text-base-content/70">
-					登録済みの基本スケジュールを確認できます。
-				</p>
-			</section>
+		<>
+			<PageTitle title="基本スケジュール管理" />
+			<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
+				<section className="space-y-2">
+					<p className="text-sm text-base-content/70">
+						登録済みの基本スケジュールを確認・編集できます。
+					</p>
+				</section>
 
-			<div className="flex justify-end gap-2">
-				<Link href="/admin/basic-schedules/new" className="btn btn-primary">
-					新規登録
-				</Link>
-			</div>
+				<div className="flex justify-end gap-2">
+					<Link href="/admin/basic-schedules/new" className="btn btn-primary">
+						新規登録
+					</Link>
+				</div>
 
-			<div className="space-y-4">
-				<BasicScheduleFilterBar clients={clients} serviceTypes={serviceTypes} />
-
-				<Suspense
-					fallback={
-						<div className="space-y-2">
-							<div className="h-12 w-full skeleton" />
-							<div className="h-12 w-full skeleton" />
-							<div className="h-12 w-full skeleton" />
-						</div>
-					}
-				>
-					<BasicScheduleTable
-						filters={filters}
-						render={(schedules) => (
-							<BasicScheduleContent schedules={schedules} />
-						)}
+				<div className="space-y-4">
+					<BasicScheduleFilterBar
+						clients={clients}
+						serviceTypes={serviceTypes}
 					/>
-				</Suspense>
+
+					<Suspense
+						fallback={
+							<div className="space-y-2">
+								<div className="h-12 w-full skeleton" />
+								<div className="h-12 w-full skeleton" />
+								<div className="h-12 w-full skeleton" />
+							</div>
+						}
+					>
+						<BasicScheduleTable
+							filters={filters}
+							render={(schedules) => (
+								<BasicScheduleContent schedules={schedules} />
+							)}
+						/>
+					</Suspense>
+				</div>
 			</div>
-		</div>
+		</>
 	);
 };
 

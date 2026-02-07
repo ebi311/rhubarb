@@ -1,5 +1,6 @@
 'use client';
 
+import { useSetPageTitle } from '@/app/_components/Header/context';
 import type {
 	ContractStatus,
 	ServiceUser,
@@ -28,6 +29,7 @@ export const ClientsPageContent = ({
 }: ClientsPageContentProps) => {
 	const { filter, changeFilter } = useClientFilter(initialFilter);
 	const { openCreate, getEditHref, close } = useClientModal(filter);
+	useSetPageTitle('利用者管理');
 
 	// フィルター適用
 	const filteredClients =
