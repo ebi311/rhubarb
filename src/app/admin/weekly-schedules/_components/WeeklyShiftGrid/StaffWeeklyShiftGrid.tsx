@@ -71,7 +71,7 @@ export const StaffWeeklyShiftGrid = ({
 			<div
 				className="grid gap-px bg-base-300"
 				style={{
-					gridTemplateColumns: '160px repeat(7, minmax(140px, 1fr))',
+					gridTemplateColumns: '10rem repeat(7, minmax(140px, 1fr))',
 				}}
 			>
 				{/* ヘッダー行 */}

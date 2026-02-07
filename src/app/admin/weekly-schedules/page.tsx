@@ -37,7 +37,7 @@ const WeeklySchedulesPage = async ({
 	return (
 		<>
 			<PageTitle title="週間スケジュール管理" />
-			<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
+			<div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8">
 				<section className="space-y-2">
 					<p className="text-sm text-base-content/70">
 						週ごとのシフトを確認・生成できます。
