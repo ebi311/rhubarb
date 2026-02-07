@@ -61,7 +61,9 @@
 				"nguyenngoclong.terminal-keeper",
 				"WallabyJs.console-ninja",
 				"ms-vscode.vscode-websearchforcopilot",
-				"vitest.explorer"
+				"vitest.explorer",
+				"formulahendry.auto-rename-tag",
+				"KalimahApps.tailwindcss-kit"
 			]
 		}
 	}
