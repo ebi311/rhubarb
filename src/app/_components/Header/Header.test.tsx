@@ -43,6 +43,20 @@ describe('HeaderPresentational', () => {
 		expect(link).toHaveAttribute('href', '/');
 	});
 
+	it('ユーザーメンテナンスリンクが表示される', () => {
+		render(<HeaderPresentational userName="テストユーザー" />);
+		const link = screen.getByRole('link', { name: 'スタッフ管理' });
+		expect(link).toBeInTheDocument();
+		expect(link).toHaveAttribute('href', '/admin/staffs');
+	});
+
+	it('利用者管理リンクが表示される', () => {
+		render(<HeaderPresentational userName="テストユーザー" />);
+		const link = screen.getByRole('link', { name: '利用者管理' });
+		expect(link).toBeInTheDocument();
+		expect(link).toHaveAttribute('href', '/admin/clients');
+	});
+
 	it('ログアウトボタンが表示される', () => {
 		render(<HeaderPresentational userName="テストユーザー" />);
 		expect(
