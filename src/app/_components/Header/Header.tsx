@@ -12,12 +12,18 @@ export const HeaderPresentational = ({
 }: HeaderPresentationalProps) => {
 	return (
 		<header className="navbar bg-base-100 shadow-sm">
-			<div className="flex-1">
+			<div className="flex flex-1 items-end gap-4">
 				<Link href="/" className="btn text-xl btn-ghost">
 					Rhubarb
 				</Link>
 			</div>
 			<div className="flex-none">
+				<Link href="/admin/staffs" className="btn btn-ghost btn-sm">
+					スタッフ管理
+				</Link>
+				<Link href="/admin/clients" className="btn btn-ghost btn-sm">
+					利用者管理
+				</Link>
 				<UserMenu userName={userName} />
 			</div>
 		</header>
