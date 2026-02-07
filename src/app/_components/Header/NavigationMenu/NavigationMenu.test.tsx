@@ -1,6 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { usePathname } from 'next/navigation';
+import { describe, expect, it, vi } from 'vitest';
 import { NavigationMenu } from './NavigationMenu';
+
+vi.mock('next/navigation', () => ({
+	usePathname: vi.fn(() => '/'),
+}));
+
+const mockedUsePathname = vi.mocked(usePathname);
 
 describe('NavigationMenu', () => {
 	it('メニューボタンが表示される', () => {
@@ -54,5 +62,46 @@ describe('NavigationMenu', () => {
 		render(<NavigationMenu />);
 		const separator = document.querySelector('hr.my-1');
 		expect(separator).toBeInTheDocument();
+	});
+
+	it('リンクをクリックするとドロップダウンが閉じる', async () => {
+		const user = userEvent.setup();
+		render(<NavigationMenu />);
+
+		const details = document.querySelector('details');
+		expect(details).toBeInTheDocument();
+
+		// メニューを開く
+		const summary = screen.getByText('メニュー');
+		await user.click(summary);
+		expect(details).toHaveAttribute('open');
+
+		// リンクをクリック
+		const link = screen.getByRole('link', { name: 'ダッシュボード' });
+		await user.click(link);
+
+		// メニューが閉じる
+		expect(details).not.toHaveAttribute('open');
+	});
+
+	it('パス変更時にドロップダウンが閉じる', async () => {
+		const user = userEvent.setup();
+		mockedUsePathname.mockReturnValue('/');
+		const { rerender } = render(<NavigationMenu />);
+
+		const details = document.querySelector('details');
+		expect(details).toBeInTheDocument();
+
+		// メニューを開く
+		const summary = screen.getByText('メニュー');
+		await user.click(summary);
+		expect(details).toHaveAttribute('open');
+
+		// パスを変更してre-render
+		mockedUsePathname.mockReturnValue('/admin/staffs');
+		rerender(<NavigationMenu />);
+
+		// メニューが閉じる
+		expect(details).not.toHaveAttribute('open');
 	});
 });

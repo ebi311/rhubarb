@@ -1,6 +1,9 @@
+'use client';
+
 import { Icon } from '@/app/_components/Icon';
 import Link from 'next/link';
-import React from 'react';
+import { usePathname } from 'next/navigation';
+import React, { useEffect, useRef } from 'react';
 
 type MenuItem = {
 	label: string;
@@ -22,8 +25,24 @@ const MENU_ITEMS: MenuGroup[] = [
 ];
 
 export const NavigationMenu = () => {
+	const detailsRef = useRef<HTMLDetailsElement>(null);
+	const pathname = usePathname();
+
+	// パス変更時にメニューを閉じる
+	useEffect(() => {
+		if (detailsRef.current) {
+			detailsRef.current.open = false;
+		}
+	}, [pathname]);
+
+	const closeMenu = () => {
+		if (detailsRef.current) {
+			detailsRef.current.open = false;
+		}
+	};
+
 	return (
-		<details className="dropdown dropdown-end">
+		<details ref={detailsRef} className="dropdown dropdown-end">
 			<summary className="btn btn-ghost">
 				<Icon name="menu" />
 				メニュー
@@ -38,7 +57,9 @@ export const NavigationMenu = () => {
 						)}
 						{group.map((item) => (
 							<li key={item.href}>
-								<Link href={item.href}>{item.label}</Link>
+								<Link href={item.href} onClick={closeMenu}>
+									{item.label}
+								</Link>
 							</li>
 						))}
 					</React.Fragment>
