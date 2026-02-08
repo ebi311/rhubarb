@@ -62,7 +62,7 @@ export const transformToGridViewModel = (
 		}
 
 		gridViewModels.push({
-			clientId: clientSchedules[0].id, // 仮のclientId（実際は取得が必要）
+			clientId: clientSchedules[0].clientId,
 			clientName,
 			schedulesByWeekday,
 		});
