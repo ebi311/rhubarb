@@ -477,6 +477,48 @@ describe('BasicScheduleService', () => {
 			expect(basicRepo.softDelete).toHaveBeenCalledTimes(1);
 		});
 
+		it('削除対象のスケジュールが指定clientIdに属していない場合はエラー', async () => {
+			// 別の利用者ID（basicScheduleTemplate.clients.id とは異なる）
+			const anotherClientId = '66666666-6666-4666-8666-666666666666';
+			const supabase = makeSupabaseMock({
+				clientResult: {
+					data: {
+						id: anotherClientId,
+						office_id: adminStaff.office_id,
+						contract_status: 'active',
+					},
+					error: null,
+				},
+				abilityResult: {
+					data: [],
+					error: null,
+				},
+			});
+			// findById は basicScheduleTemplate を返す（clients.id は anotherClientId と異なる）
+			basicRepo.findById.mockResolvedValue(basicScheduleTemplate);
+
+			const service = new BasicScheduleService(supabase, {
+				basicScheduleRepository: basicRepo,
+				staffRepository: staffRepo,
+			});
+
+			const result = await service.batchUpsert(
+				adminStaff.auth_user_id!,
+				anotherClientId,
+				{
+					create: [],
+					update: [],
+					delete: [basicScheduleTemplate.id],
+				},
+			);
+
+			expect(result.deleted).toBe(0);
+			expect(result.errors).toHaveLength(1);
+			expect(result.errors?.[0].operation).toBe('delete');
+			expect(result.errors?.[0].message).toContain('Client ID mismatch');
+			expect(basicRepo.softDelete).not.toHaveBeenCalled();
+		});
+
 		it('更新対象のスケジュールが指定clientIdに属していない場合はエラー', async () => {
 			// 別の利用者ID（basicScheduleTemplate.clients.id とは異なる）
 			const anotherClientId = '66666666-6666-4666-8666-666666666666';

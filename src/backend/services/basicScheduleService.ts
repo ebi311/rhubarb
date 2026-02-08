@@ -411,7 +411,7 @@ export class BasicScheduleService {
 				}
 
 				if (existing.clients.id !== clientId) {
-					throw new ServiceError(400, 'Client ID mismatch');
+					throw new ServiceError(403, 'Client ID mismatch');
 				}
 
 				await this.basicScheduleRepository.softDelete(id, new Date());
