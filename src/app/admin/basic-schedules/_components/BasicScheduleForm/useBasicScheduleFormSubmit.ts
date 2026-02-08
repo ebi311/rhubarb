@@ -5,6 +5,8 @@ import {
 import { createQuickServiceUserAction } from '@/app/actions/serviceUsers';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+import type { TimeValue } from '@/models/valueObjects/time';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { UseFormReset } from 'react-hook-form';
@@ -42,7 +44,12 @@ const buildDefaultValues = (
 };
 
 type ValidationResult =
-	| { valid: true; start: string; end: string }
+	| {
+			valid: true;
+			start: TimeValue;
+			end: TimeValue;
+			serviceTypeId: ServiceTypeId;
+	  }
 	| { valid: false; error: string };
 
 const validateFormValues = (
@@ -56,7 +63,7 @@ const validateFormValues = (
 	if (!values.serviceTypeId) {
 		return { valid: false, error: 'サービス区分を選択してください' };
 	}
-	return { valid: true, start, end };
+	return { valid: true, start, end, serviceTypeId: values.serviceTypeId };
 };
 
 type NewClientResult =
@@ -115,7 +122,7 @@ export const useBasicScheduleFormSubmit = ({
 
 		const payload = {
 			client_id: clientResult.clientId,
-			service_type_id: values.serviceTypeId,
+			service_type_id: validation.serviceTypeId,
 			weekday: values.weekday,
 			start_time: validation.start,
 			end_time: validation.end,
