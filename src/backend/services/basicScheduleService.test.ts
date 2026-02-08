@@ -298,4 +298,245 @@ describe('BasicScheduleService', () => {
 			}),
 		).rejects.toBeInstanceOf(ServiceError);
 	});
+
+	describe('listByClientId', () => {
+		it('指定した利用者のスケジュール一覧を返す', async () => {
+			const supabase = makeSupabaseMock({
+				clientResult: {
+					data: {
+						id: basicScheduleTemplate.clients.id,
+						office_id: adminStaff.office_id,
+						contract_status: 'active',
+					},
+					error: null,
+				},
+				abilityResult: { data: [], error: null },
+			});
+			basicRepo.list.mockResolvedValue([basicScheduleTemplate]);
+
+			const service = new BasicScheduleService(supabase, {
+				basicScheduleRepository: basicRepo,
+				staffRepository: staffRepo,
+			});
+
+			const result = await service.listByClientId(
+				adminStaff.auth_user_id!,
+				basicScheduleTemplate.clients.id,
+			);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].id).toBe(basicScheduleTemplate.id);
+			expect(basicRepo.list).toHaveBeenCalledWith({
+				client_id: basicScheduleTemplate.clients.id,
+				includeDeleted: false,
+			});
+		});
+
+		it('利用者がアクティブでない場合はエラー', async () => {
+			const supabase = makeSupabaseMock({
+				clientResult: {
+					data: {
+						id: basicScheduleTemplate.clients.id,
+						office_id: adminStaff.office_id,
+						contract_status: 'suspended',
+					},
+					error: null,
+				},
+				abilityResult: { data: [], error: null },
+			});
+
+			const service = new BasicScheduleService(supabase, {
+				basicScheduleRepository: basicRepo,
+				staffRepository: staffRepo,
+			});
+
+			await expect(
+				service.listByClientId(
+					adminStaff.auth_user_id!,
+					basicScheduleTemplate.clients.id,
+				),
+			).rejects.toBeInstanceOf(ServiceError);
+		});
+	});
+
+	describe('batchUpsert', () => {
+		it('複数のスケジュールを作成できる', async () => {
+			const supabase = makeSupabaseMock({
+				clientResult: {
+					data: {
+						id: basicScheduleTemplate.clients.id,
+						office_id: adminStaff.office_id,
+						contract_status: 'active',
+					},
+					error: null,
+				},
+				abilityResult: {
+					data: basicScheduleTemplate.assignedStaffs.map((staff) => ({
+						staff_id: staff.id,
+					})),
+					error: null,
+				},
+			});
+			basicRepo.findOverlaps.mockResolvedValue([]);
+
+			const service = new BasicScheduleService(supabase, {
+				basicScheduleRepository: basicRepo,
+				staffRepository: staffRepo,
+			});
+
+			const result = await service.batchUpsert(
+				adminStaff.auth_user_id!,
+				basicScheduleTemplate.clients.id,
+				{
+					create: [
+						{
+							client_id: basicScheduleTemplate.clients.id,
+							service_type_id: 'life-support',
+							staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
+							weekday: 'Mon',
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							note: null,
+						},
+						{
+							client_id: basicScheduleTemplate.clients.id,
+							service_type_id: 'life-support',
+							staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
+							weekday: 'Tue',
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							note: null,
+						},
+					],
+					update: [],
+					delete: [],
+				},
+			);
+
+			expect(result.created).toBe(2);
+			expect(result.updated).toBe(0);
+			expect(result.deleted).toBe(0);
+			expect(result.errors).toBeUndefined();
+			expect(basicRepo.create).toHaveBeenCalledTimes(2);
+		});
+
+		it('更新と削除を実行できる', async () => {
+			const supabase = makeSupabaseMock({
+				clientResult: {
+					data: {
+						id: basicScheduleTemplate.clients.id,
+						office_id: adminStaff.office_id,
+						contract_status: 'active',
+					},
+					error: null,
+				},
+				abilityResult: {
+					data: basicScheduleTemplate.assignedStaffs.map((staff) => ({
+						staff_id: staff.id,
+					})),
+					error: null,
+				},
+			});
+			basicRepo.findById.mockResolvedValue(basicScheduleTemplate);
+			basicRepo.findOverlaps.mockResolvedValue([]);
+
+			const service = new BasicScheduleService(supabase, {
+				basicScheduleRepository: basicRepo,
+				staffRepository: staffRepo,
+			});
+
+			const result = await service.batchUpsert(
+				adminStaff.auth_user_id!,
+				basicScheduleTemplate.clients.id,
+				{
+					create: [],
+					update: [
+						{
+							id: basicScheduleTemplate.id,
+							data: {
+								client_id: basicScheduleTemplate.clients.id,
+								service_type_id: 'life-support',
+								staff_ids: basicScheduleTemplate.assignedStaffs.map(
+									(s) => s.id,
+								),
+								weekday: 'Wed',
+								start_time: { hour: 10, minute: 0 },
+								end_time: { hour: 11, minute: 0 },
+								note: 'Updated',
+							},
+						},
+					],
+					delete: [basicScheduleTemplate.id],
+				},
+			);
+
+			expect(result.created).toBe(0);
+			expect(result.updated).toBe(1);
+			expect(result.deleted).toBe(1);
+			expect(basicRepo.update).toHaveBeenCalledTimes(1);
+			expect(basicRepo.softDelete).toHaveBeenCalledTimes(1);
+		});
+
+		it('エラーが発生した操作はスキップして続行する', async () => {
+			const supabase = makeSupabaseMock({
+				clientResult: {
+					data: {
+						id: basicScheduleTemplate.clients.id,
+						office_id: adminStaff.office_id,
+						contract_status: 'active',
+					},
+					error: null,
+				},
+				abilityResult: {
+					data: basicScheduleTemplate.assignedStaffs.map((staff) => ({
+						staff_id: staff.id,
+					})),
+					error: null,
+				},
+			});
+			// 最初の作成は重複エラー、2番目は成功
+			basicRepo.findOverlaps
+				.mockResolvedValueOnce([basicScheduleTemplate])
+				.mockResolvedValue([]);
+
+			const service = new BasicScheduleService(supabase, {
+				basicScheduleRepository: basicRepo,
+				staffRepository: staffRepo,
+			});
+
+			const result = await service.batchUpsert(
+				adminStaff.auth_user_id!,
+				basicScheduleTemplate.clients.id,
+				{
+					create: [
+						{
+							client_id: basicScheduleTemplate.clients.id,
+							service_type_id: 'life-support',
+							staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
+							weekday: 'Mon',
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							note: null,
+						},
+						{
+							client_id: basicScheduleTemplate.clients.id,
+							service_type_id: 'life-support',
+							staff_ids: basicScheduleTemplate.assignedStaffs.map((s) => s.id),
+							weekday: 'Tue',
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							note: null,
+						},
+					],
+					update: [],
+					delete: [],
+				},
+			);
+
+			expect(result.created).toBe(1);
+			expect(result.errors).toHaveLength(1);
+			expect(result.errors?.[0].operation).toBe('create');
+			expect(result.errors?.[0].index).toBe(0);
+		});
+	});
 });

@@ -1,5 +1,6 @@
 'use client';
 
+import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
@@ -43,7 +44,23 @@ export const ClientWeeklyScheduleEditor = ({
 		dispatch({ type: 'LOAD_SCHEDULES', payload: initialSchedules });
 	}, [initialSchedules]);
 
+	// 未保存変更があるかどうかを判定
+	const hasUnsavedChanges = useMemo(
+		() =>
+			state.schedules.some(
+				(s) =>
+					s.status === 'new' ||
+					s.status === 'modified' ||
+					s.status === 'deleted',
+			),
+		[state.schedules],
+	);
+
+	// ページ離脱警告
+	useBeforeUnload(hasUnsavedChanges);
+
 	// 曜日ごとにスケジュールをグループ化
+	// state.schedules のみ依存（state 全体を入れると isFormOpen 変更時に不要な再計算が起きる）
 	const schedulesByWeekday = useMemo(() => {
 		const grouped = new Map<DayOfWeek, typeof state.schedules>();
 		for (const weekday of WEEKDAYS) {
@@ -53,6 +70,7 @@ export const ClientWeeklyScheduleEditor = ({
 			);
 		}
 		return grouped;
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [state.schedules]);
 
 	// 現在選択されているスケジュールを取得
