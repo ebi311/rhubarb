@@ -47,7 +47,7 @@ const defaultProps = {
 			serviceTypeIds: ['life-support'] as ServiceTypeId[],
 		},
 	],
-	onSave: vi.fn(),
+	onSave: vi.fn().mockResolvedValue({ data: null, error: null, status: 200 }),
 };
 
 describe('ClientWeeklyScheduleEditor', () => {
@@ -167,7 +167,9 @@ describe('ClientWeeklyScheduleEditor', () => {
 	describe('保存', () => {
 		it('登録ボタンをクリックするとonSaveが呼ばれる', async () => {
 			const user = userEvent.setup();
-			const onSave = vi.fn().mockResolvedValue(undefined);
+			const onSave = vi
+				.fn()
+				.mockResolvedValue({ data: null, error: null, status: 200 });
 			const initialSchedules = [createTestSchedule('schedule-1', 'Mon')];
 
 			render(

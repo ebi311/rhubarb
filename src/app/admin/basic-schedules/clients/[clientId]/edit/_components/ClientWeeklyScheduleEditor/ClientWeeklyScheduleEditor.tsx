@@ -1,5 +1,7 @@
 'use client';
 
+import type { ActionResult } from '@/app/actions/utils/actionResult';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
@@ -19,7 +21,7 @@ export interface ClientWeeklyScheduleEditorProps {
 	initialSchedules: InitialScheduleData[];
 	serviceTypeOptions: ServiceTypeOption[];
 	staffOptions: StaffPickerOption[];
-	onSave: (operations: BatchSaveOperations) => Promise<void>;
+	onSave: (operations: BatchSaveOperations) => Promise<ActionResult<unknown>>;
 }
 
 export interface BatchSaveOperations {
@@ -36,6 +38,7 @@ export const ClientWeeklyScheduleEditor = ({
 	staffOptions,
 	onSave,
 }: ClientWeeklyScheduleEditorProps) => {
+	const { handleActionResult } = useActionResultHandler();
 	const [state, dispatch] = useReducer(
 		editorReducer,
 		{ clientId, clientName },
@@ -146,7 +149,13 @@ export const ClientWeeklyScheduleEditor = ({
 					.map((s) => s.originalId!),
 			};
 
-			await onSave(operations);
+			const result = await onSave(operations);
+
+			// エラー（部分失敗含む）の場合はトースト表示
+			if (result.error) {
+				handleActionResult(result);
+			}
+			// 正常時は Server Action 側でリダイレクトされる
 		} finally {
 			dispatch({ type: 'SET_SAVING', payload: false });
 		}

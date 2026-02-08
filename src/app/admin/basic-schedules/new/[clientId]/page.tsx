@@ -1,7 +1,10 @@
 import { batchSaveBasicSchedulesAction } from '@/app/actions/basicSchedules';
 import { getServiceUserByIdAction } from '@/app/actions/serviceUsers';
 import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
-import type { ActionResult } from '@/app/actions/utils/actionResult';
+import {
+	errorResult,
+	type ActionResult,
+} from '@/app/actions/utils/actionResult';
 import type { BasicScheduleInput } from '@/models/basicScheduleActionSchemas';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -69,7 +72,9 @@ const ClientNewSchedulePage = async ({
 		note: s.note,
 	}));
 
-	const handleSave = async (operations: BatchSaveOperations) => {
+	const handleSave = async (
+		operations: BatchSaveOperations,
+	): Promise<ActionResult<unknown>> => {
 		'use server';
 
 		const apiOperations = {
@@ -99,13 +104,27 @@ const ClientNewSchedulePage = async ({
 			delete: operations.delete,
 		};
 
-		const result = await batchSaveBasicSchedulesAction(clientId, apiOperations);
+		try {
+			const result = await batchSaveBasicSchedulesAction(
+				clientId,
+				apiOperations,
+			);
 
-		if (result.error) {
-			throw new Error(result.error);
+			// エラー（部分失敗含む）の場合は例外を投げず、結果をそのまま返して
+			// クライアント側で details を含めたハンドリングを行う
+			if (result.error) {
+				return result;
+			}
+
+			// 正常完了時のみ一覧画面へリダイレクト
+			redirect('/admin/basic-schedules');
+		} catch (e) {
+			// redirect() は内部的に例外をスローするため、ここで再スロー
+			throw e;
 		}
 
-		redirect('/admin/basic-schedules');
+		// この行は redirect() の後に到達しないが、型の整合性のために必要
+		return errorResult('Unexpected error', 500);
 	};
 
 	return (
