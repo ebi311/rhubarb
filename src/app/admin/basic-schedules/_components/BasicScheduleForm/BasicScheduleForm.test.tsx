@@ -39,7 +39,7 @@ const handleActionResultMock = vi.mocked(
 const serviceUsers: ServiceUser[] = [
 	{
 		id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
-		office_id: 'office-1',
+		office_id: '019b8916-5594-773b-aaf3-f04e0f2b0ac8',
 		name: '利用者A',
 		address: '東京都',
 		contract_status: 'active',
@@ -56,7 +56,7 @@ const serviceTypes: ServiceTypeOption[] = [
 const staffs: StaffRecord[] = [
 	{
 		id: '019b8916-5594-773b-aaf3-f04e0f2b0ac7',
-		office_id: 'office-1',
+		office_id: '019b8916-5594-773b-aaf3-f04e0f2b0ac8',
 		auth_user_id: null,
 		name: '山田太郎',
 		role: 'admin',
@@ -412,7 +412,7 @@ describe('BasicScheduleForm (新規利用者登録)', () => {
 		vi.mocked(createQuickServiceUserAction).mockResolvedValue({
 			data: {
 				id: newClientId,
-				office_id: 'office-1',
+				office_id: '019b8916-5594-773b-aaf3-f04e0f2b0ac8',
 				name: '新規利用者',
 				address: null,
 				contract_status: 'active',
