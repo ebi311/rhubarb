@@ -181,7 +181,7 @@ export type Database = {
 			};
 			clients: {
 				Row: {
-					address: string;
+					address: string | null;
 					contract_status: Database['public']['Enums']['contract_status'];
 					created_at: string;
 					id: string;
@@ -190,7 +190,7 @@ export type Database = {
 					updated_at: string;
 				};
 				Insert: {
-					address: string;
+					address?: string | null;
 					contract_status?: Database['public']['Enums']['contract_status'];
 					created_at?: string;
 					id?: string;
@@ -199,7 +199,7 @@ export type Database = {
 					updated_at?: string;
 				};
 				Update: {
-					address?: string;
+					address?: string | null;
 					contract_status?: Database['public']['Enums']['contract_status'];
 					created_at?: string;
 					id?: string;

@@ -116,3 +116,24 @@ export const resumeServiceUserAction = async (
 		throw e;
 	}
 };
+
+export const createQuickServiceUserAction = async (
+	name: string,
+): Promise<ActionResult<ServiceUser>> => {
+	const supabase = await createSupabaseClient();
+	const {
+		data: { user },
+		error: authError,
+	} = await supabase.auth.getUser();
+	if (authError || !user) return errorResult('Unauthorized', 401);
+	const service = new ServiceUserService(supabase);
+	try {
+		const serviceUser = await service.createQuickServiceUser(user.id, name);
+		return successResult(serviceUser, 201);
+	} catch (e) {
+		if (e instanceof ServiceError) {
+			return errorResult(e.message, e.status, e.details);
+		}
+		throw e;
+	}
+};

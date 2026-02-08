@@ -2,6 +2,7 @@ import {
 	createBasicScheduleAction,
 	updateBasicScheduleAction,
 } from '@/app/actions/basicSchedules';
+import { createQuickServiceUserAction } from '@/app/actions/serviceUsers';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
 import { useRouter } from 'next/navigation';
@@ -30,6 +31,7 @@ const buildDefaultValues = (
 	const overrides: BasicScheduleFormInitialValues = initialValues ?? {};
 	return {
 		clientId: overrides.clientId ?? '',
+		newClientName: overrides.newClientName ?? '',
 		serviceTypeId: overrides.serviceTypeId ?? '',
 		weekday: overrides.weekday ?? 'Mon',
 		startTime: overrides.startTime ?? '',
@@ -37,6 +39,51 @@ const buildDefaultValues = (
 		note: overrides.note ?? '',
 		staffId: overrides.staffId ?? null,
 	};
+};
+
+type ValidationResult =
+	| { valid: true; start: string; end: string }
+	| { valid: false; error: string };
+
+const validateFormValues = (
+	values: BasicScheduleFormValues,
+): ValidationResult => {
+	const start = parseTimeString(values.startTime);
+	const end = parseTimeString(values.endTime);
+	if (!start || !end) {
+		return { valid: false, error: '時刻の変換に失敗しました' };
+	}
+	if (!values.serviceTypeId) {
+		return { valid: false, error: 'サービス区分を選択してください' };
+	}
+	return { valid: true, start, end };
+};
+
+type NewClientResult =
+	| { success: true; clientId: string }
+	| { success: false; error: string };
+
+const createNewClientIfNeeded = async (
+	values: BasicScheduleFormValues,
+): Promise<NewClientResult> => {
+	if (values.clientId !== 'new') {
+		return { success: true, clientId: values.clientId };
+	}
+
+	if (!values.newClientName?.trim()) {
+		return { success: false, error: '新規利用者の氏名を入力してください' };
+	}
+
+	const result = await createQuickServiceUserAction(
+		values.newClientName.trim(),
+	);
+	if (result.error || !result.data) {
+		return {
+			success: false,
+			error: result.error ?? '利用者の作成に失敗しました',
+		};
+	}
+	return { success: true, clientId: result.data.id };
 };
 
 export const useBasicScheduleFormSubmit = ({
@@ -54,23 +101,24 @@ export const useBasicScheduleFormSubmit = ({
 	const onSubmit = async (values: BasicScheduleFormValues) => {
 		setApiError(null);
 
-		const start = parseTimeString(values.startTime);
-		const end = parseTimeString(values.endTime);
-		if (!start || !end) {
-			setApiError('時刻の変換に失敗しました');
+		const validation = validateFormValues(values);
+		if (!validation.valid) {
+			setApiError(validation.error);
 			return;
 		}
-		if (!values.serviceTypeId) {
-			setApiError('サービス区分を選択してください');
+
+		const clientResult = await createNewClientIfNeeded(values);
+		if (!clientResult.success) {
+			setApiError(clientResult.error);
 			return;
 		}
 
 		const payload = {
-			client_id: values.clientId,
+			client_id: clientResult.clientId,
 			service_type_id: values.serviceTypeId,
 			weekday: values.weekday,
-			start_time: start,
-			end_time: end,
+			start_time: validation.start,
+			end_time: validation.end,
 			staff_ids: values.staffId ? [values.staffId] : [],
 			note: sanitizeNote(values.note),
 		};

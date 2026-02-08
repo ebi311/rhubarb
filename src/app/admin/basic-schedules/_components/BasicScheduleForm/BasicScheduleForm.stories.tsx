@@ -126,3 +126,31 @@ export const EditModeWithoutStaff: Story = {
 		scheduleId: '019b8b17-5b02-74ed-a77e-724d384629ef',
 	},
 };
+
+export const NewClientSelected: Story = {
+	name: '新規利用者を選択時',
+	args: {
+		initialValues: {
+			clientId: 'new',
+			newClientName: '',
+			serviceTypeId: 'physical-care',
+			weekday: 'Wed',
+			startTime: '14:00',
+			endTime: '15:00',
+		},
+	},
+};
+
+export const NewClientWithName: Story = {
+	name: '新規利用者名入力済み',
+	args: {
+		initialValues: {
+			clientId: 'new',
+			newClientName: '新規 太郎',
+			serviceTypeId: 'life-support',
+			weekday: 'Thu',
+			startTime: '10:00',
+			endTime: '11:30',
+		},
+	},
+};
