@@ -28,6 +28,7 @@ model: Claude Opus 4.5 (copilot)
 
 ## PR作成ルール
 
+- PR は、`develop` ブランチに対して作成します。
 - PR作成後、Copilot をレビュアーとして追加する:
   ```bash
   gh pr edit <PR番号> --add-reviewer "copilot"
