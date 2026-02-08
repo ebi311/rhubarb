@@ -121,13 +121,13 @@ export const ScheduleEditFormModal = ({
 	useEffect(() => {
 		if (!isOpen) return;
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') {
+			if (e.key === 'Escape' && !isStaffPickerOpen) {
 				onClose();
 			}
 		};
 		document.addEventListener('keydown', handleKeyDown);
 		return () => document.removeEventListener('keydown', handleKeyDown);
-	}, [isOpen, onClose]);
+	}, [isOpen, onClose, isStaffPickerOpen]);
 
 	const handleFormSubmit = (values: ScheduleEditFormValues) => {
 		const startTime = stringToTimeObject(values.startTime);

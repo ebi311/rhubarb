@@ -81,6 +81,42 @@ describe('ScheduleEditFormModal', () => {
 			expect(onClose).toHaveBeenCalled();
 		});
 
+		it('StaffPickerDialogが開いている時はEscapeキーで親モーダルが閉じない', async () => {
+			const user = userEvent.setup();
+			const onClose = vi.fn();
+
+			render(<ScheduleEditFormModal {...defaultProps} onClose={onClose} />);
+
+			// 担当者選択ダイアログを開く
+			await user.click(screen.getByText('未選択'));
+
+			// ダイアログが開いていることを確認
+			expect(screen.getByText('担当者を選択')).toBeInTheDocument();
+
+			// Escapeキーを押す
+			await user.keyboard('{Escape}');
+
+			// 親モーダルのonCloseは呼ばれない
+			expect(onClose).not.toHaveBeenCalled();
+		});
+
+		it('モーダルが閉じている時はEscapeキーでonCloseが呼ばれない', async () => {
+			const user = userEvent.setup();
+			const onClose = vi.fn();
+
+			render(
+				<ScheduleEditFormModal
+					{...defaultProps}
+					isOpen={false}
+					onClose={onClose}
+				/>,
+			);
+
+			await user.keyboard('{Escape}');
+
+			expect(onClose).not.toHaveBeenCalled();
+		});
+
 		it('有効な入力で反映ボタンを押すと onSubmit が呼ばれる', async () => {
 			const user = userEvent.setup();
 			const onSubmit = vi.fn();
