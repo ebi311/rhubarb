@@ -1,5 +1,6 @@
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { timeObjectToString } from '@/utils/date';
+import type { MouseEvent } from 'react';
 import type {
 	EditableSchedule,
 	EditStatus,
@@ -57,7 +58,7 @@ export const ScheduleCard = ({
 		}
 	};
 
-	const handleDeleteClick = (e: React.MouseEvent) => {
+	const handleDeleteClick = (e: MouseEvent) => {
 		e.stopPropagation();
 		onDelete(id);
 	};
