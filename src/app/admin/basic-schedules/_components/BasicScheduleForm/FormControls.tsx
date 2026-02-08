@@ -6,7 +6,7 @@ import { FormTextarea } from '@/components/forms/FormTextarea';
 import type { ServiceUser } from '@/models/serviceUser';
 import { WEEKDAY_FULL_LABELS, WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
 import { useId } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import type { BasicScheduleFormValues } from './BasicScheduleForm';
 import { FieldErrorMessage } from './FormMessages';
 import { getFieldDescriptionId, getSelectClassName } from './helpers';
@@ -23,12 +23,35 @@ export const ClientSelectField = ({
 	const fieldId = useId();
 	const {
 		register,
+		control,
 		formState: { errors, isSubmitting },
 	} = useFormContext<BasicScheduleFormValues>();
 	const hasError = Boolean(errors.clientId);
 	const selectClass = getSelectClassName(hasError);
 	const describedBy = getFieldDescriptionId(hasError, fieldId);
 	const isDisabled = disabled || isSubmitting;
+
+	// useWatch を使用してフィールドの変更時に再レンダリングをトリガー
+	const clientId = useWatch({ control, name: 'clientId' });
+	const isNewClient = clientId === 'new';
+
+	// 編集モードでは新規利用者オプションを表示しない
+	const options = disabled
+		? [
+				{ value: '', label: '選択してください' },
+				...serviceUsers.map((client) => ({
+					value: client.id,
+					label: client.name,
+				})),
+			]
+		: [
+				{ value: '', label: '選択してください' },
+				{ value: 'new', label: '➕ 新規利用者を登録' },
+				...serviceUsers.map((client) => ({
+					value: client.id,
+					label: client.name,
+				})),
+			];
 
 	return (
 		<fieldset className="fieldset">
@@ -45,16 +68,24 @@ export const ClientSelectField = ({
 				aria-labelledby={`${fieldId}-label`}
 				aria-invalid={hasError}
 				aria-describedby={describedBy}
-				options={[
-					{ value: '', label: '選択してください' },
-					...serviceUsers.map((client) => ({
-						value: client.id,
-						label: client.name,
-					})),
-				]}
+				options={options}
 				{...register('clientId')}
 			/>
 			<FieldErrorMessage fieldId={fieldId} error={errors.clientId} />
+
+			{/* 新規利用者名入力フィールド */}
+			{isNewClient && (
+				<div className="mt-2">
+					<FormInput
+						control={control}
+						name="newClientName"
+						label="新規利用者の氏名"
+						placeholder="氏名を入力してください"
+						required
+						disabled={isSubmitting}
+					/>
+				</div>
+			)}
 		</fieldset>
 	);
 };

@@ -60,7 +60,7 @@ export const ClientModal = (props: ClientModalProps) => {
 		if (mode === 'edit' && client) {
 			reset({
 				name: client.name,
-				address: client.address,
+				address: client.address ?? '',
 				contract_status: client.contract_status,
 			});
 		} else {
@@ -107,7 +107,6 @@ export const ClientModal = (props: ClientModalProps) => {
 					<FormTextarea
 						id="address"
 						label="住所(訪問先)"
-						required
 						rows={3}
 						control={control}
 						name="address"

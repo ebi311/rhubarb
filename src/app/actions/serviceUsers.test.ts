@@ -5,6 +5,7 @@ import {
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
+	createQuickServiceUserAction,
 	createServiceUserAction,
 	getServiceUsersAction,
 	resumeServiceUserAction,
@@ -33,6 +34,7 @@ const mockSupabase = {
 const mockService = {
 	getServiceUsers: vi.fn(),
 	createServiceUser: vi.fn(),
+	createQuickServiceUser: vi.fn(),
 	updateServiceUser: vi.fn(),
 	suspendServiceUser: vi.fn(),
 	resumeServiceUser: vi.fn(),
@@ -350,5 +352,76 @@ describe('resumeServiceUserAction', () => {
 			'client-1',
 		);
 		expect(result.data).toEqual(mockClient);
+	});
+});
+
+describe('createQuickServiceUserAction', () => {
+	it('未認証は401', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result = await createQuickServiceUserAction('テスト太郎');
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+	});
+
+	it('利用者を簡易作成できる', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: { id: 'user-1' } },
+			error: null,
+		});
+		const mockClient = {
+			id: 'client-new',
+			name: 'テスト太郎',
+			address: null,
+			contract_status: 'active',
+			office_id: 'office-1',
+			created_at: new Date(),
+			updated_at: new Date(),
+		};
+
+		mockService.createQuickServiceUser.mockResolvedValue(mockClient);
+
+		const result = await createQuickServiceUserAction('テスト太郎');
+
+		expect(mockService.createQuickServiceUser).toHaveBeenCalledWith(
+			'user-1',
+			'テスト太郎',
+		);
+		expect(result.status).toBe(201);
+		expect(result.data).toEqual(mockClient);
+	});
+
+	it('空の名前は400', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: { id: 'user-1' } },
+			error: null,
+		});
+		mockService.createQuickServiceUser.mockRejectedValue(
+			new ServiceError(400, '氏名は1〜100文字で入力してください'),
+		);
+
+		const result = await createQuickServiceUserAction('');
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('氏名は1〜100文字で入力してください');
+	});
+
+	it('100文字超えの名前は400', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: { id: 'user-1' } },
+			error: null,
+		});
+		mockService.createQuickServiceUser.mockRejectedValue(
+			new ServiceError(400, '氏名は1〜100文字で入力してください'),
+		);
+
+		const longName = 'a'.repeat(101);
+		const result = await createQuickServiceUserAction(longName);
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('氏名は1〜100文字で入力してください');
 	});
 });

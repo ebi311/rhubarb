@@ -1,3 +1,4 @@
+import { PageTitle } from '@/app/_components/Header/context';
 import { getServiceUsersAction } from '@/app/actions/serviceUsers';
 import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
@@ -40,22 +41,19 @@ const BasicSchedulesPage = async () => {
 	const { serviceUsers, serviceTypes, staffs } = await fetchPageData();
 
 	return (
-		<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
-			<section className="space-y-2">
-				<p className="text-sm font-semibold tracking-widest text-primary uppercase">
-					基本スケジュール
-				</p>
-				<h1 className="text-3xl font-bold">週次スケジュールの登録</h1>
+		<>
+			<PageTitle title="基本スケジュール登録" />
+			<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
 				<p className="text-sm text-base-content/70">
 					契約中の利用者について、曜日と時間帯、サービス区分、デフォルト担当者を設定します。
 				</p>
-			</section>
-			<BasicScheduleForm
-				serviceUsers={serviceUsers}
-				serviceTypes={serviceTypes}
-				staffs={staffs}
-			/>
-		</div>
+				<BasicScheduleForm
+					serviceUsers={serviceUsers}
+					serviceTypes={serviceTypes}
+					staffs={staffs}
+				/>
+			</div>
+		</>
 	);
 };
 
