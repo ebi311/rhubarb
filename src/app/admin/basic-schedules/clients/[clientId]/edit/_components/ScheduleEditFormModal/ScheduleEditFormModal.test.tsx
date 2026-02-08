@@ -70,6 +70,17 @@ describe('ScheduleEditFormModal', () => {
 			expect(onClose).toHaveBeenCalled();
 		});
 
+		it('Escapeキーで onClose が呼ばれる', async () => {
+			const user = userEvent.setup();
+			const onClose = vi.fn();
+
+			render(<ScheduleEditFormModal {...defaultProps} onClose={onClose} />);
+
+			await user.keyboard('{Escape}');
+
+			expect(onClose).toHaveBeenCalled();
+		});
+
 		it('有効な入力で反映ボタンを押すと onSubmit が呼ばれる', async () => {
 			const user = userEvent.setup();
 			const onSubmit = vi.fn();
