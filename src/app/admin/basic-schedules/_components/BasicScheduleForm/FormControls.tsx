@@ -6,7 +6,7 @@ import { FormTextarea } from '@/components/forms/FormTextarea';
 import type { ServiceUser } from '@/models/serviceUser';
 import { WEEKDAY_FULL_LABELS, WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
 import { useId } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import type { BasicScheduleFormValues } from './BasicScheduleForm';
 import { FieldErrorMessage } from './FormMessages';
 import { getFieldDescriptionId, getSelectClassName } from './helpers';
@@ -23,7 +23,6 @@ export const ClientSelectField = ({
 	const fieldId = useId();
 	const {
 		register,
-		watch,
 		control,
 		formState: { errors, isSubmitting },
 	} = useFormContext<BasicScheduleFormValues>();
@@ -32,7 +31,8 @@ export const ClientSelectField = ({
 	const describedBy = getFieldDescriptionId(hasError, fieldId);
 	const isDisabled = disabled || isSubmitting;
 
-	const clientId = watch('clientId');
+	// useWatch を使用してフィールドの変更時に再レンダリングをトリガー
+	const clientId = useWatch({ control, name: 'clientId' });
 	const isNewClient = clientId === 'new';
 
 	// 編集モードでは新規利用者オプションを表示しない

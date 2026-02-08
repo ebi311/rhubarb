@@ -2,10 +2,6 @@
 
 ## 概要
 
-# contractStatus: "suspended",\
-
-"計画書を作成しました: Docs/tasks/plan-2026-02-07-14-00.md"
-
 | 項目     | 内容                                                                                  |
 | -------- | ------------------------------------------------------------------------------------- |
 | Issue    | [#18 基本スケジュールでの新規利用者登録](https://github.com/ebi311/rhubarb/issues/18) |
@@ -329,9 +325,6 @@ const onSubmit = async (values: BasicScheduleFormValues) => {
 ---
 
 ## 実装順序
-
-#"計画書を作成しました: docs/tasks/plan-2026-02-07-14-00.md""計画書を作成しました: docs/tasks/plan-2026-02-07-14-00.md"
-contractStatus: "suspended",\
 
 ```mermaid
 graph TD

@@ -407,7 +407,7 @@ describe('BasicScheduleForm (新規利用者登録)', () => {
 
 	it('新規利用者登録フローでcreateQuickServiceUserActionとcreateBasicScheduleActionが順に呼ばれる', async () => {
 		const user = userEvent.setup();
-		const newClientId = '019b8916-5594-773b-aaf3-new-client-id';
+		const newClientId = '019b8916-5594-773b-aaf3-1234567890ab';
 
 		vi.mocked(createQuickServiceUserAction).mockResolvedValue({
 			data: {

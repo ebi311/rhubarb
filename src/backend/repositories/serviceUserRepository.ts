@@ -59,6 +59,14 @@ export class ServiceUserRepository {
 		return this.toDomain(data);
 	}
 
+	// 空文字列を null に正規化
+	private normalizeAddress(address: string | null | undefined): string | null {
+		if (address === undefined || address === null || address.trim() === '') {
+			return null;
+		}
+		return address;
+	}
+
 	async create(data: {
 		office_id: string;
 		name: string;
@@ -67,7 +75,7 @@ export class ServiceUserRepository {
 		const insertData: ServiceUserInsert = {
 			office_id: data.office_id,
 			name: data.name,
-			address: data.address ?? null,
+			address: this.normalizeAddress(data.address),
 			contract_status: 'active',
 		};
 
@@ -86,7 +94,7 @@ export class ServiceUserRepository {
 	async update(id: string, data: ServiceUserInput): Promise<ServiceUser> {
 		const updateData: ServiceUserUpdate = {
 			name: data.name,
-			address: data.address,
+			address: this.normalizeAddress(data.address),
 		};
 
 		const { data: updated, error } = await this.supabase
