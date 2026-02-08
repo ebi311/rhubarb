@@ -25,6 +25,7 @@ export const StaffPickerDialog = ({
 	onClose,
 	onSelect,
 	onClear,
+	requiredServiceTypeId,
 }: StaffPickerDialogProps) => {
 	const {
 		keyword,
@@ -38,7 +39,12 @@ export const StaffPickerDialog = ({
 		handleRoleFilterChange,
 		handleServiceFilterChange,
 		selectStaff,
-	} = useStaffPickerDialogState({ staffOptions, selectedStaffId, isOpen });
+	} = useStaffPickerDialogState({
+		staffOptions,
+		selectedStaffId,
+		isOpen,
+		requiredServiceTypeId,
+	});
 
 	const dialogClasses = [
 		'modal',

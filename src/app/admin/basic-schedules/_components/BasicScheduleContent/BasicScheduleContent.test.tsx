@@ -26,6 +26,7 @@ describe('BasicScheduleContent', () => {
 	const mockSchedules: BasicScheduleViewModel[] = [
 		{
 			id: '1',
+			clientId: 'client-1',
 			clientName: '山田太郎',
 			weekday: 'Mon',
 			timeRange: '09:00 - 10:00',

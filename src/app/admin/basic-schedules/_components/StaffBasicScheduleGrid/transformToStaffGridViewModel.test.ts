@@ -7,6 +7,7 @@ describe('transformToStaffGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: '1',
+				clientId: 'client-a',
 				clientName: '利用者A',
 				serviceTypeId: 'physical-care',
 				weekday: 'Mon',
@@ -16,6 +17,7 @@ describe('transformToStaffGridViewModel', () => {
 			},
 			{
 				id: '2',
+				clientId: 'client-b',
 				clientName: '利用者B',
 				serviceTypeId: 'life-support',
 				weekday: 'Mon',
@@ -38,6 +40,7 @@ describe('transformToStaffGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: '1',
+				clientId: 'client-a',
 				clientName: '利用者A',
 				serviceTypeId: 'physical-care',
 				weekday: 'Mon',
@@ -61,6 +64,7 @@ describe('transformToStaffGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: '1',
+				clientId: 'client-a',
 				clientName: '利用者A',
 				serviceTypeId: 'physical-care',
 				weekday: 'Mon',
@@ -82,6 +86,7 @@ describe('transformToStaffGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: '1',
+				clientId: 'client-a',
 				clientName: '利用者A',
 				serviceTypeId: 'physical-care',
 				weekday: 'Mon',
@@ -91,6 +96,7 @@ describe('transformToStaffGridViewModel', () => {
 			},
 			{
 				id: '2',
+				clientId: 'client-b',
 				clientName: '利用者B',
 				serviceTypeId: 'life-support',
 				weekday: 'Mon',
@@ -114,6 +120,7 @@ describe('transformToStaffGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: '1',
+				clientId: 'client-a',
 				clientName: '利用者A',
 				serviceTypeId: 'physical-care',
 				weekday: 'Mon',
@@ -123,6 +130,7 @@ describe('transformToStaffGridViewModel', () => {
 			},
 			{
 				id: '2',
+				clientId: 'client-b',
 				clientName: '利用者B',
 				serviceTypeId: 'life-support',
 				weekday: 'Tue',
@@ -132,6 +140,7 @@ describe('transformToStaffGridViewModel', () => {
 			},
 			{
 				id: '3',
+				clientId: 'client-c',
 				clientName: '利用者C',
 				serviceTypeId: 'commute-support',
 				weekday: 'Wed',

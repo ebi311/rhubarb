@@ -90,19 +90,32 @@ export const ScheduleEditFormModal = ({
 		register,
 		handleSubmit,
 		reset,
+		watch,
 		formState: { errors, isSubmitting },
 	} = useForm<ScheduleEditFormValues>({
 		resolver: zodResolver(ScheduleEditFormSchema),
 		defaultValues: createDefaultValues(initialData),
 	});
 
+	// 現在選択されているサービス種別を監視
+	const selectedServiceTypeId = watch('serviceTypeId');
+
 	useEffect(() => {
 		if (isOpen) {
 			reset(createDefaultValues(initialData));
-			// eslint-disable-next-line react-hooks/set-state-in-effect
+
 			setSelectedStaffId(initialData?.staffIds[0] ?? null);
 		}
 	}, [isOpen, initialData, reset]);
+
+	// サービス種別が変更されたら、対応していないスタッフをクリア
+	useEffect(() => {
+		if (!selectedServiceTypeId || !selectedStaffId) return;
+		const staff = staffOptions.find((s) => s.id === selectedStaffId);
+		if (staff && !staff.serviceTypeIds.includes(selectedServiceTypeId)) {
+			setSelectedStaffId(null);
+		}
+	}, [selectedServiceTypeId, selectedStaffId, staffOptions]);
 
 	const handleFormSubmit = (values: ScheduleEditFormValues) => {
 		const startTime = stringToTimeObject(values.startTime);
@@ -199,6 +212,7 @@ export const ScheduleEditFormModal = ({
 				onClose={() => setIsStaffPickerOpen(false)}
 				onSelect={handleStaffSelect}
 				onClear={handleClearStaff}
+				requiredServiceTypeId={selectedServiceTypeId || undefined}
 			/>
 		</>
 	);
