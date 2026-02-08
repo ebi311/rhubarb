@@ -128,6 +128,24 @@ export const timeObjectToString = (time: TimeValue): string => {
 	const minuteStr = time.minute.toString().padStart(2, '0');
 	return `${hourStr}:${minuteStr}`;
 };
+
+/**
+ * HH:mm 形式の文字列を TimeValue オブジェクトに変換
+ * 例: "09:30" -> { hour: 9, minute: 30 }
+ * 不正な形式の場合は null を返す
+ */
+export const stringToTimeObject = (timeString: string): TimeValue | null => {
+	const match = timeString.match(/^(\d{2}):(\d{2})$/);
+	if (!match) {
+		return null;
+	}
+	const hour = parseInt(match[1], 10);
+	const minute = parseInt(match[2], 10);
+	if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+		return null;
+	}
+	return { hour, minute };
+};
 export const timeObjectToStringWithTimezone = (time: TimeValue): string => {
 	const hourStr = time.hour.toString().padStart(2, '0');
 	const minuteStr = time.minute.toString().padStart(2, '0');

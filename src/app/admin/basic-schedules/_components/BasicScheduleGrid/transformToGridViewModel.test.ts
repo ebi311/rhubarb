@@ -7,6 +7,7 @@ describe('transformToGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: 'schedule-1',
+				clientId: 'client-yamada',
 				clientName: '山田太郎',
 				serviceTypeId: 'physical-care',
 				weekday: 'Mon',
@@ -16,6 +17,7 @@ describe('transformToGridViewModel', () => {
 			},
 			{
 				id: 'schedule-2',
+				clientId: 'client-yamada',
 				clientName: '山田太郎',
 				serviceTypeId: 'life-support',
 				weekday: 'Wed',
@@ -25,6 +27,7 @@ describe('transformToGridViewModel', () => {
 			},
 			{
 				id: 'schedule-3',
+				clientId: 'client-suzuki',
 				clientName: '鈴木花子',
 				serviceTypeId: 'commute-support',
 				weekday: 'Mon',
@@ -39,6 +42,7 @@ describe('transformToGridViewModel', () => {
 		expect(result).toHaveLength(2);
 
 		// 山田太郎（名前順で先）
+		expect(result[0].clientId).toBe('client-yamada');
 		expect(result[0].clientName).toBe('山田太郎');
 		expect(result[0].schedulesByWeekday.Mon).toHaveLength(1);
 		expect(result[0].schedulesByWeekday.Mon![0].id).toBe('schedule-1');
@@ -46,6 +50,7 @@ describe('transformToGridViewModel', () => {
 		expect(result[0].schedulesByWeekday.Wed![0].id).toBe('schedule-2');
 
 		// 鈴木花子
+		expect(result[1].clientId).toBe('client-suzuki');
 		expect(result[1].clientName).toBe('鈴木花子');
 		expect(result[1].schedulesByWeekday.Mon).toHaveLength(1);
 		expect(result[1].schedulesByWeekday.Mon![0].id).toBe('schedule-3');
@@ -56,6 +61,7 @@ describe('transformToGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: 'schedule-1',
+				clientId: 'client-yamada',
 				clientName: '山田太郎',
 				serviceTypeId: 'physical-care',
 				weekday: 'Mon',
@@ -65,6 +71,7 @@ describe('transformToGridViewModel', () => {
 			},
 			{
 				id: 'schedule-2',
+				clientId: 'client-yamada',
 				clientName: '山田太郎',
 				serviceTypeId: 'life-support',
 				weekday: 'Mon',
@@ -74,6 +81,7 @@ describe('transformToGridViewModel', () => {
 			},
 			{
 				id: 'schedule-3',
+				clientId: 'client-yamada',
 				clientName: '山田太郎',
 				serviceTypeId: 'commute-support',
 				weekday: 'Mon',
@@ -103,6 +111,7 @@ describe('transformToGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: 'schedule-1',
+				clientId: 'client-yamada',
 				clientName: '山田太郎',
 				serviceTypeId: 'physical-care',
 				weekday: 'Tue',
@@ -126,6 +135,7 @@ describe('transformToGridViewModel', () => {
 		const schedules: BasicScheduleViewModel[] = [
 			{
 				id: 'schedule-1',
+				clientId: 'client-tanaka',
 				clientName: '田中次郎',
 				serviceTypeId: 'physical-care',
 				weekday: 'Mon',
@@ -135,6 +145,7 @@ describe('transformToGridViewModel', () => {
 			},
 			{
 				id: 'schedule-2',
+				clientId: 'client-sato',
 				clientName: '佐藤一郎',
 				serviceTypeId: 'life-support',
 				weekday: 'Mon',
@@ -144,6 +155,7 @@ describe('transformToGridViewModel', () => {
 			},
 			{
 				id: 'schedule-3',
+				clientId: 'client-yamada',
 				clientName: '山田太郎',
 				serviceTypeId: 'commute-support',
 				weekday: 'Mon',

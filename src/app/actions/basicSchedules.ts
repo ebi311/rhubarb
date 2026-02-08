@@ -172,3 +172,151 @@ export const deleteBasicScheduleAction = async (
 		throw e;
 	}
 };
+
+export type BatchSaveOperations = {
+	create: BasicScheduleInput[];
+	update: { id: string; input: BasicScheduleInput }[];
+	delete: string[];
+};
+
+export type BatchSaveResult = {
+	created: number;
+	updated: number;
+	deleted: number;
+};
+
+type BatchOperationError = { operation: string; index: number; error: string };
+
+const executeDeleteOperations = async (
+	service: BasicScheduleService,
+	userId: string,
+	ids: string[],
+): Promise<{ count: number; errors: BatchOperationError[] }> => {
+	let count = 0;
+	const errors: BatchOperationError[] = [];
+
+	for (let i = 0; i < ids.length; i++) {
+		try {
+			await service.delete(userId, ids[i]);
+			count++;
+		} catch (e) {
+			if (e instanceof ServiceError) {
+				errors.push({ operation: 'delete', index: i, error: e.message });
+			} else {
+				throw e;
+			}
+		}
+	}
+	return { count, errors };
+};
+
+const executeUpdateOperations = async (
+	service: BasicScheduleService,
+	userId: string,
+	updates: { id: string; input: BasicScheduleInput }[],
+): Promise<{ count: number; errors: BatchOperationError[] }> => {
+	let count = 0;
+	const errors: BatchOperationError[] = [];
+
+	for (let i = 0; i < updates.length; i++) {
+		const { id, input } = updates[i];
+		try {
+			await service.update(userId, id, input);
+			count++;
+		} catch (e) {
+			if (e instanceof ServiceError) {
+				errors.push({ operation: 'update', index: i, error: e.message });
+			} else {
+				throw e;
+			}
+		}
+	}
+	return { count, errors };
+};
+
+const executeCreateOperations = async (
+	service: BasicScheduleService,
+	userId: string,
+	inputs: BasicScheduleInput[],
+	clientId: string,
+): Promise<{ count: number; errors: BatchOperationError[] }> => {
+	let count = 0;
+	const errors: BatchOperationError[] = [];
+
+	for (let i = 0; i < inputs.length; i++) {
+		const inputWithClientId = { ...inputs[i], client_id: clientId };
+		try {
+			await service.create(userId, inputWithClientId);
+			count++;
+		} catch (e) {
+			if (e instanceof ServiceError) {
+				errors.push({ operation: 'create', index: i, error: e.message });
+			} else {
+				throw e;
+			}
+		}
+	}
+	return { count, errors };
+};
+
+export const batchSaveBasicSchedulesAction = async (
+	clientId: string,
+	operations: BatchSaveOperations,
+): Promise<ActionResult<BatchSaveResult>> => {
+	const supabase = await createSupabaseClient();
+
+	const {
+		data: { user },
+		error: authError,
+	} = await supabase.auth.getUser();
+	if (authError || !user) return errorResult('Unauthorized', 401);
+
+	const parsedClientId = z.string().uuid().safeParse(clientId);
+	if (!parsedClientId.success) {
+		return errorResult(
+			'Validation failed',
+			400,
+			parsedClientId.error.flatten(),
+		);
+	}
+
+	const service = new BasicScheduleService(supabase);
+	const allErrors: BatchOperationError[] = [];
+
+	const deleteResult = await executeDeleteOperations(
+		service,
+		user.id,
+		operations.delete,
+	);
+	allErrors.push(...deleteResult.errors);
+
+	const updateResult = await executeUpdateOperations(
+		service,
+		user.id,
+		operations.update,
+	);
+	allErrors.push(...updateResult.errors);
+
+	const createResult = await executeCreateOperations(
+		service,
+		user.id,
+		operations.create,
+		parsedClientId.data,
+	);
+	allErrors.push(...createResult.errors);
+
+	const result: BatchSaveResult = {
+		created: createResult.count,
+		updated: updateResult.count,
+		deleted: deleteResult.count,
+	};
+
+	if (allErrors.length > 0) {
+		return errorResult('Some operations failed', 207, {
+			errors: allErrors,
+			partialResult: result,
+		});
+	}
+
+	return successResult(result);
+};

@@ -40,9 +40,30 @@ export const BasicScheduleGrid = ({ schedules }: BasicScheduleGridProps) => {
 						{/* 利用者名セル */}
 						<div
 							key={`client-${schedule.clientId}`}
-							className="bg-base-100 p-3 font-medium"
+							className="flex items-center gap-2 bg-base-100 p-3 font-medium"
 						>
-							{schedule.clientName}
+							<span className="flex-1">{schedule.clientName}</span>
+							<Link
+								href={`/admin/basic-schedules/clients/${schedule.clientId}/edit`}
+								className="btn btn-ghost btn-xs"
+								title="一括編集"
+								aria-label="一括編集"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									strokeWidth={1.5}
+									stroke="currentColor"
+									className="size-4"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+									/>
+								</svg>
+							</Link>
 						</div>
 
 						{/* 各曜日のセル */}

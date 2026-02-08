@@ -16,6 +16,7 @@ vi.mock('./fetchBasicSchedules', () => ({
 const sampleSchedules: BasicScheduleViewModel[] = [
 	{
 		id: 'schedule-1',
+		clientId: 'client-yamada',
 		clientName: '山田太郎',
 		serviceTypeId: 'physical-care',
 		weekday: 'Mon',
@@ -25,6 +26,7 @@ const sampleSchedules: BasicScheduleViewModel[] = [
 	},
 	{
 		id: 'schedule-2',
+		clientId: 'client-suzuki',
 		clientName: '鈴木花子',
 		serviceTypeId: 'life-support',
 		weekday: 'Tue',

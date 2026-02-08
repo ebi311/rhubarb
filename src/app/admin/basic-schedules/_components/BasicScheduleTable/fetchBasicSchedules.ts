@@ -31,6 +31,7 @@ export const fetchBasicSchedules = async (
 	return (
 		schedules?.map((schedule) => ({
 			id: schedule.id,
+			clientId: schedule.client.id,
 			clientName: schedule.client.name,
 			note: schedule.note ?? '',
 			serviceTypeId: schedule.service_type_id,

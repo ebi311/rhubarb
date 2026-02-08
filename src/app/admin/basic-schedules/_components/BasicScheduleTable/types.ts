@@ -4,6 +4,7 @@ import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 /** テーブル表示用の基本スケジュールビューモデル */
 export interface BasicScheduleViewModel {
 	id: string;
+	clientId: string;
 	clientName: string;
 	serviceTypeId: ServiceTypeId;
 	weekday: DayOfWeek;

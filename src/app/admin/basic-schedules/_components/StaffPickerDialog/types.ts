@@ -18,4 +18,6 @@ export type StaffPickerDialogProps = {
 	onClose: () => void;
 	onSelect: (staffId: string) => void;
 	onClear?: () => void;
+	/** 必須のサービス種別。指定された場合、対応するスタッフのみ表示。 */
+	requiredServiceTypeId?: ServiceTypeId;
 };

@@ -31,6 +31,31 @@ export const getServiceUsersAction = async (
 	}
 };
 
+export const getServiceUserByIdAction = async (
+	id: string,
+): Promise<ActionResult<ServiceUser>> => {
+	const supabase = await createSupabaseClient();
+
+	const {
+		data: { user },
+		error: authError,
+	} = await supabase.auth.getUser();
+	if (authError || !user) return errorResult('Unauthorized', 401);
+	const service = new ServiceUserService(supabase);
+	try {
+		const serviceUser = await service.getServiceUserById(user.id, id);
+		if (!serviceUser) {
+			return errorResult('Service user not found', 404);
+		}
+		return successResult(serviceUser);
+	} catch (e) {
+		if (e instanceof ServiceError) {
+			return errorResult(e.message, e.status, e.details);
+		}
+		throw e;
+	}
+};
+
 export const createServiceUserAction = async (
 	input: ServiceUserInput,
 ): Promise<ActionResult<ServiceUser>> => {

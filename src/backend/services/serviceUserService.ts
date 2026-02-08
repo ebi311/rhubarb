@@ -53,6 +53,19 @@ export class ServiceUserService {
 		return this.serviceUserRepository.findAll(staff.office_id, status);
 	}
 
+	async getServiceUserById(
+		userId: string,
+		id: string,
+	): Promise<ServiceUser | null> {
+		const staff = await this.getStaff(userId);
+		const serviceUser = await this.serviceUserRepository.findById(id);
+		if (!serviceUser) return null;
+		if (serviceUser.office_id !== staff.office_id) {
+			throw new ServiceError(403, 'Forbidden');
+		}
+		return serviceUser;
+	}
+
 	async createServiceUser(
 		userId: string,
 		input: ServiceUserInput,

@@ -76,3 +76,36 @@ export const BasicScheduleRecordSchema = withTimeRangeValidation(
 );
 
 export type BasicScheduleRecord = z.infer<typeof BasicScheduleRecordSchema>;
+
+// バッチ操作用スキーマ
+export const BatchScheduleOperationSchema = z.object({
+	create: z.array(BasicScheduleInputSchema),
+	update: z.array(
+		z.object({
+			id: z.string().uuid(),
+			data: BasicScheduleInputSchema,
+		}),
+	),
+	delete: z.array(z.string().uuid()),
+});
+
+export type BatchScheduleOperation = z.infer<
+	typeof BatchScheduleOperationSchema
+>;
+
+export const BatchScheduleResultSchema = z.object({
+	created: z.number().int().min(0),
+	updated: z.number().int().min(0),
+	deleted: z.number().int().min(0),
+	errors: z
+		.array(
+			z.object({
+				operation: z.enum(['create', 'update', 'delete']),
+				index: z.number().int().min(0),
+				message: z.string(),
+			}),
+		)
+		.optional(),
+});
+
+export type BatchScheduleResult = z.infer<typeof BatchScheduleResultSchema>;

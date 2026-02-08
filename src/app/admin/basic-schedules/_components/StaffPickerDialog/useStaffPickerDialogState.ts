@@ -9,6 +9,8 @@ export type UseStaffPickerDialogStateParams = {
 	staffOptions: StaffPickerOption[];
 	selectedStaffId: string | null;
 	isOpen: boolean;
+	/** 必須のサービス種別。指定された場合、対応するスタッフのみ表示。 */
+	requiredServiceTypeId?: ServiceTypeId;
 };
 
 export type UseStaffPickerDialogState = {
@@ -29,6 +31,7 @@ export const useStaffPickerDialogState = ({
 	staffOptions,
 	selectedStaffId,
 	isOpen,
+	requiredServiceTypeId,
 }: UseStaffPickerDialogStateParams): UseStaffPickerDialogState => {
 	const [keyword, setKeyword] = useState('');
 	const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
@@ -64,6 +67,13 @@ export const useStaffPickerDialogState = ({
 	const filteredStaffs = useMemo(() => {
 		const keywordLower = keyword.trim().toLowerCase();
 		return staffOptions.filter((option) => {
+			// requiredServiceTypeId が指定されている場合、対応していないスタッフを除外
+			if (
+				requiredServiceTypeId &&
+				!option.serviceTypeIds.includes(requiredServiceTypeId)
+			) {
+				return false;
+			}
 			const matchesRole = roleFilter === 'all' || option.role === roleFilter;
 			const matchesService =
 				serviceFilter === 'all' ||
@@ -76,7 +86,7 @@ export const useStaffPickerDialogState = ({
 				);
 			return matchesRole && matchesService && matchesKeyword;
 		});
-	}, [keyword, roleFilter, serviceFilter, staffOptions]);
+	}, [keyword, roleFilter, serviceFilter, staffOptions, requiredServiceTypeId]);
 
 	const pendingStaff = pendingSelection
 		? (staffOptions.find((staff) => staff.id === pendingSelection) ?? null)

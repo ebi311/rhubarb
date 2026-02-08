@@ -1,3 +1,4 @@
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { StaffPickerOption } from './types';
@@ -24,6 +25,7 @@ type HookProps = {
 	staffOptions: StaffPickerOption[];
 	selectedStaffId: string | null;
 	isOpen: boolean;
+	requiredServiceTypeId?: ServiceTypeId;
 };
 
 describe('useStaffPickerDialogState', () => {
@@ -57,5 +59,41 @@ describe('useStaffPickerDialogState', () => {
 		rerender({ staffOptions, selectedStaffId: 'staff-2', isOpen: false });
 		expect(result.current.keyword).toBe('');
 		expect(result.current.roleFilter).toBe('all');
+	});
+
+	it('requiredServiceTypeIdが指定された場合、対応するスタッフのみ表示される', () => {
+		const initialProps: HookProps = {
+			staffOptions,
+			selectedStaffId: null,
+			isOpen: true,
+			requiredServiceTypeId: 'physical-care',
+		};
+		const { result } = renderHook(
+			(props: HookProps) => useStaffPickerDialogState(props),
+			{
+				initialProps,
+			},
+		);
+
+		// physical-care に対応している staff-1 のみ表示される
+		expect(result.current.filteredStaffs).toHaveLength(1);
+		expect(result.current.filteredStaffs[0].id).toBe('staff-1');
+	});
+
+	it('requiredServiceTypeIdがundefinedの場合、すべてのスタッフが表示される', () => {
+		const initialProps: HookProps = {
+			staffOptions,
+			selectedStaffId: null,
+			isOpen: true,
+			requiredServiceTypeId: undefined,
+		};
+		const { result } = renderHook(
+			(props: HookProps) => useStaffPickerDialogState(props),
+			{
+				initialProps,
+			},
+		);
+
+		expect(result.current.filteredStaffs).toHaveLength(2);
 	});
 });
