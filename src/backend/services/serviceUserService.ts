@@ -108,4 +108,21 @@ export class ServiceUserService {
 
 		return this.serviceUserRepository.resume(id);
 	}
+
+	async createQuickServiceUser(
+		userId: string,
+		name: string,
+	): Promise<ServiceUser> {
+		const staff = await this.getAdminStaff(userId);
+		const trimmedName = name.trim();
+		if (!trimmedName || trimmedName.length > 100) {
+			throw new ServiceError(400, '氏名は1〜100文字で入力してください');
+		}
+
+		return this.serviceUserRepository.create({
+			office_id: staff.office_id,
+			name: trimmedName,
+			address: null,
+		});
+	}
 }

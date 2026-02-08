@@ -11,7 +11,7 @@ export const ServiceUserSchema = z.object({
 	id: z.uuid(),
 	office_id: z.uuid(),
 	name: z.string().min(1, { message: '氏名は必須です' }),
-	address: z.string().min(1, { message: '住所は必須です' }),
+	address: z.string().nullable().optional(),
 	contract_status: ContractStatusSchema,
 	created_at: TimestampSchema,
 	updated_at: TimestampSchema,
@@ -27,9 +27,12 @@ export const ServiceUserInputSchema = z.object({
 		.refine((val) => val.trim().length > 0, '氏名に空白のみは使用できません'),
 	address: z
 		.string()
-		.min(1, '住所は必須です')
 		.max(200, '住所は200文字以内で入力してください')
-		.refine((val) => val.trim().length > 0, '住所に空白のみは使用できません'),
+		.refine(
+			(val) => !val || val.trim().length > 0,
+			'住所に空白のみは使用できません',
+		)
+		.optional(),
 	contract_status: ContractStatusSchema.optional(),
 });
 

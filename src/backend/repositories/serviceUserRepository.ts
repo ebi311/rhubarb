@@ -62,12 +62,12 @@ export class ServiceUserRepository {
 	async create(data: {
 		office_id: string;
 		name: string;
-		address: string;
+		address?: string | null;
 	}): Promise<ServiceUser> {
 		const insertData: ServiceUserInsert = {
 			office_id: data.office_id,
 			name: data.name,
-			address: data.address,
+			address: data.address ?? null,
 			contract_status: 'active',
 		};
 
