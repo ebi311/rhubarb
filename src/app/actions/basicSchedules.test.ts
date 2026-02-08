@@ -271,6 +271,57 @@ describe('batchSaveBasicSchedulesAction', () => {
 		expect(result.error).toBe('Invalid operations');
 	});
 
+	it('create操作のclient_idがURLのclientIdと不一致の場合400を返す', async () => {
+		mockAuthUser('user-1');
+		const otherClientId = '019b1d20-0000-4000-8000-000000000099';
+
+		const result = await batchSaveBasicSchedulesAction(validClientId, {
+			create: [
+				{
+					client_id: otherClientId, // URLのclientIdと異なる
+					service_type_id: 'physical-care',
+					staff_ids: [],
+					weekday: 'Mon',
+					start_time: { hour: 9, minute: 0 },
+					end_time: { hour: 10, minute: 0 },
+					note: null,
+				},
+			],
+			update: [],
+			delete: [],
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('client_id mismatch in operations');
+	});
+
+	it('update操作のclient_idがURLのclientIdと不一致の場合400を返す', async () => {
+		mockAuthUser('user-1');
+		const otherClientId = '019b1d20-0000-4000-8000-000000000099';
+
+		const result = await batchSaveBasicSchedulesAction(validClientId, {
+			create: [],
+			update: [
+				{
+					id: validScheduleId,
+					input: {
+						client_id: otherClientId, // URLのclientIdと異なる
+						service_type_id: 'physical-care',
+						staff_ids: [],
+						weekday: 'Mon',
+						start_time: { hour: 9, minute: 0 },
+						end_time: { hour: 10, minute: 0 },
+						note: null,
+					},
+				},
+			],
+			delete: [],
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('client_id mismatch in operations');
+	});
+
 	it('空のoperationsで成功を返す', async () => {
 		mockAuthUser('user-1');
 

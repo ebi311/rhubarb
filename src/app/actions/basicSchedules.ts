@@ -300,6 +300,18 @@ export const batchSaveBasicSchedulesAction = async (
 		);
 	}
 
+	// clientId と operations 内の client_id の整合性チェック
+	const allCreateClientIdsMatch = parsedOperations.data.create.every(
+		(op) => op.client_id === clientId,
+	);
+	const allUpdateClientIdsMatch = parsedOperations.data.update.every(
+		(op) => op.input.client_id === clientId,
+	);
+
+	if (!allCreateClientIdsMatch || !allUpdateClientIdsMatch) {
+		return errorResult('client_id mismatch in operations', 400);
+	}
+
 	const service = new BasicScheduleService(supabase);
 	const allErrors: BatchOperationError[] = [];
 	const { create, update, delete: deleteOps } = parsedOperations.data;
