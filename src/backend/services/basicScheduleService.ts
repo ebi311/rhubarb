@@ -357,6 +357,11 @@ export class BasicScheduleService {
 					throw new ServiceError(404, 'Schedule not found');
 				}
 
+				// 既存のスケジュールが指定されたclientIdに属しているか検証
+				if (existing.clients.id !== clientId) {
+					throw new ServiceError(403, 'Client ID mismatch');
+				}
+
 				if (data.client_id !== clientId) {
 					throw new ServiceError(400, 'Client ID mismatch');
 				}
