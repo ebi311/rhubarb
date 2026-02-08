@@ -1,0 +1,150 @@
+import {
+	batchSaveBasicSchedulesAction,
+	listBasicSchedulesAction,
+} from '@/app/actions/basicSchedules';
+import { getServiceUserByIdAction } from '@/app/actions/serviceUsers';
+import { listServiceTypesAction } from '@/app/actions/staffs';
+import type { ActionResult } from '@/app/actions/utils/actionResult';
+import type { BasicScheduleInput } from '@/models/basicScheduleActionSchemas';
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import {
+	ClientWeeklyScheduleEditor,
+	type BatchSaveOperations,
+} from './_components/ClientWeeklyScheduleEditor';
+import type { InitialScheduleData } from './_components/ClientWeeklyScheduleEditor/types';
+
+type ClientBatchEditPageProps = {
+	params: Promise<{ clientId: string }>;
+};
+
+const safeData = <T,>(label: string, result: ActionResult<T[]>): T[] => {
+	if (result.error) {
+		console.warn(`[ClientBatchEditPage] ${label} fetch failed`, {
+			error: result.error,
+			status: result.status,
+			details: result.details,
+		});
+		return [];
+	}
+	return result.data ?? [];
+};
+
+const fetchPageData = async (clientId: string) => {
+	const [clientResult, schedulesResult, serviceTypesResult] = await Promise.all(
+		[
+			getServiceUserByIdAction(clientId),
+			listBasicSchedulesAction({ client_id: clientId }),
+			listServiceTypesAction(),
+		],
+	);
+
+	if (clientResult.error || !clientResult.data) {
+		return null;
+	}
+
+	return {
+		client: clientResult.data,
+		schedules: safeData('schedules', schedulesResult),
+		serviceTypes: safeData('service types', serviceTypesResult),
+	};
+};
+
+const toInitialScheduleData = (
+	schedules: NonNullable<
+		Awaited<ReturnType<typeof fetchPageData>>
+	>['schedules'],
+): InitialScheduleData[] => {
+	return schedules.map((schedule) => ({
+		id: schedule.id,
+		data: {
+			weekday: schedule.weekday,
+			serviceTypeId: schedule.service_type_id,
+			staffIds: schedule.staffs.map((s) => s.id),
+			staffNames: schedule.staffs.map((s) => s.name),
+			startTime: schedule.start_time,
+			endTime: schedule.end_time,
+			note: schedule.note ?? null,
+		},
+	}));
+};
+
+const ClientBatchEditPage = async ({ params }: ClientBatchEditPageProps) => {
+	const { clientId } = await params;
+	const pageData = await fetchPageData(clientId);
+
+	if (!pageData) {
+		notFound();
+	}
+
+	const { client, schedules, serviceTypes } = pageData;
+
+	const initialSchedules = toInitialScheduleData(schedules);
+
+	const serviceTypeOptions = serviceTypes.map((st) => ({
+		id: st.id,
+		name: st.name,
+	}));
+
+	const handleSave = async (operations: BatchSaveOperations) => {
+		'use server';
+
+		const apiOperations = {
+			create: operations.create.map(
+				(data): BasicScheduleInput => ({
+					client_id: clientId,
+					service_type_id: data.serviceTypeId,
+					staff_ids: data.staffIds,
+					weekday: data.weekday,
+					start_time: data.startTime,
+					end_time: data.endTime,
+					note: data.note,
+				}),
+			),
+			update: operations.update.map(({ id, data }) => ({
+				id,
+				input: {
+					client_id: clientId,
+					service_type_id: data.serviceTypeId,
+					staff_ids: data.staffIds,
+					weekday: data.weekday,
+					start_time: data.startTime,
+					end_time: data.endTime,
+					note: data.note,
+				} satisfies BasicScheduleInput,
+			})),
+			delete: operations.delete,
+		};
+
+		const result = await batchSaveBasicSchedulesAction(clientId, apiOperations);
+
+		if (result.error) {
+			throw new Error(result.error);
+		}
+
+		redirect('/admin/basic-schedules');
+	};
+
+	return (
+		<div className="container mx-auto space-y-4 p-4">
+			<div className="breadcrumbs text-sm">
+				<ul>
+					<li>
+						<Link href="/admin/basic-schedules">基本スケジュール</Link>
+					</li>
+					<li>{client.name} - 一括編集</li>
+				</ul>
+			</div>
+
+			<ClientWeeklyScheduleEditor
+				clientId={client.id}
+				clientName={client.name}
+				initialSchedules={initialSchedules}
+				serviceTypeOptions={serviceTypeOptions}
+				onSave={handleSave}
+			/>
+		</div>
+	);
+};
+
+export default ClientBatchEditPage;
