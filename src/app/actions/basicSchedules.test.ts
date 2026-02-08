@@ -4,7 +4,10 @@ import {
 } from '@/backend/services/basicScheduleService';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { listBasicSchedulesAction } from './basicSchedules';
+import {
+	batchSaveBasicSchedulesAction,
+	listBasicSchedulesAction,
+} from './basicSchedules';
 
 vi.mock('@/utils/supabase/server');
 vi.mock('@/backend/services/basicScheduleService', async () => {
@@ -170,5 +173,226 @@ describe('listBasicSchedulesAction', () => {
 		expect(result.status).toBe(400);
 		expect(result.error).toBe('Validation failed');
 		expect(mockService.list).not.toHaveBeenCalled();
+	});
+});
+
+describe('batchSaveBasicSchedulesAction', () => {
+	const clientId = '019b1d20-0000-4000-8000-000000000002';
+
+	const validInput = {
+		client_id: clientId,
+		service_type_id: 'life-support' as const,
+		weekday: 'Mon' as const,
+		start_time: { hour: 9, minute: 0 },
+		end_time: { hour: 10, minute: 0 },
+		staff_ids: [],
+		note: null,
+	};
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [],
+			update: [],
+			delete: [],
+		});
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+	});
+
+	it('無効なclientIdは400を返す', async () => {
+		mockAuthUser('user-1');
+
+		const result = await batchSaveBasicSchedulesAction('invalid-uuid', {
+			create: [],
+			update: [],
+			delete: [],
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+	});
+
+	it('空のオペレーションで成功する', async () => {
+		mockAuthUser('user-1');
+
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [],
+			update: [],
+			delete: [],
+		});
+
+		expect(result.status).toBe(200);
+		expect(result.data).toEqual({
+			created: 0,
+			updated: 0,
+			deleted: 0,
+		});
+	});
+
+	it('createオペレーションを実行する', async () => {
+		mockAuthUser('user-1');
+		mockService.create.mockResolvedValue(sampleSchedule);
+
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [validInput],
+			update: [],
+			delete: [],
+		});
+
+		expect(result.status).toBe(200);
+		expect(result.data).toEqual({
+			created: 1,
+			updated: 0,
+			deleted: 0,
+		});
+		expect(mockService.create).toHaveBeenCalledWith('user-1', {
+			...validInput,
+			client_id: clientId,
+		});
+	});
+
+	it('updateオペレーションを実行する', async () => {
+		mockAuthUser('user-1');
+		mockService.update.mockResolvedValue(sampleSchedule);
+
+		const scheduleId = '019b1d20-0000-4000-8000-000000000010';
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [],
+			update: [{ id: scheduleId, input: validInput }],
+			delete: [],
+		});
+
+		expect(result.status).toBe(200);
+		expect(result.data).toEqual({
+			created: 0,
+			updated: 1,
+			deleted: 0,
+		});
+		expect(mockService.update).toHaveBeenCalledWith(
+			'user-1',
+			scheduleId,
+			validInput,
+		);
+	});
+
+	it('deleteオペレーションを実行する', async () => {
+		mockAuthUser('user-1');
+		mockService.delete.mockResolvedValue(undefined);
+
+		const scheduleId = '019b1d20-0000-4000-8000-000000000010';
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [],
+			update: [],
+			delete: [scheduleId],
+		});
+
+		expect(result.status).toBe(200);
+		expect(result.data).toEqual({
+			created: 0,
+			updated: 0,
+			deleted: 1,
+		});
+		expect(mockService.delete).toHaveBeenCalledWith('user-1', scheduleId);
+	});
+
+	it('複数のオペレーションを同時に実行する', async () => {
+		mockAuthUser('user-1');
+		mockService.create.mockResolvedValue(sampleSchedule);
+		mockService.update.mockResolvedValue(sampleSchedule);
+		mockService.delete.mockResolvedValue(undefined);
+
+		const scheduleId1 = '019b1d20-0000-4000-8000-000000000010';
+		const scheduleId2 = '019b1d20-0000-4000-8000-000000000011';
+
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [validInput, { ...validInput, weekday: 'Tue' }],
+			update: [{ id: scheduleId1, input: validInput }],
+			delete: [scheduleId2],
+		});
+
+		expect(result.status).toBe(200);
+		expect(result.data).toEqual({
+			created: 2,
+			updated: 1,
+			deleted: 1,
+		});
+	});
+
+	it('一部の操作が失敗した場合は207を返す', async () => {
+		mockAuthUser('user-1');
+		mockService.create.mockResolvedValue(sampleSchedule);
+		mockService.delete.mockRejectedValue(
+			new ServiceError(404, 'Schedule not found'),
+		);
+
+		const scheduleId = '019b1d20-0000-4000-8000-000000000010';
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [validInput],
+			update: [],
+			delete: [scheduleId],
+		});
+
+		expect(result.status).toBe(207);
+		expect(result.error).toBe('Some operations failed');
+		expect(result.details).toEqual({
+			errors: [{ operation: 'delete', index: 0, error: 'Schedule not found' }],
+			partialResult: {
+				created: 1,
+				updated: 0,
+				deleted: 0,
+			},
+		});
+	});
+
+	it('ServiceErrorを委譲する（update失敗）', async () => {
+		mockAuthUser('user-1');
+		mockService.update.mockRejectedValue(
+			new ServiceError(404, 'Schedule not found'),
+		);
+
+		const scheduleId = '019b1d20-0000-4000-8000-000000000010';
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [],
+			update: [{ id: scheduleId, input: validInput }],
+			delete: [],
+		});
+
+		expect(result.status).toBe(207);
+		expect(result.details).toEqual({
+			errors: [{ operation: 'update', index: 0, error: 'Schedule not found' }],
+			partialResult: {
+				created: 0,
+				updated: 0,
+				deleted: 0,
+			},
+		});
+	});
+
+	it('ServiceErrorを委譲する（create失敗）', async () => {
+		mockAuthUser('user-1');
+		mockService.create.mockRejectedValue(
+			new ServiceError(400, 'Invalid input'),
+		);
+
+		const result = await batchSaveBasicSchedulesAction(clientId, {
+			create: [validInput],
+			update: [],
+			delete: [],
+		});
+
+		expect(result.status).toBe(207);
+		expect(result.details).toEqual({
+			errors: [{ operation: 'create', index: 0, error: 'Invalid input' }],
+			partialResult: {
+				created: 0,
+				updated: 0,
+				deleted: 0,
+			},
+		});
 	});
 });

@@ -1,12 +1,34 @@
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { fn } from 'storybook/test';
+import type { StaffPickerOption } from './ScheduleEditFormModal';
 import { ScheduleEditFormModal } from './ScheduleEditFormModal';
 
 const serviceTypeOptions = [
 	{ id: 'life-support' as ServiceTypeId, name: '生活支援' },
 	{ id: 'physical-care' as ServiceTypeId, name: '身体介護' },
 	{ id: 'commute-support' as ServiceTypeId, name: '通院サポート' },
+];
+
+const staffOptions: StaffPickerOption[] = [
+	{
+		id: 'staff-1',
+		name: '山田太郎',
+		role: 'helper',
+		serviceTypeIds: ['life-support', 'physical-care'] as ServiceTypeId[],
+	},
+	{
+		id: 'staff-2',
+		name: '佐藤花子',
+		role: 'admin',
+		serviceTypeIds: ['life-support'] as ServiceTypeId[],
+	},
+	{
+		id: 'staff-3',
+		name: '鈴木一郎',
+		role: 'helper',
+		serviceTypeIds: ['physical-care', 'commute-support'] as ServiceTypeId[],
+	},
 ];
 
 const meta: Meta<typeof ScheduleEditFormModal> = {
@@ -17,6 +39,7 @@ const meta: Meta<typeof ScheduleEditFormModal> = {
 		isOpen: true,
 		weekday: 'Mon',
 		serviceTypeOptions,
+		staffOptions,
 		onClose: fn(),
 		onSubmit: fn(),
 	},

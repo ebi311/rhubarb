@@ -3,7 +3,7 @@ import {
 	listBasicSchedulesAction,
 } from '@/app/actions/basicSchedules';
 import { getServiceUserByIdAction } from '@/app/actions/serviceUsers';
-import { listServiceTypesAction } from '@/app/actions/staffs';
+import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { BasicScheduleInput } from '@/models/basicScheduleActionSchemas';
 import Link from 'next/link';
@@ -31,13 +31,13 @@ const safeData = <T,>(label: string, result: ActionResult<T[]>): T[] => {
 };
 
 const fetchPageData = async (clientId: string) => {
-	const [clientResult, schedulesResult, serviceTypesResult] = await Promise.all(
-		[
+	const [clientResult, schedulesResult, serviceTypesResult, staffsResult] =
+		await Promise.all([
 			getServiceUserByIdAction(clientId),
 			listBasicSchedulesAction({ client_id: clientId }),
 			listServiceTypesAction(),
-		],
-	);
+			listStaffsAction(),
+		]);
 
 	if (clientResult.error || !clientResult.data) {
 		return null;
@@ -47,6 +47,7 @@ const fetchPageData = async (clientId: string) => {
 		client: clientResult.data,
 		schedules: safeData('schedules', schedulesResult),
 		serviceTypes: safeData('service types', serviceTypesResult),
+		staffs: safeData('staffs', staffsResult),
 	};
 };
 
@@ -77,13 +78,21 @@ const ClientBatchEditPage = async ({ params }: ClientBatchEditPageProps) => {
 		notFound();
 	}
 
-	const { client, schedules, serviceTypes } = pageData;
+	const { client, schedules, serviceTypes, staffs } = pageData;
 
 	const initialSchedules = toInitialScheduleData(schedules);
 
 	const serviceTypeOptions = serviceTypes.map((st) => ({
 		id: st.id,
 		name: st.name,
+	}));
+
+	const staffOptions = staffs.map((s) => ({
+		id: s.id,
+		name: s.name,
+		role: s.role,
+		serviceTypeIds: s.service_type_ids,
+		note: s.note,
 	}));
 
 	const handleSave = async (operations: BatchSaveOperations) => {
@@ -141,6 +150,7 @@ const ClientBatchEditPage = async ({ params }: ClientBatchEditPageProps) => {
 				clientName={client.name}
 				initialSchedules={initialSchedules}
 				serviceTypeOptions={serviceTypeOptions}
+				staffOptions={staffOptions}
 				onSave={handleSave}
 			/>
 		</div>

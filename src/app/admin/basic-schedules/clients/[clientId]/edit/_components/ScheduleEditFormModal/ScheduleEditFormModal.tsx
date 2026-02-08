@@ -1,12 +1,16 @@
 'use client';
 
+import {
+	StaffPickerDialog,
+	type StaffPickerOption,
+} from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { timeToMinutes } from '@/models/valueObjects/time';
 import { stringToTimeObject, timeObjectToString } from '@/utils/date';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import type { ScheduleData } from '../ClientWeeklyScheduleEditor/types';
@@ -46,12 +50,13 @@ const ScheduleEditFormSchema = z
 
 type ScheduleEditFormValues = z.infer<typeof ScheduleEditFormSchema>;
 
-export type { ServiceTypeOption };
+export type { ServiceTypeOption, StaffPickerOption };
 
 export interface ScheduleEditFormModalProps {
 	isOpen: boolean;
 	weekday: DayOfWeek;
 	serviceTypeOptions: ServiceTypeOption[];
+	staffOptions: StaffPickerOption[];
 	initialData?: ScheduleData;
 	onClose: () => void;
 	onSubmit: (data: ScheduleData) => void;
@@ -70,11 +75,16 @@ export const ScheduleEditFormModal = ({
 	isOpen,
 	weekday,
 	serviceTypeOptions,
+	staffOptions,
 	initialData,
 	onClose,
 	onSubmit,
 }: ScheduleEditFormModalProps) => {
 	const isEditMode = !!initialData;
+	const [isStaffPickerOpen, setIsStaffPickerOpen] = useState(false);
+	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(
+		initialData?.staffIds[0] ?? null,
+	);
 
 	const {
 		register,
@@ -89,6 +99,8 @@ export const ScheduleEditFormModal = ({
 	useEffect(() => {
 		if (isOpen) {
 			reset(createDefaultValues(initialData));
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setSelectedStaffId(initialData?.staffIds[0] ?? null);
 		}
 	}, [isOpen, initialData, reset]);
 
@@ -98,11 +110,13 @@ export const ScheduleEditFormModal = ({
 
 		if (!startTime || !endTime) return;
 
+		const selectedStaff = staffOptions.find((s) => s.id === selectedStaffId);
+
 		const scheduleData: ScheduleData = {
 			weekday: initialData?.weekday ?? weekday,
 			serviceTypeId: values.serviceTypeId,
-			staffIds: initialData?.staffIds ?? [],
-			staffNames: initialData?.staffNames ?? [],
+			staffIds: selectedStaffId ? [selectedStaffId] : [],
+			staffNames: selectedStaff ? [selectedStaff.name] : [],
 			startTime,
 			endTime,
 			note: values.note || null,
@@ -111,43 +125,81 @@ export const ScheduleEditFormModal = ({
 		onSubmit(scheduleData);
 	};
 
+	const handleStaffSelect = (staffId: string) => {
+		setSelectedStaffId(staffId);
+		setIsStaffPickerOpen(false);
+	};
+
+	const handleClearStaff = () => {
+		setSelectedStaffId(null);
+		setIsStaffPickerOpen(false);
+	};
+
+	const selectedStaffName =
+		staffOptions.find((s) => s.id === selectedStaffId)?.name ?? '未選択';
+
 	if (!isOpen) return null;
 
 	return (
-		<div className="modal-open modal" role="dialog" aria-modal="true">
-			<div className="modal-box">
-				<h3 className="mb-4 text-lg font-bold">
-					{isEditMode ? '予定を編集' : '予定を追加'}
-				</h3>
+		<>
+			<div className="modal-open modal" role="dialog" aria-modal="true">
+				<div className="modal-box">
+					<h3 className="mb-4 text-lg font-bold">
+						{isEditMode ? '予定を編集' : '予定を追加'}
+					</h3>
 
-				<form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-					<ScheduleFormFields
-						register={register}
-						errors={errors}
-						serviceTypeOptions={serviceTypeOptions}
-					/>
+					<form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+						<ScheduleFormFields
+							register={register}
+							errors={errors}
+							serviceTypeOptions={serviceTypeOptions}
+						/>
 
-					<div className="modal-action">
-						<button type="button" className="btn btn-ghost" onClick={onClose}>
-							キャンセル
-						</button>
-						<button
-							type="submit"
-							className="btn btn-primary"
-							disabled={isSubmitting}
-						>
-							反映
-						</button>
-					</div>
-				</form>
+						{/* 担当者選択 */}
+						<div className="form-control">
+							<label className="label">
+								<span className="label-text">担当者</span>
+							</label>
+							<button
+								type="button"
+								className="btn w-full btn-outline"
+								onClick={() => setIsStaffPickerOpen(true)}
+							>
+								{selectedStaffName}
+							</button>
+						</div>
+
+						<div className="modal-action">
+							<button type="button" className="btn btn-ghost" onClick={onClose}>
+								キャンセル
+							</button>
+							<button
+								type="submit"
+								className="btn btn-primary"
+								disabled={isSubmitting}
+							>
+								反映
+							</button>
+						</div>
+					</form>
+				</div>
+
+				<div
+					className="modal-backdrop"
+					onClick={onClose}
+					onKeyDown={(e) => e.key === 'Escape' && onClose()}
+					role="presentation"
+				/>
 			</div>
 
-			<div
-				className="modal-backdrop"
-				onClick={onClose}
-				onKeyDown={(e) => e.key === 'Escape' && onClose()}
-				role="presentation"
+			<StaffPickerDialog
+				isOpen={isStaffPickerOpen}
+				staffOptions={staffOptions}
+				selectedStaffId={selectedStaffId}
+				onClose={() => setIsStaffPickerOpen(false)}
+				onSelect={handleStaffSelect}
+				onClear={handleClearStaff}
 			/>
-		</div>
+		</>
 	);
 };

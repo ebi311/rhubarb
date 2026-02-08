@@ -8,6 +8,7 @@ import { DayColumn } from '../DayColumn';
 import {
 	ScheduleEditFormModal,
 	type ServiceTypeOption,
+	type StaffPickerOption,
 } from '../ScheduleEditFormModal';
 import { createInitialState, editorReducer } from './editorReducer';
 import type { InitialScheduleData, ScheduleData } from './types';
@@ -17,6 +18,7 @@ export interface ClientWeeklyScheduleEditorProps {
 	clientName: string;
 	initialSchedules: InitialScheduleData[];
 	serviceTypeOptions: ServiceTypeOption[];
+	staffOptions: StaffPickerOption[];
 	onSave: (operations: BatchSaveOperations) => Promise<void>;
 }
 
@@ -31,6 +33,7 @@ export const ClientWeeklyScheduleEditor = ({
 	clientName,
 	initialSchedules,
 	serviceTypeOptions,
+	staffOptions,
 	onSave,
 }: ClientWeeklyScheduleEditorProps) => {
 	const [state, dispatch] = useReducer(
@@ -186,6 +189,7 @@ export const ClientWeeklyScheduleEditor = ({
 				isOpen={state.isFormOpen}
 				weekday={selectedSchedule?.data.weekday ?? formWeekday}
 				serviceTypeOptions={serviceTypeOptions}
+				staffOptions={staffOptions}
 				initialData={selectedSchedule?.data}
 				onClose={handleCloseForm}
 				onSubmit={handleFormSubmit}

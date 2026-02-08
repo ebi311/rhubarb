@@ -1,6 +1,6 @@
 import { batchSaveBasicSchedulesAction } from '@/app/actions/basicSchedules';
 import { getServiceUserByIdAction } from '@/app/actions/serviceUsers';
-import { listServiceTypesAction } from '@/app/actions/staffs';
+import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { BasicScheduleInput } from '@/models/basicScheduleActionSchemas';
 import Link from 'next/link';
@@ -27,9 +27,10 @@ const safeData = <T,>(label: string, result: ActionResult<T[]>): T[] => {
 };
 
 const fetchPageData = async (clientId: string) => {
-	const [clientResult, serviceTypesResult] = await Promise.all([
+	const [clientResult, serviceTypesResult, staffsResult] = await Promise.all([
 		getServiceUserByIdAction(clientId),
 		listServiceTypesAction(),
+		listStaffsAction(),
 	]);
 
 	if (clientResult.error || !clientResult.data) {
@@ -39,6 +40,7 @@ const fetchPageData = async (clientId: string) => {
 	return {
 		client: clientResult.data,
 		serviceTypes: safeData('service types', serviceTypesResult),
+		staffs: safeData('staffs', staffsResult),
 	};
 };
 
@@ -52,11 +54,19 @@ const ClientNewSchedulePage = async ({
 		notFound();
 	}
 
-	const { client, serviceTypes } = pageData;
+	const { client, serviceTypes, staffs } = pageData;
 
 	const serviceTypeOptions = serviceTypes.map((st) => ({
 		id: st.id,
 		name: st.name,
+	}));
+
+	const staffOptions = staffs.map((s) => ({
+		id: s.id,
+		name: s.name,
+		role: s.role,
+		serviceTypeIds: s.service_type_ids,
+		note: s.note,
 	}));
 
 	const handleSave = async (operations: BatchSaveOperations) => {
@@ -114,6 +124,7 @@ const ClientNewSchedulePage = async ({
 				clientName={client.name}
 				initialSchedules={[]}
 				serviceTypeOptions={serviceTypeOptions}
+				staffOptions={staffOptions}
 				onSave={handleSave}
 			/>
 		</div>

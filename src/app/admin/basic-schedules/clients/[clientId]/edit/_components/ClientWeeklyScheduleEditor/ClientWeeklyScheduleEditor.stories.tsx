@@ -29,6 +29,21 @@ const serviceTypeOptions = [
 	{ id: 'commute-support' as ServiceTypeId, name: '通院サポート' },
 ];
 
+const staffOptions = [
+	{
+		id: 'staff-1',
+		name: '田中太郎',
+		role: 'helper' as const,
+		serviceTypeIds: ['physical-care', 'life-support'] as ServiceTypeId[],
+	},
+	{
+		id: 'staff-2',
+		name: '佐藤花子',
+		role: 'admin' as const,
+		serviceTypeIds: ['life-support'] as ServiceTypeId[],
+	},
+];
+
 const meta: Meta<typeof ClientWeeklyScheduleEditor> = {
 	title: 'Admin/BasicSchedules/ClientWeeklyScheduleEditor',
 	component: ClientWeeklyScheduleEditor,
@@ -40,6 +55,7 @@ const meta: Meta<typeof ClientWeeklyScheduleEditor> = {
 		clientId: 'client-1',
 		clientName: '山田太郎',
 		serviceTypeOptions,
+		staffOptions,
 		onSave: fn(),
 	},
 };

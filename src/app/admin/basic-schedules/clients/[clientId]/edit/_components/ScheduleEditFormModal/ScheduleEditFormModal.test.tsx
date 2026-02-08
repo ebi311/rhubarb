@@ -3,7 +3,23 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ScheduleData } from '../ClientWeeklyScheduleEditor/types';
+import type { StaffPickerOption } from './ScheduleEditFormModal';
 import { ScheduleEditFormModal } from './ScheduleEditFormModal';
+
+const staffOptions: StaffPickerOption[] = [
+	{
+		id: 'staff-1',
+		name: '山田太郎',
+		role: 'helper',
+		serviceTypeIds: ['life-support', 'physical-care'] as ServiceTypeId[],
+	},
+	{
+		id: 'staff-2',
+		name: '佐藤花子',
+		role: 'admin',
+		serviceTypeIds: ['life-support'] as ServiceTypeId[],
+	},
+];
 
 // 最小限のprops
 const defaultProps = {
@@ -14,6 +30,7 @@ const defaultProps = {
 		{ id: 'physical-care' as ServiceTypeId, name: '身体介護' },
 		{ id: 'commute-support' as ServiceTypeId, name: '通院サポート' },
 	],
+	staffOptions,
 	onClose: vi.fn(),
 	onSubmit: vi.fn(),
 };
@@ -139,6 +156,85 @@ describe('ScheduleEditFormModal', () => {
 			expect(screen.getByLabelText('開始時刻')).toHaveValue('14:30');
 			expect(screen.getByLabelText('終了時刻')).toHaveValue('16:00');
 			expect(screen.getByLabelText('備考')).toHaveValue('テストメモ');
+		});
+
+		it('初期担当者が選択されている', () => {
+			render(
+				<ScheduleEditFormModal {...defaultProps} initialData={initialData} />,
+			);
+
+			// 担当者名が表示されている
+			expect(screen.getByText('山田太郎')).toBeInTheDocument();
+		});
+	});
+
+	describe('担当者選択', () => {
+		it('担当者を選択ボタンが表示される', () => {
+			render(<ScheduleEditFormModal {...defaultProps} />);
+
+			// 未選択状態のボタンが表示
+			expect(screen.getByText('未選択')).toBeInTheDocument();
+		});
+
+		it('担当者を選択ボタンをクリックするとダイアログが開く', async () => {
+			const user = userEvent.setup();
+			render(<ScheduleEditFormModal {...defaultProps} />);
+
+			await user.click(screen.getByText('未選択'));
+
+			// ダイアログが開く（タイトルが表示される）
+			expect(screen.getByText('担当者を選択')).toBeInTheDocument();
+		});
+
+		it('担当者を選択すると名前がボタンに表示される', async () => {
+			const user = userEvent.setup();
+			render(<ScheduleEditFormModal {...defaultProps} />);
+
+			await user.click(screen.getByText('未選択'));
+			// テーブルから担当者を選択
+			await user.click(screen.getByText('山田太郎'));
+			// 確定ボタンをクリック
+			await user.click(screen.getByRole('button', { name: '確定する' }));
+
+			// ダイアログが閉じ、担当者名が表示される
+			await waitFor(() => {
+				// 担当者セクションのボタンに名前が表示される
+				expect(
+					screen.getByRole('button', { name: '山田太郎' }),
+				).toBeInTheDocument();
+			});
+		});
+
+		it('選択した担当者がonSubmitに含まれる', async () => {
+			const user = userEvent.setup();
+			const onSubmit = vi.fn();
+			render(<ScheduleEditFormModal {...defaultProps} onSubmit={onSubmit} />);
+
+			// フォーム入力
+			await user.selectOptions(
+				screen.getByLabelText('サービス区分'),
+				'life-support',
+			);
+			await user.clear(screen.getByLabelText('開始時刻'));
+			await user.type(screen.getByLabelText('開始時刻'), '09:00');
+			await user.clear(screen.getByLabelText('終了時刻'));
+			await user.type(screen.getByLabelText('終了時刻'), '10:00');
+
+			// 担当者を選択
+			await user.click(screen.getByText('未選択'));
+			await user.click(screen.getByText('山田太郎'));
+			await user.click(screen.getByRole('button', { name: '確定する' }));
+
+			await user.click(screen.getByRole('button', { name: '反映' }));
+
+			await waitFor(() => {
+				expect(onSubmit).toHaveBeenCalledWith(
+					expect.objectContaining({
+						staffIds: ['staff-1'],
+						staffNames: ['山田太郎'],
+					}),
+				);
+			});
 		});
 	});
 });

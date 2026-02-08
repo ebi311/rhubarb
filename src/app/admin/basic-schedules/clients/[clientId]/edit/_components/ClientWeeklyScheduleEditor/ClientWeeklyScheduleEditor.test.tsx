@@ -33,6 +33,20 @@ const defaultProps = {
 		{ id: 'life-support' as ServiceTypeId, name: '生活支援' },
 		{ id: 'commute-support' as ServiceTypeId, name: '通院サポート' },
 	],
+	staffOptions: [
+		{
+			id: 'staff-1',
+			name: '田中太郎',
+			role: 'helper' as const,
+			serviceTypeIds: ['physical-care', 'life-support'] as ServiceTypeId[],
+		},
+		{
+			id: 'staff-2',
+			name: '佐藤花子',
+			role: 'admin' as const,
+			serviceTypeIds: ['life-support'] as ServiceTypeId[],
+		},
+	],
 	onSave: vi.fn(),
 };
 
