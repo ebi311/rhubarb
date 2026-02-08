@@ -47,6 +47,7 @@ export const BasicScheduleGrid = ({ schedules }: BasicScheduleGridProps) => {
 								href={`/admin/basic-schedules/clients/${schedule.clientId}/edit`}
 								className="btn btn-ghost btn-xs"
 								title="一括編集"
+								aria-label="一括編集"
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
