@@ -60,7 +60,7 @@ export const ClientModal = (props: ClientModalProps) => {
 		if (mode === 'edit' && client) {
 			reset({
 				name: client.name,
-				address: client.address,
+				address: client.address ?? '',
 				contract_status: client.contract_status,
 			});
 		} else {
