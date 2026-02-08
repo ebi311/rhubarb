@@ -69,7 +69,9 @@ const ClientNewSchedulePage = async ({
 		note: s.note,
 	}));
 
-	const handleSave = async (operations: BatchSaveOperations) => {
+	const handleSave = async (
+		operations: BatchSaveOperations,
+	): Promise<ActionResult<unknown>> => {
 		'use server';
 
 		const apiOperations = {
@@ -101,10 +103,13 @@ const ClientNewSchedulePage = async ({
 
 		const result = await batchSaveBasicSchedulesAction(clientId, apiOperations);
 
+		// エラー（部分失敗含む）の場合は結果をそのまま返して
+		// クライアント側で details を含めたハンドリングを行う
 		if (result.error) {
-			throw new Error(result.error);
+			return result;
 		}
 
+		// 正常完了時のみ一覧画面へリダイレクト
 		redirect('/admin/basic-schedules');
 	};
 

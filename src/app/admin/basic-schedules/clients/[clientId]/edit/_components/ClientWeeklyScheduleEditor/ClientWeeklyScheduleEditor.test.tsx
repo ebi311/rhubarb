@@ -2,9 +2,19 @@ import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClientWeeklyScheduleEditor } from './ClientWeeklyScheduleEditor';
 import type { InitialScheduleData } from './types';
+
+const toastSuccess = vi.fn();
+const toastError = vi.fn();
+
+vi.mock('react-toastify', () => ({
+	toast: {
+		success: (...args: unknown[]) => toastSuccess(...args),
+		error: (...args: unknown[]) => toastError(...args),
+	},
+}));
 
 const createTestSchedule = (
 	id: string,
@@ -51,6 +61,11 @@ const defaultProps = {
 };
 
 describe('ClientWeeklyScheduleEditor', () => {
+	beforeEach(() => {
+		toastSuccess.mockClear();
+		toastError.mockClear();
+	});
+
 	describe('レンダリング', () => {
 		it('利用者名と7日分の曜日列が表示される', () => {
 			render(<ClientWeeklyScheduleEditor {...defaultProps} />);
@@ -167,7 +182,11 @@ describe('ClientWeeklyScheduleEditor', () => {
 	describe('保存', () => {
 		it('登録ボタンをクリックするとonSaveが呼ばれる', async () => {
 			const user = userEvent.setup();
-			const onSave = vi.fn().mockResolvedValue(undefined);
+			const onSave = vi.fn().mockResolvedValue({
+				data: null,
+				error: null,
+				status: 200,
+			});
 			const initialSchedules = [createTestSchedule('schedule-1', 'Mon')];
 
 			render(
@@ -181,6 +200,75 @@ describe('ClientWeeklyScheduleEditor', () => {
 			await user.click(screen.getByRole('button', { name: '登録する' }));
 
 			expect(onSave).toHaveBeenCalled();
+		});
+
+		it('部分失敗時に成功件数と各エラー詳細がトースト表示される', async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn().mockResolvedValue({
+				data: null,
+				error: '一部の操作が失敗しました',
+				status: 207,
+				details: {
+					partialResult: { created: 1, updated: 0, deleted: 0 },
+					errors: [
+						{
+							type: 'update',
+							id: 'schedule-1',
+							message: '該当データが存在しません',
+						},
+						{ type: 'delete', id: 'schedule-2', message: '削除に失敗しました' },
+					],
+				},
+			});
+			const initialSchedules = [createTestSchedule('schedule-1', 'Mon')];
+
+			render(
+				<ClientWeeklyScheduleEditor
+					{...defaultProps}
+					initialSchedules={initialSchedules}
+					onSave={onSave}
+				/>,
+			);
+
+			await user.click(screen.getByRole('button', { name: '登録する' }));
+
+			await waitFor(() => {
+				// 成功件数のトースト
+				expect(toastSuccess).toHaveBeenCalledWith(
+					'1件保存しました（一部失敗）',
+				);
+			});
+			// 各エラーの詳細トースト
+			expect(toastError).toHaveBeenCalledWith(
+				'update操作失敗: 該当データが存在しません',
+			);
+			expect(toastError).toHaveBeenCalledWith(
+				'delete操作失敗: 削除に失敗しました',
+			);
+		});
+
+		it('通常エラー時にエラーメッセージがトースト表示される', async () => {
+			const user = userEvent.setup();
+			const onSave = vi.fn().mockResolvedValue({
+				data: null,
+				error: 'サーバーエラーが発生しました',
+				status: 500,
+			});
+			const initialSchedules = [createTestSchedule('schedule-1', 'Mon')];
+
+			render(
+				<ClientWeeklyScheduleEditor
+					{...defaultProps}
+					initialSchedules={initialSchedules}
+					onSave={onSave}
+				/>,
+			);
+
+			await user.click(screen.getByRole('button', { name: '登録する' }));
+
+			await waitFor(() => {
+				expect(toastError).toHaveBeenCalledWith('サーバーエラーが発生しました');
+			});
 		});
 	});
 });

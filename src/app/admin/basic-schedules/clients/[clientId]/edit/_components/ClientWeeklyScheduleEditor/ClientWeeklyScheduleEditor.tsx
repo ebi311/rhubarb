@@ -1,9 +1,12 @@
 'use client';
 
+import type { ActionResult } from '@/app/actions/utils/actionResult';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { toast } from 'react-toastify';
 import { DayColumn } from '../DayColumn';
 import {
 	ScheduleEditFormModal,
@@ -19,7 +22,7 @@ export interface ClientWeeklyScheduleEditorProps {
 	initialSchedules: InitialScheduleData[];
 	serviceTypeOptions: ServiceTypeOption[];
 	staffOptions: StaffPickerOption[];
-	onSave: (operations: BatchSaveOperations) => Promise<void>;
+	onSave: (operations: BatchSaveOperations) => Promise<ActionResult<unknown>>;
 }
 
 export interface BatchSaveOperations {
@@ -36,6 +39,7 @@ export const ClientWeeklyScheduleEditor = ({
 	staffOptions,
 	onSave,
 }: ClientWeeklyScheduleEditorProps) => {
+	const { handleActionResult } = useActionResultHandler();
 	const [state, dispatch] = useReducer(
 		editorReducer,
 		{ clientId, clientName },
@@ -133,23 +137,52 @@ export const ClientWeeklyScheduleEditor = ({
 	const handleSave = async () => {
 		dispatch({ type: 'SET_SAVING', payload: true });
 
-		try {
-			const operations: BatchSaveOperations = {
-				create: state.schedules
-					.filter((s) => s.status === 'new')
-					.map((s) => s.data),
-				update: state.schedules
-					.filter((s) => s.status === 'modified' && s.originalId)
-					.map((s) => ({ id: s.originalId!, data: s.data })),
-				delete: state.schedules
-					.filter((s) => s.status === 'deleted' && s.originalId)
-					.map((s) => s.originalId!),
-			};
+		const operations: BatchSaveOperations = {
+			create: state.schedules
+				.filter((s) => s.status === 'new')
+				.map((s) => s.data),
+			update: state.schedules
+				.filter((s) => s.status === 'modified' && s.originalId)
+				.map((s) => ({ id: s.originalId!, data: s.data })),
+			delete: state.schedules
+				.filter((s) => s.status === 'deleted' && s.originalId)
+				.map((s) => s.originalId!),
+		};
 
-			await onSave(operations);
-		} finally {
-			dispatch({ type: 'SET_SAVING', payload: false });
+		const result = await onSave(operations);
+
+		// エラー（部分失敗含む）の場合はトースト表示
+		if (result.error) {
+			// 部分失敗の場合、詳細情報も表示
+			if (result.status === 207 && result.details) {
+				const { errors, partialResult } = result.details as {
+					errors?: Array<{ type: string; id: string; message: string }>;
+					partialResult?: { created: number; updated: number; deleted: number };
+				};
+				// 成功した操作があれば表示
+				if (partialResult) {
+					const successCount =
+						partialResult.created +
+						partialResult.updated +
+						partialResult.deleted;
+					if (successCount > 0) {
+						handleActionResult(
+							{ data: null, error: null, status: 200 },
+							{ successMessage: `${successCount}件保存しました（一部失敗）` },
+						);
+					}
+				}
+				// エラーの詳細をトースト表示
+				errors?.forEach((err) => {
+					toast.error(`${err.type}操作失敗: ${err.message}`);
+				});
+			} else {
+				handleActionResult(result);
+			}
 		}
+		// 正常時は Server Action 側でリダイレクトされる
+
+		dispatch({ type: 'SET_SAVING', payload: false });
 	};
 
 	return (
