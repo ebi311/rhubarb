@@ -34,7 +34,10 @@ import { useStaffSelection } from './useStaffSelection';
 
 const BasicScheduleFormSchema = z
 	.object({
-		clientId: z.uuid({ error: '利用者を選択してください' }),
+		clientId: z
+			.uuid({ error: '利用者を選択してください' })
+			.or(z.literal('new')),
+		newClientName: z.string().optional(),
 		serviceTypeId: ServiceTypeIdSchema.or(z.literal('')),
 		weekday: WeekdaySchema,
 		startTime: z
@@ -55,6 +58,23 @@ const BasicScheduleFormSchema = z
 			.optional(),
 	})
 	.superRefine((values, ctx) => {
+		// 新規利用者選択時は氏名必須
+		if (values.clientId === 'new') {
+			const name = values.newClientName?.trim();
+			if (!name) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['newClientName'],
+					message: '新規利用者の氏名を入力してください',
+				});
+			} else if (name.length > 100) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['newClientName'],
+					message: '氏名は100文字以内で入力してください',
+				});
+			}
+		}
 		if (!values.serviceTypeId) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
@@ -81,6 +101,7 @@ export type BasicScheduleFormInitialValues = Partial<
 	Pick<
 		BasicScheduleFormValues,
 		| 'clientId'
+		| 'newClientName'
 		| 'serviceTypeId'
 		| 'weekday'
 		| 'startTime'
@@ -103,6 +124,7 @@ export type BasicScheduleFormProps = {
 
 const DEFAULT_FORM_VALUES: BasicScheduleFormValues = {
 	clientId: '',
+	newClientName: '',
 	serviceTypeId: '',
 	weekday: 'Mon',
 	startTime: '',
@@ -116,6 +138,7 @@ const buildDefaultValues = (
 ): BasicScheduleFormValues => ({
 	...DEFAULT_FORM_VALUES,
 	...initialValues,
+	newClientName: initialValues?.newClientName ?? '',
 	note: initialValues?.note ?? '',
 	staffId: initialValues?.staffId ?? null,
 });

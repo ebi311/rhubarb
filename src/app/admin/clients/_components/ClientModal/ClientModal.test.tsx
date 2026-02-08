@@ -103,21 +103,13 @@ describe('ClientModal', () => {
 		const submitButton = screen.getByRole('button', { name: '登録' });
 		expect(submitButton).toBeDisabled();
 
-		// 氏名のみ入力（住所が空）
+		// 氏名を入力（住所は optional なので空でもOK）
 		const nameInput = screen.getByRole('textbox', { name: /氏名/ });
-		const addressInput = screen.getByRole('textbox', { name: /住所/ });
 
 		await user.type(nameInput, 'テスト太郎');
-		await user.click(addressInput); // バリデーションをトリガー
+		await user.tab(); // バリデーションをトリガー
 
-		// まだ住所が空なのでボタンは無効
-		expect(submitButton).toBeDisabled();
-
-		// 住所も入力
-		await user.type(addressInput, '東京都テスト区1-1-1');
-		await user.click(nameInput); // バリデーションをトリガー
-
-		// すべて入力したのでボタンが有効
+		// 氏名が入力されたのでボタンが有効
 		await waitFor(() => {
 			expect(submitButton).toBeEnabled();
 		});
@@ -146,14 +138,8 @@ describe('ClientModal', () => {
 			expect(screen.getByText('氏名は必須です')).toBeInTheDocument();
 		});
 
-		// 住所フィールドにフォーカスして離れる
-		await user.click(addressInput);
-		await user.click(nameInput);
-
-		// 住所のエラーメッセージが表示される
-		await waitFor(() => {
-			expect(screen.getByText('住所は必須です')).toBeInTheDocument();
-		});
+		// 住所は optional なのでエラーは表示されない
+		expect(screen.queryByText('住所は必須です')).not.toBeInTheDocument();
 	});
 
 	it('空白のみの入力の場合、エラーメッセージが表示される', async () => {
@@ -180,7 +166,7 @@ describe('ClientModal', () => {
 			).toBeInTheDocument();
 		});
 
-		// 住所に空白のみ入力
+		// 住所に空白のみ入力した場合も空白エラーが表示される
 		await user.type(addressInput, '   ');
 		await user.click(nameInput);
 
@@ -204,12 +190,9 @@ describe('ClientModal', () => {
 		);
 
 		const nameInput = screen.getByRole('textbox', { name: /氏名/ });
-		const addressInput = screen.getByRole('textbox', { name: /住所/ });
 
 		await user.type(nameInput, 'テスト太郎');
-		await user.click(addressInput); // バリデーションをトリガー
-		await user.type(addressInput, '東京都テスト区1-1-1');
-		await user.click(nameInput); // バリデーションをトリガー
+		await user.tab(); // バリデーションをトリガー
 
 		// ボタンが有効になるのを待つ
 		const submitButton = screen.getByRole('button', { name: '登録' });
@@ -222,7 +205,7 @@ describe('ClientModal', () => {
 		await waitFor(() => {
 			expect(handleSubmit).toHaveBeenCalledWith({
 				name: 'テスト太郎',
-				address: '東京都テスト区1-1-1',
+				address: '',
 			});
 		});
 	});
