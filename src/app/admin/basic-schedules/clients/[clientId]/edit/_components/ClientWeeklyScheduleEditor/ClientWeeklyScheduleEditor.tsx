@@ -1,15 +1,17 @@
 'use client';
 
+import {
+	BasicScheduleForm,
+	type BasicScheduleCallbackData,
+} from '@/app/admin/basic-schedules/_components/BasicScheduleForm';
+import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import { useBeforeUnload } from '@/hooks/useBeforeUnload';
+import type { StaffRecord } from '@/models/staffActionSchemas';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
+import { timeObjectToString } from '@/utils/date';
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { DayColumn } from '../DayColumn';
-import {
-	ScheduleEditFormModal,
-	type ServiceTypeOption,
-	type StaffPickerOption,
-} from '../ScheduleEditFormModal';
 import { createInitialState, editorReducer } from './editorReducer';
 import type { InitialScheduleData, ScheduleData } from './types';
 
@@ -18,7 +20,7 @@ export interface ClientWeeklyScheduleEditorProps {
 	clientName: string;
 	initialSchedules: InitialScheduleData[];
 	serviceTypeOptions: ServiceTypeOption[];
-	staffOptions: StaffPickerOption[];
+	staffs: StaffRecord[];
 	onSave: (operations: BatchSaveOperations) => Promise<void>;
 }
 
@@ -33,7 +35,7 @@ export const ClientWeeklyScheduleEditor = ({
 	clientName,
 	initialSchedules,
 	serviceTypeOptions,
-	staffOptions,
+	staffs,
 	onSave,
 }: ClientWeeklyScheduleEditorProps) => {
 	const [state, dispatch] = useReducer(
@@ -114,9 +116,24 @@ export const ClientWeeklyScheduleEditor = ({
 		dispatch({ type: 'CLOSE_FORM' });
 	}, []);
 
-	// フォーム送信ハンドラ
+	// フォーム送信ハンドラ: BasicScheduleCallbackData を ScheduleData に変換
 	const handleFormSubmit = useCallback(
-		(data: ScheduleData) => {
+		(callbackData: BasicScheduleCallbackData) => {
+			// スタッフ名を取得
+			const staffNames = callbackData.staffIds
+				.map((id) => staffs.find((s) => s.id === id)?.name)
+				.filter((name): name is string => !!name);
+
+			const data: ScheduleData = {
+				weekday: callbackData.weekday,
+				serviceTypeId: callbackData.serviceTypeId,
+				staffIds: callbackData.staffIds,
+				staffNames,
+				startTime: callbackData.startTime,
+				endTime: callbackData.endTime,
+				note: callbackData.note,
+			};
+
 			if (state.selectedScheduleId) {
 				dispatch({
 					type: 'UPDATE_SCHEDULE',
@@ -125,8 +142,9 @@ export const ClientWeeklyScheduleEditor = ({
 			} else {
 				dispatch({ type: 'ADD_SCHEDULE', payload: data });
 			}
+			dispatch({ type: 'CLOSE_FORM' });
 		},
-		[state.selectedScheduleId],
+		[state.selectedScheduleId, staffs],
 	);
 
 	// 保存ボタンハンドラ
@@ -151,6 +169,41 @@ export const ClientWeeklyScheduleEditor = ({
 			dispatch({ type: 'SET_SAVING', payload: false });
 		}
 	};
+
+	// モーダル用の初期値を作成
+	const formInitialValues = useMemo(() => {
+		if (!selectedSchedule) {
+			return {
+				weekday: formWeekday,
+			};
+		}
+		return {
+			serviceTypeId: selectedSchedule.data.serviceTypeId,
+			weekday: selectedSchedule.data.weekday,
+			startTime: timeObjectToString(selectedSchedule.data.startTime),
+			endTime: timeObjectToString(selectedSchedule.data.endTime),
+			note: selectedSchedule.data.note ?? '',
+			staffId: selectedSchedule.data.staffIds[0] ?? null,
+		};
+	}, [selectedSchedule, formWeekday]);
+
+	const isEditMode = !!selectedSchedule;
+	const currentWeekday = selectedSchedule?.data.weekday ?? formWeekday;
+
+	// fixedClientId 用に serviceUsers を作成（clientId と clientName のみ）
+	const serviceUsers = useMemo(
+		() => [
+			{
+				id: clientId,
+				name: clientName,
+				office_id: '',
+				contract_status: 'active' as const,
+				created_at: new Date(),
+				updated_at: new Date(),
+			},
+		],
+		[clientId, clientName],
+	);
 
 	return (
 		<div className="space-y-4">
@@ -185,15 +238,35 @@ export const ClientWeeklyScheduleEditor = ({
 			</div>
 
 			{/* 編集モーダル */}
-			<ScheduleEditFormModal
-				isOpen={state.isFormOpen}
-				weekday={selectedSchedule?.data.weekday ?? formWeekday}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
-				initialData={selectedSchedule?.data}
-				onClose={handleCloseForm}
-				onSubmit={handleFormSubmit}
-			/>
+			{state.isFormOpen && (
+				<dialog
+					className="modal-open modal"
+					open
+					aria-modal="true"
+					onClose={handleCloseForm}
+				>
+					<div className="modal-box max-w-lg">
+						<h3 className="mb-4 text-lg font-bold">
+							{isEditMode ? '予定を編集' : '予定を追加'}
+						</h3>
+						<BasicScheduleForm
+							serviceUsers={serviceUsers}
+							serviceTypes={serviceTypeOptions}
+							staffs={staffs}
+							initialValues={formInitialValues}
+							mode={isEditMode ? 'edit' : 'create'}
+							fixedClientId={clientId}
+							fixedWeekday={currentWeekday}
+							onCancel={handleCloseForm}
+							onFormSubmit={handleFormSubmit}
+							asModal
+						/>
+					</div>
+					<form method="dialog" className="modal-backdrop">
+						<button aria-label="モーダルを閉じる">close</button>
+					</form>
+				</dialog>
+			)}
 		</div>
 	);
 };

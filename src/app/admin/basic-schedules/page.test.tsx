@@ -1,9 +1,14 @@
+import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import { render, screen } from '@testing-library/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fetchModule from './fetchFilterOptions';
 
 // モック設定
+vi.mock('@/app/actions/staffs', () => ({
+	listServiceTypesAction: vi.fn(),
+	listStaffsAction: vi.fn(),
+}));
 vi.mock('../../_components/Header/context', () => ({
 	PageTitle: ({ title }: { title: string }) => <h1>{title}</h1>,
 }));
@@ -16,6 +21,40 @@ vi.mock('next/navigation');
 const { default: BasicScheduleListPage } = await import('./page');
 
 beforeEach(() => {
+	vi.mocked(listServiceTypesAction).mockResolvedValue({
+		data: [
+			{
+				id: 'physical-care',
+				name: '身体介護',
+			},
+			{
+				id: 'life-support',
+				name: '生活支援',
+			},
+			{
+				id: 'commute-support',
+				name: '通院サポート',
+			},
+		],
+	} as any);
+	vi.mocked(listStaffsAction).mockResolvedValue({
+		data: [
+			{
+				id: 'staff-1',
+				name: 'スタッフA',
+				role: 'helper',
+				service_type_ids: ['physical-care', 'life-support'],
+				note: '',
+			},
+			{
+				id: 'staff-2',
+				name: 'スタッフB',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+				note: '',
+			},
+		],
+	} as any);
 	vi.mocked(fetchModule.fetchFilterOptions).mockResolvedValue({
 		clients: [],
 		serviceTypes: [],

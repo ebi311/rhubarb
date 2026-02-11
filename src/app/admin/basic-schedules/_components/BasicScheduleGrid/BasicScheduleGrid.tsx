@@ -1,13 +1,22 @@
+import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
+import type { StaffRecord } from '@/models/staffActionSchemas';
 import { WEEKDAYS, WEEKDAY_FULL_LABELS } from '@/models/valueObjects/dayOfWeek';
 import Link from 'next/link';
 import React from 'react';
+import { AddButton } from './AddButton';
 import type { BasicScheduleCell, BasicScheduleGridViewModel } from './types';
 
 interface BasicScheduleGridProps {
 	schedules: BasicScheduleGridViewModel[];
+	serviceTypes: ServiceTypeOption[];
+	staffs: StaffRecord[];
 }
 
-export const BasicScheduleGrid = ({ schedules }: BasicScheduleGridProps) => {
+export const BasicScheduleGrid = ({
+	schedules,
+	serviceTypes,
+	staffs,
+}: BasicScheduleGridProps) => {
 	if (schedules.length === 0) {
 		return (
 			<div className="flex min-h-[400px] items-center justify-center rounded-lg border border-base-300 bg-base-100 p-8">
@@ -72,16 +81,34 @@ export const BasicScheduleGrid = ({ schedules }: BasicScheduleGridProps) => {
 							return (
 								<div
 									key={`${schedule.clientId}-${day}`}
-									className="bg-base-100 p-2"
+									className="group flex flex-col items-center justify-start gap-1 bg-base-100 p-2"
 								>
 									{cells && cells.length > 0 ? (
-										<div className="flex flex-col gap-2">
-											{cells.map((cell) => (
-												<ScheduleCell key={cell.id} cell={cell} />
-											))}
-										</div>
+										<>
+											<div className="flex flex-col gap-2">
+												{cells.map((cell) => (
+													<ScheduleCell key={cell.id} cell={cell} />
+												))}
+											</div>
+											<AddButton
+												weekday={day}
+												serviceTypes={serviceTypes}
+												staffs={staffs}
+												clientId={schedule.clientId}
+												clientName={schedule.clientName}
+											/>
+										</>
 									) : (
-										<div className="min-h-[60px] rounded bg-base-200/50" />
+										<>
+											<AddButton
+												weekday={day}
+												serviceTypes={serviceTypes}
+												staffs={staffs}
+												clientId={schedule.clientId}
+												clientName={schedule.clientName}
+											/>
+											<div className="min-h-[60px] rounded bg-base-200/50" />
+										</>
 									)}
 								</div>
 							);

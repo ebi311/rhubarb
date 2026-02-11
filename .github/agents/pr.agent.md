@@ -10,7 +10,7 @@ tools:
     'web',
     'ms-vscode.vscode-websearchforcopilot/websearch',
   ]
-model: Claude Opus 4.5 (copilot)
+model: GPT-5 mini (copilot)
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。

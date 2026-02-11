@@ -5,6 +5,7 @@ import {
 import { createQuickServiceUserAction } from '@/app/actions/serviceUsers';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
+import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import type { TimeValue } from '@/models/valueObjects/time';
 import { useRouter } from 'next/navigation';
@@ -18,6 +19,18 @@ import type {
 import { parseTimeString, sanitizeNote } from './helpers';
 import { MODE_CONFIG } from './modeConfig';
 
+/**
+ * コールバックモードで返されるスケジュールデータ
+ */
+export type BasicScheduleCallbackData = {
+	weekday: DayOfWeek;
+	serviceTypeId: ServiceTypeId;
+	staffIds: string[];
+	startTime: TimeValue;
+	endTime: TimeValue;
+	note: string | null;
+};
+
 type UseBasicScheduleFormSubmitParams = {
 	mode: BasicScheduleFormMode;
 	scheduleId?: string;
@@ -25,6 +38,12 @@ type UseBasicScheduleFormSubmitParams = {
 	reset: UseFormReset<BasicScheduleFormValues>;
 	onCreated?: (schedule: BasicScheduleRecord) => void;
 	closeStaffPicker: () => void;
+	/** ServerAction 成功後のコールバック（リダイレクトの代わりに呼び出される） */
+	onSubmitSuccess?: () => void;
+	/** コールバックモード: Server Action を呼び出さず、バリデーション後にデータを返す */
+	onFormSubmit?: (data: BasicScheduleCallbackData) => void;
+	/** コールバックモード用: weekday の固定値 */
+	fixedWeekday?: DayOfWeek;
 };
 
 const buildDefaultValues = (
@@ -77,29 +96,71 @@ const createNewClientIfNeeded = async (
 		return { success: true, clientId: values.clientId };
 	}
 
-	if (!values.newClientName?.trim()) {
+	const name = values.newClientName?.trim();
+	if (!name) {
 		return { success: false, error: '新規利用者の氏名を入力してください' };
 	}
 
-	const result = await createQuickServiceUserAction(
-		values.newClientName.trim(),
-	);
-	if (result.error || !result.data) {
-		return {
-			success: false,
-			error: result.error ?? '利用者の作成に失敗しました',
-		};
-	}
-	return { success: true, clientId: result.data.id };
+	const result = await createQuickServiceUserAction(name);
+	return result.error || !result.data
+		? { success: false, error: result.error ?? '利用者の作成に失敗しました' }
+		: { success: true, clientId: result.data.id };
 };
+
+const buildCallbackData = (
+	values: BasicScheduleFormValues,
+	validation: {
+		start: TimeValue;
+		end: TimeValue;
+		serviceTypeId: ServiceTypeId;
+	},
+	fixedWeekday?: DayOfWeek,
+): BasicScheduleCallbackData => ({
+	weekday: fixedWeekday ?? values.weekday,
+	serviceTypeId: validation.serviceTypeId,
+	staffIds: values.staffId ? [values.staffId] : [],
+	startTime: validation.start,
+	endTime: validation.end,
+	note: sanitizeNote(values.note),
+});
+
+const buildPayload = (
+	values: BasicScheduleFormValues,
+	clientId: string,
+	validation: {
+		start: TimeValue;
+		end: TimeValue;
+		serviceTypeId: ServiceTypeId;
+	},
+) => ({
+	client_id: clientId,
+	service_type_id: validation.serviceTypeId,
+	weekday: values.weekday,
+	start_time: validation.start,
+	end_time: validation.end,
+	staff_ids: values.staffId ? [values.staffId] : [],
+	note: sanitizeNote(values.note),
+});
+
+const executeAction = async (
+	mode: BasicScheduleFormMode,
+	scheduleId: string | undefined,
+	payload: ReturnType<typeof buildPayload>,
+) =>
+	mode === 'edit' && scheduleId
+		? updateBasicScheduleAction(scheduleId, payload)
+		: createBasicScheduleAction(payload);
 
 export const useBasicScheduleFormSubmit = ({
 	mode,
 	scheduleId,
+	fixedWeekday,
 	initialValues,
 	reset,
 	onCreated,
 	closeStaffPicker,
+	onSubmitSuccess,
+	onFormSubmit,
 }: UseBasicScheduleFormSubmitParams) => {
 	const router = useRouter();
 	const [apiError, setApiError] = useState<string | null>(null);
@@ -114,26 +175,20 @@ export const useBasicScheduleFormSubmit = ({
 			return;
 		}
 
+		// コールバックモード: Server Action を呼び出さず、データを返す
+		if (onFormSubmit) {
+			onFormSubmit(buildCallbackData(values, validation, fixedWeekday));
+			return;
+		}
+
 		const clientResult = await createNewClientIfNeeded(values);
 		if (!clientResult.success) {
 			setApiError(clientResult.error);
 			return;
 		}
 
-		const payload = {
-			client_id: clientResult.clientId,
-			service_type_id: validation.serviceTypeId,
-			weekday: values.weekday,
-			start_time: validation.start,
-			end_time: validation.end,
-			staff_ids: values.staffId ? [values.staffId] : [],
-			note: sanitizeNote(values.note),
-		};
-
-		const result =
-			mode === 'edit' && scheduleId
-				? await updateBasicScheduleAction(scheduleId, payload)
-				: await createBasicScheduleAction(payload);
+		const payload = buildPayload(values, clientResult.clientId, validation);
+		const result = await executeAction(mode, scheduleId, payload);
 
 		const config = MODE_CONFIG[mode];
 		const handled = handleActionResult(result, {
@@ -151,7 +206,12 @@ export const useBasicScheduleFormSubmit = ({
 
 		reset(buildDefaultValues(initialValues));
 		closeStaffPicker();
-		router.push('/admin/basic-schedules');
+
+		if (onSubmitSuccess) {
+			onSubmitSuccess();
+		} else {
+			router.push('/admin/basic-schedules');
+		}
 	};
 
 	return {

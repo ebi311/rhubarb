@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"predev": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true })\"",
+		"predev": "rimraf .next",
 		"dev": "next dev",
 		"build": "next build",
 		"start": "next start",
@@ -78,6 +78,7 @@
 		"prettier": "^3.7.4",
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"prettier-plugin-tailwindcss": "^0.7.2",
+		"rimraf": "^6.1.2",
 		"storybook": "^10.2.0",
 		"supabase": "^2.75.5",
 		"tailwindcss": "^4",
