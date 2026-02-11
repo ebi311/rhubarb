@@ -3,18 +3,18 @@
 import { getBasicScheduleByIdAction } from '@/app/actions/basicSchedules';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
-import type { BasicScheduleRecord } from '@/models/basicScheduleActionSchemas';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { WEEKDAYS, WEEKDAY_FULL_LABELS } from '@/models/valueObjects/dayOfWeek';
-import type { TimeValue } from '@/models/valueObjects/time';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useState } from 'react';
 import {
 	BasicScheduleForm,
 	type BasicScheduleFormInitialValues,
+	toFormInitialValues,
 } from '../BasicScheduleForm';
 import { AddButton } from './AddButton';
+import { createFixedClientServiceUser } from './createFixedClientServiceUser';
 import type { BasicScheduleCell, BasicScheduleGridViewModel } from './types';
 
 interface BasicScheduleGridProps {
@@ -22,26 +22,6 @@ interface BasicScheduleGridProps {
 	serviceTypes: ServiceTypeOption[];
 	staffs: StaffRecord[];
 }
-
-/** TimeValue を "HH:MM" 形式の文字列に変換 */
-const formatTimeForInput = (time: TimeValue): string => {
-	const hour = time.hour.toString().padStart(2, '0');
-	const minute = time.minute.toString().padStart(2, '0');
-	return `${hour}:${minute}`;
-};
-
-/** BasicScheduleRecord を BasicScheduleFormInitialValues に変換 */
-const toFormInitialValues = (
-	schedule: BasicScheduleRecord,
-): BasicScheduleFormInitialValues => ({
-	clientId: schedule.client.id,
-	serviceTypeId: schedule.service_type_id,
-	weekday: schedule.weekday,
-	startTime: formatTimeForInput(schedule.start_time),
-	endTime: formatTimeForInput(schedule.end_time),
-	note: schedule.note ?? '',
-	staffId: schedule.staffs.length > 0 ? schedule.staffs[0].id : null,
-});
 
 type EditModalState = {
 	scheduleId: string;
@@ -105,16 +85,7 @@ export const BasicScheduleGrid = ({
 
 	// 編集ダイアログ用の serviceUsers を構築
 	const editServiceUsers = editModal
-		? [
-				{
-					id: editModal.clientId,
-					name: editModal.clientName,
-					office_id: '',
-					contract_status: 'active' as const,
-					created_at: new Date(),
-					updated_at: new Date(),
-				},
-			]
+		? [createFixedClientServiceUser(editModal.clientId, editModal.clientName)]
 		: [];
 
 	if (schedules.length === 0) {

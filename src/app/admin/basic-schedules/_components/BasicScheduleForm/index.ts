@@ -4,4 +4,5 @@ export type {
 	BasicScheduleFormMode,
 	BasicScheduleFormProps,
 } from './BasicScheduleForm';
+export { toFormInitialValues } from './toFormInitialValues';
 export type { BasicScheduleCallbackData } from './useBasicScheduleFormSubmit';
