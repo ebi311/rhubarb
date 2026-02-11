@@ -1,9 +1,11 @@
 import { PageTitle } from '@/app/_components/Header/context';
+import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { BasicScheduleContent } from './_components/BasicScheduleContent';
 import { BasicScheduleFilterBar } from './_components/BasicScheduleFilterBar';
 import { BasicScheduleTable } from './_components/BasicScheduleTable';
+import { ScheduleEditFormModalProps } from './clients/[clientId]/edit/_components/ScheduleEditFormModal';
 import { fetchFilterOptions } from './fetchFilterOptions';
 import { parseFiltersFromSearchParams } from './parseFiltersFromParams';
 
@@ -18,7 +20,28 @@ const BasicScheduleListPage = async ({
 }: BasicScheduleListPageProps) => {
 	const params = await searchParams;
 	const filters = parseFiltersFromSearchParams(params);
-	const { clients, serviceTypes } = await fetchFilterOptions();
+	// const { clients, serviceTypes } = await fetchFilterOptions();
+	const [{ clients, serviceTypes }, serviceTypesResult, staffsResult] =
+		await Promise.all([
+			fetchFilterOptions(),
+			listServiceTypesAction(),
+			listStaffsAction(),
+		]);
+
+	const serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'] =
+		serviceTypesResult.data?.map((st) => ({
+			id: st.id,
+			name: st.name,
+		})) ?? [];
+
+	const staffOptions: ScheduleEditFormModalProps['staffOptions'] =
+		staffsResult.data?.map((st) => ({
+			id: st.id,
+			name: st.name,
+			role: st.role,
+			serviceTypeIds: st.service_type_ids,
+			note: st.note,
+		})) ?? [];
 
 	return (
 		<>
@@ -54,7 +77,11 @@ const BasicScheduleListPage = async ({
 						<BasicScheduleTable
 							filters={filters}
 							render={(schedules) => (
-								<BasicScheduleContent schedules={schedules} />
+								<BasicScheduleContent
+									schedules={schedules}
+									serviceTypeOptions={serviceTypeOptions}
+									staffOptions={staffOptions}
+								/>
 							)}
 						/>
 					</Suspense>

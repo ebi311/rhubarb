@@ -1,9 +1,31 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ScheduleEditFormModalProps } from '../../clients/[clientId]/edit/_components/ScheduleEditFormModal';
 import type { BasicScheduleViewModel } from '../BasicScheduleTable/types';
 import { BasicScheduleContent } from './BasicScheduleContent';
 
+const serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'] = [
+	{ id: 'physical-care', name: '身体介護' },
+	{ id: 'life-support', name: '生活援助' },
+];
+
+const staffOptions: ScheduleEditFormModalProps['staffOptions'] = [
+	{
+		id: 'staff-1',
+		name: 'スタッフA',
+		role: 'helper',
+		serviceTypeIds: ['physical-care', 'life-support'],
+		note: '',
+	},
+	{
+		id: 'staff-2',
+		name: 'スタッフB',
+		role: 'helper',
+		serviceTypeIds: ['life-support'],
+		note: '',
+	},
+];
 // モック
 vi.mock('../BasicScheduleList', () => ({
 	BasicScheduleList: () => <div>BasicScheduleList</div>,
@@ -50,7 +72,13 @@ describe('BasicScheduleContent', () => {
 	});
 
 	it('初期状態ではリスト表示がレンダリングされる', () => {
-		render(<BasicScheduleContent schedules={mockSchedules} />);
+		render(
+			<BasicScheduleContent
+				schedules={mockSchedules}
+				serviceTypeOptions={serviceTypeOptions}
+				staffOptions={staffOptions}
+			/>,
+		);
 
 		expect(screen.getByText('BasicScheduleList')).toBeInTheDocument();
 	});
@@ -58,7 +86,13 @@ describe('BasicScheduleContent', () => {
 	it('sessionStorageにグリッド表示が保存されている場合はグリッド表示がレンダリングされる', () => {
 		sessionStorage.setItem('basicScheduleViewMode', 'grid');
 
-		render(<BasicScheduleContent schedules={mockSchedules} />);
+		render(
+			<BasicScheduleContent
+				schedules={mockSchedules}
+				serviceTypeOptions={serviceTypeOptions}
+				staffOptions={staffOptions}
+			/>,
+		);
 
 		expect(screen.getByText('BasicScheduleGrid')).toBeInTheDocument();
 	});
@@ -66,7 +100,13 @@ describe('BasicScheduleContent', () => {
 	it('sessionStorageにスタッフグリッド表示が保存されている場合はスタッフグリッド表示がレンダリングされる', () => {
 		sessionStorage.setItem('basicScheduleViewMode', 'staff-grid');
 
-		render(<BasicScheduleContent schedules={mockSchedules} />);
+		render(
+			<BasicScheduleContent
+				schedules={mockSchedules}
+				serviceTypeOptions={serviceTypeOptions}
+				staffOptions={staffOptions}
+			/>,
+		);
 
 		expect(screen.getByText('StaffBasicScheduleGrid')).toBeInTheDocument();
 	});
@@ -74,7 +114,13 @@ describe('BasicScheduleContent', () => {
 	it('ビュー切り替えボタンをクリックすると表示が切り替わる', async () => {
 		const user = userEvent.setup();
 
-		render(<BasicScheduleContent schedules={mockSchedules} />);
+		render(
+			<BasicScheduleContent
+				schedules={mockSchedules}
+				serviceTypeOptions={serviceTypeOptions}
+				staffOptions={staffOptions}
+			/>,
+		);
 
 		expect(screen.getByText('BasicScheduleList')).toBeInTheDocument();
 
@@ -96,7 +142,13 @@ describe('BasicScheduleContent', () => {
 	it('ビューモードがsessionStorageに保存される', async () => {
 		const user = userEvent.setup();
 
-		render(<BasicScheduleContent schedules={mockSchedules} />);
+		render(
+			<BasicScheduleContent
+				schedules={mockSchedules}
+				serviceTypeOptions={serviceTypeOptions}
+				staffOptions={staffOptions}
+			/>,
+		);
 
 		const gridButton = screen.getByLabelText('利用者別グリッド表示');
 		await user.click(gridButton);

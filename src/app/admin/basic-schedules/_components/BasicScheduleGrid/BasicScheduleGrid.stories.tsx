@@ -1,7 +1,30 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { ComponentProps } from 'react';
 import { BasicScheduleGrid } from './BasicScheduleGrid';
 import type { BasicScheduleGridViewModel } from './types';
+const serviceTypeOptions: ComponentProps<
+	typeof BasicScheduleGrid
+>['serviceTypeOptions'] = [
+	{ id: 'physical-care', name: '身体介護' },
+	{ id: 'life-support', name: '生活援助' },
+];
 
+const staffOptions: ComponentProps<typeof BasicScheduleGrid>['staffOptions'] = [
+	{
+		id: 'staff-1',
+		name: 'スタッフA',
+		role: 'helper',
+		serviceTypeIds: ['physical-care', 'life-support'],
+		note: '',
+	},
+	{
+		id: 'staff-2',
+		name: 'スタッフB',
+		role: 'helper',
+		serviceTypeIds: ['life-support'],
+		note: '',
+	},
+];
 const meta = {
 	title: 'Admin/BasicSchedules/BasicScheduleGrid',
 	component: BasicScheduleGrid,
@@ -212,29 +235,39 @@ const longTextSchedules: BasicScheduleGridViewModel[] = [
 export const Default: Story = {
 	args: {
 		schedules: sampleSchedules,
+		serviceTypeOptions,
+		staffOptions,
 	},
 };
 
 export const TwoSchedulesSameDay: Story = {
 	args: {
 		schedules: twoSchedulesSameDay,
+		serviceTypeOptions,
+		staffOptions,
 	},
 };
 
 export const MultipleSchedulesInCell: Story = {
 	args: {
 		schedules: multiSchedulesInCell,
+		serviceTypeOptions,
+		staffOptions,
 	},
 };
 
 export const LongText: Story = {
 	args: {
 		schedules: longTextSchedules,
+		serviceTypeOptions,
+		staffOptions,
 	},
 };
 
 export const Empty: Story = {
 	args: {
 		schedules: [],
+		serviceTypeOptions,
+		staffOptions,
 	},
 };

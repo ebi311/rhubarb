@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useCallback, useSyncExternalStore } from 'react';
+import { Suspense, useCallback, useSyncExternalStore } from 'react';
+import type { ScheduleEditFormModalProps } from '../../clients/[clientId]/edit/_components/ScheduleEditFormModal';
 import { BasicScheduleGrid } from '../BasicScheduleGrid';
 import { transformToGridViewModel } from '../BasicScheduleGrid/transformToGridViewModel';
 import { BasicScheduleList } from '../BasicScheduleList';
@@ -15,6 +16,8 @@ import { ViewToggleButton } from '../ViewToggleButton';
 
 interface BasicScheduleContentProps {
 	schedules: BasicScheduleViewModel[];
+	serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'];
+	staffOptions: ScheduleEditFormModalProps['staffOptions'];
 }
 
 const STORAGE_KEY = 'basicScheduleViewMode';
@@ -57,12 +60,26 @@ const usePersistedViewMode = (): [ViewMode, (newView: ViewMode) => void] => {
 /** 各表示モードのレンダリング関数マップ */
 const viewRenderers: Record<
 	ViewMode,
-	(schedules: BasicScheduleViewModel[]) => ReactNode
+	(
+		schedules: BasicScheduleViewModel[],
+		options: {
+			serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'];
+			staffOptions: ScheduleEditFormModalProps['staffOptions'];
+		},
+	) => ReactNode
 > = {
 	list: (schedules) => <BasicScheduleList schedules={schedules} />,
-	grid: (schedules) => {
+	grid: (schedules, options) => {
 		const gridData = transformToGridViewModel(schedules);
-		return <BasicScheduleGrid schedules={gridData} />;
+		return (
+			<Suspense>
+				<BasicScheduleGrid
+					schedules={gridData}
+					serviceTypeOptions={options.serviceTypeOptions}
+					staffOptions={options.staffOptions}
+				/>
+			</Suspense>
+		);
 	},
 	'staff-grid': (schedules) => {
 		const staffGridData = transformToStaffGridViewModel(schedules);
@@ -72,6 +89,8 @@ const viewRenderers: Record<
 
 export const BasicScheduleContent = ({
 	schedules,
+	serviceTypeOptions,
+	staffOptions,
 }: BasicScheduleContentProps) => {
 	const [viewMode, handleViewChange] = usePersistedViewMode();
 
@@ -83,7 +102,7 @@ export const BasicScheduleContent = ({
 					onViewChange={handleViewChange}
 				/>
 			</div>
-			{viewRenderers[viewMode](schedules)}
+			{viewRenderers[viewMode](schedules, { serviceTypeOptions, staffOptions })}
 		</div>
 	);
 };

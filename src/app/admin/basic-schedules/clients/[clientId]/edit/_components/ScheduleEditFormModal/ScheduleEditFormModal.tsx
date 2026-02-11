@@ -40,7 +40,7 @@ const ScheduleEditFormSchema = z
 		if (start && end) {
 			if (timeToMinutes(start) >= timeToMinutes(end)) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: 'custom',
 					path: ['endTime'],
 					message: '終了時刻は開始時刻より後に設定してください',
 				});
