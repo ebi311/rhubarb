@@ -488,3 +488,186 @@ describe('BasicScheduleForm (新規利用者登録)', () => {
 		expect(newOption).toBeUndefined();
 	});
 });
+
+describe('BasicScheduleForm (fixedClientId)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		handleActionResultMock.mockReset();
+		mockPush.mockClear();
+	});
+
+	it('fixedClientId が指定されている場合、利用者名が読み取り専用テキストで表示される', async () => {
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				fixedClientId={serviceUsers[0].id}
+			/>,
+		);
+
+		// セレクトボックスではなく、テキスト表示であること
+		expect(screen.queryByLabelText('利用者 *')).not.toBeInTheDocument();
+		expect(screen.getByText('利用者A')).toBeInTheDocument();
+		expect(screen.getByText('利用者')).toBeInTheDocument(); // legend
+	});
+
+	it('fixedClientId が指定されていても、他のフィールドは通常通り入力可能', async () => {
+		const user = userEvent.setup();
+
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				fixedClientId={serviceUsers[0].id}
+			/>,
+		);
+
+		// 他のフィールドは入力可能
+		await user.click(screen.getByLabelText('身体介護'));
+		await user.type(screen.getByLabelText('開始時刻 *'), '09:00');
+		await user.type(screen.getByLabelText('終了時刻 *'), '10:00');
+
+		expect(screen.getByLabelText('身体介護')).toBeChecked();
+		expect(screen.getByLabelText('開始時刻 *')).toHaveValue('09:00');
+		expect(screen.getByLabelText('終了時刻 *')).toHaveValue('10:00');
+	});
+});
+
+describe('BasicScheduleForm (fixedWeekday)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		handleActionResultMock.mockReset();
+		mockPush.mockClear();
+	});
+
+	it('fixedWeekday が指定されている場合、曜日が読み取り専用テキストで表示される', async () => {
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				fixedWeekday="Wed"
+			/>,
+		);
+
+		// セレクトボックスではなく、テキスト表示であること
+		expect(screen.queryByLabelText('曜日 *')).not.toBeInTheDocument();
+		expect(screen.getByText('水曜日')).toBeInTheDocument();
+		expect(screen.getByText('曜日')).toBeInTheDocument(); // legend
+	});
+});
+
+describe('BasicScheduleForm (onSubmitSuccess)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		handleActionResultMock.mockReset();
+		mockPush.mockClear();
+	});
+
+	it('onSubmitSuccess が指定されている場合、成功後にコールバックが呼び出され、リダイレクトしない', async () => {
+		const user = userEvent.setup();
+		const onSubmitSuccessMock = vi.fn();
+		vi.mocked(createBasicScheduleAction).mockResolvedValue(
+			successResult(sampleSchedule),
+		);
+
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				onSubmitSuccess={onSubmitSuccessMock}
+			/>,
+		);
+
+		// 必須項目を入力
+		await user.selectOptions(
+			screen.getByLabelText('利用者 *'),
+			serviceUsers[0].id,
+		);
+		await user.click(screen.getByLabelText('身体介護'));
+		await user.selectOptions(screen.getByLabelText('曜日 *'), 'Mon');
+		await user.type(screen.getByLabelText('開始時刻 *'), '09:00');
+		await user.type(screen.getByLabelText('終了時刻 *'), '10:00');
+
+		await user.click(
+			screen.getByRole('button', { name: 'スケジュールを登録' }),
+		);
+
+		await waitFor(() => {
+			expect(onSubmitSuccessMock).toHaveBeenCalled();
+		});
+
+		// リダイレクトはされない
+		expect(mockPush).not.toHaveBeenCalled();
+	});
+});
+
+describe('BasicScheduleForm (asModal)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		handleActionResultMock.mockReset();
+		mockPush.mockClear();
+	});
+
+	it('asModal が true の場合、ヘッダーセクションが省略される', async () => {
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				asModal
+			/>,
+		);
+
+		// ヘッダータイトルが表示されていないこと
+		expect(
+			screen.queryByRole('heading', { name: '基本スケジュールの登録' }),
+		).not.toBeInTheDocument();
+		// フォームは表示されていること
+		expect(screen.getByLabelText('利用者 *')).toBeInTheDocument();
+	});
+});
+
+describe('BasicScheduleForm (onCancel)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		handleActionResultMock.mockReset();
+		mockPush.mockClear();
+	});
+
+	it('onCancel が指定されている場合、キャンセルボタンが表示される', async () => {
+		const onCancelMock = vi.fn();
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				onCancel={onCancelMock}
+			/>,
+		);
+
+		const cancelButton = screen.getByRole('button', { name: 'キャンセル' });
+		expect(cancelButton).toBeInTheDocument();
+	});
+
+	it('キャンセルボタンをクリックするとonCancelが呼び出される', async () => {
+		const user = userEvent.setup();
+		const onCancelMock = vi.fn();
+
+		render(
+			<BasicScheduleForm
+				serviceUsers={serviceUsers}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+				onCancel={onCancelMock}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+		expect(onCancelMock).toHaveBeenCalled();
+	});
+});

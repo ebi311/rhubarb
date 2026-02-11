@@ -61,14 +61,6 @@ const ClientNewSchedulePage = async ({
 		name: st.name,
 	}));
 
-	const staffOptions = staffs.map((s) => ({
-		id: s.id,
-		name: s.name,
-		role: s.role,
-		serviceTypeIds: s.service_type_ids,
-		note: s.note,
-	}));
-
 	const handleSave = async (operations: BatchSaveOperations) => {
 		'use server';
 
@@ -124,7 +116,7 @@ const ClientNewSchedulePage = async ({
 				clientName={client.name}
 				initialSchedules={[]}
 				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				staffs={staffs}
 				onSave={handleSave}
 			/>
 		</div>

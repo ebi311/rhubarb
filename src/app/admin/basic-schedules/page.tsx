@@ -5,7 +5,6 @@ import { Suspense } from 'react';
 import { BasicScheduleContent } from './_components/BasicScheduleContent';
 import { BasicScheduleFilterBar } from './_components/BasicScheduleFilterBar';
 import { BasicScheduleTable } from './_components/BasicScheduleTable';
-import { ScheduleEditFormModalProps } from './clients/[clientId]/edit/_components/ScheduleEditFormModal';
 import { fetchFilterOptions } from './fetchFilterOptions';
 import { parseFiltersFromSearchParams } from './parseFiltersFromParams';
 
@@ -28,20 +27,13 @@ const BasicScheduleListPage = async ({
 			listStaffsAction(),
 		]);
 
-	const serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'] =
+	const serviceTypeOptions =
 		serviceTypesResult.data?.map((st) => ({
 			id: st.id,
 			name: st.name,
 		})) ?? [];
 
-	const staffOptions: ScheduleEditFormModalProps['staffOptions'] =
-		staffsResult.data?.map((st) => ({
-			id: st.id,
-			name: st.name,
-			role: st.role,
-			serviceTypeIds: st.service_type_ids,
-			note: st.note,
-		})) ?? [];
+	const staffs = staffsResult.data ?? [];
 
 	return (
 		<>
@@ -79,8 +71,8 @@ const BasicScheduleListPage = async ({
 							render={(schedules) => (
 								<BasicScheduleContent
 									schedules={schedules}
-									serviceTypeOptions={serviceTypeOptions}
-									staffOptions={staffOptions}
+									serviceTypes={serviceTypeOptions}
+									staffs={staffs}
 								/>
 							)}
 						/>

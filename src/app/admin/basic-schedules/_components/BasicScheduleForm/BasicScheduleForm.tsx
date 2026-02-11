@@ -4,6 +4,7 @@ import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import { WeekdaySchema } from '@/models/basicScheduleActionSchemas';
 import type { ServiceUser } from '@/models/serviceUser';
 import type { StaffRecord } from '@/models/staffActionSchemas';
+import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { timeToMinutes } from '@/models/valueObjects/time';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,23 +12,13 @@ import { useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { StaffPickerDialog } from '../StaffPickerDialog';
-import {
-	ClientSelectField,
-	NoteField,
-	ServiceTypeSelectField,
-	TimeField,
-	WeekdayField,
-} from './FormControls';
-import { ApiErrorMessage } from './FormMessages';
-import {
-	TIME_PATTERN,
-	getSubmitButtonClass,
-	parseTimeString,
-	shouldDisableSubmitButton,
-} from './helpers';
+import { BasicScheduleFormContent } from './BasicScheduleFormContent';
+import { TIME_PATTERN, getSubmitButtonClass, parseTimeString } from './helpers';
 import { MODE_CONFIG } from './modeConfig';
-import { StaffSelectionSummary } from './StaffSelectionSummary';
-import { useBasicScheduleFormSubmit } from './useBasicScheduleFormSubmit';
+import {
+	useBasicScheduleFormSubmit,
+	type BasicScheduleCallbackData,
+} from './useBasicScheduleFormSubmit';
 import { useBasicScheduleWatchValues } from './useBasicScheduleWatchValues';
 import { useDeleteSchedule } from './useDeleteSchedule';
 import { useStaffSelection } from './useStaffSelection';
@@ -120,6 +111,18 @@ export type BasicScheduleFormProps = {
 	initialValues?: BasicScheduleFormInitialValues;
 	mode?: BasicScheduleFormMode;
 	scheduleId?: string;
+	/** clientId が固定の場合に指定。利用者選択フィールドを読み取り専用テキストで表示 */
+	fixedClientId?: string;
+	/** weekday が固定の場合に指定。曜日選択フィールドを読み取り専用テキストで表示 */
+	fixedWeekday?: DayOfWeek;
+	/** ServerAction 成功後のコールバック（ダイアログを閉じるなど） */
+	onSubmitSuccess?: () => void;
+	/** キャンセルボタンのコールバック（モーダル用） */
+	onCancel?: () => void;
+	/** コンテナ要素（section）を非表示にし、フォーム要素のみを表示（モーダル用） */
+	asModal?: boolean;
+	/** コールバックモード: Server Action を呼び出さず、バリデーション後にデータを返す */
+	onFormSubmit?: (data: BasicScheduleCallbackData) => void;
 };
 
 const DEFAULT_FORM_VALUES: BasicScheduleFormValues = {
@@ -135,13 +138,19 @@ const DEFAULT_FORM_VALUES: BasicScheduleFormValues = {
 
 const buildDefaultValues = (
 	initialValues?: BasicScheduleFormInitialValues,
-): BasicScheduleFormValues => ({
-	...DEFAULT_FORM_VALUES,
-	...initialValues,
-	newClientName: initialValues?.newClientName ?? '',
-	note: initialValues?.note ?? '',
-	staffId: initialValues?.staffId ?? null,
-});
+	fixedClientId?: string,
+	fixedWeekday?: DayOfWeek,
+): BasicScheduleFormValues => {
+	const base = {
+		...DEFAULT_FORM_VALUES,
+		...initialValues,
+	};
+	return {
+		...base,
+		clientId: fixedClientId ?? base.clientId,
+		weekday: fixedWeekday ?? base.weekday,
+	};
+};
 
 const WATCH_VALUE_DEFAULTS: Pick<
 	BasicScheduleFormValues,
@@ -160,29 +169,50 @@ export const BasicScheduleForm = ({
 	initialValues,
 	mode = 'create',
 	scheduleId,
+	fixedClientId,
+	fixedWeekday,
+	onSubmitSuccess,
+	onCancel,
+	asModal = false,
+	onFormSubmit,
 }: BasicScheduleFormProps) => {
 	const isEditMode = mode === 'edit';
 	const config = MODE_CONFIG[mode];
 
+	// fixedClientId から利用者名を取得
+	const fixedClientName = fixedClientId
+		? (serviceUsers.find((u) => u.id === fixedClientId)?.name ?? '不明な利用者')
+		: undefined;
+
 	const formMethods = useForm<BasicScheduleFormValues>({
 		resolver: zodResolver(BasicScheduleFormSchema),
 		mode: 'onChange',
-		defaultValues: buildDefaultValues(initialValues),
+		defaultValues: buildDefaultValues(
+			initialValues,
+			fixedClientId,
+			fixedWeekday,
+		),
 	});
 
 	const {
 		control,
 		reset,
 		setValue,
+		trigger,
 		formState: { isSubmitting, isValid },
 		handleSubmit,
 	} = formMethods;
 
 	useEffect(() => {
 		if (initialValues) {
-			reset(buildDefaultValues(initialValues));
+			reset(buildDefaultValues(initialValues, fixedClientId, fixedWeekday));
+			// reset 後に次のレンダリングサイクルでバリデーションを再実行して isValid を更新
+			const timeoutId = setTimeout(() => {
+				void trigger();
+			}, 0);
+			return () => clearTimeout(timeoutId);
 		}
-	}, [initialValues, reset]);
+	}, [initialValues, fixedClientId, fixedWeekday, reset, trigger]);
 
 	const { serviceTypeId, selectedStaffId, noteValue } =
 		useBasicScheduleWatchValues(control, WATCH_VALUE_DEFAULTS);
@@ -198,15 +228,67 @@ export const BasicScheduleForm = ({
 	const { apiError, onSubmit } = useBasicScheduleFormSubmit({
 		mode,
 		scheduleId,
+		fixedWeekday,
 		initialValues,
 		reset,
 		closeStaffPicker: staffSelection.closeStaffPicker,
+		onSubmitSuccess,
+		onFormSubmit,
 	});
 
 	const { isDeleting, handleDelete } = useDeleteSchedule({ scheduleId });
 
 	const submitButtonClass = getSubmitButtonClass(isSubmitting);
-	const isSubmitDisabled = shouldDisableSubmitButton(isValid, isSubmitting);
+
+	// フォームコンテンツ
+	const formContent = (
+		<FormProvider {...formMethods}>
+			<form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+				<BasicScheduleFormContent
+					serviceUsers={serviceUsers}
+					serviceTypes={serviceTypes}
+					isEditMode={isEditMode}
+					fixedClientId={fixedClientId}
+					fixedClientName={fixedClientName}
+					fixedWeekday={fixedWeekday}
+					isSubmitting={isSubmitting}
+					isValid={isValid}
+					noteValue={noteValue}
+					apiError={apiError}
+					staffSelection={{
+						selectedStaff: staffSelection.selectedStaff,
+						staffStatusMessage: staffSelection.staffStatusMessage,
+						staffPickerDisabled: staffSelection.staffPickerDisabled,
+						staffClearDisabled: staffSelection.staffClearDisabled,
+						openStaffPicker: staffSelection.openStaffPicker,
+						handleStaffClear: staffSelection.handleStaffClear,
+					}}
+					submitButtonText={config.submitButtonText}
+					submitButtonClass={submitButtonClass}
+					isDeleting={isDeleting}
+					onDelete={handleDelete}
+					onCancel={onCancel}
+				/>
+			</form>
+		</FormProvider>
+	);
+
+	// asModalがtrueの場合はコンテナとヘッダーを省略
+	if (asModal) {
+		return (
+			<>
+				{formContent}
+				<StaffPickerDialog
+					isOpen={staffSelection.isStaffPickerOpen}
+					staffOptions={staffSelection.staffPickerOptions}
+					selectedStaffId={selectedStaffId}
+					onClose={staffSelection.closeStaffPicker}
+					onSelect={staffSelection.handleStaffConfirm}
+					onClear={staffSelection.staffPickerClearHandler}
+				/>
+			</>
+		);
+	}
 
 	return (
 		<section className="rounded-box border border-base-200 bg-base-100 p-6 shadow-sm">
@@ -216,81 +298,7 @@ export const BasicScheduleForm = ({
 					{config.headerDescription}
 				</p>
 			</header>
-			<FormProvider {...formMethods}>
-				<form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-					<div className="flex flex-col gap-4">
-						<ClientSelectField
-							serviceUsers={serviceUsers}
-							disabled={isEditMode}
-						/>
-						<ServiceTypeSelectField serviceTypes={serviceTypes} />
-						<WeekdayField />
-						<div className="flex items-baseline gap-4">
-							<TimeField name="startTime" label="開始時刻" />
-							<span>〜</span>
-							<TimeField name="endTime" label="終了時刻" />
-						</div>
-
-						<div className="space-y-2">
-							<div className="fieldset flex flex-col gap-2">
-								<div className="flex flex-col items-start justify-center gap-3">
-									<div>
-										<p className="fieldset-legend">デフォルト担当者</p>
-										<p className="text-sm text-base-content/70">
-											{staffSelection.staffStatusMessage}
-										</p>
-									</div>
-									<StaffSelectionSummary staff={staffSelection.selectedStaff} />
-									<div className="flex flex-wrap gap-2">
-										<button
-											type="button"
-											className="btn btn-sm"
-											onClick={staffSelection.openStaffPicker}
-											disabled={staffSelection.staffPickerDisabled}
-										>
-											担当者を選択
-										</button>
-										<button
-											type="button"
-											className="btn btn-ghost btn-sm"
-											onClick={staffSelection.handleStaffClear}
-											disabled={staffSelection.staffClearDisabled}
-										>
-											クリア
-										</button>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<NoteField valueLength={noteValue.length} />
-						<ApiErrorMessage message={apiError} />
-					</div>
-
-					<div className="flex justify-between">
-						{isEditMode ? (
-							<button
-								type="button"
-								className="btn btn-outline btn-error"
-								onClick={handleDelete}
-								disabled={isDeleting || isSubmitting}
-							>
-								{isDeleting ? '削除中...' : '削除する'}
-							</button>
-						) : (
-							<div />
-						)}
-						<button
-							type="submit"
-							className={submitButtonClass}
-							disabled={isSubmitDisabled}
-						>
-							{config.submitButtonText}
-						</button>
-					</div>
-				</form>
-			</FormProvider>
-
+			{formContent}
 			<StaffPickerDialog
 				isOpen={staffSelection.isStaffPickerOpen}
 				staffOptions={staffSelection.staffPickerOptions}

@@ -1,20 +1,21 @@
+import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
+import type { StaffRecord } from '@/models/staffActionSchemas';
 import { WEEKDAYS, WEEKDAY_FULL_LABELS } from '@/models/valueObjects/dayOfWeek';
 import Link from 'next/link';
 import React from 'react';
-import { ScheduleEditFormModalProps } from '../../clients/[clientId]/edit/_components/ScheduleEditFormModal';
 import { AddButton } from './AddButton';
 import type { BasicScheduleCell, BasicScheduleGridViewModel } from './types';
 
 interface BasicScheduleGridProps {
 	schedules: BasicScheduleGridViewModel[];
-	serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'];
-	staffOptions: ScheduleEditFormModalProps['staffOptions'];
+	serviceTypes: ServiceTypeOption[];
+	staffs: StaffRecord[];
 }
 
 export const BasicScheduleGrid = ({
 	schedules,
-	serviceTypeOptions,
-	staffOptions,
+	serviceTypes,
+	staffs,
 }: BasicScheduleGridProps) => {
 	if (schedules.length === 0) {
 		return (
@@ -91,18 +92,20 @@ export const BasicScheduleGrid = ({
 											</div>
 											<AddButton
 												weekday={day}
-												serviceTypeOptions={serviceTypeOptions}
-												staffOptions={staffOptions}
+												serviceTypes={serviceTypes}
+												staffs={staffs}
 												clientId={schedule.clientId}
+												clientName={schedule.clientName}
 											/>
 										</>
 									) : (
 										<>
 											<AddButton
 												weekday={day}
-												serviceTypeOptions={serviceTypeOptions}
-												staffOptions={staffOptions}
+												serviceTypes={serviceTypes}
+												staffs={staffs}
 												clientId={schedule.clientId}
+												clientName={schedule.clientName}
 											/>
 											<div className="min-h-[60px] rounded bg-base-200/50" />
 										</>

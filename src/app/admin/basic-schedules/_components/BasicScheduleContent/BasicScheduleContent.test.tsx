@@ -1,29 +1,36 @@
+import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
+import type { StaffRecord } from '@/models/staffActionSchemas';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ScheduleEditFormModalProps } from '../../clients/[clientId]/edit/_components/ScheduleEditFormModal';
 import type { BasicScheduleViewModel } from '../BasicScheduleTable/types';
 import { BasicScheduleContent } from './BasicScheduleContent';
 
-const serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'] = [
+const serviceTypes: ServiceTypeOption[] = [
 	{ id: 'physical-care', name: '身体介護' },
 	{ id: 'life-support', name: '生活援助' },
 ];
 
-const staffOptions: ScheduleEditFormModalProps['staffOptions'] = [
+const staffs: StaffRecord[] = [
 	{
 		id: 'staff-1',
+		office_id: 'office-1',
 		name: 'スタッフA',
 		role: 'helper',
-		serviceTypeIds: ['physical-care', 'life-support'],
+		service_type_ids: ['physical-care', 'life-support'],
 		note: '',
+		created_at: new Date('2026-01-01T00:00:00.000Z'),
+		updated_at: new Date('2026-01-01T00:00:00.000Z'),
 	},
 	{
 		id: 'staff-2',
+		office_id: 'office-1',
 		name: 'スタッフB',
 		role: 'helper',
-		serviceTypeIds: ['life-support'],
+		service_type_ids: ['life-support'],
 		note: '',
+		created_at: new Date('2026-01-01T00:00:00.000Z'),
+		updated_at: new Date('2026-01-01T00:00:00.000Z'),
 	},
 ];
 // モック
@@ -75,8 +82,8 @@ describe('BasicScheduleContent', () => {
 		render(
 			<BasicScheduleContent
 				schedules={mockSchedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -89,8 +96,8 @@ describe('BasicScheduleContent', () => {
 		render(
 			<BasicScheduleContent
 				schedules={mockSchedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -103,8 +110,8 @@ describe('BasicScheduleContent', () => {
 		render(
 			<BasicScheduleContent
 				schedules={mockSchedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -117,8 +124,8 @@ describe('BasicScheduleContent', () => {
 		render(
 			<BasicScheduleContent
 				schedules={mockSchedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -145,8 +152,8 @@ describe('BasicScheduleContent', () => {
 		render(
 			<BasicScheduleContent
 				schedules={mockSchedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
