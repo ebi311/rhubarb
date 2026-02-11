@@ -11,7 +11,7 @@ tools:
     'ms-vscode.vscode-websearchforcopilot/websearch',
     'todo',
   ]
-model: Claude Opus 4.5 (copilot)
+model: GPT-5.2 (copilot)
 ---
 
 # Issue 管理エージェント
