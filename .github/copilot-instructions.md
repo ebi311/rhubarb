@@ -88,6 +88,33 @@ src/app/{path}/_components/{ComponentName}/
 4. 関数は Arrow Function を原則使用（クラスメソッド除く）
 5. `as any` は原則禁止（UT, Storybook で型が重要でない場合のみ例外）
 
+## テストルール
+
+### UUID の注意事項
+
+- Zod v4 の `z.uuid()` は **RFC 4122/9562 準拠** を厳格にバリデーションする
+- `aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee` のような非準拠 UUID はバリデーションエラーになる
+- テストでは `src/test/helpers/testIds.ts` の `TEST_IDS` 定数または `createTestId()` を使用すること
+
+```typescript
+// ✅ OK: TEST_IDS を使用
+import { TEST_IDS } from '@/test/helpers/testIds';
+const clientId = TEST_IDS.CLIENT_1;
+
+// ✅ OK: createTestId() で動的生成
+import { createTestId } from '@/test/helpers/testIds';
+const clientId = createTestId();
+
+// ❌ NG: 非準拠の UUID リテラル
+const clientId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+```
+
+### テスト修正時の原則
+
+1. エラーメッセージをそのまま対処せず、**変更した Props/型定義との整合性** を最初に確認する
+2. モックオブジェクトは実際の型定義（Zod スキーマの `z.infer`）に合わせる
+3. テストが3回連続で失敗したら、一度立ち止まって **エラーの根本原因を分析** してから修正する
+
 ## Git ルール
 
 コミット前に `pnpm format` を実行。メッセージは日本語で：
