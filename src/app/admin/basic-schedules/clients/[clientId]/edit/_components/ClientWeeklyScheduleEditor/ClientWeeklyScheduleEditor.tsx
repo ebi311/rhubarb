@@ -262,11 +262,9 @@ export const ClientWeeklyScheduleEditor = ({
 							asModal
 						/>
 					</div>
-					<div
-						className="modal-backdrop"
-						onClick={handleCloseForm}
-						aria-label="閉じる"
-					/>
+					<form method="dialog" className="modal-backdrop">
+						<button>close</button>
+					</form>
 				</dialog>
 			)}
 		</div>

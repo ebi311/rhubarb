@@ -74,11 +74,9 @@ export const AddButton = ({
 							onCancel={handleCloseModal}
 						/>
 					</div>
-					<div
-						className="modal-backdrop"
-						onClick={handleCloseModal}
-						aria-label="閉じる"
-					/>
+					<form method="dialog" className="modal-backdrop">
+						<button>close</button>
+					</form>
 				</dialog>
 			)}
 		</>

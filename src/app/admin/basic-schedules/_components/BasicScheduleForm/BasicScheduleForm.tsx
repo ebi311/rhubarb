@@ -266,7 +266,7 @@ export const BasicScheduleForm = ({
 					submitButtonText={config.submitButtonText}
 					submitButtonClass={submitButtonClass}
 					isDeleting={isDeleting}
-					onDelete={handleDelete}
+					onDelete={scheduleId ? handleDelete : undefined}
 					onCancel={onCancel}
 				/>
 			</form>
