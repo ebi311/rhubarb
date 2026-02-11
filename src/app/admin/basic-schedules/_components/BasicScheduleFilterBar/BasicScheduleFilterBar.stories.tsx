@@ -9,7 +9,7 @@ const sampleClients = [
 
 const sampleServiceTypes = [
 	{ id: 'st-1', name: '身体介護' },
-	{ id: 'st-2', name: '生活援助' },
+	{ id: 'st-2', name: '生活支援' },
 	{ id: 'st-3', name: '通院介助' },
 ];
 

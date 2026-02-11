@@ -50,7 +50,7 @@ const serviceUsers: ServiceUser[] = [
 
 const serviceTypes: ServiceTypeOption[] = [
 	{ id: 'physical-care', name: '身体介護' },
-	{ id: 'life-support', name: '生活援助' },
+	{ id: 'life-support', name: '生活支援' },
 ];
 
 const staffs: StaffRecord[] = [
