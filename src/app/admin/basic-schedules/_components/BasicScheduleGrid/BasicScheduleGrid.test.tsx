@@ -1,31 +1,44 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ComponentProps } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BasicScheduleGrid } from './BasicScheduleGrid';
 import type { BasicScheduleGridViewModel } from './types';
 
-const serviceTypeOptions: ComponentProps<
-	typeof BasicScheduleGrid
->['serviceTypeOptions'] = [
+// next/navigation モック（BasicScheduleForm が useRouter を使用するため）
+vi.mock('next/navigation', () => ({
+	useRouter: () => ({
+		push: vi.fn(),
+		replace: vi.fn(),
+		prefetch: vi.fn(),
+	}),
+}));
+
+const serviceTypes: ComponentProps<typeof BasicScheduleGrid>['serviceTypes'] = [
 	{ id: 'physical-care', name: '身体介護' },
-	{ id: 'life-support', name: '生活援助' },
+	{ id: 'life-support', name: '生活支援' },
 ];
 
-const staffOptions: ComponentProps<typeof BasicScheduleGrid>['staffOptions'] = [
+const staffs: ComponentProps<typeof BasicScheduleGrid>['staffs'] = [
 	{
 		id: 'staff-1',
+		office_id: 'office-1',
 		name: 'スタッフA',
 		role: 'helper',
-		serviceTypeIds: ['physical-care', 'life-support'],
+		service_type_ids: ['physical-care', 'life-support'],
 		note: '',
+		created_at: new Date('2026-01-01T00:00:00.000Z'),
+		updated_at: new Date('2026-01-01T00:00:00.000Z'),
 	},
 	{
 		id: 'staff-2',
+		office_id: 'office-1',
 		name: 'スタッフB',
 		role: 'helper',
-		serviceTypeIds: ['life-support'],
+		service_type_ids: ['life-support'],
 		note: '',
+		created_at: new Date('2026-01-01T00:00:00.000Z'),
+		updated_at: new Date('2026-01-01T00:00:00.000Z'),
 	},
 ];
 
@@ -42,8 +55,8 @@ describe('BasicScheduleGrid', () => {
 		render(
 			<BasicScheduleGrid
 				schedules={schedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -74,8 +87,8 @@ describe('BasicScheduleGrid', () => {
 		render(
 			<BasicScheduleGrid
 				schedules={schedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -112,8 +125,8 @@ describe('BasicScheduleGrid', () => {
 		render(
 			<BasicScheduleGrid
 				schedules={schedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -145,8 +158,8 @@ describe('BasicScheduleGrid', () => {
 		render(
 			<BasicScheduleGrid
 				schedules={schedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -188,8 +201,8 @@ describe('BasicScheduleGrid', () => {
 		render(
 			<BasicScheduleGrid
 				schedules={schedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -208,8 +221,8 @@ describe('BasicScheduleGrid', () => {
 		render(
 			<BasicScheduleGrid
 				schedules={[]}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -232,8 +245,8 @@ describe('add schedule button', () => {
 		render(
 			<BasicScheduleGrid
 				schedules={schedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -263,8 +276,8 @@ describe('add schedule button', () => {
 		render(
 			<BasicScheduleGrid
 				schedules={schedules}
-				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
 			/>,
 		);
 
@@ -284,9 +297,9 @@ describe('add schedule button', () => {
 
 		// サービス種別の選択肢が表示されている
 		expect(screen.getByText('身体介護')).toBeInTheDocument();
-		expect(screen.getByText('生活援助')).toBeInTheDocument();
+		expect(screen.getByText('生活支援')).toBeInTheDocument();
 
-		// 担当者ボタンが「未選択」で表示されている
-		expect(screen.getByText('未選択')).toBeInTheDocument();
+		// 担当者が未選択であることが表示されている
+		expect(screen.getByText('担当者は未選択です。')).toBeInTheDocument();
 	});
 });

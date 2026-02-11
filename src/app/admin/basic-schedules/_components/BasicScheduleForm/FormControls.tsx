@@ -4,12 +4,33 @@ import { FormInput } from '@/components/forms/FormInput';
 import { FormSelect } from '@/components/forms/FormSelect';
 import { FormTextarea } from '@/components/forms/FormTextarea';
 import type { ServiceUser } from '@/models/serviceUser';
+import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { WEEKDAY_FULL_LABELS, WEEKDAYS } from '@/models/valueObjects/dayOfWeek';
 import { useId } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import type { BasicScheduleFormValues } from './BasicScheduleForm';
 import { FieldErrorMessage } from './FormMessages';
 import { getFieldDescriptionId, getSelectClassName } from './helpers';
+
+/** fixedClientId がある場合に利用者名を読み取り専用で表示 */
+export const ClientReadOnlyField = ({ clientName }: { clientName: string }) => (
+	<fieldset className="fieldset">
+		<legend className="fieldset-legend">利用者</legend>
+		<div className="input flex items-center input-ghost bg-base-200">
+			{clientName}
+		</div>
+	</fieldset>
+);
+
+/** fixedWeekday がある場合に曜日を読み取り専用で表示 */
+export const WeekdayReadOnlyField = ({ weekday }: { weekday: DayOfWeek }) => (
+	<fieldset className="fieldset">
+		<legend className="fieldset-legend">曜日</legend>
+		<div className="input flex items-center input-ghost bg-base-200">
+			{WEEKDAY_FULL_LABELS[weekday]}
+		</div>
+	</fieldset>
+);
 
 type ClientSelectFieldProps = {
 	serviceUsers: ServiceUser[];
@@ -119,19 +140,21 @@ export const ServiceTypeSelectField = ({
 				{serviceTypes.map((type) => (
 					<label
 						key={type.id}
-						className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 ${
+						className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 transition-colors has-checked:border-primary has-checked:bg-primary/5 has-disabled:cursor-not-allowed has-disabled:opacity-50 ${
 							hasError ? 'border-error' : 'border-base-300'
 						}`}
 					>
 						<Controller
 							name="serviceTypeId"
-							render={({ field: { value, ...rest } }) => (
+							render={({ field: { onChange, value, ref, ...rest } }) => (
 								<input
 									type="radio"
 									className="radio radio-sm radio-primary"
 									value={type.id}
 									checked={value === type.id}
 									disabled={isSubmitting}
+									onChange={() => onChange(type.id)}
+									ref={ref}
 									{...rest}
 								/>
 							)}

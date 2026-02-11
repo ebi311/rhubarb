@@ -2,27 +2,31 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { ComponentProps } from 'react';
 import { BasicScheduleGrid } from './BasicScheduleGrid';
 import type { BasicScheduleGridViewModel } from './types';
-const serviceTypeOptions: ComponentProps<
-	typeof BasicScheduleGrid
->['serviceTypeOptions'] = [
+const serviceTypes: ComponentProps<typeof BasicScheduleGrid>['serviceTypes'] = [
 	{ id: 'physical-care', name: '身体介護' },
-	{ id: 'life-support', name: '生活援助' },
+	{ id: 'life-support', name: '生活支援' },
 ];
 
-const staffOptions: ComponentProps<typeof BasicScheduleGrid>['staffOptions'] = [
+const staffs: ComponentProps<typeof BasicScheduleGrid>['staffs'] = [
 	{
 		id: 'staff-1',
+		office_id: 'office-1',
 		name: 'スタッフA',
 		role: 'helper',
-		serviceTypeIds: ['physical-care', 'life-support'],
+		service_type_ids: ['physical-care', 'life-support'],
 		note: '',
+		created_at: new Date('2024-01-01T00:00:00Z'),
+		updated_at: new Date('2024-01-01T00:00:00Z'),
 	},
 	{
 		id: 'staff-2',
+		office_id: 'office-1',
 		name: 'スタッフB',
 		role: 'helper',
-		serviceTypeIds: ['life-support'],
+		service_type_ids: ['life-support'],
 		note: '',
+		created_at: new Date('2024-01-01T00:00:00Z'),
+		updated_at: new Date('2024-01-01T00:00:00Z'),
 	},
 ];
 const meta = {
@@ -235,39 +239,39 @@ const longTextSchedules: BasicScheduleGridViewModel[] = [
 export const Default: Story = {
 	args: {
 		schedules: sampleSchedules,
-		serviceTypeOptions,
-		staffOptions,
+		serviceTypes,
+		staffs,
 	},
 };
 
 export const TwoSchedulesSameDay: Story = {
 	args: {
 		schedules: twoSchedulesSameDay,
-		serviceTypeOptions,
-		staffOptions,
+		serviceTypes,
+		staffs,
 	},
 };
 
 export const MultipleSchedulesInCell: Story = {
 	args: {
 		schedules: multiSchedulesInCell,
-		serviceTypeOptions,
-		staffOptions,
+		serviceTypes,
+		staffs,
 	},
 };
 
 export const LongText: Story = {
 	args: {
 		schedules: longTextSchedules,
-		serviceTypeOptions,
-		staffOptions,
+		serviceTypes,
+		staffs,
 	},
 };
 
 export const Empty: Story = {
 	args: {
 		schedules: [],
-		serviceTypeOptions,
-		staffOptions,
+		serviceTypes,
+		staffs,
 	},
 };

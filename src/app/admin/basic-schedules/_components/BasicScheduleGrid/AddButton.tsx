@@ -1,36 +1,49 @@
-import { Icon } from '@/app/_components/Icon';
-import { createBasicScheduleAction } from '@/app/actions/basicSchedules';
-import { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
-import React, { ComponentProps } from 'react';
-import {
-	ScheduleEditFormModal,
-	ScheduleEditFormModalProps,
-} from '../../clients/[clientId]/edit/_components/ScheduleEditFormModal';
+'use client';
 
-export const AddButton: React.FC<{
+import { Icon } from '@/app/_components/Icon';
+import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
+import type { StaffRecord } from '@/models/staffActionSchemas';
+import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
+import { useState } from 'react';
+import { BasicScheduleForm } from '../BasicScheduleForm';
+
+export type AddButtonProps = {
 	weekday: DayOfWeek;
-	serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'];
-	staffOptions: ScheduleEditFormModalProps['staffOptions'];
+	serviceTypes: ServiceTypeOption[];
+	staffs: StaffRecord[];
 	clientId: string;
-}> = ({ weekday, serviceTypeOptions, staffOptions, clientId }) => {
-	const [isModalOpen, setIsModalOpen] = React.useState(false);
+	clientName: string;
+};
+
+export const AddButton = ({
+	weekday,
+	serviceTypes,
+	staffs,
+	clientId,
+	clientName,
+}: AddButtonProps) => {
+	const [isModalOpen, setIsModalOpen] = useState(false);
+
 	const handleOpenModal = () => {
 		setIsModalOpen(true);
 	};
-	const handleSubmit: ComponentProps<
-		typeof ScheduleEditFormModal
-	>['onSubmit'] = async (data) => {
-		await createBasicScheduleAction({
-			client_id: clientId,
-			end_time: data.endTime,
-			start_time: data.startTime,
-			weekday,
-			note: data.note,
-			service_type_id: data.serviceTypeId,
-			staff_ids: data.staffIds,
-		});
+
+	const handleCloseModal = () => {
 		setIsModalOpen(false);
 	};
+
+	// fixedClientId 用に serviceUsers を作成（clientId と clientName のみ）
+	const serviceUsers = [
+		{
+			id: clientId,
+			name: clientName,
+			office_id: '',
+			contract_status: 'active' as const,
+			created_at: new Date(),
+			updated_at: new Date(),
+		},
+	];
+
 	return (
 		<>
 			<button
@@ -39,15 +52,33 @@ export const AddButton: React.FC<{
 				onClick={handleOpenModal}
 			>
 				<Icon name="add" />
-			</button>{' '}
-			<ScheduleEditFormModal
-				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
-				weekday={weekday}
-				staffOptions={staffOptions}
-				serviceTypeOptions={serviceTypeOptions}
-				onSubmit={handleSubmit}
-			/>
+			</button>
+			{isModalOpen && (
+				<dialog
+					className="modal-open modal"
+					open
+					aria-modal="true"
+					onClose={handleCloseModal}
+				>
+					<div className="modal-box">
+						<h3 className="mb-4 text-lg font-bold">予定を追加</h3>
+						<BasicScheduleForm
+							serviceUsers={serviceUsers}
+							serviceTypes={serviceTypes}
+							staffs={staffs}
+							mode="create"
+							fixedClientId={clientId}
+							fixedWeekday={weekday}
+							asModal
+							onSubmitSuccess={handleCloseModal}
+							onCancel={handleCloseModal}
+						/>
+					</div>
+					<form method="dialog" className="modal-backdrop">
+						<button aria-label="モーダルを閉じる">close</button>
+					</form>
+				</dialog>
+			)}
 		</>
 	);
 };

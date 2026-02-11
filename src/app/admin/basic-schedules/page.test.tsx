@@ -29,7 +29,7 @@ beforeEach(() => {
 			},
 			{
 				id: 'life-support',
-				name: '生活援助',
+				name: '生活支援',
 			},
 			{
 				id: 'commute-support',

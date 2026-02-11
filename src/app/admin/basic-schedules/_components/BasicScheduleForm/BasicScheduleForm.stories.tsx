@@ -28,7 +28,7 @@ const serviceUsers: ServiceUser[] = [
 
 const serviceTypes: ServiceTypeOption[] = [
 	{ id: 'physical-care', name: '身体介護' },
-	{ id: 'life-support', name: '生活援助' },
+	{ id: 'life-support', name: '生活支援' },
 	{ id: 'commute-support', name: '通院介助' },
 ];
 
@@ -153,4 +153,68 @@ export const NewClientWithName: Story = {
 			endTime: '11:30',
 		},
 	},
+};
+
+export const FixedClientId: Story = {
+	name: '利用者固定（読み取り専用）',
+	args: {
+		fixedClientId: serviceUsers[0]?.id,
+	},
+};
+
+export const FixedWeekday: Story = {
+	name: '曜日固定（読み取り専用）',
+	args: {
+		fixedWeekday: 'Wed',
+	},
+};
+
+export const FixedClientAndWeekday: Story = {
+	name: '利用者・曜日固定（読み取り専用）',
+	args: {
+		fixedClientId: serviceUsers[0]?.id,
+		fixedWeekday: 'Fri',
+	},
+};
+
+export const AsModal: Story = {
+	name: 'モーダル用レイアウト',
+	args: {
+		asModal: true,
+		fixedClientId: serviceUsers[0]?.id,
+		fixedWeekday: 'Mon',
+	},
+	decorators: [
+		(Story) => (
+			<div className="modal-box">
+				<h3 className="text-lg font-bold">スケジュール追加</h3>
+				<Story />
+			</div>
+		),
+	],
+};
+
+export const WithOnCancel: Story = {
+	name: 'キャンセルボタン付き',
+	args: {
+		onCancel: () => alert('キャンセルが押されました'),
+	},
+};
+
+export const ModalWithCancel: Story = {
+	name: 'モーダル用（キャンセルボタン付き）',
+	args: {
+		asModal: true,
+		fixedClientId: serviceUsers[0]?.id,
+		fixedWeekday: 'Tue',
+		onCancel: () => alert('キャンセルが押されました'),
+	},
+	decorators: [
+		(Story) => (
+			<div className="modal-box">
+				<h3 className="text-lg font-bold">スケジュール追加</h3>
+				<Story />
+			</div>
+		),
+	],
 };

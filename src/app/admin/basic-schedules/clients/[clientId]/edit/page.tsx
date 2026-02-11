@@ -87,14 +87,6 @@ const ClientBatchEditPage = async ({ params }: ClientBatchEditPageProps) => {
 		name: st.name,
 	}));
 
-	const staffOptions = staffs.map((s) => ({
-		id: s.id,
-		name: s.name,
-		role: s.role,
-		serviceTypeIds: s.service_type_ids,
-		note: s.note,
-	}));
-
 	const handleSave = async (operations: BatchSaveOperations) => {
 		'use server';
 
@@ -150,7 +142,7 @@ const ClientBatchEditPage = async ({ params }: ClientBatchEditPageProps) => {
 				clientName={client.name}
 				initialSchedules={initialSchedules}
 				serviceTypeOptions={serviceTypeOptions}
-				staffOptions={staffOptions}
+				staffs={staffs}
 				onSave={handleSave}
 			/>
 		</div>

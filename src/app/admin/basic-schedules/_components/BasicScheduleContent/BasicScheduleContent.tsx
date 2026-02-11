@@ -1,8 +1,9 @@
 'use client';
 
+import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
+import type { StaffRecord } from '@/models/staffActionSchemas';
 import type { ReactNode } from 'react';
 import { Suspense, useCallback, useSyncExternalStore } from 'react';
-import type { ScheduleEditFormModalProps } from '../../clients/[clientId]/edit/_components/ScheduleEditFormModal';
 import { BasicScheduleGrid } from '../BasicScheduleGrid';
 import { transformToGridViewModel } from '../BasicScheduleGrid/transformToGridViewModel';
 import { BasicScheduleList } from '../BasicScheduleList';
@@ -16,8 +17,8 @@ import { ViewToggleButton } from '../ViewToggleButton';
 
 interface BasicScheduleContentProps {
 	schedules: BasicScheduleViewModel[];
-	serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'];
-	staffOptions: ScheduleEditFormModalProps['staffOptions'];
+	serviceTypes: ServiceTypeOption[];
+	staffs: StaffRecord[];
 }
 
 const STORAGE_KEY = 'basicScheduleViewMode';
@@ -63,8 +64,8 @@ const viewRenderers: Record<
 	(
 		schedules: BasicScheduleViewModel[],
 		options: {
-			serviceTypeOptions: ScheduleEditFormModalProps['serviceTypeOptions'];
-			staffOptions: ScheduleEditFormModalProps['staffOptions'];
+			serviceTypes: ServiceTypeOption[];
+			staffs: StaffRecord[];
 		},
 	) => ReactNode
 > = {
@@ -75,8 +76,8 @@ const viewRenderers: Record<
 			<Suspense>
 				<BasicScheduleGrid
 					schedules={gridData}
-					serviceTypeOptions={options.serviceTypeOptions}
-					staffOptions={options.staffOptions}
+					serviceTypes={options.serviceTypes}
+					staffs={options.staffs}
 				/>
 			</Suspense>
 		);
@@ -89,8 +90,8 @@ const viewRenderers: Record<
 
 export const BasicScheduleContent = ({
 	schedules,
-	serviceTypeOptions,
-	staffOptions,
+	serviceTypes,
+	staffs,
 }: BasicScheduleContentProps) => {
 	const [viewMode, handleViewChange] = usePersistedViewMode();
 
@@ -102,7 +103,7 @@ export const BasicScheduleContent = ({
 					onViewChange={handleViewChange}
 				/>
 			</div>
-			{viewRenderers[viewMode](schedules, { serviceTypeOptions, staffOptions })}
+			{viewRenderers[viewMode](schedules, { serviceTypes, staffs })}
 		</div>
 	);
 };
