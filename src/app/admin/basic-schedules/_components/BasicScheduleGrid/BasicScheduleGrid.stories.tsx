@@ -1,5 +1,7 @@
+import { getBasicScheduleByIdAction } from '@/app/actions/basicSchedules';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { ComponentProps } from 'react';
+import { mocked } from 'storybook/test';
 import { BasicScheduleGrid } from './BasicScheduleGrid';
 import type { BasicScheduleGridViewModel } from './types';
 const serviceTypes: ComponentProps<typeof BasicScheduleGrid>['serviceTypes'] = [
@@ -36,6 +38,25 @@ const meta = {
 		layout: 'padded',
 	},
 	tags: ['autodocs'],
+	beforeEach: async () => {
+		mocked(getBasicScheduleByIdAction).mockResolvedValue({
+			data: {
+				id: '1',
+				client: { id: '1', name: '山田太郎' },
+				service_type_id: 'physical-care',
+				weekday: 'Mon' as const,
+				start_time: { hour: 9, minute: 0 },
+				end_time: { hour: 10, minute: 0 },
+				note: '',
+				staffs: [{ id: 'staff-1', name: 'スタッフA' }],
+				deleted_at: null,
+				created_at: new Date(),
+				updated_at: new Date(),
+			},
+			error: null,
+			status: 200,
+		});
+	},
 } satisfies Meta<typeof BasicScheduleGrid>;
 
 export default meta;
