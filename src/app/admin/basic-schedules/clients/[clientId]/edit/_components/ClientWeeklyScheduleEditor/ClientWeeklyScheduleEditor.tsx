@@ -190,6 +190,21 @@ export const ClientWeeklyScheduleEditor = ({
 	const isEditMode = !!selectedSchedule;
 	const currentWeekday = selectedSchedule?.data.weekday ?? formWeekday;
 
+	// fixedClientId 用に serviceUsers を作成（clientId と clientName のみ）
+	const serviceUsers = useMemo(
+		() => [
+			{
+				id: clientId,
+				name: clientName,
+				office_id: '',
+				contract_status: 'active' as const,
+				created_at: new Date(),
+				updated_at: new Date(),
+			},
+		],
+		[clientId, clientName],
+	);
+
 	return (
 		<div className="space-y-4">
 			{/* ヘッダー */}
@@ -224,13 +239,18 @@ export const ClientWeeklyScheduleEditor = ({
 
 			{/* 編集モーダル */}
 			{state.isFormOpen && (
-				<div className="modal-open modal" role="dialog" aria-modal="true">
+				<dialog
+					className="modal-open modal"
+					open
+					aria-modal="true"
+					onClose={handleCloseForm}
+				>
 					<div className="modal-box max-w-lg">
 						<h3 className="mb-4 text-lg font-bold">
 							{isEditMode ? '予定を編集' : '予定を追加'}
 						</h3>
 						<BasicScheduleForm
-							serviceUsers={[]}
+							serviceUsers={serviceUsers}
 							serviceTypes={serviceTypeOptions}
 							staffs={staffs}
 							initialValues={formInitialValues}
@@ -245,12 +265,9 @@ export const ClientWeeklyScheduleEditor = ({
 					<div
 						className="modal-backdrop"
 						onClick={handleCloseForm}
-						onKeyDown={(e) => e.key === 'Escape' && handleCloseForm()}
-						role="button"
-						tabIndex={0}
 						aria-label="閉じる"
 					/>
-				</div>
+				</dialog>
 			)}
 		</div>
 	);

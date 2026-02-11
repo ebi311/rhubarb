@@ -54,7 +54,12 @@ export const AddButton = ({
 				<Icon name="add" />
 			</button>
 			{isModalOpen && (
-				<dialog className="modal-open modal" open aria-modal="true">
+				<dialog
+					className="modal-open modal"
+					open
+					aria-modal="true"
+					onClose={handleCloseModal}
+				>
 					<div className="modal-box">
 						<h3 className="mb-4 text-lg font-bold">予定を追加</h3>
 						<BasicScheduleForm
