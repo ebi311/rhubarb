@@ -75,7 +75,7 @@ export const AddButton = ({
 						/>
 					</div>
 					<form method="dialog" className="modal-backdrop">
-						<button>close</button>
+						<button aria-label="モーダルを閉じる">close</button>
 					</form>
 				</dialog>
 			)}
