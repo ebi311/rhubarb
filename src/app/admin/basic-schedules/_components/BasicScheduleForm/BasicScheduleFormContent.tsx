@@ -157,30 +157,40 @@ const FormActionButtons = ({
 	submitButtonClass,
 	onDelete,
 	onCancel,
-}: FormActionButtonsProps) => (
-	<div className="flex justify-between">
-		{isEditMode ? (
+}: FormActionButtonsProps) => {
+	const showDeleteButton = isEditMode && !!onDelete;
+	const showCancelButton = !!onCancel;
+
+	return (
+		<div className="flex justify-between">
+			{showDeleteButton || showCancelButton ? (
+				<div className="flex gap-2">
+					{showDeleteButton && (
+						<button
+							type="button"
+							className="btn btn-outline btn-error"
+							onClick={onDelete}
+							disabled={isDeleting || isSubmitting}
+						>
+							{isDeleting ? '削除中...' : '削除する'}
+						</button>
+					)}
+					{showCancelButton && (
+						<button type="button" className="btn btn-ghost" onClick={onCancel}>
+							キャンセル
+						</button>
+					)}
+				</div>
+			) : (
+				<div />
+			)}
 			<button
-				type="button"
-				className="btn btn-outline btn-error"
-				onClick={onDelete}
-				disabled={isDeleting || isSubmitting}
+				type="submit"
+				className={submitButtonClass}
+				disabled={isSubmitDisabled}
 			>
-				{isDeleting ? '削除中...' : '削除する'}
+				{submitButtonText}
 			</button>
-		) : onCancel ? (
-			<button type="button" className="btn btn-ghost" onClick={onCancel}>
-				キャンセル
-			</button>
-		) : (
-			<div />
-		)}
-		<button
-			type="submit"
-			className={submitButtonClass}
-			disabled={isSubmitDisabled}
-		>
-			{submitButtonText}
-		</button>
-	</div>
-);
+		</div>
+	);
+};
