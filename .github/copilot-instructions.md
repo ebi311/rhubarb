@@ -109,12 +109,6 @@ const clientId = createTestId();
 const clientId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 ```
 
-### テスト修正時の原則
-
-1. エラーメッセージをそのまま対処せず、**変更した Props/型定義との整合性** を最初に確認する
-2. モックオブジェクトは実際の型定義（Zod スキーマの `z.infer`）に合わせる
-3. テストが3回連続で失敗したら、一度立ち止まって **エラーの根本原因を分析** してから修正する
-
 ## Git ルール
 
 コミット前に `pnpm format` を実行。メッセージは日本語で：
