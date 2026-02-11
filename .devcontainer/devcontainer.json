@@ -63,7 +63,9 @@
 				"ms-vscode.vscode-websearchforcopilot",
 				"vitest.explorer",
 				"formulahendry.auto-rename-tag",
-				"KalimahApps.tailwindcss-kit"
+				"KalimahApps.tailwindcss-kit",
+				"GitHub.vscode-pull-request-github",
+				"streetsidesoftware.code-spell-checker"
 			]
 		}
 	}
