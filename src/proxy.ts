@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { updateSession } from './utils/supabase/middleware';
 
 const env = process.env.NODE_ENV || 'development';
 
@@ -34,10 +35,9 @@ const applyCsp = (requestHeaders: Headers, response: NextResponse): void => {
 export async function proxy(request: NextRequest) {
 	const requestHeaders = new Headers(request.headers);
 
-	const response = await NextResponse.next({
-		request: {
-			headers: requestHeaders,
-		},
+	const response = await updateSession(request);
+	response.headers.forEach((value, key) => {
+		requestHeaders.set(key, value);
 	});
 
 	if (env !== 'development') {
