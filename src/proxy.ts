@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function proxy(request: NextRequest) {
+const env = process.env.NODE_ENV || 'development';
+
+const applyCsp = (requestHeaders: Headers, response: NextResponse): void => {
 	const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
 	const cspHeader = `
     default-src 'self';
@@ -14,28 +16,34 @@ export async function proxy(request: NextRequest) {
     frame-ancestors 'none';
     upgrade-insecure-requests;
 `;
-	// Replace newline characters and spaces
 	const contentSecurityPolicyHeaderValue = cspHeader
 		.replace(/\s{2,}/g, ' ')
 		.trim();
 
-	const requestHeaders = new Headers(request.headers);
 	requestHeaders.set('x-nonce', nonce);
-
 	requestHeaders.set(
 		'Content-Security-Policy',
 		contentSecurityPolicyHeaderValue,
 	);
+	response.headers.set(
+		'Content-Security-Policy',
+		contentSecurityPolicyHeaderValue,
+	);
+};
+
+export async function proxy(request: NextRequest) {
+	const requestHeaders = new Headers(request.headers);
 
 	const response = await NextResponse.next({
 		request: {
 			headers: requestHeaders,
 		},
 	});
-	response.headers.set(
-		'Content-Security-Policy',
-		contentSecurityPolicyHeaderValue,
-	);
+
+	if (env !== 'development') {
+		applyCsp(requestHeaders, response);
+	}
+
 	return response;
 }
 
