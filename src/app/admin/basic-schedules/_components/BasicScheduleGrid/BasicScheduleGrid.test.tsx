@@ -1,16 +1,29 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ComponentProps } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BasicScheduleGrid } from './BasicScheduleGrid';
 import type { BasicScheduleGridViewModel } from './types';
 
+// getBasicScheduleByIdAction モック
+const mockGetBasicScheduleByIdAction = vi.fn();
+vi.mock('@/app/actions/basicSchedules', () => ({
+	getBasicScheduleByIdAction: (...args: unknown[]) =>
+		mockGetBasicScheduleByIdAction(...args),
+	createBasicScheduleAction: vi.fn(),
+	updateBasicScheduleAction: vi.fn(),
+	deleteBasicScheduleAction: vi.fn(),
+}));
+
 // next/navigation モック（BasicScheduleForm が useRouter を使用するため）
+const mockRouterRefresh = vi.fn();
+const mockRouterPush = vi.fn();
 vi.mock('next/navigation', () => ({
 	useRouter: () => ({
-		push: vi.fn(),
+		push: mockRouterPush,
 		replace: vi.fn(),
 		prefetch: vi.fn(),
+		refresh: mockRouterRefresh,
 	}),
 }));
 
@@ -43,6 +56,10 @@ const staffs: ComponentProps<typeof BasicScheduleGrid>['staffs'] = [
 ];
 
 describe('BasicScheduleGrid', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
 	it('ヘッダー行に利用者名と曜日が表示される', () => {
 		const schedules: BasicScheduleGridViewModel[] = [
 			{
@@ -136,7 +153,7 @@ describe('BasicScheduleGrid', () => {
 		expect(screen.getByText('(未設定)')).toBeInTheDocument();
 	});
 
-	it('スケジュールセルがリンクになっている', () => {
+	it('スケジュールセルはボタンであり、リンクではない', () => {
 		const schedules: BasicScheduleGridViewModel[] = [
 			{
 				clientId: '1',
@@ -163,13 +180,130 @@ describe('BasicScheduleGrid', () => {
 			/>,
 		);
 
-		const link = screen.getByRole('link', {
+		// リンクではなくボタンになっている
+		expect(
+			screen.queryByRole('link', {
+				name: /09:00-10:00 担当: スタッフA/,
+			}),
+		).not.toBeInTheDocument();
+
+		const button = screen.getByRole('button', {
 			name: /09:00-10:00 担当: スタッフA/,
 		});
-		expect(link).toHaveAttribute(
-			'href',
-			'/admin/basic-schedules/schedule-123/edit',
+		expect(button).toBeInTheDocument();
+	});
+
+	it('スケジュールセルをクリックすると編集ダイアログが開き、getBasicScheduleByIdAction が呼ばれる', async () => {
+		const user = userEvent.setup();
+		mockGetBasicScheduleByIdAction.mockResolvedValue({
+			data: {
+				id: 'schedule-123',
+				client: { id: '1', name: '山田太郎' },
+				service_type_id: 'physical-care',
+				weekday: 'Mon',
+				start_time: { hour: 9, minute: 0 },
+				end_time: { hour: 10, minute: 0 },
+				note: '',
+				staffs: [{ id: 'staff-1', name: 'スタッフA' }],
+				deleted_at: null,
+				created_at: new Date(),
+				updated_at: new Date(),
+			},
+			error: null,
+			status: 200,
+		});
+
+		const schedules: BasicScheduleGridViewModel[] = [
+			{
+				clientId: '1',
+				clientName: '山田太郎',
+				schedulesByWeekday: {
+					Mon: [
+						{
+							id: 'schedule-123',
+							timeRange: '09:00-10:00',
+							serviceTypeId: 'physical-care',
+							staffNames: ['スタッフA'],
+							note: null,
+						},
+					],
+				},
+			},
+		];
+
+		render(
+			<BasicScheduleGrid
+				schedules={schedules}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+			/>,
 		);
+
+		// ダイアログが表示されていないことを確認
+		expect(screen.queryByText('予定を編集')).not.toBeInTheDocument();
+
+		// pill をクリック
+		const pillButton = screen.getByRole('button', {
+			name: /09:00-10:00 担当: スタッフA/,
+		});
+		await user.click(pillButton);
+
+		// getBasicScheduleByIdAction が呼ばれる
+		expect(mockGetBasicScheduleByIdAction).toHaveBeenCalledWith('schedule-123');
+
+		// 編集ダイアログが表示される
+		await waitFor(() => {
+			expect(screen.getByText('予定を編集')).toBeInTheDocument();
+		});
+
+		// ダイアログ内にフォームが表示される
+		const dialog = screen.getByRole('dialog');
+		expect(dialog).toBeInTheDocument();
+	});
+
+	it('getBasicScheduleByIdAction がエラーを返した場合、ダイアログが閉じる', async () => {
+		const user = userEvent.setup();
+		mockGetBasicScheduleByIdAction.mockResolvedValue({
+			data: null,
+			error: 'Not found',
+			status: 404,
+		});
+
+		const schedules: BasicScheduleGridViewModel[] = [
+			{
+				clientId: '1',
+				clientName: '山田太郎',
+				schedulesByWeekday: {
+					Mon: [
+						{
+							id: 'schedule-123',
+							timeRange: '09:00-10:00',
+							serviceTypeId: 'physical-care',
+							staffNames: ['スタッフA'],
+							note: null,
+						},
+					],
+				},
+			},
+		];
+
+		render(
+			<BasicScheduleGrid
+				schedules={schedules}
+				serviceTypes={serviceTypes}
+				staffs={staffs}
+			/>,
+		);
+
+		const pillButton = screen.getByRole('button', {
+			name: /09:00-10:00 担当: スタッフA/,
+		});
+		await user.click(pillButton);
+
+		// エラー時はダイアログが閉じる（表示されない）
+		await waitFor(() => {
+			expect(screen.queryByText('予定を編集')).not.toBeInTheDocument();
+		});
 	});
 
 	it('1つのセルに複数のスケジュールがある場合、全て表示される', () => {

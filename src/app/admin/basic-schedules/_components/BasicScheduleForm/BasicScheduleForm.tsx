@@ -123,6 +123,8 @@ export type BasicScheduleFormProps = {
 	asModal?: boolean;
 	/** コールバックモード: Server Action を呼び出さず、バリデーション後にデータを返す */
 	onFormSubmit?: (data: BasicScheduleCallbackData) => void;
+	/** 削除成功後のコールバック（モーダル用。指定時は router.push の代わりに呼ばれる） */
+	onDeleteSuccess?: () => void;
 };
 
 const DEFAULT_FORM_VALUES: BasicScheduleFormValues = {
@@ -175,6 +177,7 @@ export const BasicScheduleForm = ({
 	onCancel,
 	asModal = false,
 	onFormSubmit,
+	onDeleteSuccess,
 }: BasicScheduleFormProps) => {
 	const isEditMode = mode === 'edit';
 	const config = MODE_CONFIG[mode];
@@ -236,7 +239,10 @@ export const BasicScheduleForm = ({
 		onFormSubmit,
 	});
 
-	const { isDeleting, handleDelete } = useDeleteSchedule({ scheduleId });
+	const { isDeleting, handleDelete } = useDeleteSchedule({
+		scheduleId,
+		onDeleteSuccess,
+	});
 
 	const submitButtonClass = getSubmitButtonClass(isSubmitting);
 

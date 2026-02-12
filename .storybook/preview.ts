@@ -9,6 +9,7 @@ sb.mock(
 sb.mock(import('../src/app/actions/weeklySchedules.ts'));
 sb.mock(import('../src/utils/supabase/server.ts'));
 sb.mock(import('../src/app/actions/auth.ts'));
+sb.mock(import('../src/app/actions/basicSchedules.ts'));
 
 const preview: Preview = {
 	parameters: {

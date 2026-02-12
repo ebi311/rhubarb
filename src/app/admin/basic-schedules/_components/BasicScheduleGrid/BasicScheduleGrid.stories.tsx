@@ -1,7 +1,25 @@
+import { getBasicScheduleByIdAction } from '@/app/actions/basicSchedules';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { ComponentProps } from 'react';
+import { mocked } from 'storybook/test';
 import { BasicScheduleGrid } from './BasicScheduleGrid';
 import type { BasicScheduleGridViewModel } from './types';
+
+/** Storybook 用 RFC 4122 準拠 UUID 定数 */
+const STORY_IDS = {
+	CLIENT_1: '550e8400-e29b-41d4-a716-446655440001',
+	CLIENT_2: '550e8400-e29b-41d4-a716-446655440002',
+	STAFF_1: '550e8400-e29b-41d4-a716-446655440011',
+	STAFF_2: '550e8400-e29b-41d4-a716-446655440012',
+	OFFICE_1: '550e8400-e29b-41d4-a716-446655440031',
+	SCHEDULE_1: '550e8400-e29b-41d4-a716-446655440021',
+	SCHEDULE_2: '550e8400-e29b-41d4-a716-446655440022',
+	SCHEDULE_3: '550e8400-e29b-41d4-a716-446655440023',
+	SCHEDULE_4: '550e8400-e29b-41d4-a716-446655440024',
+	SCHEDULE_5: '550e8400-e29b-41d4-a716-446655440025',
+	SCHEDULE_6: '550e8400-e29b-41d4-a716-446655440026',
+} as const;
+
 const serviceTypes: ComponentProps<typeof BasicScheduleGrid>['serviceTypes'] = [
 	{ id: 'physical-care', name: '身体介護' },
 	{ id: 'life-support', name: '生活支援' },
@@ -9,8 +27,8 @@ const serviceTypes: ComponentProps<typeof BasicScheduleGrid>['serviceTypes'] = [
 
 const staffs: ComponentProps<typeof BasicScheduleGrid>['staffs'] = [
 	{
-		id: 'staff-1',
-		office_id: 'office-1',
+		id: STORY_IDS.STAFF_1,
+		office_id: STORY_IDS.OFFICE_1,
 		name: 'スタッフA',
 		role: 'helper',
 		service_type_ids: ['physical-care', 'life-support'],
@@ -19,8 +37,8 @@ const staffs: ComponentProps<typeof BasicScheduleGrid>['staffs'] = [
 		updated_at: new Date('2024-01-01T00:00:00Z'),
 	},
 	{
-		id: 'staff-2',
-		office_id: 'office-1',
+		id: STORY_IDS.STAFF_2,
+		office_id: STORY_IDS.OFFICE_1,
 		name: 'スタッフB',
 		role: 'helper',
 		service_type_ids: ['life-support'],
@@ -36,6 +54,25 @@ const meta = {
 		layout: 'padded',
 	},
 	tags: ['autodocs'],
+	beforeEach: async () => {
+		mocked(getBasicScheduleByIdAction).mockResolvedValue({
+			data: {
+				id: STORY_IDS.SCHEDULE_1,
+				client: { id: STORY_IDS.CLIENT_1, name: '山田太郎' },
+				service_type_id: 'physical-care',
+				weekday: 'Mon' as const,
+				start_time: { hour: 9, minute: 0 },
+				end_time: { hour: 10, minute: 0 },
+				note: '',
+				staffs: [{ id: STORY_IDS.STAFF_1, name: 'スタッフA' }],
+				deleted_at: null,
+				created_at: new Date('2024-01-01T00:00:00Z'),
+				updated_at: new Date('2024-01-01T00:00:00Z'),
+			},
+			error: null,
+			status: 200,
+		});
+	},
 } satisfies Meta<typeof BasicScheduleGrid>;
 
 export default meta;
@@ -43,12 +80,12 @@ type Story = StoryObj<typeof meta>;
 
 const sampleSchedules: BasicScheduleGridViewModel[] = [
 	{
-		clientId: '1',
+		clientId: STORY_IDS.CLIENT_1,
 		clientName: '山田太郎',
 		schedulesByWeekday: {
 			Mon: [
 				{
-					id: '1',
+					id: STORY_IDS.SCHEDULE_1,
 					timeRange: '09:00-10:00',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフA', 'スタッフB'],
@@ -57,7 +94,7 @@ const sampleSchedules: BasicScheduleGridViewModel[] = [
 			],
 			Wed: [
 				{
-					id: '2',
+					id: STORY_IDS.SCHEDULE_2,
 					timeRange: '14:00-15:00',
 					serviceTypeId: 'life-support',
 					staffNames: ['スタッフC'],
@@ -66,7 +103,7 @@ const sampleSchedules: BasicScheduleGridViewModel[] = [
 			],
 			Fri: [
 				{
-					id: '3',
+					id: STORY_IDS.SCHEDULE_3,
 					timeRange: '10:00-11:00',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフD'],
@@ -76,12 +113,12 @@ const sampleSchedules: BasicScheduleGridViewModel[] = [
 		},
 	},
 	{
-		clientId: '2',
+		clientId: STORY_IDS.CLIENT_2,
 		clientName: '佐藤花子',
 		schedulesByWeekday: {
 			Tue: [
 				{
-					id: '4',
+					id: STORY_IDS.SCHEDULE_4,
 					timeRange: '08:00-09:00',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフE'],
@@ -90,7 +127,7 @@ const sampleSchedules: BasicScheduleGridViewModel[] = [
 			],
 			Thu: [
 				{
-					id: '5',
+					id: STORY_IDS.SCHEDULE_5,
 					timeRange: '13:00-14:00',
 					serviceTypeId: 'life-support',
 					staffNames: ['スタッフF'],
@@ -103,26 +140,26 @@ const sampleSchedules: BasicScheduleGridViewModel[] = [
 
 const multiSchedulesInCell: BasicScheduleGridViewModel[] = [
 	{
-		clientId: '1',
+		clientId: STORY_IDS.CLIENT_1,
 		clientName: '鈴木一郎',
 		schedulesByWeekday: {
 			Mon: [
 				{
-					id: '1',
+					id: STORY_IDS.SCHEDULE_1,
 					timeRange: '09:00-10:00',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフA'],
 					note: null,
 				},
 				{
-					id: '2',
+					id: STORY_IDS.SCHEDULE_2,
 					timeRange: '14:00-15:00',
 					serviceTypeId: 'life-support',
 					staffNames: ['スタッフB'],
 					note: '買い物代行',
 				},
 				{
-					id: '3',
+					id: STORY_IDS.SCHEDULE_3,
 					timeRange: '18:00-19:00',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフC'],
@@ -131,14 +168,14 @@ const multiSchedulesInCell: BasicScheduleGridViewModel[] = [
 			],
 			Wed: [
 				{
-					id: '4',
+					id: STORY_IDS.SCHEDULE_4,
 					timeRange: '10:00-11:00',
 					serviceTypeId: 'life-support',
 					staffNames: ['スタッフD'],
 					note: null,
 				},
 				{
-					id: '5',
+					id: STORY_IDS.SCHEDULE_5,
 					timeRange: '16:00-17:00',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフE', 'スタッフF'],
@@ -151,19 +188,19 @@ const multiSchedulesInCell: BasicScheduleGridViewModel[] = [
 
 const twoSchedulesSameDay: BasicScheduleGridViewModel[] = [
 	{
-		clientId: '1',
+		clientId: STORY_IDS.CLIENT_1,
 		clientName: '山田太郎',
 		schedulesByWeekday: {
 			Mon: [
 				{
-					id: '1',
+					id: STORY_IDS.SCHEDULE_1,
 					timeRange: '09:00-10:30',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフA'],
 					note: null,
 				},
 				{
-					id: '2',
+					id: STORY_IDS.SCHEDULE_2,
 					timeRange: '14:00-15:00',
 					serviceTypeId: 'life-support',
 					staffNames: ['スタッフB'],
@@ -172,7 +209,7 @@ const twoSchedulesSameDay: BasicScheduleGridViewModel[] = [
 			],
 			Wed: [
 				{
-					id: '3',
+					id: STORY_IDS.SCHEDULE_3,
 					timeRange: '10:00-11:00',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフC'],
@@ -182,12 +219,12 @@ const twoSchedulesSameDay: BasicScheduleGridViewModel[] = [
 		},
 	},
 	{
-		clientId: '2',
+		clientId: STORY_IDS.CLIENT_2,
 		clientName: '佐藤花子',
 		schedulesByWeekday: {
 			Tue: [
 				{
-					id: '4',
+					id: STORY_IDS.SCHEDULE_4,
 					timeRange: '08:00-09:00',
 					serviceTypeId: 'physical-care',
 					staffNames: ['スタッフD'],
@@ -196,7 +233,7 @@ const twoSchedulesSameDay: BasicScheduleGridViewModel[] = [
 			],
 			Thu: [
 				{
-					id: '5',
+					id: STORY_IDS.SCHEDULE_5,
 					timeRange: '11:00-12:00',
 					serviceTypeId: 'life-support',
 					staffNames: ['スタッフE'],
