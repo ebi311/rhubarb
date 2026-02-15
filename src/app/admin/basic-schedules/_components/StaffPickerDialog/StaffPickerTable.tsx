@@ -1,4 +1,5 @@
 import { ServiceTypeBadges } from '@/app/admin/_components/ServiceTypeBadges';
+import classNames from 'classnames';
 import type { KeyboardEvent } from 'react';
 import type { StaffPickerOption } from './types';
 
@@ -9,7 +10,7 @@ type StaffPickerTableProps = {
 };
 
 const handleRowKeyDown = (
-	event: KeyboardEvent<HTMLTableRowElement>,
+	event: KeyboardEvent<HTMLDivElement>,
 	staffId: string,
 	onSelect: (staffId: string) => void,
 ) => {
@@ -24,59 +25,58 @@ export const StaffPickerTable = ({
 	selectedStaffId,
 	onSelect,
 }: StaffPickerTableProps) => (
-	<table className="table table-zebra">
-		<thead>
-			<tr>
-				<th className="w-12">選択</th>
-				<th>氏名</th>
-				<th>役割</th>
-				<th>サービス区分</th>
-				<th>備考</th>
-			</tr>
-		</thead>
-		<tbody>
-			{staffs.map((staff) => {
-				const isSelected = selectedStaffId === staff.id;
-				return (
-					<tr
-						key={staff.id}
-						className={['cursor-pointer', isSelected ? 'bg-primary/10' : '']
-							.join(' ')
-							.trim()}
-						onClick={() => onSelect(staff.id)}
+	<ul className="max-h-64 overflow-y-auto">
+		{staffs.map((staff) => {
+			const isSelected = selectedStaffId === staff.id;
+			const rowClassName = classNames(
+				'p-2',
+				'grid',
+				'grid-cols-[auto_1fr_6rem]',
+				'grid-areas-["icon_name_role"_"icon_serviceType_serviceType"_"icon_note_note"]',
+				'gap-2',
+				'rounded border-b border-base-300',
+				'cursor-pointer',
+				{
+					'bg-primary/10': isSelected,
+				},
+			);
+			return (
+				<li key={staff.id} role="row" onClick={() => onSelect(staff.id)}>
+					<div
+						className={rowClassName}
 						onKeyDown={(event) => handleRowKeyDown(event, staff.id, onSelect)}
 						tabIndex={0}
 						aria-selected={isSelected}
 					>
-						<td>
+						<div className="flex items-center gap-2 grid-area-[icon]">
 							<input
 								type="radio"
-								className="radio radio-primary"
+								className="radio radio-sm radio-primary"
 								checked={isSelected}
 								onChange={() => onSelect(staff.id)}
 								aria-label={`${staff.name}を選択`}
 							/>
-						</td>
-						<td className="flex flex-col gap-1">
+						</div>
+						<div className="flex flex-col gap-1 text-lg grid-area-[name]">
 							<span className="font-medium">{staff.name}</span>
-						</td>
-						<td>
+						</div>
+						<div className="text-right grid-area-[role]">
 							<span className="badge badge-outline">
 								{staff.role === 'admin' ? '管理者' : 'ヘルパー'}
 							</span>
-						</td>
-						<td>
+						</div>
+						<div className="grid-area-[serviceType]">
 							<ServiceTypeBadges
 								serviceTypeIds={staff.serviceTypeIds}
 								size="md"
 							/>
-						</td>
-						<td className="text-sm text-base-content/70">
+						</div>
+						<div className="text-sm text-base-content/70 grid-area-[note]">
 							{staff.note ?? '-'}
-						</td>
-					</tr>
-				);
-			})}
-		</tbody>
-	</table>
+						</div>
+					</div>
+				</li>
+			);
+		})}
+	</ul>
 );
