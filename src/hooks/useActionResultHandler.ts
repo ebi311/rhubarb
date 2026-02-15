@@ -9,7 +9,6 @@ type HandleActionResultOptions<T> = {
 	onError?: (error: string | null, result: ActionResult<T>) => void;
 };
 
-const DEFAULT_SUCCESS = '操作が完了しました';
 const DEFAULT_ERROR = 'エラーが発生しました';
 
 const notifyError = <T>(
@@ -25,7 +24,9 @@ const notifySuccess = <T>(
 	result: ActionResult<T>,
 	options?: HandleActionResultOptions<T>,
 ) => {
-	toast.success(options?.successMessage ?? DEFAULT_SUCCESS);
+	if (options?.successMessage) {
+		toast.success(options.successMessage);
+	}
 	options?.onSuccess?.(result.data ?? null);
 	return true;
 };

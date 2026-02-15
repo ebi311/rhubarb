@@ -4,23 +4,15 @@ import { listServiceTypesAction, listStaffsAction } from '@/app/actions/staffs';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { ServiceUser } from '@/models/serviceUser';
 import type { StaffRecord } from '@/models/staffActionSchemas';
-import type { TimeValue } from '@/models/valueObjects/time';
 import { notFound } from 'next/navigation';
 import type { ServiceTypeOption } from '../../../staffs/_types';
 import {
 	BasicScheduleForm,
-	type BasicScheduleFormInitialValues,
+	toFormInitialValues,
 } from '../../_components/BasicScheduleForm';
 
 type EditBasicSchedulePageProps = {
 	params: Promise<{ id: string }>;
-};
-
-/** TimeValue を "HH:MM" 形式の文字列に変換 */
-const formatTimeForInput = (time: TimeValue): string => {
-	const hour = time.hour.toString().padStart(2, '0');
-	const minute = time.minute.toString().padStart(2, '0');
-	return `${hour}:${minute}`;
 };
 
 const safeData = <T,>(label: string, result: ActionResult<T[]>): T[] => {
@@ -58,18 +50,6 @@ const fetchPageData = async (scheduleId: string) => {
 		staffs: safeData<StaffRecord>('staffs', staffsResult),
 	};
 };
-
-const toFormInitialValues = (
-	schedule: NonNullable<Awaited<ReturnType<typeof fetchPageData>>>['schedule'],
-): BasicScheduleFormInitialValues => ({
-	clientId: schedule.client.id,
-	serviceTypeId: schedule.service_type_id,
-	weekday: schedule.weekday,
-	startTime: formatTimeForInput(schedule.start_time),
-	endTime: formatTimeForInput(schedule.end_time),
-	note: schedule.note ?? '',
-	staffId: schedule.staffs.length > 0 ? schedule.staffs[0].id : null,
-});
 
 const EditBasicSchedulePage = async ({
 	params,

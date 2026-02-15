@@ -119,7 +119,7 @@ describe('ChangeStaffDialog', () => {
 		});
 
 		// スタッフピッカーダイアログでスタッフを選択
-		const staffRow = screen.getByText('山田太郎').closest('tr');
+		const staffRow = screen.getByText('山田太郎').closest('[role="row"]');
 		await user.click(staffRow!);
 
 		// 確定ボタンをクリック
@@ -167,7 +167,7 @@ describe('ChangeStaffDialog', () => {
 		await waitFor(() => {
 			expect(screen.getByText('山田太郎')).toBeInTheDocument();
 		});
-		const staffRow = screen.getByText('山田太郎').closest('tr');
+		const staffRow = screen.getByText('山田太郎').closest('[role="row"]');
 		await user.click(staffRow!);
 
 		// 確定ボタンをクリック
@@ -232,7 +232,7 @@ describe('ChangeStaffDialog', () => {
 		await waitFor(() => {
 			expect(screen.getByText('山田太郎')).toBeInTheDocument();
 		});
-		const staffRow = screen.getByText('山田太郎').closest('tr');
+		const staffRow = screen.getByText('山田太郎').closest('[role="row"]');
 		await user.click(staffRow!);
 
 		// 確定ボタンをクリック

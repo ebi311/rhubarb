@@ -5,9 +5,14 @@ import { useState } from 'react';
 
 type UseDeleteScheduleParams = {
 	scheduleId?: string;
+	/** 削除成功時のコールバック。指定時は router.push の代わりにこちらが呼ばれる */
+	onDeleteSuccess?: () => void;
 };
 
-export const useDeleteSchedule = ({ scheduleId }: UseDeleteScheduleParams) => {
+export const useDeleteSchedule = ({
+	scheduleId,
+	onDeleteSuccess,
+}: UseDeleteScheduleParams) => {
 	const router = useRouter();
 	const [isDeleting, setIsDeleting] = useState(false);
 	const { handleActionResult } = useActionResultHandler();
@@ -27,7 +32,11 @@ export const useDeleteSchedule = ({ scheduleId }: UseDeleteScheduleParams) => {
 				successMessage: '基本スケジュールを削除しました',
 				errorMessage: '基本スケジュールの削除に失敗しました',
 				onSuccess: () => {
-					router.push('/admin/basic-schedules');
+					if (onDeleteSuccess) {
+						onDeleteSuccess();
+					} else {
+						router.push('/admin/basic-schedules');
+					}
 				},
 			});
 		} finally {

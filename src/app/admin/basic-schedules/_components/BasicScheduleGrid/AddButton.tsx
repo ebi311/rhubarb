@@ -4,8 +4,10 @@ import { Icon } from '@/app/_components/Icon';
 import type { ServiceTypeOption } from '@/app/admin/staffs/_types';
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import type { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { BasicScheduleForm } from '../BasicScheduleForm';
+import { createFixedClientServiceUser } from './createFixedClientServiceUser';
 
 export type AddButtonProps = {
 	weekday: DayOfWeek;
@@ -22,6 +24,7 @@ export const AddButton = ({
 	clientId,
 	clientName,
 }: AddButtonProps) => {
+	const router = useRouter();
 	const [isModalOpen, setIsModalOpen] = useState(false);
 
 	const handleOpenModal = () => {
@@ -32,17 +35,13 @@ export const AddButton = ({
 		setIsModalOpen(false);
 	};
 
-	// fixedClientId 用に serviceUsers を作成（clientId と clientName のみ）
-	const serviceUsers = [
-		{
-			id: clientId,
-			name: clientName,
-			office_id: '',
-			contract_status: 'active' as const,
-			created_at: new Date(),
-			updated_at: new Date(),
-		},
-	];
+	const handleAddSuccess = () => {
+		setIsModalOpen(false);
+		router.refresh();
+	};
+
+	// fixedClientId 用に serviceUsers を作成
+	const serviceUsers = [createFixedClientServiceUser(clientId, clientName)];
 
 	return (
 		<>
@@ -70,12 +69,14 @@ export const AddButton = ({
 							fixedClientId={clientId}
 							fixedWeekday={weekday}
 							asModal
-							onSubmitSuccess={handleCloseModal}
+							onSubmitSuccess={handleAddSuccess}
 							onCancel={handleCloseModal}
 						/>
 					</div>
 					<form method="dialog" className="modal-backdrop">
-						<button aria-label="モーダルを閉じる">close</button>
+						<button aria-label="モーダルを閉じる" onClick={handleCloseModal}>
+							close
+						</button>
 					</form>
 				</dialog>
 			)}

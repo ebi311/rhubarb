@@ -47,7 +47,7 @@ describe('StaffPickerTable', () => {
 			/>,
 		);
 
-		const row = screen.getByText('佐藤花子').closest('tr');
+		const row = screen.getByText('佐藤花子').closest('[role="row"]');
 		await user.click(row!);
 		expect(handleSelect).toHaveBeenCalledWith('staff-2');
 	});

@@ -53,7 +53,6 @@
 				"dbaeumer.vscode-eslint",
 				"eamodio.gitlens",
 				"ms-edgedevtools.vscode-edge-devtools",
-				"cweijan.vscode-database-client2",
 				"bradlc.vscode-tailwindcss",
 				"cweijan.vscode-redis-client",
 				"oderwat.indent-rainbow",
@@ -63,7 +62,9 @@
 				"ms-vscode.vscode-websearchforcopilot",
 				"vitest.explorer",
 				"formulahendry.auto-rename-tag",
-				"KalimahApps.tailwindcss-kit"
+				"KalimahApps.tailwindcss-kit",
+				"GitHub.vscode-pull-request-github",
+				"streetsidesoftware.code-spell-checker"
 			]
 		}
 	}
