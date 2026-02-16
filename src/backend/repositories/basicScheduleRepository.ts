@@ -1,3 +1,4 @@
+import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import {
 	BasicSchedule,
@@ -193,12 +194,15 @@ export class BasicScheduleRepository {
 			parseInt(params.end_time.slice(0, 2), 10) * 60 +
 			parseInt(params.end_time.slice(2, 4), 10);
 
+		const bufferedStart = targetStart - STAFF_SHIFT_INTERVAL_MINUTES;
+		const bufferedEnd = targetEnd + STAFF_SHIFT_INTERVAL_MINUTES;
+
 		return (schedules ?? [])
 			.map((row) => this.toDomain(row as BasicScheduleJoinedRow))
 			.filter((schedule) => {
 				const start = timeToMinutes(schedule.time.start);
 				const end = timeToMinutes(schedule.time.end);
-				return targetStart < end && start < targetEnd;
+				return bufferedStart < end && start < bufferedEnd;
 			});
 	}
 }
