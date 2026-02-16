@@ -1,3 +1,4 @@
+import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import {
 	BasicSchedule,
@@ -8,9 +9,6 @@ import { DayOfWeek } from '@/models/valueObjects/dayOfWeek';
 import { timeToMinutes } from '@/models/valueObjects/time';
 import { parseTimeString, timeObjectToStringWithTimezone } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
-
-/** スタッフのシフト間に必要な最低インターバル（分） */
-const STAFF_SHIFT_INTERVAL_MINUTES = 30;
 
 type BasicScheduleRow = Database['public']['Tables']['basic_schedules']['Row'];
 type BasicScheduleInsert =

@@ -1,3 +1,4 @@
+import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import { Shift, ShiftSchema } from '@/models/shift';
 import {
@@ -7,9 +8,6 @@ import {
 	setJstTime,
 } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
-
-/** スタッフのシフト間に必要な最低インターバル（分） */
-const STAFF_SHIFT_INTERVAL_MINUTES = 30;
 
 type ShiftRow = Database['public']['Tables']['shifts']['Row'];
 type ShiftInsert = Database['public']['Tables']['shifts']['Insert'];
