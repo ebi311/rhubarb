@@ -199,6 +199,28 @@ describe('ShiftRepository', () => {
 			expect(result[0].id).toBe('12345678-1234-1234-8234-123456789011');
 		});
 
+		it('should use 30-minute buffered times in the query', async () => {
+			const staffId = 'staff-1';
+			// 10:00Z ~ 11:00Z → buffered: 09:30Z ~ 11:30Z
+			const startTime = new Date('2026-01-20T10:00:00Z');
+			const endTime = new Date('2026-01-20T11:00:00Z');
+
+			const bufferedStart = new Date('2026-01-20T09:30:00.000Z');
+			const bufferedEnd = new Date('2026-01-20T11:30:00.000Z');
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findConflictingShifts(staffId, startTime, endTime);
+
+			// .or() に渡されるクエリ文字列が buffered な ISO を含むことを検証
+			expect(mockSupabase._mockQuery.or).toHaveBeenCalledWith(
+				`and(start_time.lt.${bufferedEnd.toISOString()},end_time.gt.${bufferedStart.toISOString()})`,
+			);
+		});
+
 		it('should exclude a specific shift when provided', async () => {
 			const staffId = 'staff-1';
 			const startTime = new Date('2026-01-20T10:00:00Z');

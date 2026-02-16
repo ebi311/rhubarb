@@ -8,6 +8,9 @@ import {
 } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 
+/** スタッフのシフト間に必要な最低インターバル（分） */
+const STAFF_SHIFT_INTERVAL_MINUTES = 30;
+
 type ShiftRow = Database['public']['Tables']['shifts']['Row'];
 type ShiftInsert = Database['public']['Tables']['shifts']['Insert'];
 
@@ -298,13 +301,20 @@ export class ShiftRepository {
 		endTime: Date,
 		excludeShiftId?: string,
 	): Promise<Shift[]> {
+		const bufferedStart = new Date(
+			startTime.getTime() - STAFF_SHIFT_INTERVAL_MINUTES * 60_000,
+		);
+		const bufferedEnd = new Date(
+			endTime.getTime() + STAFF_SHIFT_INTERVAL_MINUTES * 60_000,
+		);
+
 		let query = this.supabase
 			.from('shifts')
 			.select('*')
 			.eq('staff_id', staffId)
 			.neq('status', 'canceled')
 			.or(
-				`and(start_time.lt.${endTime.toISOString()},end_time.gt.${startTime.toISOString()})`,
+				`and(start_time.lt.${bufferedEnd.toISOString()},end_time.gt.${bufferedStart.toISOString()})`,
 			);
 
 		if (excludeShiftId) {
