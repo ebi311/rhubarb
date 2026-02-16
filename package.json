@@ -20,6 +20,8 @@
 		"supa:reset": "supabase db reset",
 		"supa:types": "supabase gen types typescript --local > ./src/backend/types/supabase.ts",
 		"supa:migrate": "supabase migration up",
+		"testdata:generate": "node ./scripts/generate-test-data.mjs",
+		"testdata:import": "node ./scripts/import-test-data.mjs",
 		"format": "prettier --write .",
 		"prepare": "husky"
 	},
