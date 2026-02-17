@@ -1,9 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { promisify } from 'node:util';
 
 const DEFAULT_DIR = path.join(process.cwd(), 'test-data', 'tsv');
+
+const execFileAsync = promisify(execFile);
+
+const getLocalSupabaseCredentials = async () => {
+	const { stdout } = await execFileAsync('supabase', ['status', '-o', 'json'], {
+		maxBuffer: 10 * 1024 * 1024,
+	});
+	/** @type {{ API_URL?: string; SERVICE_ROLE_KEY?: string }} */
+	const parsed = JSON.parse(stdout);
+	const supabaseUrl = parsed.API_URL ?? null;
+	const serviceRoleKey = parsed.SERVICE_ROLE_KEY ?? null;
+	return { supabaseUrl, serviceRoleKey };
+};
 
 const getArgValue = (name) => {
 	const idx = process.argv.indexOf(name);
@@ -54,11 +69,16 @@ const upsertAll = async (supabase, table, rows, options = {}) => {
 };
 
 const main = async () => {
-	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-	const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+	let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? null;
+	let serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
+	if (!supabaseUrl || !serviceRoleKey) {
+		const local = await getLocalSupabaseCredentials();
+		supabaseUrl = supabaseUrl ?? local.supabaseUrl;
+		serviceRoleKey = serviceRoleKey ?? local.serviceRoleKey;
+	}
 	if (!supabaseUrl || !serviceRoleKey) {
 		throw new Error(
-			'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required',
+			'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required (or run inside a Supabase local project)',
 		);
 	}
 
@@ -72,6 +92,11 @@ const main = async () => {
 	const files = [
 		{ table: 'offices', file: 'offices.tsv', onConflict: 'id' },
 		{ table: 'staffs', file: 'staffs.tsv', onConflict: 'id' },
+		{
+			table: 'staff_service_type_abilities',
+			file: 'staff_service_type_abilities.tsv',
+			onConflict: 'staff_id,service_type_id',
+		},
 		{ table: 'clients', file: 'clients.tsv', onConflict: 'id' },
 		{ table: 'basic_schedules', file: 'basic_schedules.tsv', onConflict: 'id' },
 		{

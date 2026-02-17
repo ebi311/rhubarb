@@ -119,6 +119,16 @@ const main = async () => {
 		});
 	}
 
+	const staffServiceTypeAbilities = [];
+	for (const staffId of staffIds) {
+		for (const serviceTypeId of serviceTypeIds) {
+			staffServiceTypeAbilities.push({
+				staff_id: staffId,
+				service_type_id: serviceTypeId,
+			});
+		}
+	}
+
 	await writeFile(path.join(OUT_DIR, 'offices.tsv'), toTsv(offices), 'utf8');
 	await writeFile(path.join(OUT_DIR, 'staffs.tsv'), toTsv(staffs), 'utf8');
 	await writeFile(path.join(OUT_DIR, 'clients.tsv'), toTsv(clients), 'utf8');
@@ -132,6 +142,11 @@ const main = async () => {
 		toTsv(basicScheduleStaffAssignments),
 		'utf8',
 	);
+	await writeFile(
+		path.join(OUT_DIR, 'staff_service_type_abilities.tsv'),
+		toTsv(staffServiceTypeAbilities),
+		'utf8',
+	);
 
 	console.log(`Generated TSV files into: ${OUT_DIR}`);
 	console.log(`- offices: ${offices.length}`);
@@ -140,6 +155,9 @@ const main = async () => {
 	console.log(`- basic_schedules: ${basicSchedules.length}`);
 	console.log(
 		`- basic_schedule_staff_assignments: ${basicScheduleStaffAssignments.length}`,
+	);
+	console.log(
+		`- staff_service_type_abilities: ${staffServiceTypeAbilities.length}`,
 	);
 };
 
