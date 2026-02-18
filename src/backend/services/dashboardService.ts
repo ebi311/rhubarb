@@ -9,7 +9,12 @@ import type {
 } from '@/models/dashboardActionSchemas';
 import { Shift } from '@/models/shift';
 import { timeToMinutes } from '@/models/valueObjects/time';
-import { dateJst, timeObjectToString } from '@/utils/date';
+import {
+	addJstDays,
+	dateJst,
+	setJstTime,
+	timeObjectToString,
+} from '@/utils/date';
 
 export interface DashboardServiceDeps {
 	shiftRepository: ShiftRepository;
@@ -90,24 +95,36 @@ export class DashboardService {
 	}
 
 	/**
-	 * 今日のタイムラインを取得
+	 * 06:00起点の絶対分を計算する。06:00未満は翌日扱い（+1440）
+	 */
+	private toAbsMinutes(minutes: number): number {
+		return minutes < 360 ? minutes + 1440 : minutes;
+	}
+
+	/**
+	 * 今日のタイムラインを取得（06:00〜翌06:00）
 	 */
 	async getTodayTimeline(
 		officeId: string,
 		today: Date,
 	): Promise<TodayTimelineItem[]> {
+		const rangeStart = setJstTime(today, 6, 0);
+		const rangeEnd = setJstTime(addJstDays(today, 1), 6, 0);
+
 		const filters: ShiftFilters = {
 			officeId,
-			startDate: today,
-			endDate: today,
+			startDateTime: rangeStart,
+			endDateTime: rangeEnd,
 		};
 		const shifts = await this.shiftRepository.list(filters);
 
 		const items = shifts.map((shift) => this.toTimelineItem(shift));
 
-		// 開始時間でソート
+		// 06:00起点でソート
 		return items.sort((a, b) => {
-			return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+			const aAbs = this.toAbsMinutes(timeToMinutes(a.startTime));
+			const bAbs = this.toAbsMinutes(timeToMinutes(b.startTime));
+			return aAbs - bAbs;
 		});
 	}
 
