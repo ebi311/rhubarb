@@ -1,7 +1,7 @@
 import type { TodayTimelineItem } from '@/models/dashboardActionSchemas';
 import { toAbsMinutesFrom0600 } from '@/utils/date';
 
-/** 06:00 起点の相対分数 (0~1440) */
+/** 06:00 起点の相対分数 (0~1439) */
 export const toGridMinutes = (hour: number, minute: number): number => {
 	return toAbsMinutesFrom0600(hour * 60 + minute);
 };
