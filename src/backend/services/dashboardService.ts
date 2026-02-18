@@ -14,6 +14,7 @@ import {
 	dateJst,
 	setJstTime,
 	timeObjectToString,
+	toAbsMinutesFrom0600,
 } from '@/utils/date';
 
 export interface DashboardServiceDeps {
@@ -52,6 +53,10 @@ export class DashboardService {
 
 	/**
 	 * ダッシュボード統計データを取得
+	 *
+	 * 注意: todayShiftCount は暦日（00:00〜23:59）でフィルタされるため、
+	 * getTodayTimeline（06:00〜翌06:00）とは対象シフトが異なる場合がある。
+	 * 例: 深夜 02:00 のシフトは Stats では翌日扱いだが、Timeline では当日扱いになる。
 	 */
 	async getDashboardStats(
 		officeId: string,
@@ -95,13 +100,6 @@ export class DashboardService {
 	}
 
 	/**
-	 * 06:00起点の絶対分を計算する。06:00未満は翌日扱い（+1440）
-	 */
-	private toAbsMinutes(minutes: number): number {
-		return minutes < 360 ? minutes + 1440 : minutes;
-	}
-
-	/**
 	 * 今日のタイムラインを取得（06:00〜翌06:00）
 	 */
 	async getTodayTimeline(
@@ -122,8 +120,8 @@ export class DashboardService {
 
 		// 06:00起点でソート
 		return items.sort((a, b) => {
-			const aAbs = this.toAbsMinutes(timeToMinutes(a.startTime));
-			const bAbs = this.toAbsMinutes(timeToMinutes(b.startTime));
+			const aAbs = toAbsMinutesFrom0600(timeToMinutes(a.startTime));
+			const bAbs = toAbsMinutesFrom0600(timeToMinutes(b.startTime));
 			return aAbs - bAbs;
 		});
 	}
