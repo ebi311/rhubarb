@@ -6,7 +6,7 @@ import { Shift } from '@/models/shift';
 import { CreateOneOffShiftServiceInput } from '@/models/shiftActionSchemas';
 import { setJstTime } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { randomUUID } from 'crypto';
+import { v7 as randomUUID } from 'uuid';
 
 export class ServiceError extends Error {
 	constructor(
