@@ -34,6 +34,19 @@ describe('CreateOneOffShiftInputSchema', () => {
 		expect(result.error.issues.some((i) => i.path[0] === 'date')).toBe(true);
 	});
 
+	it('表示中の週の日曜（weekStart+6）は有効', () => {
+		const result = CreateOneOffShiftInputSchema.safeParse({
+			weekStartDate: '2026-02-16',
+			client_id: TEST_IDS.CLIENT_1,
+			service_type_id: 'physical-care',
+			date: '2026-02-22',
+			start_time: { hour: 9, minute: 0 },
+			end_time: { hour: 10, minute: 0 },
+		});
+
+		expect(result.success).toBe(true);
+	});
+
 	it('開始時刻が終了時刻以降の場合はバリデーションエラー', () => {
 		const result = CreateOneOffShiftInputSchema.safeParse({
 			weekStartDate: '2026-02-16',

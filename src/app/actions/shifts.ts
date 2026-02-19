@@ -21,7 +21,6 @@ import {
 	ValidateStaffAvailabilityInputSchema,
 } from '@/models/shiftActionSchemas';
 import { createSupabaseClient } from '@/utils/supabase/server';
-import { ZodError } from 'zod';
 import {
 	ActionResult,
 	errorResult,
@@ -199,19 +198,14 @@ export const createOneOffShiftAction = async (
 	const { supabase, user, error } = await getAuthUser();
 	if (error || !user) return errorResult('Unauthorized', 401);
 
-	let parsedInput: (typeof CreateOneOffShiftInputSchema)['_output'];
-	try {
-		parsedInput = CreateOneOffShiftInputSchema.parse(input);
-	} catch (err) {
-		if (err instanceof ZodError) {
-			return errorResult('Validation failed', 400, err.flatten());
-		}
-		throw err;
+	const parsedInput = CreateOneOffShiftInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
 	}
 
 	const service = new ShiftService(supabase);
 	try {
-		const { weekStartDate: _weekStartDate, ...serviceInput } = parsedInput;
+		const { weekStartDate: _weekStartDate, ...serviceInput } = parsedInput.data;
 		const created = await service.createOneOffShift(user.id, serviceInput);
 		return successResult(ShiftRecordSchema.parse(toShiftRecord(created)), 201);
 	} catch (err) {

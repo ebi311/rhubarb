@@ -12,7 +12,7 @@ export const GenerateWeeklyShiftsInputSchema = z.object({
 	weekStartDate: JstDateInputSchema.refine(
 		(date) => getJstDayOfWeek(date) === 1,
 		{
-			message: 'weekStartDate must be a Monday',
+			message: 'weekStartDate は月曜日の日付を指定してください',
 		},
 	),
 });
@@ -96,7 +96,7 @@ const withTimeRangeValidation = <
 export const CreateOneOffShiftInputSchema = withTimeRangeValidation(
 	z.object({
 		weekStartDate: JstDateSchema.refine((date) => getJstDayOfWeek(date) === 1, {
-			message: 'weekStartDate must be a Monday',
+			message: 'weekStartDate は月曜日の日付を指定してください',
 		}),
 		client_id: z.uuid({ message: 'client_id は UUID 形式で指定してください' }),
 		service_type_id: ServiceTypeIdSchema,
@@ -116,7 +116,7 @@ export const CreateOneOffShiftInputSchema = withTimeRangeValidation(
 	if (shiftDate < weekStart || shiftDate > weekEnd) {
 		ctx.addIssue({
 			code: z.ZodIssueCode.custom,
-			message: 'date must be within the displayed week',
+			message: 'date は表示中の週の範囲内で指定してください',
 			path: ['date'],
 		});
 	}
