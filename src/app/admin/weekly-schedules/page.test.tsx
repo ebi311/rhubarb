@@ -135,7 +135,7 @@ describe('WeeklySchedulesPage', () => {
 
 			render(result as React.ReactElement);
 
-			expect(screen.getByText('週間スケジュール管理')).toBeInTheDocument();
+			expect(screen.getByText('週次スケジュール管理')).toBeInTheDocument();
 		});
 
 		it('リダイレクトされない', async () => {
