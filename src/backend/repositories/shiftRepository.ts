@@ -16,6 +16,10 @@ export interface ShiftFilters {
 	officeId?: string;
 	startDate?: Date;
 	endDate?: Date;
+	/** 日時レンジの開始（gte で適用） */
+	startDateTime?: Date;
+	/** 日時レンジの終了（lt で適用、排他的） */
+	endDateTime?: Date;
 	staffId?: string;
 	clientId?: string;
 	status?: Shift['status'];
@@ -102,6 +106,12 @@ export class ShiftRepository {
 		);
 		query = applyIf(query, filters.endDate, (q, d) =>
 			q.lte('start_time', setJstTime(d, 23, 59).toISOString()),
+		);
+		query = applyIf(query, filters.startDateTime, (q, d) =>
+			q.gte('start_time', d.toISOString()),
+		);
+		query = applyIf(query, filters.endDateTime, (q, d) =>
+			q.lt('start_time', d.toISOString()),
 		);
 		query = applyIf(query, filters.staffId, (q, v) => q.eq('staff_id', v));
 		query = applyIf(query, filters.clientId, (q, v) => q.eq('client_id', v));

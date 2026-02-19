@@ -38,27 +38,45 @@ describe('DashboardTimeline', () => {
 		});
 	});
 
-	describe('タイムラインアイテム表示', () => {
+	describe('グリッド表示', () => {
+		it('スタッフ名がヘッダーに表示される', () => {
+			renderComponent();
+			expect(screen.getByText('田中一郎')).toBeInTheDocument();
+		});
+
+		it('未割当列がヘッダーに表示される', () => {
+			renderComponent();
+			const headers = screen.getAllByText('未割当');
+			expect(headers.length).toBeGreaterThanOrEqual(1);
+		});
+
 		it('タイムラインアイテムが表示される', () => {
 			renderComponent();
 			expect(screen.getByText('山田太郎')).toBeInTheDocument();
 			expect(screen.getByText('09:00 - 10:00')).toBeInTheDocument();
-			expect(screen.getByText('田中一郎')).toBeInTheDocument();
 		});
 
-		it('未割当のタイムラインアイテムが警告スタイルで表示される', () => {
+		it('未割当のシフトに indicator バッジが表示される', () => {
 			renderComponent();
-			expect(screen.getByText('佐藤花子')).toBeInTheDocument();
-			const unassignedBadge = screen.getByText('未割当', {
-				selector: '.badge',
-			});
-			expect(unassignedBadge).toHaveClass('badge-warning');
+			const indicators = document.querySelectorAll('.indicator');
+			expect(indicators.length).toBeGreaterThan(0);
+			const badge = document.querySelector(
+				'.indicator-item.badge.badge-warning',
+			);
+			expect(badge).toBeInTheDocument();
+			expect(badge?.textContent).toBe('未割当');
 		});
 
 		it('サービス種別名が表示される', () => {
 			renderComponent();
 			expect(screen.getByText('生活支援')).toBeInTheDocument();
 			expect(screen.getByText('身体介護')).toBeInTheDocument();
+		});
+
+		it('30分スロットが48本表示される', () => {
+			renderComponent();
+			const timeLabels = screen.getAllByTestId('time-slot-label');
+			expect(timeLabels).toHaveLength(48);
 		});
 	});
 

@@ -25,7 +25,7 @@ export const dateJst = (date: Date): Dayjs => {
  * 例: "2026-01-19" → JST 2026-01-19 00:00:00 の Date
  */
 export const parseJstDateString = (dateStr: string): Date => {
-	// ISO 形式の場合、dayjs にわたすと、タイムゾーンの指定が無視されるので、	Date に変換してから渡す
+	// ISO 形式の場合、dayjs にわたすと、タイムゾーンの指定が無視されるので、Date に変換してから渡す
 	let ds: string | Date = dateStr;
 	if (/^T[\d:]+[z+-]/i.test(dateStr)) {
 		ds = new Date(dateStr);
@@ -150,4 +150,13 @@ export const timeObjectToStringWithTimezone = (time: TimeValue): string => {
 	const hourStr = time.hour.toString().padStart(2, '0');
 	const minuteStr = time.minute.toString().padStart(2, '0');
 	return `${hourStr}:${minuteStr}+09:00`;
+};
+
+/**
+ * 06:00起点の絶対分数に変換
+ * 06:00が0、翌05:59が1439になる
+ */
+export const toAbsMinutesFrom0600 = (totalMinutes: number): number => {
+	const offset = totalMinutes - 360; // 06:00 = 360分
+	return offset < 0 ? offset + 1440 : offset;
 };
