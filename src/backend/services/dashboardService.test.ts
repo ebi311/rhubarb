@@ -192,6 +192,64 @@ describe('DashboardService', () => {
 			expect(result[0].id).toBe('shift-1');
 			expect(result[1].id).toBe('shift-2');
 		});
+
+		it('06:00〜翌06:00 のレンジで shiftRepo.list を呼ぶ', async () => {
+			shiftRepo.list.mockResolvedValueOnce([]);
+
+			await service.getTodayTimeline('office-1', today);
+
+			expect(shiftRepo.list).toHaveBeenCalledWith(
+				expect.objectContaining({
+					officeId: 'office-1',
+					startDateTime: expect.any(Date),
+					endDateTime: expect.any(Date),
+				}),
+			);
+
+			const call = shiftRepo.list.mock.calls[0]?.[0];
+			expect(call).toBeDefined();
+			// startDateTime は当日 06:00 JST
+			expect(call!.startDateTime?.toISOString()).toBe(
+				'2026-02-02T21:00:00.000Z',
+			); // JST 06:00 = UTC 21:00 前日
+			// endDateTime は翌日 06:00 JST
+			expect(call!.endDateTime?.toISOString()).toBe('2026-02-03T21:00:00.000Z'); // JST 翌日06:00 = UTC 21:00
+		});
+
+		it('06:00より前の深夜シフトがソートの後ろに来る', async () => {
+			const shifts: Shift[] = [
+				createShift({
+					id: 'shift-night',
+					time: {
+						start: { hour: 2, minute: 0 },
+						end: { hour: 3, minute: 0 },
+					},
+				}),
+				createShift({
+					id: 'shift-morning',
+					time: {
+						start: { hour: 9, minute: 0 },
+						end: { hour: 10, minute: 0 },
+					},
+				}),
+				createShift({
+					id: 'shift-evening',
+					time: {
+						start: { hour: 22, minute: 0 },
+						end: { hour: 23, minute: 0 },
+					},
+				}),
+			];
+
+			shiftRepo.list.mockResolvedValueOnce(shifts);
+
+			const result = await service.getTodayTimeline('office-1', today);
+
+			// 06:00起点ソート: morning(9:00) → evening(22:00) → night(2:00)
+			expect(result[0].id).toBe('shift-morning');
+			expect(result[1].id).toBe('shift-evening');
+			expect(result[2].id).toBe('shift-night');
+		});
 	});
 
 	describe('getAlerts', () => {
