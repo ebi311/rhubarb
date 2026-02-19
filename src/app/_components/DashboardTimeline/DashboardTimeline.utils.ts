@@ -7,7 +7,7 @@ export const toGridMinutes = (hour: number, minute: number): number => {
 };
 
 /** 1分あたりの高さ (px)。1スロット(30分) = 24px → 0.8px/min */
-export const PX_PER_MINUTE = 0.8;
+export const PX_PER_MINUTE = 1.0;
 export const SLOT_HEIGHT = 30 * PX_PER_MINUTE; // 24px
 export const TOTAL_SLOTS = 48;
 export const GRID_HEIGHT = TOTAL_SLOTS * SLOT_HEIGHT; // 1152px

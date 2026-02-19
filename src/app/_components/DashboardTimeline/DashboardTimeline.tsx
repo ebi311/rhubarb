@@ -55,9 +55,9 @@ export const DashboardTimeline = ({ timeline }: Props) => {
 										key={slot}
 										data-testid="time-slot-label"
 										className="absolute right-0 left-0 text-xs leading-none text-base-content/60"
-										style={{ top: `${i * SLOT_HEIGHT}px` }}
+										style={{ top: `${i * SLOT_HEIGHT - 6}px` }}
 									>
-										{slot}
+										{/00$/.test(slot) ? slot : ''}
 									</div>
 								))}
 							</div>
