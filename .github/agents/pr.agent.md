@@ -3,12 +3,47 @@ name: pr
 description: 指定されたイシューと実装に対するプルリクエストを作成します。
 tools:
   [
-    'execute',
-    'read',
-    'search',
-    'todo',
-    'web',
-    'ms-vscode.vscode-websearchforcopilot/websearch',
+    execute/runNotebookCell,
+    execute/testFailure,
+    execute/getTerminalOutput,
+    execute/awaitTerminal,
+    execute/killTerminal,
+    execute/createAndRunTask,
+    execute/runInTerminal,
+    read/getNotebookSummary,
+    read/problems,
+    read/readFile,
+    read/terminalSelection,
+    read/terminalLastCommand,
+    search/changes,
+    search/codebase,
+    search/fileSearch,
+    search/listDirectory,
+    search/searchResults,
+    search/textSearch,
+    search/usages,
+    search/searchSubagent,
+    web/fetch,
+    web/githubRepo,
+    github/create_pull_request,
+    github/get_commit,
+    github/get_file_contents,
+    github/get_label,
+    github/get_release_by_tag,
+    github/get_tag,
+    github/issue_read,
+    github/issue_write,
+    github/list_branches,
+    github/list_commits,
+    github/list_issue_types,
+    github/list_issues,
+    github/list_pull_requests,
+    github/search_code,
+    github/search_issues,
+    github/search_pull_requests,
+    github/search_repositories,
+    ms-vscode.vscode-websearchforcopilot/websearch,
+    todo,
   ]
 model: GPT-5 mini (copilot)
 ---
@@ -40,9 +75,6 @@ model: GPT-5 mini (copilot)
 
 - PR は、`develop` ブランチに対して作成します。
 - PR作成後、Copilot をレビュアーとして追加する:
-  ```bash
-  gh pr edit <PR番号> --add-reviewer "copilot"
-  ```
 
 ## Notes
 
@@ -51,8 +83,8 @@ model: GPT-5 mini (copilot)
 
 ## ツール
 
-- `gh`: GitHub リポジトリの操作
 - #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
+- #tool:github/\*: GitHub 操作用ツール全般
 
 ## ドキュメント
 
