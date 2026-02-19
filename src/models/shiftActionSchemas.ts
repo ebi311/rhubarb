@@ -1,9 +1,10 @@
-import { getJstDayOfWeek } from '@/utils/date';
+import { addJstDays, getJstDateOnly, getJstDayOfWeek } from '@/utils/date';
 import { z } from 'zod';
 import { ShiftStatusSchema } from './shift';
-import { JstDateInputSchema } from './valueObjects/jstDate';
+import { JstDateInputSchema, JstDateSchema } from './valueObjects/jstDate';
 import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeValueSchema } from './valueObjects/time';
+import { TimeRangeSchema } from './valueObjects/timeRange';
 import { TimestampSchema } from './valueObjects/timestamp';
 
 // 週間シフト生成入力スキーマ
@@ -70,6 +71,72 @@ export const ShiftRecordSchema = z.object({
 	updated_at: TimestampSchema,
 });
 export type ShiftRecord = z.infer<typeof ShiftRecordSchema>;
+
+const withTimeRangeValidation = <
+	T extends { start_time: unknown; end_time: unknown },
+>(
+	schema: z.ZodType<T>,
+) =>
+	schema.superRefine((val, ctx) => {
+		const parsed = TimeRangeSchema.safeParse({
+			start: val.start_time,
+			end: val.end_time,
+		});
+		if (!parsed.success) {
+			parsed.error.issues.forEach((issue) => {
+				const mappedPath = issue.path.map((p) =>
+					p === 'start' ? 'start_time' : p === 'end' ? 'end_time' : p,
+				);
+				ctx.addIssue({ ...issue, path: mappedPath });
+			});
+		}
+	});
+
+// 単発シフト作成入力スキーマ
+export const CreateOneOffShiftInputSchema = withTimeRangeValidation(
+	z.object({
+		weekStartDate: JstDateSchema.refine((date) => getJstDayOfWeek(date) === 1, {
+			message: 'weekStartDate must be a Monday',
+		}),
+		client_id: z.uuid({ message: 'client_id は UUID 形式で指定してください' }),
+		service_type_id: ServiceTypeIdSchema,
+		staff_id: z
+			.uuid({ message: 'staff_id は UUID 形式で指定してください' })
+			.nullable()
+			.optional(),
+		date: JstDateSchema,
+		start_time: TimeValueSchema,
+		end_time: TimeValueSchema,
+	}),
+).superRefine((val, ctx) => {
+	const weekStart = getJstDateOnly(val.weekStartDate);
+	const weekEnd = addJstDays(weekStart, 6);
+	const shiftDate = getJstDateOnly(val.date);
+
+	if (shiftDate < weekStart || shiftDate > weekEnd) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'date must be within the displayed week',
+			path: ['date'],
+		});
+	}
+});
+
+// Action 外部入力: transform 前の入力型（weekStartDate/date は YYYY-MM-DD の string）
+export type CreateOneOffShiftActionInput = z.input<
+	typeof CreateOneOffShiftInputSchema
+>;
+
+// parse 後（transform 後）の型（weekStartDate/date は Date）
+export type CreateOneOffShiftInput = z.output<
+	typeof CreateOneOffShiftInputSchema
+>;
+
+// Service 用 DTO: Action で weekStartDate の整合性は検証済みなので渡さない
+export type CreateOneOffShiftServiceInput = Omit<
+	CreateOneOffShiftInput,
+	'weekStartDate'
+>;
 
 // changeShiftStaffAction の入力スキーマ
 export const ChangeShiftStaffInputSchema = z.object({

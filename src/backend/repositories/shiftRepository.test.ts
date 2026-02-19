@@ -15,6 +15,8 @@ const createMockSupabaseClient = () => {
 		or: vi.fn().mockReturnThis(),
 		gte: vi.fn().mockReturnThis(),
 		lte: vi.fn().mockReturnThis(),
+		lt: vi.fn().mockReturnThis(),
+		gt: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
 		maybeSingle: vi.fn(),
 		single: vi.fn(),
@@ -240,7 +242,10 @@ describe('ShiftRepository', () => {
 			);
 
 			// neq が呼ばれることを確認
-			expect(mockSupabase._mockQuery.eq).toHaveBeenCalled();
+			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
+				'id',
+				excludeShiftId,
+			);
 		});
 
 		it('should return empty array if no conflicts', async () => {
@@ -272,6 +277,98 @@ describe('ShiftRepository', () => {
 			await expect(
 				repository.findConflictingShifts('staff-1', new Date(), new Date()),
 			).rejects.toThrow('Query failed');
+		});
+	});
+
+	describe('findClientConflictingShifts', () => {
+		it('should build overlap query with strict boundaries', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const startTime = new Date('2026-01-20T10:00:00Z');
+			const endTime = new Date('2026-01-20T11:00:00Z');
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findClientConflictingShifts(
+				clientId,
+				startTime,
+				endTime,
+			);
+
+			expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'client_id',
+				clientId,
+			);
+			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
+				'status',
+				'canceled',
+			);
+			expect(mockSupabase._mockQuery.lt).toHaveBeenCalledWith(
+				'start_time',
+				endTime.toISOString(),
+			);
+			expect(mockSupabase._mockQuery.gt).toHaveBeenCalledWith(
+				'end_time',
+				startTime.toISOString(),
+			);
+		});
+
+		it('10:00-11:00 と 11:00-12:00 は重ならない（境界は排他的）', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const startTime = new Date('2026-01-20T11:00:00Z');
+			const endTime = new Date('2026-01-20T12:00:00Z');
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findClientConflictingShifts(
+				clientId,
+				startTime,
+				endTime,
+			);
+
+			// 重複判定は strict: start < existingEnd && end > existingStart
+			// 例: existingEnd === start の場合は重複しないよう gt/lt を使用する
+			expect(mockSupabase._mockQuery.lt).toHaveBeenCalledWith(
+				'start_time',
+				endTime.toISOString(),
+			);
+			expect(mockSupabase._mockQuery.gt).toHaveBeenCalledWith(
+				'end_time',
+				startTime.toISOString(),
+			);
+		});
+
+		it('should apply officeId filter via clients join when provided', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const startTime = new Date('2026-01-20T10:00:00Z');
+			const endTime = new Date('2026-01-20T11:00:00Z');
+			const officeId = 'office-1';
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findClientConflictingShifts(
+				clientId,
+				startTime,
+				endTime,
+				officeId,
+			);
+
+			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith(
+				'*, clients!inner(office_id)',
+			);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'clients.office_id',
+				officeId,
+			);
 		});
 	});
 });

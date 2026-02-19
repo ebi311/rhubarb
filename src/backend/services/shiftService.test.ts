@@ -5,6 +5,7 @@ import { Database } from '@/backend/types/supabase';
 import { ServiceUser } from '@/models/serviceUser';
 import { Shift } from '@/models/shift';
 import { Staff } from '@/models/staff';
+import { createTestId, TEST_IDS } from '@/test/helpers/testIds';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, Mocked, vi } from 'vitest';
 import { ShiftService } from './shiftService';
@@ -19,9 +20,12 @@ const createMockStaffRepository = (): Mocked<StaffRepository> => {
 const createMockShiftRepository = (): Mocked<ShiftRepository> => {
 	return {
 		findById: vi.fn(),
+		exists: vi.fn(),
+		create: vi.fn(),
 		updateStaffAssignment: vi.fn(),
 		cancelShift: vi.fn(),
 		restoreShift: vi.fn(),
+		findClientConflictingShifts: vi.fn(),
 		findConflictingShifts: vi.fn(),
 	} as unknown as Mocked<ShiftRepository>;
 };
@@ -58,6 +62,19 @@ const createTestShift = (overrides: Partial<Shift> = {}): Shift => ({
 	is_unassigned: false,
 	created_at: new Date('2026-01-20T00:00:00Z'),
 	updated_at: new Date('2026-01-20T00:00:00Z'),
+	...overrides,
+});
+
+const createTestServiceUser = (
+	overrides: Partial<ServiceUser> = {},
+): ServiceUser => ({
+	id: TEST_IDS.CLIENT_1,
+	office_id: TEST_IDS.OFFICE_1,
+	name: '田中様',
+	address: null,
+	contract_status: 'active',
+	created_at: new Date('2026-01-01T00:00:00Z'),
+	updated_at: new Date('2026-01-01T00:00:00Z'),
 	...overrides,
 });
 
@@ -387,6 +404,305 @@ describe('ShiftService', () => {
 				expect.objectContaining({
 					status: 400,
 					message: 'Shift is not canceled',
+				}),
+			);
+		});
+	});
+
+	describe('createOneOffShift', () => {
+		it('単発シフトを作成できる（担当者あり）', async () => {
+			const userId = createTestId();
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const assignedStaff = createTestStaff({
+				id: TEST_IDS.STAFF_1,
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const client = createTestServiceUser({
+				id: TEST_IDS.CLIENT_1,
+				office_id: TEST_IDS.OFFICE_1,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockStaffRepo.findById.mockResolvedValueOnce(assignedStaff);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.create.mockResolvedValueOnce();
+
+			const result = await service.createOneOffShift(userId, {
+				client_id: TEST_IDS.CLIENT_1,
+				service_type_id: 'physical-care',
+				staff_id: TEST_IDS.STAFF_1,
+				date: new Date('2026-02-19'),
+				start_time: { hour: 9, minute: 0 },
+				end_time: { hour: 10, minute: 0 },
+			});
+
+			expect(mockShiftRepo.findClientConflictingShifts).toHaveBeenCalledWith(
+				TEST_IDS.CLIENT_1,
+				expect.any(Date),
+				expect.any(Date),
+				TEST_IDS.OFFICE_1,
+			);
+			expect(mockShiftRepo.create).toHaveBeenCalledWith(
+				expect.objectContaining({
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'physical-care',
+					staff_id: TEST_IDS.STAFF_1,
+					is_unassigned: false,
+					status: 'scheduled',
+					time: {
+						start: { hour: 9, minute: 0 },
+						end: { hour: 10, minute: 0 },
+					},
+				}),
+			);
+			expect(result.id).toEqual(expect.any(String));
+		});
+
+		it('単発シフトを作成できる（未割当）', async () => {
+			const userId = createTestId();
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const client = createTestServiceUser({
+				id: TEST_IDS.CLIENT_1,
+				office_id: TEST_IDS.OFFICE_1,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.create.mockResolvedValueOnce();
+
+			const result = await service.createOneOffShift(userId, {
+				client_id: TEST_IDS.CLIENT_1,
+				service_type_id: 'physical-care',
+				date: new Date('2026-02-19'),
+				start_time: { hour: 9, minute: 0 },
+				end_time: { hour: 10, minute: 0 },
+			});
+
+			expect(result.staff_id).toBeNull();
+			expect(result.is_unassigned).toBe(true);
+		});
+
+		it('同一clientで時間帯が部分的にでも重なる場合は409を投げる', async () => {
+			const userId = createTestId();
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const client = createTestServiceUser({
+				id: TEST_IDS.CLIENT_1,
+				office_id: TEST_IDS.OFFICE_1,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([
+				createTestShift({
+					client_id: TEST_IDS.CLIENT_1,
+					date: new Date('2026-02-19'),
+					time: {
+						start: { hour: 9, minute: 30 },
+						end: { hour: 10, minute: 30 },
+					},
+				}),
+			]);
+
+			await expect(
+				service.createOneOffShift(userId, {
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'physical-care',
+					date: new Date('2026-02-19'),
+					start_time: { hour: 9, minute: 0 },
+					end_time: { hour: 10, minute: 0 },
+				}),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 409,
+					message: 'Client has conflicting shift',
+				}),
+			);
+		});
+
+		it('担当者が存在しない場合は404を投げる', async () => {
+			const userId = createTestId();
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const client = createTestServiceUser({
+				id: TEST_IDS.CLIENT_1,
+				office_id: TEST_IDS.OFFICE_1,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockStaffRepo.findById.mockResolvedValueOnce(null);
+
+			await expect(
+				service.createOneOffShift(userId, {
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'physical-care',
+					staff_id: TEST_IDS.STAFF_1,
+					date: new Date('2026-02-19'),
+					start_time: { hour: 9, minute: 0 },
+					end_time: { hour: 10, minute: 0 },
+				}),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 404,
+					message: 'Assigned staff not found',
+				}),
+			);
+			expect(mockShiftRepo.exists).not.toHaveBeenCalled();
+		});
+
+		it('client が存在しない場合は404を投げる（情報漏えい防止）', async () => {
+			const userId = createTestId();
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(null);
+
+			await expect(
+				service.createOneOffShift(userId, {
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'physical-care',
+					date: new Date('2026-02-19'),
+					start_time: { hour: 9, minute: 0 },
+					end_time: { hour: 10, minute: 0 },
+				}),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 404,
+					message: 'Client not found',
+				}),
+			);
+			expect(mockShiftRepo.exists).not.toHaveBeenCalled();
+		});
+
+		it('client が別 office の場合も404を投げる（情報漏えい防止）', async () => {
+			const userId = createTestId();
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const clientOtherOffice = createTestServiceUser({
+				id: TEST_IDS.CLIENT_1,
+				office_id: TEST_IDS.OFFICE_2,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(clientOtherOffice);
+
+			await expect(
+				service.createOneOffShift(userId, {
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'physical-care',
+					date: new Date('2026-02-19'),
+					start_time: { hour: 9, minute: 0 },
+					end_time: { hour: 10, minute: 0 },
+				}),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 404,
+					message: 'Client not found',
+				}),
+			);
+			expect(mockShiftRepo.exists).not.toHaveBeenCalled();
+		});
+
+		it('担当者が別 office の場合は404を投げる（staff_id 指定時）', async () => {
+			const userId = createTestId();
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const client = createTestServiceUser({
+				id: TEST_IDS.CLIENT_1,
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const assignedStaffOtherOffice = createTestStaff({
+				id: TEST_IDS.STAFF_1,
+				office_id: TEST_IDS.OFFICE_2,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockStaffRepo.findById.mockResolvedValueOnce(assignedStaffOtherOffice);
+
+			await expect(
+				service.createOneOffShift(userId, {
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'physical-care',
+					staff_id: TEST_IDS.STAFF_1,
+					date: new Date('2026-02-19'),
+					start_time: { hour: 9, minute: 0 },
+					end_time: { hour: 10, minute: 0 },
+				}),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 404,
+					message: 'Assigned staff not found',
+				}),
+			);
+			expect(mockShiftRepo.exists).not.toHaveBeenCalled();
+		});
+
+		it('担当者の重複（時間衝突）があれば409を投げる', async () => {
+			const userId = createTestId();
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const assignedStaff = createTestStaff({
+				id: TEST_IDS.STAFF_1,
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const client = createTestServiceUser({
+				id: TEST_IDS.CLIENT_1,
+				office_id: TEST_IDS.OFFICE_1,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockStaffRepo.findById.mockResolvedValueOnce(assignedStaff);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.findConflictingShifts.mockResolvedValueOnce([
+				createTestShift({ staff_id: TEST_IDS.STAFF_1 }),
+			]);
+
+			await expect(
+				service.createOneOffShift(userId, {
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'physical-care',
+					staff_id: TEST_IDS.STAFF_1,
+					date: new Date('2026-02-19'),
+					start_time: { hour: 9, minute: 0 },
+					end_time: { hour: 10, minute: 0 },
+				}),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 409,
+					message: 'Staff has conflicting shift',
 				}),
 			);
 		});
