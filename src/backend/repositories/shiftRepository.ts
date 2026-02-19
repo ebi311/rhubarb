@@ -334,4 +334,33 @@ export class ShiftRepository {
 		if (error) throw error;
 		return (data ?? []).map((row) => this.toDomain(row));
 	}
+
+	/**
+	 * 指定クライアントの指定時間帯の重複シフトを検索する（部分的な重なりも含む）
+	 * 重複判定: start < existingEnd && end > existingStart
+	 */
+	async findClientConflictingShifts(
+		clientId: string,
+		startTime: Date,
+		endTime: Date,
+		officeId?: string,
+	): Promise<Shift[]> {
+		const baseQuery = officeId
+			? this.supabase
+					.from('shifts')
+					.select('*, clients!inner(office_id)')
+					.eq('clients.office_id', officeId)
+			: this.supabase.from('shifts').select('*');
+		type Query = typeof baseQuery;
+
+		const query: Query = baseQuery
+			.eq('client_id', clientId)
+			.neq('status', 'canceled')
+			.lt('start_time', endTime.toISOString())
+			.gt('end_time', startTime.toISOString());
+
+		const { data, error } = await query.order('start_time');
+		if (error) throw error;
+		return (data ?? []).map((row) => this.toDomain(row));
+	}
 }

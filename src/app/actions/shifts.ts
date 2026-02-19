@@ -1,18 +1,23 @@
 'use server';
 
 import { ServiceError, ShiftService } from '@/backend/services/shiftService';
+import type { Shift } from '@/models/shift';
 import type {
 	CancelShiftInput,
 	ChangeShiftStaffInput,
 	ChangeShiftStaffOutput,
+	CreateOneOffShiftActionInput,
 	RestoreShiftInput,
+	ShiftRecord,
 	ValidateStaffAvailabilityInput,
 	ValidateStaffAvailabilityOutput,
 } from '@/models/shiftActionSchemas';
 import {
 	CancelShiftInputSchema,
 	ChangeShiftStaffInputSchema,
+	CreateOneOffShiftInputSchema,
 	RestoreShiftInputSchema,
+	ShiftRecordSchema,
 	ValidateStaffAvailabilityInputSchema,
 } from '@/models/shiftActionSchemas';
 import { createSupabaseClient } from '@/utils/supabase/server';
@@ -42,6 +47,23 @@ const handleServiceError = <T>(error: unknown): ActionResult<T> => {
 	logServerError(error);
 	throw error;
 };
+
+const toShiftRecord = (shift: Shift): ShiftRecord => ({
+	id: shift.id,
+	client_id: shift.client_id,
+	service_type_id: shift.service_type_id,
+	staff_id: shift.staff_id ?? null,
+	date: shift.date,
+	start_time: shift.time.start,
+	end_time: shift.time.end,
+	status: shift.status,
+	is_unassigned: shift.is_unassigned,
+	canceled_reason: shift.canceled_reason ?? null,
+	canceled_category: shift.canceled_category ?? null,
+	canceled_at: shift.canceled_at ?? null,
+	created_at: shift.created_at,
+	updated_at: shift.updated_at,
+});
 
 /**
  * シフトの担当者を変更する
@@ -164,5 +186,29 @@ export const validateStaffAvailabilityAction = async (
 		return successResult({ available: result.available });
 	} catch (err) {
 		return handleServiceError<ValidateStaffAvailabilityOutput>(err);
+	}
+};
+
+/**
+ * 単発シフトを作成する
+ */
+export const createOneOffShiftAction = async (
+	input: CreateOneOffShiftActionInput,
+): Promise<ActionResult<ShiftRecord>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput = CreateOneOffShiftInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		const { weekStartDate: _weekStartDate, ...serviceInput } = parsedInput.data;
+		const created = await service.createOneOffShift(user.id, serviceInput);
+		return successResult(ShiftRecordSchema.parse(toShiftRecord(created)), 201);
+	} catch (err) {
+		return handleServiceError<ShiftRecord>(err);
 	}
 };

@@ -2,8 +2,11 @@ import { ServiceUserRepository } from '@/backend/repositories/serviceUserReposit
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
+import { Shift } from '@/models/shift';
+import { CreateOneOffShiftServiceInput } from '@/models/shiftActionSchemas';
 import { setJstTime } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { v7 as randomUUID } from 'uuid';
 
 export class ServiceError extends Error {
 	constructor(
@@ -217,5 +220,86 @@ export class ShiftService {
 			available: false,
 			conflictingShifts: conflictingShiftsWithClient,
 		};
+	}
+
+	/**
+	 * 単発シフトを作成する（基本スケジュール外の追加）
+	 */
+	async createOneOffShift(
+		userId: string,
+		input: CreateOneOffShiftServiceInput,
+	): Promise<Shift> {
+		const adminStaff = await this.getAdminStaff(userId);
+
+		// client の存在確認 + office 境界（別 office も 404 に統一）
+		const client = await this.serviceUserRepository.findById(input.client_id);
+		if (!client || client.office_id !== adminStaff.office_id) {
+			throw new ServiceError(404, 'Client not found');
+		}
+
+		// 担当者が指定されている場合は存在確認 + office 境界（別 office も 404 に統一）
+		if (input.staff_id) {
+			const staff = await this.staffRepository.findById(input.staff_id);
+			if (!staff || staff.office_id !== adminStaff.office_id) {
+				throw new ServiceError(404, 'Assigned staff not found');
+			}
+		}
+
+		const startAt = setJstTime(
+			input.date,
+			input.start_time.hour,
+			input.start_time.minute,
+		);
+		const endAt = setJstTime(
+			input.date,
+			input.end_time.hour,
+			input.end_time.minute,
+		);
+
+		// 同一 client の時間帯重複チェック（部分的な重なりも含めてNG）
+		const clientConflicts =
+			await this.shiftRepository.findClientConflictingShifts(
+				input.client_id,
+				startAt,
+				endAt,
+				adminStaff.office_id,
+			);
+		if (clientConflicts.length > 0) {
+			throw new ServiceError(409, 'Client has conflicting shift', {
+				conflictingShiftIds: clientConflicts.map((s) => s.id),
+			});
+		}
+
+		// 担当者がいる場合は時間衝突チェック
+		if (input.staff_id) {
+			const conflicts = await this.shiftRepository.findConflictingShifts(
+				input.staff_id,
+				startAt,
+				endAt,
+			);
+			if (conflicts.length > 0) {
+				throw new ServiceError(409, 'Staff has conflicting shift', {
+					conflictingShiftIds: conflicts.map((s) => s.id),
+				});
+			}
+		}
+
+		const now = new Date();
+		const isUnassigned = !input.staff_id;
+		const shift: Shift = {
+			id: randomUUID(),
+			client_id: input.client_id,
+			service_type_id: input.service_type_id,
+			staff_id: input.staff_id ?? null,
+			date: input.date,
+			time: { start: input.start_time, end: input.end_time },
+			status: 'scheduled',
+			is_unassigned: isUnassigned,
+			created_at: now,
+			updated_at: now,
+		};
+
+		await this.shiftRepository.create(shift);
+		return shift;
 	}
 }
