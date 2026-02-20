@@ -12,6 +12,7 @@ import type { WeeklyShiftCell } from './types';
 interface WeeklyShiftGridProps {
 	shifts: ShiftDisplayRow[];
 	weekStartDate: Date;
+	onAddOneOffShift?: (dateStr: string, clientId?: string) => void;
 	onChangeStaff?: (shift: ShiftDisplayRow) => void;
 	onAssignStaff?: (shift: ShiftDisplayRow) => void;
 	onCancelShift?: (shift: ShiftDisplayRow) => void;
@@ -52,6 +53,7 @@ const findShiftFromCell = (
 export const WeeklyShiftGrid = ({
 	shifts,
 	weekStartDate,
+	onAddOneOffShift,
 	onChangeStaff,
 	onAssignStaff,
 	onCancelShift,
@@ -102,8 +104,19 @@ export const WeeklyShiftGrid = ({
 							return (
 								<div
 									key={`${clientRow.clientId}-${dateKey}`}
-									className="bg-base-100 p-2"
+									className="group relative bg-base-100 p-2"
 								>
+									<button
+										type="button"
+										className="btn invisible absolute top-2 right-2 z-10 btn-circle btn-sm btn-secondary group-hover:visible"
+										aria-label="単発シフト追加"
+										onClick={(e) => {
+											e.stopPropagation();
+											onAddOneOffShift?.(dateKey, clientRow.clientId);
+										}}
+									>
+										<Icon name="add" />
+									</button>
 									{cells && cells.length > 0 ? (
 										<div className="flex flex-col gap-2">
 											{cells.map((cell) => (

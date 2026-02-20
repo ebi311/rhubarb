@@ -1,5 +1,8 @@
+import { TEST_IDS } from '@/test/helpers/testIds';
+import { formatJstDateString } from '@/utils/date';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import type { ShiftDisplayRow } from '../ShiftTable';
 import { WeeklyShiftGrid } from './WeeklyShiftGrid';
 
@@ -9,13 +12,13 @@ describe('WeeklyShiftGrid', () => {
 	it('ヘッダー行に利用者名と日付が表示される', () => {
 		const shifts: ShiftDisplayRow[] = [
 			{
-				id: '1',
+				id: TEST_IDS.SCHEDULE_1,
 				date: new Date('2026-01-19T00:00:00+09:00'),
 				startTime: { hour: 9, minute: 0 },
 				endTime: { hour: 10, minute: 0 },
 				clientName: '山田太郎',
 				serviceTypeId: 'physical-care',
-				staffId: 'staff-1',
+				staffId: TEST_IDS.STAFF_1,
 				staffName: 'スタッフA',
 				status: 'scheduled',
 				isUnassigned: false,
@@ -35,25 +38,25 @@ describe('WeeklyShiftGrid', () => {
 	it('利用者名が表示される', () => {
 		const shifts: ShiftDisplayRow[] = [
 			{
-				id: '1',
+				id: TEST_IDS.SCHEDULE_1,
 				date: new Date('2026-01-19T00:00:00+09:00'),
 				startTime: { hour: 9, minute: 0 },
 				endTime: { hour: 10, minute: 0 },
 				clientName: '山田太郎',
 				serviceTypeId: 'physical-care',
-				staffId: 'staff-1',
+				staffId: TEST_IDS.STAFF_1,
 				staffName: 'スタッフA',
 				status: 'scheduled',
 				isUnassigned: false,
 			},
 			{
-				id: '2',
+				id: TEST_IDS.SCHEDULE_2,
 				date: new Date('2026-01-19T00:00:00+09:00'),
 				startTime: { hour: 10, minute: 0 },
 				endTime: { hour: 11, minute: 0 },
 				clientName: '佐藤花子',
 				serviceTypeId: 'life-support',
-				staffId: 'staff-2',
+				staffId: TEST_IDS.STAFF_2,
 				staffName: 'スタッフB',
 				status: 'scheduled',
 				isUnassigned: false,
@@ -69,13 +72,13 @@ describe('WeeklyShiftGrid', () => {
 	it('シフトセルに時間帯とスタッフ名が表示される', () => {
 		const shifts: ShiftDisplayRow[] = [
 			{
-				id: '1',
+				id: TEST_IDS.SCHEDULE_1,
 				date: new Date('2026-01-19T00:00:00+09:00'),
 				startTime: { hour: 9, minute: 0 },
 				endTime: { hour: 10, minute: 0 },
 				clientName: '山田太郎',
 				serviceTypeId: 'physical-care',
-				staffId: 'staff-1',
+				staffId: TEST_IDS.STAFF_1,
 				staffName: 'スタッフA',
 				status: 'scheduled',
 				isUnassigned: false,
@@ -91,7 +94,7 @@ describe('WeeklyShiftGrid', () => {
 	it('未割当のシフトには未割当バッジが表示される', () => {
 		const shifts: ShiftDisplayRow[] = [
 			{
-				id: '1',
+				id: TEST_IDS.SCHEDULE_1,
 				date: new Date('2026-01-19T00:00:00+09:00'),
 				startTime: { hour: 9, minute: 0 },
 				endTime: { hour: 10, minute: 0 },
@@ -118,13 +121,13 @@ describe('WeeklyShiftGrid', () => {
 	it('キャンセルされたシフトにはキャンセル表示が出る', () => {
 		const shifts: ShiftDisplayRow[] = [
 			{
-				id: '1',
+				id: TEST_IDS.SCHEDULE_1,
 				date: new Date('2026-01-19T00:00:00+09:00'),
 				startTime: { hour: 9, minute: 0 },
 				endTime: { hour: 10, minute: 0 },
 				clientName: '山田太郎',
 				serviceTypeId: 'physical-care',
-				staffId: 'staff-1',
+				staffId: TEST_IDS.STAFF_1,
 				staffName: 'スタッフA',
 				status: 'canceled',
 				isUnassigned: false,
@@ -135,5 +138,43 @@ describe('WeeklyShiftGrid', () => {
 		render(<WeeklyShiftGrid shifts={shifts} weekStartDate={weekStartDate} />);
 
 		expect(screen.getByText('キャンセル')).toBeInTheDocument();
+	});
+
+	it('任意のセルの「＋」をクリックすると onAddOneOffShift が日付(YYYY-MM-DD)で呼ばれる', async () => {
+		const user = userEvent.setup();
+		const onAddOneOffShift = vi.fn();
+		const shifts: ShiftDisplayRow[] = [
+			{
+				id: TEST_IDS.SCHEDULE_1,
+				date: new Date('2026-01-19T00:00:00+09:00'),
+				startTime: { hour: 9, minute: 0 },
+				endTime: { hour: 10, minute: 0 },
+				clientName: '山田太郎',
+				serviceTypeId: 'physical-care',
+				staffId: TEST_IDS.STAFF_1,
+				staffName: 'スタッフA',
+				status: 'scheduled',
+				isUnassigned: false,
+			},
+		];
+
+		render(
+			<WeeklyShiftGrid
+				shifts={shifts}
+				weekStartDate={weekStartDate}
+				onAddOneOffShift={onAddOneOffShift}
+			/>,
+		);
+
+		const addButtons = screen.getAllByRole('button', {
+			name: '単発シフト追加',
+		});
+		await user.click(addButtons[0]!);
+
+		expect(onAddOneOffShift).toHaveBeenCalledTimes(1);
+		expect(onAddOneOffShift).toHaveBeenCalledWith(
+			formatJstDateString(weekStartDate),
+			'山田太郎',
+		);
 	});
 });

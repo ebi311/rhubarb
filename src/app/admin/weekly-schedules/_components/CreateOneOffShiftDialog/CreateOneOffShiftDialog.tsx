@@ -11,7 +11,7 @@ import {
 import { addJstDays, formatJstDateString } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export type CreateOneOffShiftDialogClientOption = {
 	id: string;
@@ -21,6 +21,7 @@ export type CreateOneOffShiftDialogClientOption = {
 export type CreateOneOffShiftDialogProps = {
 	isOpen: boolean;
 	weekStartDate: Date;
+	defaultDateStr?: string;
 	clientOptions: CreateOneOffShiftDialogClientOption[];
 	staffOptions: StaffPickerOption[];
 	onClose: () => void;
@@ -82,6 +83,7 @@ const getSubmitButtonLabel = (isSubmitting: boolean): string => {
 export const CreateOneOffShiftDialog = ({
 	isOpen,
 	weekStartDate,
+	defaultDateStr,
 	clientOptions,
 	staffOptions,
 	onClose,
@@ -99,7 +101,7 @@ export const CreateOneOffShiftDialog = ({
 		[weekStartDate],
 	);
 
-	const [dateStr, setDateStr] = useState(weekStartDateStr);
+	const [dateStr, setDateStr] = useState(defaultDateStr ?? weekStartDateStr);
 	const [startTimeStr, setStartTimeStr] = useState('09:00');
 	const [endTimeStr, setEndTimeStr] = useState('10:00');
 	const [clientId, setClientId] = useState(clientOptions[0]?.id ?? '');
@@ -107,6 +109,11 @@ export const CreateOneOffShiftDialog = ({
 		ServiceTypeIdValues[0],
 	);
 	const [staffId, setStaffId] = useState('');
+
+	useEffect(() => {
+		if (!isOpen) return;
+		setDateStr(defaultDateStr ?? weekStartDateStr);
+	}, [isOpen, defaultDateStr, weekStartDateStr]);
 
 	const canSubmit = getCanSubmit({
 		isSubmitting,

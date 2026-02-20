@@ -15,6 +15,7 @@ import {
 	type ChangeStaffDialogShift,
 } from '../ChangeStaffDialog';
 import { CreateOneOffShiftButton } from '../CreateOneOffShiftButton';
+import { CreateOneOffShiftDialog } from '../CreateOneOffShiftDialog';
 import { EmptyState } from '../EmptyState';
 import { GenerateButton, type GenerateResult } from '../GenerateButton';
 import {
@@ -93,6 +94,7 @@ export const WeeklySchedulePage = ({
 	clientOptions,
 }: WeeklySchedulePageProps) => {
 	const router = useRouter();
+	const weekStartDateStr = formatJstDateString(weekStartDate);
 	const [viewMode, setViewMode] = useState<WeeklyViewMode>('list');
 	const [changeDialogShift, setChangeDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
@@ -100,6 +102,15 @@ export const WeeklySchedulePage = ({
 		useState<ShiftDisplayRow | null>(null);
 	const [restoreDialogShift, setRestoreDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
+	const [isCreateOneOffOpen, setIsCreateOneOffOpen] = useState(false);
+	const [createOneOffDefaultDateStr, setCreateOneOffDefaultDateStr] = useState<
+		string | undefined
+	>();
+
+	const handleOpenCreateOneOffShiftDialog = (defaultDateStr: string) => {
+		setCreateOneOffDefaultDateStr(defaultDateStr);
+		setIsCreateOneOffOpen(true);
+	};
 
 	const handleWeekChange = (date: Date) => {
 		const weekParam = formatJstDateString(date);
@@ -163,9 +174,7 @@ export const WeeklySchedulePage = ({
 						disabled={false}
 					/>
 					<CreateOneOffShiftButton
-						weekStartDate={weekStartDate}
-						clientOptions={clientOptions}
-						staffOptions={staffOptions}
+						onOpen={() => handleOpenCreateOneOffShiftDialog(weekStartDateStr)}
 					/>
 				</div>
 			</div>
@@ -187,6 +196,9 @@ export const WeeklySchedulePage = ({
 						onAssignStaff={handleAssignStaff}
 						onCancelShift={handleCancelShift}
 						onRestoreShift={handleRestoreShift}
+						onAddOneOffShift={(dateStr) =>
+							handleOpenCreateOneOffShiftDialog(dateStr)
+						}
 					/>
 				) : (
 					<StaffWeeklyShiftGrid
@@ -203,6 +215,15 @@ export const WeeklySchedulePage = ({
 					onGenerate={handleGenerateFromEmpty}
 				/>
 			)}
+
+			<CreateOneOffShiftDialog
+				isOpen={isCreateOneOffOpen}
+				weekStartDate={weekStartDate}
+				defaultDateStr={createOneOffDefaultDateStr}
+				clientOptions={clientOptions}
+				staffOptions={staffOptions}
+				onClose={() => setIsCreateOneOffOpen(false)}
+			/>
 
 			{changeDialogShift && (
 				<ChangeStaffDialog
