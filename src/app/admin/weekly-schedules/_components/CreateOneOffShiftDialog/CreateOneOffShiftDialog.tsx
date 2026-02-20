@@ -10,6 +10,7 @@ import {
 } from '@/models/valueObjects/serviceTypeId';
 import { addJstDays, formatJstDateString } from '@/utils/date';
 import { useRouter } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 
 export type CreateOneOffShiftDialogClientOption = {
@@ -30,6 +31,52 @@ const parseTimeString = (timeStr: string): { hour: number; minute: number } => {
 	const hour = Number(hourStr);
 	const minute = Number(minuteStr);
 	return { hour, minute };
+};
+
+const getCanSubmit = (params: {
+	isSubmitting: boolean;
+	clientId: string;
+	dateStr: string;
+	startTimeStr: string;
+	endTimeStr: string;
+}): boolean => {
+	const { isSubmitting, clientId, dateStr, startTimeStr, endTimeStr } = params;
+	return (
+		!isSubmitting &&
+		clientId.length > 0 &&
+		dateStr.length > 0 &&
+		startTimeStr.length > 0 &&
+		endTimeStr.length > 0
+	);
+};
+
+const normalizeOptionalId = (id: string): string | null => {
+	return id.length > 0 ? id : null;
+};
+
+const getClientSelectDisabled = (
+	isSubmitting: boolean,
+	clientOptionsLength: number,
+): boolean => {
+	return isSubmitting || clientOptionsLength === 0;
+};
+
+const renderClientOptions = (
+	clientOptions: CreateOneOffShiftDialogClientOption[],
+): ReactNode => {
+	return clientOptions.length === 0 ? (
+		<option value="">利用者がありません</option>
+	) : (
+		clientOptions.map((c) => (
+			<option key={c.id} value={c.id}>
+				{c.name}
+			</option>
+		))
+	);
+};
+
+const getSubmitButtonLabel = (isSubmitting: boolean): string => {
+	return isSubmitting ? '保存中...' : '保存';
 };
 
 export const CreateOneOffShiftDialog = ({
@@ -61,12 +108,13 @@ export const CreateOneOffShiftDialog = ({
 	);
 	const [staffId, setStaffId] = useState('');
 
-	const canSubmit =
-		!isSubmitting &&
-		clientId.length > 0 &&
-		dateStr.length > 0 &&
-		startTimeStr.length > 0 &&
-		endTimeStr.length > 0;
+	const canSubmit = getCanSubmit({
+		isSubmitting,
+		clientId,
+		dateStr,
+		startTimeStr,
+		endTimeStr,
+	});
 
 	const handleSubmit = async () => {
 		if (!canSubmit) return;
@@ -77,7 +125,7 @@ export const CreateOneOffShiftDialog = ({
 				weekStartDate: weekStartDateStr,
 				client_id: clientId,
 				service_type_id: serviceTypeId,
-				staff_id: staffId.length > 0 ? staffId : null,
+				staff_id: normalizeOptionalId(staffId),
 				date: dateStr,
 				start_time: parseTimeString(startTimeStr),
 				end_time: parseTimeString(endTimeStr),
@@ -178,18 +226,13 @@ export const CreateOneOffShiftDialog = ({
 							className="select-bordered select w-full"
 							value={clientId}
 							onChange={(e) => setClientId(e.target.value)}
-							disabled={isSubmitting || clientOptions.length === 0}
+							disabled={getClientSelectDisabled(
+								isSubmitting,
+								clientOptions.length,
+							)}
 							required
 						>
-							{clientOptions.length === 0 ? (
-								<option value="">利用者がありません</option>
-							) : (
-								clientOptions.map((c) => (
-									<option key={c.id} value={c.id}>
-										{c.name}
-									</option>
-								))
-							)}
+							{renderClientOptions(clientOptions)}
 						</select>
 					</div>
 
@@ -249,7 +292,7 @@ export const CreateOneOffShiftDialog = ({
 						onClick={handleSubmit}
 						disabled={!canSubmit}
 					>
-						{isSubmitting ? '保存中...' : '保存'}
+						{getSubmitButtonLabel(isSubmitting)}
 					</button>
 				</div>
 			</div>

@@ -1,5 +1,6 @@
 import { createOneOffShiftAction } from '@/app/actions/shifts';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
+import type { ShiftRecord } from '@/models/shiftActionSchemas';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { formatJstDateString } from '@/utils/date';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -51,8 +52,25 @@ describe('CreateOneOffShiftDialog', () => {
 		const weekStartDate = new Date('2026-02-16T00:00:00');
 		const weekStartDateStr = formatJstDateString(weekStartDate);
 
-		const success: ActionResult<unknown> = {
-			data: null,
+		const createdShift: ShiftRecord = {
+			id: TEST_IDS.SCHEDULE_1,
+			client_id: TEST_IDS.CLIENT_1,
+			service_type_id: 'life-support',
+			staff_id: null,
+			date: new Date(weekStartDateStr),
+			start_time: { hour: 9, minute: 0 },
+			end_time: { hour: 10, minute: 0 },
+			status: 'scheduled',
+			is_unassigned: true,
+			canceled_reason: null,
+			canceled_category: null,
+			canceled_at: null,
+			created_at: new Date('2026-02-01T00:00:00Z'),
+			updated_at: new Date('2026-02-01T00:00:00Z'),
+		};
+
+		const success: ActionResult<ShiftRecord> = {
+			data: createdShift,
 			error: null,
 			status: 201,
 		};
@@ -94,7 +112,7 @@ describe('CreateOneOffShiftDialog', () => {
 	it('Actionがerrorを返した場合、closeしない', async () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
-		const result: ActionResult<unknown> = {
+		const result: ActionResult<ShiftRecord> = {
 			data: null,
 			error: 'conflict',
 			status: 409,
