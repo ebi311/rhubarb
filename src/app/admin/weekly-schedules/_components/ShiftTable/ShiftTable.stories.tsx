@@ -27,6 +27,7 @@ const createShift = (
 		date,
 		startTime: { hour: 9, minute: 0 },
 		endTime: { hour: 10, minute: 0 },
+		clientId: 'client-1',
 		clientName: '田中太郎',
 		serviceTypeId: 'physical-care',
 		staffId: 'staff-1',

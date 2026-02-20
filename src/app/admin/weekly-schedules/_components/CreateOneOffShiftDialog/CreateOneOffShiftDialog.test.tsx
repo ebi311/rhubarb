@@ -193,4 +193,42 @@ describe('CreateOneOffShiftDialog', () => {
 			expect(dateInput?.value).toBe('2026-02-19');
 		});
 	});
+
+	it('defaultClientId を指定して open すると利用者selectがその値で初期化される（optionsに存在する場合）', () => {
+		render(
+			<CreateOneOffShiftDialog
+				isOpen
+				weekStartDate={new Date('2026-02-16T00:00:00Z')}
+				defaultClientId={TEST_IDS.CLIENT_2}
+				clientOptions={[
+					{ id: TEST_IDS.CLIENT_1, name: '利用者A' },
+					{ id: TEST_IDS.CLIENT_2, name: '利用者B' },
+				]}
+				staffOptions={[]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const clientSelect = screen.getAllByRole('combobox')[0];
+		expect(clientSelect).toHaveValue(TEST_IDS.CLIENT_2);
+	});
+
+	it('defaultClientId が options に存在しない場合は先頭の利用者が選択される', () => {
+		render(
+			<CreateOneOffShiftDialog
+				isOpen
+				weekStartDate={new Date('2026-02-16T00:00:00Z')}
+				defaultClientId={TEST_IDS.CLIENT_3}
+				clientOptions={[
+					{ id: TEST_IDS.CLIENT_1, name: '利用者A' },
+					{ id: TEST_IDS.CLIENT_2, name: '利用者B' },
+				]}
+				staffOptions={[]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const clientSelect = screen.getAllByRole('combobox')[0];
+		expect(clientSelect).toHaveValue(TEST_IDS.CLIENT_1);
+	});
 });

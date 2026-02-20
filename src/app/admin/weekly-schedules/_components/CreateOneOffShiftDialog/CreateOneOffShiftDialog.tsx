@@ -22,6 +22,7 @@ export type CreateOneOffShiftDialogProps = {
 	isOpen: boolean;
 	weekStartDate: Date;
 	defaultDateStr?: string;
+	defaultClientId?: string;
 	clientOptions: CreateOneOffShiftDialogClientOption[];
 	staffOptions: StaffPickerOption[];
 	onClose: () => void;
@@ -62,6 +63,17 @@ const getClientSelectDisabled = (
 	return isSubmitting || clientOptionsLength === 0;
 };
 
+const getInitialClientId = (
+	defaultClientId: string | undefined,
+	clientOptions: CreateOneOffShiftDialogClientOption[],
+): string => {
+	if (defaultClientId) {
+		const exists = clientOptions.some((c) => c.id === defaultClientId);
+		if (exists) return defaultClientId;
+	}
+	return clientOptions[0]?.id ?? '';
+};
+
 const renderClientOptions = (
 	clientOptions: CreateOneOffShiftDialogClientOption[],
 ): ReactNode => {
@@ -84,6 +96,7 @@ export const CreateOneOffShiftDialog = ({
 	isOpen,
 	weekStartDate,
 	defaultDateStr,
+	defaultClientId,
 	clientOptions,
 	staffOptions,
 	onClose,
@@ -104,7 +117,9 @@ export const CreateOneOffShiftDialog = ({
 	const [dateStr, setDateStr] = useState(defaultDateStr ?? weekStartDateStr);
 	const [startTimeStr, setStartTimeStr] = useState('09:00');
 	const [endTimeStr, setEndTimeStr] = useState('10:00');
-	const [clientId, setClientId] = useState(clientOptions[0]?.id ?? '');
+	const [clientId, setClientId] = useState(() =>
+		getInitialClientId(defaultClientId, clientOptions),
+	);
 	const [serviceTypeId, setServiceTypeId] = useState<ServiceTypeId>(
 		ServiceTypeIdValues[0],
 	);
@@ -113,7 +128,14 @@ export const CreateOneOffShiftDialog = ({
 	useEffect(() => {
 		if (!isOpen) return;
 		setDateStr(defaultDateStr ?? weekStartDateStr);
-	}, [isOpen, defaultDateStr, weekStartDateStr]);
+		setClientId(getInitialClientId(defaultClientId, clientOptions));
+	}, [
+		isOpen,
+		defaultDateStr,
+		weekStartDateStr,
+		defaultClientId,
+		clientOptions,
+	]);
 
 	const canSubmit = getCanSubmit({
 		isSubmitting,

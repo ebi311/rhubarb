@@ -14,6 +14,7 @@ export type ShiftDisplayRow = {
 	date: Date;
 	startTime: { hour: number; minute: number };
 	endTime: { hour: number; minute: number };
+	clientId: string;
 	clientName: string;
 	serviceTypeId: ServiceTypeId;
 	staffId: string | null;

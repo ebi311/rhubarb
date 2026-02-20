@@ -106,9 +106,15 @@ export const WeeklySchedulePage = ({
 	const [createOneOffDefaultDateStr, setCreateOneOffDefaultDateStr] = useState<
 		string | undefined
 	>();
+	const [createOneOffDefaultClientId, setCreateOneOffDefaultClientId] =
+		useState<string | undefined>();
 
-	const handleOpenCreateOneOffShiftDialog = (defaultDateStr: string) => {
+	const handleOpenCreateOneOffShiftDialog = (
+		defaultDateStr: string,
+		defaultClientId?: string,
+	) => {
 		setCreateOneOffDefaultDateStr(defaultDateStr);
+		setCreateOneOffDefaultClientId(defaultClientId);
 		setIsCreateOneOffOpen(true);
 	};
 
@@ -196,8 +202,8 @@ export const WeeklySchedulePage = ({
 						onAssignStaff={handleAssignStaff}
 						onCancelShift={handleCancelShift}
 						onRestoreShift={handleRestoreShift}
-						onAddOneOffShift={(dateStr) =>
-							handleOpenCreateOneOffShiftDialog(dateStr)
+						onAddOneOffShift={(dateStr, clientId) =>
+							handleOpenCreateOneOffShiftDialog(dateStr, clientId)
 						}
 					/>
 				) : (
@@ -220,6 +226,7 @@ export const WeeklySchedulePage = ({
 				isOpen={isCreateOneOffOpen}
 				weekStartDate={weekStartDate}
 				defaultDateStr={createOneOffDefaultDateStr}
+				defaultClientId={createOneOffDefaultClientId}
 				clientOptions={clientOptions}
 				staffOptions={staffOptions}
 				onClose={() => setIsCreateOneOffOpen(false)}
