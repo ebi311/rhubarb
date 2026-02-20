@@ -1,3 +1,4 @@
+import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,7 +37,7 @@ describe('WeeklySchedulePage', () => {
 			endTime: { hour: 10, minute: 0 },
 			clientName: '田中太郎',
 			serviceTypeId: 'physical-care',
-			staffId: 'staff-1',
+			staffId: TEST_IDS.STAFF_1,
 			staffName: '山田花子',
 			status: 'scheduled',
 			isUnassigned: false,
@@ -47,6 +48,10 @@ describe('WeeklySchedulePage', () => {
 		weekStartDate,
 		initialShifts: [],
 		staffOptions: [],
+		clientOptions: [
+			{ id: TEST_IDS.CLIENT_1, name: '田中太郎' },
+			{ id: TEST_IDS.CLIENT_2, name: '鈴木一郎' },
+		],
 	};
 
 	beforeEach(() => {

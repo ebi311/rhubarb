@@ -14,6 +14,7 @@ import {
 	ChangeStaffDialog,
 	type ChangeStaffDialogShift,
 } from '../ChangeStaffDialog';
+import { CreateOneOffShiftButton } from '../CreateOneOffShiftButton';
 import { EmptyState } from '../EmptyState';
 import { GenerateButton, type GenerateResult } from '../GenerateButton';
 import {
@@ -32,6 +33,7 @@ export interface WeeklySchedulePageProps {
 	weekStartDate: Date;
 	initialShifts: ShiftDisplayRow[];
 	staffOptions: StaffPickerOption[];
+	clientOptions: { id: string; name: string }[];
 }
 
 const shiftToDateTime = (
@@ -88,6 +90,7 @@ export const WeeklySchedulePage = ({
 	weekStartDate,
 	initialShifts,
 	staffOptions,
+	clientOptions,
 }: WeeklySchedulePageProps) => {
 	const router = useRouter();
 	const [viewMode, setViewMode] = useState<WeeklyViewMode>('list');
@@ -158,6 +161,11 @@ export const WeeklySchedulePage = ({
 						weekStartDate={weekStartDate}
 						onGenerated={handleGenerated}
 						disabled={false}
+					/>
+					<CreateOneOffShiftButton
+						weekStartDate={weekStartDate}
+						clientOptions={clientOptions}
+						staffOptions={staffOptions}
 					/>
 				</div>
 			</div>

@@ -1,4 +1,5 @@
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import { TEST_IDS } from '@/test/helpers/testIds';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { fn } from 'storybook/test';
 import type { ShiftDisplayRow } from '../ShiftTable';
@@ -33,19 +34,19 @@ const weekStartDate = new Date('2026-01-19T00:00:00');
 
 const sampleStaffOptions: StaffPickerOption[] = [
 	{
-		id: 'staff-1',
+		id: TEST_IDS.STAFF_1,
 		name: '山田花子',
 		role: 'helper',
 		serviceTypeIds: ['physical-care', 'life-support'],
 	},
 	{
-		id: 'staff-2',
+		id: TEST_IDS.STAFF_2,
 		name: '佐々木健太',
 		role: 'helper',
 		serviceTypeIds: ['commute-support'],
 	},
 	{
-		id: 'staff-3',
+		id: TEST_IDS.STAFF_3,
 		name: '田村美咲',
 		role: 'admin',
 		serviceTypeIds: ['physical-care'],
@@ -60,7 +61,7 @@ const sampleShifts: ShiftDisplayRow[] = [
 		endTime: { hour: 10, minute: 0 },
 		clientName: '田中太郎',
 		serviceTypeId: 'physical-care',
-		staffId: 'staff-1',
+		staffId: TEST_IDS.STAFF_1,
 		staffName: '山田花子',
 		status: 'scheduled',
 		isUnassigned: false,
@@ -84,7 +85,7 @@ const sampleShifts: ShiftDisplayRow[] = [
 		endTime: { hour: 11, minute: 0 },
 		clientName: '佐藤次郎',
 		serviceTypeId: 'commute-support',
-		staffId: 'staff-2',
+		staffId: TEST_IDS.STAFF_2,
 		staffName: '佐々木健太',
 		status: 'confirmed',
 		isUnassigned: false,
@@ -96,11 +97,18 @@ const sampleShifts: ShiftDisplayRow[] = [
 		endTime: { hour: 15, minute: 30 },
 		clientName: '高橋三郎',
 		serviceTypeId: 'physical-care',
-		staffId: 'staff-3',
+		staffId: TEST_IDS.STAFF_3,
 		staffName: '田村美咲',
 		status: 'completed',
 		isUnassigned: false,
 	},
+];
+
+const sampleClientOptions = [
+	{ id: TEST_IDS.CLIENT_1, name: '田中太郎' },
+	{ id: TEST_IDS.CLIENT_2, name: '鈴木一郎' },
+	{ id: TEST_IDS.CLIENT_3, name: '佐藤次郎' },
+	{ id: TEST_IDS.CLIENT_4, name: '高橋三郎' },
 ];
 
 export const WithShifts: Story = {
@@ -108,6 +116,7 @@ export const WithShifts: Story = {
 		weekStartDate,
 		initialShifts: sampleShifts,
 		staffOptions: sampleStaffOptions,
+		clientOptions: sampleClientOptions,
 	},
 };
 
@@ -116,6 +125,7 @@ export const Empty: Story = {
 		weekStartDate,
 		initialShifts: [],
 		staffOptions: sampleStaffOptions,
+		clientOptions: sampleClientOptions,
 	},
 };
 
@@ -131,7 +141,7 @@ export const ManyShifts: Story = {
 				endTime: { hour: 11, minute: 30 },
 				clientName: '伊藤四郎',
 				serviceTypeId: 'life-support',
-				staffId: 'staff-2',
+				staffId: TEST_IDS.STAFF_2,
 				staffName: '中村由美',
 				status: 'scheduled',
 				isUnassigned: false,
@@ -155,12 +165,13 @@ export const ManyShifts: Story = {
 				endTime: { hour: 10, minute: 30 },
 				clientName: '小林六郎',
 				serviceTypeId: 'commute-support',
-				staffId: 'staff-1',
+				staffId: TEST_IDS.STAFF_1,
 				staffName: '加藤裕子',
 				status: 'canceled',
 				isUnassigned: false,
 			},
 		],
 		staffOptions: sampleStaffOptions,
+		clientOptions: sampleClientOptions,
 	},
 };

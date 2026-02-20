@@ -2,6 +2,7 @@ import { getServiceUsersAction } from '@/app/actions/serviceUsers';
 import { listStaffsAction } from '@/app/actions/staffs';
 import { listShiftsAction } from '@/app/actions/weeklySchedules';
 import { addJstDays, formatJstDateString } from '@/utils/date';
+import type { CreateOneOffShiftDialogClientOption } from '../CreateOneOffShiftDialog';
 import type { ShiftDisplayRow } from '../ShiftTable';
 import { WeeklySchedulePage } from '../WeeklySchedulePage';
 
@@ -65,11 +66,19 @@ export const WeeklyScheduleContent = async ({
 		serviceTypeIds: staff.service_type_ids,
 	}));
 
+	const clientOptions: CreateOneOffShiftDialogClientOption[] = (
+		clientsResult.data ?? []
+	).map((client) => ({
+		id: client.id,
+		name: client.name,
+	}));
+
 	return (
 		<WeeklySchedulePage
 			weekStartDate={weekStartDate}
 			initialShifts={shifts}
 			staffOptions={staffOptions}
+			clientOptions={clientOptions}
 		/>
 	);
 };
