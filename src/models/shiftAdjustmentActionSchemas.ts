@@ -1,9 +1,11 @@
+import { dateJst } from '@/utils/date';
 import { z } from 'zod';
 import { ShiftStatusSchema } from './shift';
 import { JstDateInputSchema } from './valueObjects/jstDate';
 import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeValueSchema } from './valueObjects/time';
-import { getJstDateOnly } from '@/utils/date';
+
+const toJstDay = (date: Date) => dateJst(date).startOf('day');
 
 /**
  * staff_absence（スタッフ急休）入力（Phase 1: DB永続化なし）
@@ -15,17 +17,15 @@ export const StaffAbsenceInputSchema = z
 		endDate: JstDateInputSchema,
 		memo: z.string().max(500).optional(),
 	})
-	.refine((v) => v.startDate <= v.endDate, {
+	.refine((v) => !toJstDay(v.startDate).isAfter(toJstDay(v.endDate)), {
 		message: 'startDate must be before or equal to endDate',
 		path: ['endDate'],
 	})
 	.refine(
 		(v) => {
-			const start = getJstDateOnly(v.startDate);
-			const end = getJstDateOnly(v.endDate);
-			const diffDays = Math.floor(
-				(end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
-			);
+			const start = toJstDay(v.startDate);
+			const end = toJstDay(v.endDate);
+			const diffDays = end.diff(start, 'day');
 			// start=1日目, end=14日目 を許容するため diffDays<=13
 			return diffDays <= 13;
 		},
