@@ -202,23 +202,23 @@ export const CreateOneOffShiftDialog = ({
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4">
-					<div>
-						<label className="label">
-							<span className="label-text font-medium">日付（週内のみ）</span>
-						</label>
-						<input
-							type="date"
-							className="input-bordered input w-full"
-							value={dateStr}
-							min={weekStartDateStr}
-							max={weekEndDateStr}
-							onChange={(e) => setDateStr(e.target.value)}
-							disabled={isSubmitting}
-							required
-						/>
-					</div>
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+						<div>
+							<label className="label">
+								<span className="label-text font-medium">日付（週内のみ）</span>
+							</label>
+							<input
+								type="date"
+								className="input-bordered input w-full"
+								value={dateStr}
+								min={weekStartDateStr}
+								max={weekEndDateStr}
+								onChange={(e) => setDateStr(e.target.value)}
+								disabled={isSubmitting}
+								required
+							/>
+						</div>
 
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<div>
 							<label className="label">
 								<span className="label-text font-medium">開始</span>
