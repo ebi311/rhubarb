@@ -89,6 +89,65 @@ describe('ShiftRepository', () => {
 		});
 	});
 
+	describe('updateShiftSchedule', () => {
+		it('should update start_time/end_time and staff_id', async () => {
+			const shiftId = 'shift-1';
+			const startTime = new Date('2026-02-22T01:00:00.000Z');
+			const endTime = new Date('2026-02-22T02:00:00.000Z');
+			const staffId = 'staff-2';
+			const notes = '編集理由';
+
+			mockSupabase._mockQuery.eq.mockResolvedValueOnce({
+				data: null,
+				error: null,
+			});
+
+			await repository.updateShiftSchedule(shiftId, {
+				startTime,
+				endTime,
+				staffId,
+				notes,
+			});
+
+			expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
+			expect(mockSupabase._mockQuery.update).toHaveBeenCalledWith({
+				start_time: startTime.toISOString(),
+				end_time: endTime.toISOString(),
+				staff_id: staffId,
+				is_unassigned: false,
+				notes,
+				updated_at: expect.any(String),
+			});
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith('id', shiftId);
+		});
+
+		it('should allow unassigned (staff_id=null, is_unassigned=true)', async () => {
+			const shiftId = 'shift-1';
+			const startTime = new Date('2026-02-22T01:00:00.000Z');
+			const endTime = new Date('2026-02-22T02:00:00.000Z');
+
+			mockSupabase._mockQuery.eq.mockResolvedValueOnce({
+				data: null,
+				error: null,
+			});
+
+			await repository.updateShiftSchedule(shiftId, {
+				startTime,
+				endTime,
+				staffId: null,
+			});
+
+			expect(mockSupabase._mockQuery.update).toHaveBeenCalledWith({
+				start_time: startTime.toISOString(),
+				end_time: endTime.toISOString(),
+				staff_id: null,
+				is_unassigned: true,
+				notes: undefined,
+				updated_at: expect.any(String),
+			});
+		});
+	});
+
 	describe('cancelShift', () => {
 		it('should update status to canceled with reason and category', async () => {
 			const shiftId = 'shift-1';
