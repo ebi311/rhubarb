@@ -396,4 +396,34 @@ export class ShiftRepository {
 		if (error) throw error;
 		return (data ?? []).map((row) => this.toDomain(row));
 	}
+
+	/**
+	 * 指定スタッフの指定時間帯の重複シフトを検索する（部分的な重なりも含む）
+	 * 重複判定: start < existingEnd && end > existingStart
+	 * office 境界は client(=shifts.client_id) の office_id で判定する
+	 */
+	async findStaffConflictingShifts(
+		staffId: string,
+		startTime: Date,
+		endTime: Date,
+		officeId: string,
+		excludeShiftId?: string,
+	): Promise<Shift[]> {
+		let query = this.supabase
+			.from('shifts')
+			.select('*, clients!inner(office_id)')
+			.eq('clients.office_id', officeId)
+			.eq('staff_id', staffId)
+			.neq('status', 'canceled')
+			.lt('start_time', endTime.toISOString())
+			.gt('end_time', startTime.toISOString());
+
+		if (excludeShiftId) {
+			query = query.neq('id', excludeShiftId);
+		}
+
+		const { data, error } = await query.order('start_time');
+		if (error) throw error;
+		return (data ?? []).map((row) => this.toDomain(row));
+	}
 }

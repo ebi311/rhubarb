@@ -430,6 +430,21 @@ export class ShiftService {
 			excludeShiftId: shiftId,
 		});
 
+		if (newStaffId) {
+			const conflicts = await this.shiftRepository.findStaffConflictingShifts(
+				newStaffId,
+				newStartTime,
+				newEndTime,
+				adminStaff.office_id,
+				shiftId,
+			);
+			if (conflicts.length > 0) {
+				throw new ServiceError(409, 'Staff has conflicting shift', {
+					conflictingShiftIds: conflicts.map((s) => s.id),
+				});
+			}
+		}
+
 		await this.shiftRepository.updateShiftSchedule(shiftId, {
 			startTime: newStartTime,
 			endTime: newEndTime,
