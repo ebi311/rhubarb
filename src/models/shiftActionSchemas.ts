@@ -262,19 +262,28 @@ export const UpdateShiftScheduleInputSchema = z
 			});
 		}
 	})
-	.transform((val) => {
+	.transform((val, ctx) => {
 		const baseDate = parseJstDateString(val.dateStr);
 		const start = stringToTimeObject(val.startTimeStr);
 		const end = stringToTimeObject(val.endTimeStr);
 		if (!start || !end) {
-			// refine 済みのため通常ここには到達しない
-			return {
-				shiftId: val.shiftId,
-				staffId: val.staffId,
-				newStartTime: baseDate,
-				newEndTime: baseDate,
-				reason: val.reason,
-			};
+			// refine 済みのため通常ここには到達しないが、
+			// ここで握りつぶすと不正入力を成功扱いにしてしまうため明示的に失敗させる
+			if (!start) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['startTimeStr'],
+					message: '時刻が不正です',
+				});
+			}
+			if (!end) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['endTimeStr'],
+					message: '時刻が不正です',
+				});
+			}
+			return z.NEVER;
 		}
 		return {
 			shiftId: val.shiftId,
