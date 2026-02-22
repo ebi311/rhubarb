@@ -1,6 +1,10 @@
+import {
+	updateShiftScheduleAction,
+	validateStaffAvailabilityAction,
+} from '@/app/actions/shifts';
 import { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { fn } from 'storybook/test';
+import { fn, mocked } from 'storybook/test';
 import { ChangeStaffDialog } from './ChangeStaffDialog';
 
 const meta = {
@@ -13,6 +17,18 @@ const meta = {
 	args: {
 		onClose: fn(),
 		onSuccess: fn(),
+	},
+	beforeEach: async () => {
+		mocked(validateStaffAvailabilityAction).mockResolvedValue({
+			data: { available: true, conflictingShifts: [] },
+			error: null,
+			status: 200,
+		});
+		mocked(updateShiftScheduleAction).mockResolvedValue({
+			data: { shiftId: 'shift-1' },
+			error: null,
+			status: 200,
+		});
 	},
 } satisfies Meta<typeof ChangeStaffDialog>;
 

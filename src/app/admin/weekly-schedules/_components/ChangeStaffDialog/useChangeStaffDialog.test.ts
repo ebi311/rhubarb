@@ -50,15 +50,25 @@ describe('useChangeStaffDialog', () => {
 		});
 	});
 
-	it('初期状態が正しく設定される', () => {
+	it('初期状態が正しく設定される', async () => {
 		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true));
 
-		expect(result.current.selectedStaffId).toBeNull();
+		expect(result.current.selectedStaffId).toBe('staff-1');
 		expect(result.current.reason).toBe('');
 		expect(result.current.conflictingShifts).toEqual([]);
-		expect(result.current.isChecking).toBe(false);
+		await waitFor(() => {
+			expect(result.current.isChecking).toBe(false);
+		});
 		expect(result.current.isSubmitting).toBe(false);
 		expect(result.current.showStaffPicker).toBe(false);
+	});
+
+	it('元シフトが未割当の場合、selectedStaffId は null のまま', () => {
+		const { result } = renderHook(() =>
+			useChangeStaffDialog({ ...mockShift, currentStaffId: null }, true),
+		);
+
+		expect(result.current.selectedStaffId).toBeNull();
 	});
 
 	it('ダイアログが開いたときに状態がリセットされる', () => {
@@ -79,7 +89,7 @@ describe('useChangeStaffDialog', () => {
 		rerender({ isOpen: true });
 
 		// リセットされる
-		expect(result.current.selectedStaffId).toBeNull();
+		expect(result.current.selectedStaffId).toBe('staff-1');
 		expect(result.current.reason).toBe('');
 		expect(result.current.conflictingShifts).toEqual([]);
 	});
@@ -172,7 +182,12 @@ describe('useChangeStaffDialog', () => {
 		const onSuccess = vi.fn();
 
 		const { result } = renderHook(() =>
-			useChangeStaffDialog(mockShift, true, onSuccess, vi.fn()),
+			useChangeStaffDialog(
+				{ ...mockShift, currentStaffId: null, currentStaffName: '未割当' },
+				true,
+				onSuccess,
+				vi.fn(),
+			),
 		);
 
 		await act(async () => {

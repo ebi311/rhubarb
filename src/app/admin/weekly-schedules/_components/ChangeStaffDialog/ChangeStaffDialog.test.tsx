@@ -30,6 +30,12 @@ const mockStaffOptions: StaffPickerOption[] = [
 		role: 'helper' as const,
 		serviceTypeIds: ['physical-care'],
 	},
+	{
+		id: 'staff-3',
+		name: '佐藤次郎',
+		role: 'admin' as const,
+		serviceTypeIds: ['life-support'],
+	},
 ];
 
 const mockShift = {
@@ -99,7 +105,7 @@ describe('ChangeStaffDialog', () => {
 		expect(screen.getByText('田中太郎')).toBeInTheDocument();
 		expect(screen.getByText('生活援助')).toBeInTheDocument();
 		expect(screen.getByText(/09:00.*12:00/)).toBeInTheDocument();
-		expect(screen.getByText('佐藤次郎')).toBeInTheDocument();
+		expect(screen.getAllByText('佐藤次郎').length).toBeGreaterThanOrEqual(1);
 	});
 
 	it('スタッフを選択して変更できる', async () => {
@@ -118,7 +124,7 @@ describe('ChangeStaffDialog', () => {
 		);
 
 		// スタッフを選択ボタンをクリック
-		const selectButton = screen.getByRole('button', { name: 'スタッフを選択' });
+		const selectButton = screen.getByRole('button', { name: '佐藤次郎' });
 		await user.click(selectButton);
 
 		// StaffPickerDialogが開く（別のダイアログ）
@@ -173,7 +179,7 @@ describe('ChangeStaffDialog', () => {
 		);
 
 		// スタッフを選択ボタンをクリック
-		const selectButton = screen.getByRole('button', { name: 'スタッフを選択' });
+		const selectButton = screen.getByRole('button', { name: '佐藤次郎' });
 		await user.click(selectButton);
 
 		// スタッフを選択
@@ -241,7 +247,7 @@ describe('ChangeStaffDialog', () => {
 		);
 
 		// スタッフを選択ボタンをクリック
-		const selectButton = screen.getByRole('button', { name: 'スタッフを選択' });
+		const selectButton = screen.getByRole('button', { name: '佐藤次郎' });
 		await user.click(selectButton);
 
 		// スタッフを選択
@@ -266,11 +272,15 @@ describe('ChangeStaffDialog', () => {
 		});
 	});
 
-	it('スタッフを選択していない場合は変更ボタンが無効', () => {
+	it('元シフトが未割当の場合は変更ボタンが無効', () => {
 		render(
 			<ChangeStaffDialog
 				isOpen={true}
-				shift={mockShift}
+				shift={{
+					...mockShift,
+					currentStaffName: '未割当',
+					currentStaffId: null,
+				}}
 				staffOptions={mockStaffOptions}
 				onClose={vi.fn()}
 				onSuccess={vi.fn()}
@@ -308,7 +318,7 @@ describe('ChangeStaffDialog', () => {
 		await user.type(endInput, '13:00');
 
 		// スタッフを選択
-		await user.click(screen.getByRole('button', { name: 'スタッフを選択' }));
+		await user.click(screen.getByRole('button', { name: '佐藤次郎' }));
 		await waitFor(() => {
 			expect(screen.getByText('担当者を選択')).toBeInTheDocument();
 		});

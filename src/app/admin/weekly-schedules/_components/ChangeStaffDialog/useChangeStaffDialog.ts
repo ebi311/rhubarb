@@ -39,7 +39,9 @@ export const useChangeStaffDialog = (
 	onClose?: () => void,
 ) => {
 	const [showStaffPicker, setShowStaffPicker] = useState(false);
-	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(
+		shift.currentStaffId ?? null,
+	);
 	const [reason, setReason] = useState('');
 	const [dateStr, setDateStr] = useState(formatJstDateString(shift.date));
 	const [startTimeStr, setStartTimeStr] = useState(
@@ -57,7 +59,7 @@ export const useChangeStaffDialog = (
 	// ダイアログが開いたときにリセット
 	useEffect(() => {
 		if (isOpen) {
-			setSelectedStaffId(null);
+			setSelectedStaffId(shift.currentStaffId ?? null);
 			setReason('');
 			setDateStr(formatJstDateString(shift.date));
 			setStartTimeStr(toJstTimeStr(shift.startTime));
@@ -65,7 +67,14 @@ export const useChangeStaffDialog = (
 			setConflictingShifts([]);
 			setShowStaffPicker(false);
 		}
-	}, [isOpen, shift.date, shift.startTime, shift.endTime]);
+	}, [
+		isOpen,
+		shift.id,
+		shift.currentStaffId,
+		shift.date,
+		shift.startTime,
+		shift.endTime,
+	]);
 
 	const baseDate = useMemo(() => {
 		try {
