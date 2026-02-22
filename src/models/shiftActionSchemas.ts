@@ -3,8 +3,6 @@ import {
 	formatJstDateString,
 	getJstDateOnly,
 	getJstDayOfWeek,
-	getJstHours,
-	getJstMinutes,
 	parseJstDateString,
 	setJstTime,
 	stringToTimeObject,
@@ -302,8 +300,4 @@ export type UpdateShiftScheduleOutput = z.infer<
 >;
 
 // UI での初期値作成などに使うユーティリティ
-export const toJstTimeStr = (date: Date): string => {
-	const h = getJstHours(date);
-	const m = getJstMinutes(date);
-	return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
+export { toJstTimeStr } from '@/utils/date';

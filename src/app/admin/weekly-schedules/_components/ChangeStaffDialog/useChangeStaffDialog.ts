@@ -5,32 +5,15 @@ import {
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import {
 	formatJstDateString,
-	getJstHours,
-	getJstMinutes,
+	parseHHmm,
 	parseJstDateString,
 	setJstTime,
+	toJstTimeStr,
 } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ConflictingShift } from '../StaffConflictWarning';
 import type { ChangeStaffDialogShift } from './ChangeStaffDialog';
-
-const toJstTimeStr = (date: Date): string => {
-	const h = getJstHours(date);
-	const m = getJstMinutes(date);
-	return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
-const parseHHmm = (value: string): { hour: number; minute: number } | null => {
-	const [hStr, mStr] = value.split(':');
-	if (!hStr || !mStr) return null;
-	const hour = Number(hStr);
-	const minute = Number(mStr);
-	if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
-	if (hour < 0 || hour > 23) return null;
-	if (minute < 0 || minute > 59) return null;
-	return { hour, minute };
-};
 
 export const useChangeStaffDialog = (
 	shift: ChangeStaffDialogShift,
