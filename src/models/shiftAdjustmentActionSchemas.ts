@@ -3,6 +3,7 @@ import { ShiftStatusSchema } from './shift';
 import { JstDateInputSchema } from './valueObjects/jstDate';
 import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeValueSchema } from './valueObjects/time';
+import { getJstDateOnly } from '@/utils/date';
 
 /**
  * staff_absence（スタッフ急休）入力（Phase 1: DB永続化なし）
@@ -17,7 +18,22 @@ export const StaffAbsenceInputSchema = z
 	.refine((v) => v.startDate <= v.endDate, {
 		message: 'startDate must be before or equal to endDate',
 		path: ['endDate'],
-	});
+	})
+	.refine(
+		(v) => {
+			const start = getJstDateOnly(v.startDate);
+			const end = getJstDateOnly(v.endDate);
+			const diffDays = Math.floor(
+				(end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
+			);
+			// start=1日目, end=14日目 を許容するため diffDays<=13
+			return diffDays <= 13;
+		},
+		{
+			message: 'Date range must be within 14 days',
+			path: ['endDate'],
+		},
+	);
 
 export type StaffAbsenceInput = z.output<typeof StaffAbsenceInputSchema>;
 export type StaffAbsenceActionInput = z.input<typeof StaffAbsenceInputSchema>;
@@ -63,10 +79,10 @@ export type ShiftAdjustmentRationaleItem = z.infer<
 >;
 
 /**
- * 提案（Phase 1: operations は必ず1件）
+ * 提案（Phase 2: operations は1〜2件）
  */
 export const ShiftAdjustmentSuggestionSchema = z.object({
-	operations: z.array(ShiftAdjustmentOperationSchema).length(1),
+	operations: z.array(ShiftAdjustmentOperationSchema).min(1).max(2),
 	rationale: z.array(ShiftAdjustmentRationaleItemSchema).min(1).max(5),
 });
 export type ShiftAdjustmentSuggestion = z.infer<
