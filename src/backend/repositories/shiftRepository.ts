@@ -255,6 +255,34 @@ export class ShiftRepository {
 	}
 
 	/**
+	 * シフトの開始/終了時刻（必要に応じて担当者）を更新する
+	 * start_time, end_time は timestamptz (ISO文字列) として保存する
+	 */
+	async updateShiftSchedule(
+		shiftId: string,
+		params: {
+			startTime: Date;
+			endTime: Date;
+			staffId: string | null;
+			notes?: string;
+		},
+	): Promise<void> {
+		const { error } = await this.supabase
+			.from('shifts')
+			.update({
+				start_time: params.startTime.toISOString(),
+				end_time: params.endTime.toISOString(),
+				staff_id: params.staffId,
+				is_unassigned: params.staffId === null,
+				notes: params.notes,
+				updated_at: new Date().toISOString(),
+			})
+			.eq('id', shiftId);
+
+		if (error) throw error;
+	}
+
+	/**
 	 * シフトをキャンセルする
 	 */
 	async cancelShift(
@@ -344,6 +372,7 @@ export class ShiftRepository {
 		startTime: Date,
 		endTime: Date,
 		officeId?: string,
+		excludeShiftId?: string,
 	): Promise<Shift[]> {
 		const baseQuery = officeId
 			? this.supabase
@@ -353,11 +382,15 @@ export class ShiftRepository {
 			: this.supabase.from('shifts').select('*');
 		type Query = typeof baseQuery;
 
-		const query: Query = baseQuery
+		let query: Query = baseQuery
 			.eq('client_id', clientId)
 			.neq('status', 'canceled')
 			.lt('start_time', endTime.toISOString())
 			.gt('end_time', startTime.toISOString());
+
+		if (excludeShiftId) {
+			query = query.neq('id', excludeShiftId);
+		}
 
 		const { data, error } = await query.order('start_time');
 		if (error) throw error;

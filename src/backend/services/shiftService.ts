@@ -4,7 +4,7 @@ import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import { Shift } from '@/models/shift';
 import { CreateOneOffShiftServiceInput } from '@/models/shiftActionSchemas';
-import { setJstTime } from '@/utils/date';
+import { getJstDateOnly, setJstTime } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { v7 as randomUUID } from 'uuid';
 
@@ -36,6 +36,10 @@ export interface ConflictingShift {
 export interface StaffAvailability {
 	available: boolean;
 	conflictingShifts?: ConflictingShift[];
+}
+
+export interface UpdateShiftScheduleResult {
+	shiftId: string;
 }
 
 interface ShiftServiceOptions {
@@ -301,5 +305,103 @@ export class ShiftService {
 
 		await this.shiftRepository.create(shift);
 		return shift;
+	}
+
+	private ensureShiftUpdatable(shift: Shift) {
+		if (shift.status === 'canceled' || shift.status === 'completed') {
+			throw new ServiceError(400, 'Cannot update canceled or completed shift');
+		}
+	}
+
+	private async ensureShiftInAdminOffice(
+		adminOfficeId: string,
+		shift: Shift,
+	): Promise<void> {
+		const client = await this.serviceUserRepository.findById(shift.client_id);
+		if (!client || client.office_id !== adminOfficeId) {
+			throw new ServiceError(404, 'Shift not found');
+		}
+	}
+
+	private async ensureStaffAssignableToOffice(
+		staffId: string,
+		officeId: string,
+	): Promise<void> {
+		const staff = await this.staffRepository.findById(staffId);
+		if (!staff || staff.office_id !== officeId) {
+			throw new ServiceError(404, 'Assigned staff not found');
+		}
+	}
+
+	private ensureNotMovingToPast(newStartTime: Date): void {
+		const todayJst = getJstDateOnly(new Date());
+		const newStartDateJst = getJstDateOnly(newStartTime);
+		if (newStartDateJst.getTime() < todayJst.getTime()) {
+			throw new ServiceError(400, 'Cannot move shift to the past');
+		}
+	}
+
+	private async ensureNoClientConflicts(params: {
+		clientId: string;
+		startTime: Date;
+		endTime: Date;
+		officeId: string;
+		excludeShiftId: string;
+	}): Promise<void> {
+		const conflicts = await this.shiftRepository.findClientConflictingShifts(
+			params.clientId,
+			params.startTime,
+			params.endTime,
+			params.officeId,
+			params.excludeShiftId,
+		);
+		if (conflicts.length > 0) {
+			throw new ServiceError(409, 'Client has conflicting shift', {
+				conflictingShiftIds: conflicts.map((s) => s.id),
+			});
+		}
+	}
+
+	/**
+	 * シフトの日付/開始/終了（必要に応じて担当者）を更新する
+	 */
+	async updateShiftSchedule(
+		userId: string,
+		shiftId: string,
+		newStartTime: Date,
+		newEndTime: Date,
+		newStaffId: string | null,
+		reason?: string,
+	): Promise<UpdateShiftScheduleResult> {
+		const adminStaff = await this.getAdminStaff(userId);
+
+		const shift = await this.shiftRepository.findById(shiftId);
+		if (!shift) throw new ServiceError(404, 'Shift not found');
+
+		this.ensureShiftUpdatable(shift);
+		await this.ensureShiftInAdminOffice(adminStaff.office_id, shift);
+		if (newStaffId) {
+			await this.ensureStaffAssignableToOffice(
+				newStaffId,
+				adminStaff.office_id,
+			);
+		}
+		this.ensureNotMovingToPast(newStartTime);
+		await this.ensureNoClientConflicts({
+			clientId: shift.client_id,
+			startTime: newStartTime,
+			endTime: newEndTime,
+			officeId: adminStaff.office_id,
+			excludeShiftId: shiftId,
+		});
+
+		await this.shiftRepository.updateShiftSchedule(shiftId, {
+			startTime: newStartTime,
+			endTime: newEndTime,
+			staffId: newStaffId,
+			notes: reason,
+		});
+
+		return { shiftId };
 	}
 }
