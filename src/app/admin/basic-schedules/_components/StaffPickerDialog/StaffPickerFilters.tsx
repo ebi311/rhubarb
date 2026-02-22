@@ -31,12 +31,14 @@ export const StaffPickerFilters = ({
 	<div className="mt-4 flex flex-col gap-3 sm:flex-row">
 		<input
 			type="search"
+			aria-label="担当者検索"
 			placeholder="氏名・サービス区分で検索"
 			className="input-bordered input w-full"
 			value={keyword}
 			onChange={(event) => onKeywordChange(event.target.value)}
 		/>
 		<FormSelect
+			aria-label="ロール"
 			className="select-bordered select w-full sm:max-w-40"
 			value={roleFilter}
 			onChange={(event) => onRoleFilterChange(event.target.value as RoleFilter)}
@@ -46,6 +48,7 @@ export const StaffPickerFilters = ({
 			}))}
 		/>
 		<FormSelect
+			aria-label="サービス区分"
 			className="select-bordered select w-full sm:max-w-48"
 			value={serviceFilter}
 			onChange={(event) =>

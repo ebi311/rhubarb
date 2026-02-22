@@ -31,18 +31,15 @@ describe('StaffPickerFilters', () => {
 			/>,
 		);
 
-		fireEvent.change(screen.getByPlaceholderText('氏名・サービス区分で検索'), {
+		fireEvent.change(screen.getByLabelText('担当者検索'), {
 			target: { value: 'taro' },
 		});
 		expect(handleKeywordChange).toHaveBeenLastCalledWith('taro');
 
-		await user.selectOptions(screen.getByDisplayValue('すべて'), '管理者');
+		await user.selectOptions(screen.getByLabelText('ロール'), '管理者');
 		expect(handleRoleFilterChange).toHaveBeenLastCalledWith('admin');
 
-		await user.selectOptions(
-			screen.getByDisplayValue('すべてのサービス区分'),
-			'身体介護',
-		);
+		await user.selectOptions(screen.getByLabelText('サービス区分'), '身体介護');
 		expect(handleServiceFilterChange).toHaveBeenLastCalledWith('physical-care');
 
 		await user.click(screen.getByRole('button', { name: '選択をクリア' }));
