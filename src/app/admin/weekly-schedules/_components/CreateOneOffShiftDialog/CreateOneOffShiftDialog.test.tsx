@@ -143,7 +143,7 @@ describe('CreateOneOffShiftDialog', () => {
 		const weekStartDate = new Date('2026-02-16T00:00:00Z');
 		const defaultDateStr = '2026-02-18';
 
-		const { container } = render(
+		render(
 			<CreateOneOffShiftDialog
 				isOpen
 				weekStartDate={weekStartDate}
@@ -154,16 +154,15 @@ describe('CreateOneOffShiftDialog', () => {
 			/>,
 		);
 
-		const dateInput = container.querySelector(
-			'input[type="date"]',
-		) as HTMLInputElement | null;
-		expect(dateInput).not.toBeNull();
-		expect(dateInput?.value).toBe(defaultDateStr);
+		const dateInput = screen.getByLabelText(
+			'日付（週内のみ）',
+		) as HTMLInputElement;
+		expect(dateInput.value).toBe(defaultDateStr);
 	});
 
 	it('defaultDateStr を変更して rerender すると日付入力が更新される', async () => {
 		const weekStartDate = new Date('2026-02-16T00:00:00Z');
-		const { container, rerender } = render(
+		const { rerender } = render(
 			<CreateOneOffShiftDialog
 				isOpen
 				weekStartDate={weekStartDate}
@@ -186,12 +185,34 @@ describe('CreateOneOffShiftDialog', () => {
 		);
 
 		await waitFor(() => {
-			const dateInput = container.querySelector(
-				'input[type="date"]',
-			) as HTMLInputElement | null;
-			expect(dateInput).not.toBeNull();
-			expect(dateInput?.value).toBe('2026-02-19');
+			const dateInput = screen.getByLabelText(
+				'日付（週内のみ）',
+			) as HTMLInputElement;
+			expect(dateInput.value).toBe('2026-02-19');
 		});
+	});
+
+	it('日時入力はラベルクリックでフォーカスされる', async () => {
+		const user = userEvent.setup();
+		render(
+			<CreateOneOffShiftDialog
+				isOpen
+				weekStartDate={new Date('2026-02-16T00:00:00Z')}
+				clientOptions={[{ id: TEST_IDS.CLIENT_1, name: '利用者A' }]}
+				staffOptions={[]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const startInput = screen.getByLabelText('開始');
+		expect(startInput).not.toHaveFocus();
+		await user.click(screen.getByText('開始'));
+		expect(startInput).toHaveFocus();
+
+		const endInput = screen.getByLabelText('終了');
+		expect(endInput).not.toHaveFocus();
+		await user.click(screen.getByText('終了'));
+		expect(endInput).toHaveFocus();
 	});
 
 	it('defaultClientId を指定して open すると利用者selectがその値で初期化される（optionsに存在する場合）', () => {

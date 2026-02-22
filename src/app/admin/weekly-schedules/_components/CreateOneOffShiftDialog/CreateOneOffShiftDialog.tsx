@@ -11,7 +11,7 @@ import {
 import { addJstDays, formatJstDateString } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 
 export type CreateOneOffShiftDialogClientOption = {
 	id: string;
@@ -101,6 +101,11 @@ export const CreateOneOffShiftDialog = ({
 	staffOptions,
 	onClose,
 }: CreateOneOffShiftDialogProps) => {
+	const inputIdBase = useId();
+	const dateInputId = `${inputIdBase}-date`;
+	const startTimeInputId = `${inputIdBase}-start-time`;
+	const endTimeInputId = `${inputIdBase}-end-time`;
+
 	const router = useRouter();
 	const { handleActionResult } = useActionResultHandler();
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,28 +207,30 @@ export const CreateOneOffShiftDialog = ({
 				</div>
 
 				<div className="mt-4 grid grid-cols-1 gap-4">
-					<div>
-						<label className="label">
-							<span className="label-text font-medium">日付（週内のみ）</span>
-						</label>
-						<input
-							type="date"
-							className="input-bordered input w-full"
-							value={dateStr}
-							min={weekStartDateStr}
-							max={weekEndDateStr}
-							onChange={(e) => setDateStr(e.target.value)}
-							disabled={isSubmitting}
-							required
-						/>
-					</div>
-
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 						<div>
-							<label className="label">
+							<label className="label" htmlFor={dateInputId}>
+								<span className="label-text font-medium">日付（週内のみ）</span>
+							</label>
+							<input
+								id={dateInputId}
+								type="date"
+								className="input-bordered input w-full"
+								value={dateStr}
+								min={weekStartDateStr}
+								max={weekEndDateStr}
+								onChange={(e) => setDateStr(e.target.value)}
+								disabled={isSubmitting}
+								required
+							/>
+						</div>
+
+						<div>
+							<label className="label" htmlFor={startTimeInputId}>
 								<span className="label-text font-medium">開始</span>
 							</label>
 							<input
+								id={startTimeInputId}
 								type="time"
 								className="input-bordered input w-full"
 								value={startTimeStr}
@@ -233,10 +240,11 @@ export const CreateOneOffShiftDialog = ({
 							/>
 						</div>
 						<div>
-							<label className="label">
+							<label className="label" htmlFor={endTimeInputId}>
 								<span className="label-text font-medium">終了</span>
 							</label>
 							<input
+								id={endTimeInputId}
 								type="time"
 								className="input-bordered input w-full"
 								value={endTimeStr}
