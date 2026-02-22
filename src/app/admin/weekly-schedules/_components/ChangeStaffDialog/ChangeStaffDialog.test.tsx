@@ -1,5 +1,5 @@
 import {
-	changeShiftStaffAction,
+	updateShiftScheduleAction,
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
 import { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
@@ -9,6 +9,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChangeStaffDialog } from './ChangeStaffDialog';
 
 vi.mock('@/app/actions/shifts');
+
+const refreshMock = vi.hoisted(() => vi.fn());
+vi.mock('next/navigation', () => ({
+	useRouter: () => ({
+		refresh: refreshMock,
+	}),
+}));
 
 const mockStaffOptions: StaffPickerOption[] = [
 	{
@@ -44,8 +51,8 @@ describe('ChangeStaffDialog', () => {
 			error: null,
 			status: 200,
 		});
-		vi.mocked(changeShiftStaffAction).mockResolvedValue({
-			data: { oldStaffName: '佐藤次郎', newStaffName: '山田太郎' },
+		vi.mocked(updateShiftScheduleAction).mockResolvedValue({
+			data: { shiftId: 'shift-1' },
 			error: null,
 			status: 200,
 		});
@@ -98,13 +105,14 @@ describe('ChangeStaffDialog', () => {
 	it('スタッフを選択して変更できる', async () => {
 		const user = userEvent.setup();
 		const onSuccess = vi.fn();
+		const onClose = vi.fn();
 
 		render(
 			<ChangeStaffDialog
 				isOpen={true}
 				shift={mockShift}
 				staffOptions={mockStaffOptions}
-				onClose={vi.fn()}
+				onClose={onClose}
 				onSuccess={onSuccess}
 			/>,
 		);
@@ -136,14 +144,19 @@ describe('ChangeStaffDialog', () => {
 		await user.click(changeButton);
 
 		await waitFor(() => {
-			expect(changeShiftStaffAction).toHaveBeenCalledWith({
+			expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 				shiftId: 'shift-1',
-				newStaffId: 'staff-1',
+				staffId: 'staff-1',
+				dateStr: '2026-01-22',
+				startTimeStr: '09:00',
+				endTimeStr: '12:00',
 				reason: undefined,
 			});
 		});
 
 		expect(onSuccess).toHaveBeenCalled();
+		expect(onClose).toHaveBeenCalled();
+		expect(refreshMock).toHaveBeenCalled();
 	});
 
 	it('変更理由を入力できる', async () => {
@@ -188,9 +201,12 @@ describe('ChangeStaffDialog', () => {
 		await user.click(changeButton);
 
 		await waitFor(() => {
-			expect(changeShiftStaffAction).toHaveBeenCalledWith({
+			expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 				shiftId: 'shift-1',
-				newStaffId: 'staff-1',
+				staffId: 'staff-1',
+				dateStr: '2026-01-22',
+				startTimeStr: '09:00',
+				endTimeStr: '12:00',
 				reason: '緊急対応のため',
 			});
 		});

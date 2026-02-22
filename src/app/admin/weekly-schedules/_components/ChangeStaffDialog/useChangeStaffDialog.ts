@@ -1,11 +1,19 @@
 import {
-	changeShiftStaffAction,
+	updateShiftScheduleAction,
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
+import { formatJstDateString, getJstHours, getJstMinutes } from '@/utils/date';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { ConflictingShift } from '../StaffConflictWarning';
 import type { ChangeStaffDialogShift } from './ChangeStaffDialog';
+
+const toJstTimeStr = (date: Date): string => {
+	const h = getJstHours(date);
+	const m = getJstMinutes(date);
+	return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
 
 export const useChangeStaffDialog = (
 	shift: ChangeStaffDialogShift,
@@ -22,6 +30,7 @@ export const useChangeStaffDialog = (
 	const [isChecking, setIsChecking] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { handleActionResult } = useActionResultHandler();
+	const router = useRouter();
 
 	// ダイアログが開いたときにリセット
 	useEffect(() => {
@@ -83,18 +92,22 @@ export const useChangeStaffDialog = (
 
 		setIsSubmitting(true);
 		try {
-			const result = await changeShiftStaffAction({
+			const result = await updateShiftScheduleAction({
 				shiftId: shift.id,
-				newStaffId: selectedStaffId,
+				staffId: selectedStaffId,
+				dateStr: formatJstDateString(shift.date),
+				startTimeStr: toJstTimeStr(shift.startTime),
+				endTimeStr: toJstTimeStr(shift.endTime),
 				reason: reason || undefined,
 			});
 
 			const success = handleActionResult(result, {
-				successMessage: `${result.data?.oldStaffName} → ${result.data?.newStaffName}に変更しました`,
-				errorMessage: '担当者の変更に失敗しました',
+				successMessage: 'シフトを更新しました',
+				errorMessage: 'シフトの更新に失敗しました',
 			});
 
 			if (success) {
+				router.refresh();
 				onSuccess?.();
 				onClose?.();
 			}
@@ -104,8 +117,12 @@ export const useChangeStaffDialog = (
 	}, [
 		selectedStaffId,
 		shift.id,
+		shift.date,
+		shift.startTime,
+		shift.endTime,
 		reason,
 		handleActionResult,
+		router,
 		onSuccess,
 		onClose,
 	]);
