@@ -1,5 +1,6 @@
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
+import { ClientStaffAssignmentRepository } from '@/backend/repositories/clientStaffAssignmentRepository';
 import { Database } from '@/backend/types/supabase';
 import { Shift } from '@/models/shift';
 import { Staff, StaffWithServiceTypes } from '@/models/staff';
@@ -32,6 +33,13 @@ const createMockShiftRepository = (): Mocked<ShiftRepository> => {
 		list: vi.fn(),
 	} as unknown as Mocked<ShiftRepository>;
 };
+
+const createMockClientStaffAssignmentRepository =
+	(): Mocked<ClientStaffAssignmentRepository> => {
+		return {
+			listLinksByOfficeAndClientIds: vi.fn(),
+		} as unknown as Mocked<ClientStaffAssignmentRepository>;
+	};
 
 const createAdminStaff = (overrides: Partial<Staff> = {}): Staff => ({
 	id: TEST_IDS.STAFF_1,
@@ -75,6 +83,7 @@ describe('ShiftAdjustmentSuggestionService', () => {
 	let service: ShiftAdjustmentSuggestionService;
 	let mockStaffRepo: Mocked<StaffRepository>;
 	let mockShiftRepo: Mocked<ShiftRepository>;
+	let mockClientStaffAssignmentRepo: Mocked<ClientStaffAssignmentRepository>;
 	let mockSupabase: SupabaseClient<Database>;
 
 	beforeEach(() => {
@@ -83,10 +92,12 @@ describe('ShiftAdjustmentSuggestionService', () => {
 
 		mockStaffRepo = createMockStaffRepository();
 		mockShiftRepo = createMockShiftRepository();
+		mockClientStaffAssignmentRepo = createMockClientStaffAssignmentRepository();
 		mockSupabase = {} as SupabaseClient<Database>;
 		service = new ShiftAdjustmentSuggestionService(mockSupabase, {
 			staffRepository: mockStaffRepo,
 			shiftRepository: mockShiftRepo,
+			clientStaffAssignmentRepository: mockClientStaffAssignmentRepo,
 		});
 	});
 
@@ -158,6 +169,26 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			overlapShift,
 			nonOverlapShift,
 		]);
+
+		mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+			[
+				{
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: candidateAId,
+					service_type_id: 'life-support',
+				},
+				{
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: candidateBId,
+					service_type_id: 'life-support',
+				},
+				{
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: candidateDId,
+					service_type_id: 'life-support',
+				},
+			],
+		);
 
 		const result = await service.suggestShiftAdjustments(userId, {
 			staffId: absentStaffId,
@@ -244,6 +275,21 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			}),
 		]);
 
+		mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+			[
+				{
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: helperCandidateId,
+					service_type_id: 'life-support',
+				},
+				{
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: adminCandidateId,
+					service_type_id: 'life-support',
+				},
+			],
+		);
+
 		const result = await service.suggestShiftAdjustments(userId, {
 			staffId: absentStaffId,
 			startDate: new Date('2026-02-22T00:00:00+09:00'),
@@ -255,6 +301,186 @@ describe('ShiftAdjustmentSuggestionService', () => {
 		);
 		expect(toStaffIds).toEqual([helperCandidateId]);
 		expect(toStaffIds).not.toContain(adminCandidateId);
+	});
+
+	it('担当許可がないスタッフは候補から除外される', async () => {
+		const userId = createTestId();
+		const absentStaffId = TEST_IDS.STAFF_2;
+		const allowedCandidateId = createTestId();
+		const notAllowedCandidateId = createTestId();
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.listByOffice.mockResolvedValueOnce([
+			createStaffWithServiceTypes({
+				id: absentStaffId,
+				name: '欠勤者',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+			createStaffWithServiceTypes({
+				id: allowedCandidateId,
+				name: '許可あり候補',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+			createStaffWithServiceTypes({
+				id: notAllowedCandidateId,
+				name: '許可なし候補',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+		]);
+
+		mockShiftRepo.list.mockResolvedValueOnce([
+			createShift({
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: absentStaffId,
+				date: new Date('2026-02-24T00:00:00+09:00'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+				service_type_id: 'life-support',
+			}),
+		]);
+
+		mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+			[
+				{
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: allowedCandidateId,
+					service_type_id: 'life-support',
+				},
+			],
+		);
+
+		const result = await service.suggestShiftAdjustments(userId, {
+			staffId: absentStaffId,
+			startDate: new Date('2026-02-22T00:00:00+09:00'),
+			endDate: new Date('2026-02-28T00:00:00+09:00'),
+		});
+
+		const toStaffIds = result.affected[0]?.suggestions.map(
+			(s) => s.operations[0].to_staff_id,
+		);
+		expect(toStaffIds).toEqual([allowedCandidateId]);
+		expect(toStaffIds).not.toContain(notAllowedCandidateId);
+	});
+
+	it('深さ0で解けないが深さ1で解ける場合、operations が2件返る', async () => {
+		const userId = createTestId();
+		const absentStaffId = TEST_IDS.STAFF_2;
+		const candidateBId = createTestId();
+		const candidateCId = createTestId();
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.listByOffice.mockResolvedValueOnce([
+			createStaffWithServiceTypes({
+				id: absentStaffId,
+				name: '欠勤者',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+			createStaffWithServiceTypes({
+				id: candidateBId,
+				name: '候補B(衝突あり)',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+			createStaffWithServiceTypes({
+				id: candidateCId,
+				name: '候補C(玉突き先)',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+		]);
+
+		const shiftX = createShift({
+			id: TEST_IDS.SCHEDULE_1,
+			client_id: TEST_IDS.CLIENT_1,
+			staff_id: absentStaffId,
+			date: new Date('2026-02-24T00:00:00+09:00'),
+			time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+			service_type_id: 'life-support',
+		});
+		const shiftY = createShift({
+			id: TEST_IDS.SCHEDULE_2,
+			client_id: TEST_IDS.CLIENT_2,
+			staff_id: candidateBId,
+			date: new Date('2026-02-24T00:00:00+09:00'),
+			time: { start: { hour: 10, minute: 30 }, end: { hour: 11, minute: 30 } },
+			service_type_id: 'life-support',
+		});
+
+		mockShiftRepo.list.mockResolvedValueOnce([shiftX, shiftY]);
+
+		mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+			[
+				{
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: candidateBId,
+					service_type_id: 'life-support',
+				},
+				{
+					client_id: TEST_IDS.CLIENT_2,
+					staff_id: candidateCId,
+					service_type_id: 'life-support',
+				},
+			],
+		);
+
+		const result = await service.suggestShiftAdjustments(userId, {
+			staffId: absentStaffId,
+			startDate: new Date('2026-02-22T00:00:00+09:00'),
+			endDate: new Date('2026-02-28T00:00:00+09:00'),
+		});
+
+		expect(result.affected).toHaveLength(1);
+		const [affected] = result.affected;
+		expect(affected.shift.id).toBe(TEST_IDS.SCHEDULE_1);
+		expect(affected.suggestions).toHaveLength(1);
+		const suggestion = affected.suggestions[0]!;
+		expect(suggestion.operations).toHaveLength(2);
+		expect(suggestion.operations[0]).toMatchObject({
+			type: 'change_staff',
+			shift_id: TEST_IDS.SCHEDULE_2,
+			from_staff_id: candidateBId,
+			to_staff_id: candidateCId,
+		});
+		expect(suggestion.operations[1]).toMatchObject({
+			type: 'change_staff',
+			shift_id: TEST_IDS.SCHEDULE_1,
+			from_staff_id: absentStaffId,
+			to_staff_id: candidateBId,
+		});
+	});
+
+	it('期間が14日を超える場合は400', async () => {
+		const userId = createTestId();
+		const absentStaffId = TEST_IDS.STAFF_2;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.listByOffice.mockResolvedValueOnce([
+			createStaffWithServiceTypes({
+				id: absentStaffId,
+				name: '欠勤者',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+		]);
+		mockShiftRepo.list.mockResolvedValueOnce([]);
+
+		await expect(
+			service.suggestShiftAdjustments(userId, {
+				staffId: absentStaffId,
+				startDate: new Date('2026-02-22T00:00:00+09:00'),
+				endDate: new Date('2026-03-08T00:00:00+09:00'),
+			}),
+		).rejects.toMatchObject({ status: 400 });
 	});
 
 	it('欠勤スタッフIDがoffice外/存在しない場合は404', async () => {

@@ -17,6 +17,12 @@ const mockStaffOptions: StaffPickerOption[] = [
 		serviceTypeIds: ['life-support'],
 	},
 	{
+		id: TEST_IDS.STAFF_3,
+		name: '佐藤次郎',
+		role: 'helper' as const,
+		serviceTypeIds: ['life-support'],
+	},
+	{
 		id: '11111111-1111-1111-8111-111111111111',
 		name: '管理者スタッフ',
 		role: 'admin' as const,
@@ -41,6 +47,19 @@ const sampleShifts: ShiftDisplayRow[] = [
 		serviceTypeId: 'life-support',
 		staffId: TEST_IDS.STAFF_2,
 		staffName: '鈴木花子',
+		status: 'scheduled',
+		isUnassigned: false,
+	},
+	{
+		id: TEST_IDS.SCHEDULE_2,
+		date: new Date('2026-02-24T00:00:00+09:00'),
+		startTime: { hour: 10, minute: 30 },
+		endTime: { hour: 11, minute: 30 },
+		clientId: TEST_IDS.CLIENT_2,
+		clientName: '佐々木花子',
+		serviceTypeId: 'life-support',
+		staffId: TEST_IDS.STAFF_1,
+		staffName: '山田太郎',
 		status: 'scheduled',
 		isUnassigned: false,
 	},
@@ -72,6 +91,12 @@ describe('ShiftAdjustmentDialog', () => {
 						suggestions: [
 							{
 								operations: [
+									{
+										type: 'change_staff',
+										shift_id: TEST_IDS.SCHEDULE_2,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: TEST_IDS.STAFF_3,
+									},
 									{
 										type: 'change_staff',
 										shift_id: TEST_IDS.SCHEDULE_1,
@@ -152,7 +177,12 @@ describe('ShiftAdjustmentDialog', () => {
 			expect(screen.getByText('提案結果')).toBeInTheDocument();
 		});
 		expect(screen.getByText(/田中太郎/)).toBeInTheDocument();
-		expect(screen.getByText(/案1: 山田太郎 に変更/)).toBeInTheDocument();
+		// operations[0] (1手目) は別シフトの玉突き、operations[1] (2手目) が対象シフト
+		expect(screen.getByText(/案1:/)).toBeInTheDocument();
+		expect(screen.getByText(/佐々木花子/)).toBeInTheDocument();
+		expect(screen.getByText(/案1:.*佐藤次郎/)).toBeInTheDocument();
+		expect(screen.getByText(/2手目:/)).toBeInTheDocument();
+		expect(screen.getByText(/2手目: 山田太郎 に変更/)).toBeInTheDocument();
 		expect(screen.getByText(/サービス種別適性あり/)).toBeInTheDocument();
 		expect(screen.getByText(/時間重複なし/)).toBeInTheDocument();
 	});
