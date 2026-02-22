@@ -289,6 +289,7 @@ export class ShiftAdjustmentSuggestionService {
 			// 深さ1探索: 深さ0で見つからない場合のみ、1回だけ玉突き
 			if (suggestions.length === 0) {
 				for (const candidateB of candidates) {
+					if (candidateB.id === validatedAbsence.staffId) continue;
 					if (!candidateB.service_type_ids.includes(shift.service_type_id)) {
 						continue;
 					}
