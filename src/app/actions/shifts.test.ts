@@ -8,6 +8,7 @@ import {
 	changeShiftStaffAction,
 	createOneOffShiftAction,
 	restoreShiftAction,
+	updateShiftScheduleAction,
 	validateStaffAvailabilityAction,
 } from './shifts';
 
@@ -34,6 +35,7 @@ const createMockService = () => ({
 	restoreShift: vi.fn(),
 	validateStaffAvailability: vi.fn(),
 	createOneOffShift: vi.fn(),
+	updateShiftSchedule: vi.fn(),
 });
 
 type MockService = ReturnType<typeof createMockService>;
@@ -265,6 +267,79 @@ describe('cancelShiftAction', () => {
 		);
 		expect(result).toEqual({
 			data: null,
+			error: null,
+			status: 200,
+		});
+	});
+});
+
+describe('updateShiftScheduleAction', () => {
+	const authUserId = createTestId();
+	const validInput = {
+		shiftId: createTestId(),
+		staffId: TEST_IDS.STAFF_1,
+		dateStr: '2026-02-22',
+		startTimeStr: '09:00',
+		endTimeStr: '10:00',
+		reason: '変更理由',
+	};
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result = await updateShiftScheduleAction(validInput);
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+		expect(mockService.updateShiftSchedule).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す（shiftIdが不正）', async () => {
+		mockAuthUser(createTestId());
+
+		const result = await updateShiftScheduleAction({
+			...validInput,
+			shiftId: 'invalid-uuid',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.updateShiftSchedule).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す（dateStrが不正）', async () => {
+		mockAuthUser(createTestId());
+
+		const result = await updateShiftScheduleAction({
+			...validInput,
+			dateStr: '2026/02/22',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.updateShiftSchedule).not.toHaveBeenCalled();
+	});
+
+	it('更新に成功し shiftId を返す', async () => {
+		mockAuthUser(authUserId);
+		mockService.updateShiftSchedule.mockResolvedValue({
+			shiftId: validInput.shiftId,
+		});
+
+		const result = await updateShiftScheduleAction(validInput);
+
+		expect(mockService.updateShiftSchedule).toHaveBeenCalledWith(
+			authUserId,
+			validInput.shiftId,
+			expect.any(Date),
+			expect.any(Date),
+			validInput.staffId,
+			validInput.reason,
+		);
+		expect(result).toEqual({
+			data: { shiftId: validInput.shiftId },
 			error: null,
 			status: 200,
 		});
