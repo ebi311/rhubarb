@@ -86,7 +86,7 @@ describe('CreateOneOffShiftDialog', () => {
 			/>,
 		);
 
-		const serviceTypeSelect = screen.getAllByRole('combobox')[1];
+		const serviceTypeSelect = screen.getByLabelText('サービス種別');
 		await user.selectOptions(serviceTypeSelect, 'life-support');
 
 		await user.click(screen.getByRole('button', { name: '保存' }));
@@ -230,7 +230,7 @@ describe('CreateOneOffShiftDialog', () => {
 			/>,
 		);
 
-		const clientSelect = screen.getAllByRole('combobox')[0];
+		const clientSelect = screen.getByLabelText('利用者');
 		expect(clientSelect).toHaveValue(TEST_IDS.CLIENT_2);
 	});
 
@@ -249,7 +249,7 @@ describe('CreateOneOffShiftDialog', () => {
 			/>,
 		);
 
-		const clientSelect = screen.getAllByRole('combobox')[0];
+		const clientSelect = screen.getByLabelText('利用者');
 		expect(clientSelect).toHaveValue(TEST_IDS.CLIENT_1);
 	});
 });

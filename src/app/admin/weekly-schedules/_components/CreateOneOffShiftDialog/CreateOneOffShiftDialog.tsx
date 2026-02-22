@@ -105,6 +105,9 @@ export const CreateOneOffShiftDialog = ({
 	const dateInputId = `${inputIdBase}-date`;
 	const startTimeInputId = `${inputIdBase}-start-time`;
 	const endTimeInputId = `${inputIdBase}-end-time`;
+	const clientSelectId = `${inputIdBase}-client`;
+	const serviceTypeSelectId = `${inputIdBase}-service-type`;
+	const staffSelectId = `${inputIdBase}-staff`;
 
 	const router = useRouter();
 	const { handleActionResult } = useActionResultHandler();
@@ -256,10 +259,11 @@ export const CreateOneOffShiftDialog = ({
 					</div>
 
 					<div>
-						<label className="label">
+						<label className="label" htmlFor={clientSelectId}>
 							<span className="label-text font-medium">利用者</span>
 						</label>
 						<select
+							id={clientSelectId}
 							className="select-bordered select w-full"
 							value={clientId}
 							onChange={(e) => setClientId(e.target.value)}
@@ -274,10 +278,11 @@ export const CreateOneOffShiftDialog = ({
 					</div>
 
 					<div>
-						<label className="label">
+						<label className="label" htmlFor={serviceTypeSelectId}>
 							<span className="label-text font-medium">サービス種別</span>
 						</label>
 						<select
+							id={serviceTypeSelectId}
 							className="select-bordered select w-full"
 							value={serviceTypeId}
 							onChange={(e) =>
@@ -295,10 +300,11 @@ export const CreateOneOffShiftDialog = ({
 					</div>
 
 					<div>
-						<label className="label">
+						<label className="label" htmlFor={staffSelectId}>
 							<span className="label-text font-medium">スタッフ（任意）</span>
 						</label>
 						<select
+							id={staffSelectId}
 							className="select-bordered select w-full"
 							value={staffId}
 							onChange={(e) => setStaffId(e.target.value)}

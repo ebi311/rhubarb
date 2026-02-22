@@ -3,7 +3,7 @@
 import { cancelShiftAction } from '@/app/actions/shifts';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type { CancelShiftCategory } from '@/models/shiftActionSchemas';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { ShiftInfoCard } from '../ShiftInfoCard';
 
 export type CancelShiftDialogShift = {
@@ -35,6 +35,9 @@ export const CancelShiftDialog = ({
 	onClose,
 	onSuccess,
 }: CancelShiftDialogProps) => {
+	const inputIdBase = useId();
+	const reasonTextareaId = `${inputIdBase}-reason`;
+
 	const [category, setCategory] = useState<CancelShiftCategory | null>(null);
 	const [reason, setReason] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,12 +136,13 @@ export const CancelShiftDialog = ({
 
 					{/* キャンセル理由詳細 */}
 					<div>
-						<label className="label">
+						<label className="label" htmlFor={reasonTextareaId}>
 							<span className="label-text font-medium">
 								キャンセル理由（必須）
 							</span>
 						</label>
 						<textarea
+							id={reasonTextareaId}
 							className="textarea-bordered textarea w-full"
 							rows={3}
 							placeholder="キャンセル理由を入力してください"

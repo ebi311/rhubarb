@@ -124,7 +124,9 @@ describe('ChangeStaffDialog', () => {
 		);
 
 		// スタッフを選択ボタンをクリック
-		const selectButton = screen.getByRole('button', { name: '佐藤次郎' });
+		const selectButton = screen.getByRole('button', {
+			name: /新しい担当者/,
+		});
 		await user.click(selectButton);
 
 		// StaffPickerDialogが開く（別のダイアログ）
@@ -179,7 +181,9 @@ describe('ChangeStaffDialog', () => {
 		);
 
 		// スタッフを選択ボタンをクリック
-		const selectButton = screen.getByRole('button', { name: '佐藤次郎' });
+		const selectButton = screen.getByRole('button', {
+			name: /新しい担当者/,
+		});
 		await user.click(selectButton);
 
 		// スタッフを選択
@@ -199,7 +203,7 @@ describe('ChangeStaffDialog', () => {
 		});
 
 		// 変更理由を入力
-		const reasonTextarea = screen.getByPlaceholderText(/変更理由/);
+		const reasonTextarea = screen.getByLabelText('変更理由（任意）');
 		await user.type(reasonTextarea, '緊急対応のため');
 
 		// 変更ボタンをクリック
@@ -247,7 +251,9 @@ describe('ChangeStaffDialog', () => {
 		);
 
 		// スタッフを選択ボタンをクリック
-		const selectButton = screen.getByRole('button', { name: '佐藤次郎' });
+		const selectButton = screen.getByRole('button', {
+			name: /新しい担当者/,
+		});
 		await user.click(selectButton);
 
 		// スタッフを選択
@@ -318,7 +324,11 @@ describe('ChangeStaffDialog', () => {
 		await user.type(endInput, '13:00');
 
 		// スタッフを選択
-		await user.click(screen.getByRole('button', { name: '佐藤次郎' }));
+		await user.click(
+			screen.getByRole('button', {
+				name: /新しい担当者/,
+			}),
+		);
 		await waitFor(() => {
 			expect(screen.getByText('担当者を選択')).toBeInTheDocument();
 		});

@@ -2,6 +2,7 @@
 
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { StaffPickerDialog } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import { useId } from 'react';
 import { ShiftInfoCard } from '../ShiftInfoCard';
 import { StaffConflictWarning } from '../StaffConflictWarning';
 import { useChangeStaffDialog } from './useChangeStaffDialog';
@@ -32,6 +33,9 @@ export const ChangeStaffDialog = ({
 	onClose,
 	onSuccess,
 }: ChangeStaffDialogProps) => {
+	const inputIdBase = useId();
+	const reasonTextareaId = `${inputIdBase}-reason`;
+
 	const {
 		showStaffPicker,
 		setShowStaffPicker,
@@ -145,6 +149,11 @@ export const ChangeStaffDialog = ({
 							<button
 								type="button"
 								className="btn w-full btn-outline"
+								aria-label={
+									selectedStaff
+										? `新しい担当者: ${selectedStaff.name}`
+										: '新しい担当者'
+								}
 								onClick={() => setShowStaffPicker(true)}
 								disabled={isSubmitting}
 							>
@@ -162,10 +171,11 @@ export const ChangeStaffDialog = ({
 
 						{/* 変更理由 */}
 						<div>
-							<label className="label">
+							<label className="label" htmlFor={reasonTextareaId}>
 								<span className="label-text">変更理由（任意）</span>
 							</label>
 							<textarea
+								id={reasonTextareaId}
 								className="textarea-bordered textarea w-full"
 								rows={3}
 								placeholder="変更理由を入力してください（任意）"

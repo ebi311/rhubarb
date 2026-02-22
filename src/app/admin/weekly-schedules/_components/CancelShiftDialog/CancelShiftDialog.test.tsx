@@ -104,7 +104,7 @@ describe('CancelShiftDialog', () => {
 
 		// 理由を入力
 		await user.type(
-			screen.getByPlaceholderText(/キャンセル理由/),
+			screen.getByLabelText('キャンセル理由（必須）'),
 			'体調不良のため',
 		);
 
@@ -140,7 +140,7 @@ describe('CancelShiftDialog', () => {
 
 		// 理由のみ入力
 		await user.type(
-			screen.getByPlaceholderText(/キャンセル理由/),
+			screen.getByLabelText('キャンセル理由（必須）'),
 			'体調不良のため',
 		);
 
@@ -174,7 +174,7 @@ describe('CancelShiftDialog', () => {
 
 		// 理由を入力
 		await user.type(
-			screen.getByPlaceholderText(/キャンセル理由/),
+			screen.getByLabelText('キャンセル理由（必須）'),
 			'体調不良のため',
 		);
 
