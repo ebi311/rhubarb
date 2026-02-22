@@ -40,15 +40,12 @@ describe('StaffPickerDialog', () => {
 		const user = userEvent.setup();
 		renderDialog();
 
-		await user.type(
-			screen.getByPlaceholderText('氏名・サービス区分で検索'),
-			'花子',
-		);
+		await user.type(screen.getByLabelText('担当者検索'), '花子');
 		expect(screen.queryByText('山田太郎')).not.toBeInTheDocument();
 		expect(screen.getByText('佐藤花子')).toBeInTheDocument();
 
-		await user.clear(screen.getByPlaceholderText('氏名・サービス区分で検索'));
-		await user.selectOptions(screen.getByDisplayValue('すべて'), 'ヘルパー');
+		await user.clear(screen.getByLabelText('担当者検索'));
+		await user.selectOptions(screen.getByLabelText('ロール'), 'ヘルパー');
 		expect(screen.queryByText('山田太郎')).not.toBeInTheDocument();
 		expect(screen.getByText('佐藤花子')).toBeInTheDocument();
 	});
