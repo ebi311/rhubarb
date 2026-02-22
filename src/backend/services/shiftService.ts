@@ -96,6 +96,14 @@ export class ShiftService {
 			throw new ServiceError(400, 'Cannot change canceled or completed shift');
 		}
 
+		// 過去シフトは担当者変更不可（JST の日付単位）
+		const shiftStartTime = setJstTime(
+			shift.date,
+			shift.time.start.hour,
+			shift.time.start.minute,
+		);
+		this.ensureNotChangingStaffForPastShift(shiftStartTime);
+
 		// 元の担当者名を取得
 		let oldStaffName = '未割当';
 		if (shift.staff_id) {
@@ -341,6 +349,14 @@ export class ShiftService {
 		}
 	}
 
+	private ensureNotChangingStaffForPastShift(shiftStartTime: Date): void {
+		const todayJst = getJstDateOnly(new Date());
+		const shiftDateJst = getJstDateOnly(shiftStartTime);
+		if (shiftDateJst.getTime() < todayJst.getTime()) {
+			throw new ServiceError(400, 'Cannot change staff for past shift');
+		}
+	}
+
 	private async ensureNoClientConflicts(params: {
 		clientId: string;
 		startTime: Date;
@@ -386,7 +402,26 @@ export class ShiftService {
 				adminStaff.office_id,
 			);
 		}
-		this.ensureNotMovingToPast(newStartTime);
+		const currentStartTime = setJstTime(
+			shift.date,
+			shift.time.start.hour,
+			shift.time.start.minute,
+		);
+		const currentEndTime = setJstTime(
+			shift.date,
+			shift.time.end.hour,
+			shift.time.end.minute,
+		);
+		const isScheduleChanged =
+			currentStartTime.getTime() !== newStartTime.getTime() ||
+			currentEndTime.getTime() !== newEndTime.getTime();
+		const isStaffChanged = (shift.staff_id ?? null) !== newStaffId;
+		if (isScheduleChanged) {
+			this.ensureNotMovingToPast(newStartTime);
+		}
+		if (isStaffChanged) {
+			this.ensureNotChangingStaffForPastShift(currentStartTime);
+		}
 		await this.ensureNoClientConflicts({
 			clientId: shift.client_id,
 			startTime: newStartTime,

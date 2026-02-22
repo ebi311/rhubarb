@@ -280,4 +280,63 @@ describe('ChangeStaffDialog', () => {
 		const changeButton = screen.getByRole('button', { name: '変更' });
 		expect(changeButton).toBeDisabled();
 	});
+
+	it('日付/開始/終了を編集して保存できる', async () => {
+		const user = userEvent.setup();
+
+		render(
+			<ChangeStaffDialog
+				isOpen={true}
+				shift={mockShift}
+				staffOptions={mockStaffOptions}
+				onClose={vi.fn()}
+				onSuccess={vi.fn()}
+			/>,
+		);
+
+		// 日時を編集
+		const dateInput = screen.getByLabelText('日付');
+		await user.clear(dateInput);
+		await user.type(dateInput, '2026-01-23');
+
+		const startInput = screen.getByLabelText('開始');
+		await user.clear(startInput);
+		await user.type(startInput, '10:00');
+
+		const endInput = screen.getByLabelText('終了');
+		await user.clear(endInput);
+		await user.type(endInput, '13:00');
+
+		// スタッフを選択
+		await user.click(screen.getByRole('button', { name: 'スタッフを選択' }));
+		await waitFor(() => {
+			expect(screen.getByText('担当者を選択')).toBeInTheDocument();
+		});
+		const staffRow = screen.getByText('山田太郎').closest('[role="row"]');
+		await user.click(staffRow!);
+		await user.click(screen.getByRole('button', { name: '確定する' }));
+
+		await waitFor(() => {
+			expect(validateStaffAvailabilityAction).toHaveBeenCalledWith({
+				staffId: 'staff-1',
+				startTime: new Date('2026-01-23T01:00:00.000Z').toISOString(),
+				endTime: new Date('2026-01-23T04:00:00.000Z').toISOString(),
+				excludeShiftId: 'shift-1',
+			});
+		});
+
+		// 変更
+		await user.click(screen.getByRole('button', { name: '変更' }));
+
+		await waitFor(() => {
+			expect(updateShiftScheduleAction).toHaveBeenCalledWith({
+				shiftId: 'shift-1',
+				staffId: 'staff-1',
+				dateStr: '2026-01-23',
+				startTimeStr: '10:00',
+				endTimeStr: '13:00',
+				reason: undefined,
+			});
+		});
+	});
 });

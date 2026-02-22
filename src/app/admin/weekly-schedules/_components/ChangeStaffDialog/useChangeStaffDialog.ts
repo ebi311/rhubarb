@@ -3,9 +3,15 @@ import {
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
-import { formatJstDateString, getJstHours, getJstMinutes } from '@/utils/date';
+import {
+	formatJstDateString,
+	getJstHours,
+	getJstMinutes,
+	parseJstDateString,
+	setJstTime,
+} from '@/utils/date';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ConflictingShift } from '../StaffConflictWarning';
 import type { ChangeStaffDialogShift } from './ChangeStaffDialog';
 
@@ -13,6 +19,17 @@ const toJstTimeStr = (date: Date): string => {
 	const h = getJstHours(date);
 	const m = getJstMinutes(date);
 	return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+const parseHHmm = (value: string): { hour: number; minute: number } | null => {
+	const [hStr, mStr] = value.split(':');
+	if (!hStr || !mStr) return null;
+	const hour = Number(hStr);
+	const minute = Number(mStr);
+	if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+	if (hour < 0 || hour > 23) return null;
+	if (minute < 0 || minute > 59) return null;
+	return { hour, minute };
 };
 
 export const useChangeStaffDialog = (
@@ -24,6 +41,11 @@ export const useChangeStaffDialog = (
 	const [showStaffPicker, setShowStaffPicker] = useState(false);
 	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 	const [reason, setReason] = useState('');
+	const [dateStr, setDateStr] = useState(formatJstDateString(shift.date));
+	const [startTimeStr, setStartTimeStr] = useState(
+		toJstTimeStr(shift.startTime),
+	);
+	const [endTimeStr, setEndTimeStr] = useState(toJstTimeStr(shift.endTime));
 	const [conflictingShifts, setConflictingShifts] = useState<
 		ConflictingShift[]
 	>([]);
@@ -37,14 +59,41 @@ export const useChangeStaffDialog = (
 		if (isOpen) {
 			setSelectedStaffId(null);
 			setReason('');
+			setDateStr(formatJstDateString(shift.date));
+			setStartTimeStr(toJstTimeStr(shift.startTime));
+			setEndTimeStr(toJstTimeStr(shift.endTime));
 			setConflictingShifts([]);
 			setShowStaffPicker(false);
 		}
-	}, [isOpen]);
+	}, [isOpen, shift.date, shift.startTime, shift.endTime]);
+
+	const baseDate = useMemo(() => {
+		try {
+			const parsed = parseJstDateString(dateStr);
+			return Number.isNaN(parsed.getTime()) ? shift.date : parsed;
+		} catch {
+			return shift.date;
+		}
+	}, [dateStr, shift.date]);
+	const parsedStart = useMemo(() => parseHHmm(startTimeStr), [startTimeStr]);
+	const parsedEnd = useMemo(() => parseHHmm(endTimeStr), [endTimeStr]);
+	const editedStartTime = useMemo(() => {
+		if (!parsedStart) return shift.startTime;
+		return setJstTime(baseDate, parsedStart.hour, parsedStart.minute);
+	}, [baseDate, parsedStart, shift.startTime]);
+	const editedEndTime = useMemo(() => {
+		if (!parsedEnd) return shift.endTime;
+		return setJstTime(baseDate, parsedEnd.hour, parsedEnd.minute);
+	}, [baseDate, parsedEnd, shift.endTime]);
 
 	// スタッフが選択されたときに時間重複チェック
 	useEffect(() => {
 		if (!selectedStaffId || !isOpen) {
+			setConflictingShifts([]);
+			return;
+		}
+
+		if (!parsedStart || !parsedEnd) {
 			setConflictingShifts([]);
 			return;
 		}
@@ -54,8 +103,8 @@ export const useChangeStaffDialog = (
 			try {
 				const result = await validateStaffAvailabilityAction({
 					staffId: selectedStaffId,
-					startTime: shift.startTime.toISOString(),
-					endTime: shift.endTime.toISOString(),
+					startTime: editedStartTime.toISOString(),
+					endTime: editedEndTime.toISOString(),
 					excludeShiftId: shift.id,
 				});
 
@@ -80,7 +129,15 @@ export const useChangeStaffDialog = (
 		};
 
 		checkAvailability();
-	}, [selectedStaffId, isOpen, shift.id, shift.startTime, shift.endTime]);
+	}, [
+		selectedStaffId,
+		isOpen,
+		shift.id,
+		editedStartTime,
+		editedEndTime,
+		parsedStart,
+		parsedEnd,
+	]);
 
 	const handleStaffSelect = useCallback((staffId: string) => {
 		setSelectedStaffId(staffId);
@@ -95,9 +152,9 @@ export const useChangeStaffDialog = (
 			const result = await updateShiftScheduleAction({
 				shiftId: shift.id,
 				staffId: selectedStaffId,
-				dateStr: formatJstDateString(shift.date),
-				startTimeStr: toJstTimeStr(shift.startTime),
-				endTimeStr: toJstTimeStr(shift.endTime),
+				dateStr,
+				startTimeStr,
+				endTimeStr,
 				reason: reason || undefined,
 			});
 
@@ -117,9 +174,9 @@ export const useChangeStaffDialog = (
 	}, [
 		selectedStaffId,
 		shift.id,
-		shift.date,
-		shift.startTime,
-		shift.endTime,
+		dateStr,
+		startTimeStr,
+		endTimeStr,
 		reason,
 		handleActionResult,
 		router,
@@ -134,6 +191,15 @@ export const useChangeStaffDialog = (
 		setSelectedStaffId,
 		reason,
 		setReason,
+		dateStr,
+		setDateStr,
+		startTimeStr,
+		setStartTimeStr,
+		endTimeStr,
+		setEndTimeStr,
+		editedStartTime,
+		editedEndTime,
+		editedDate: baseDate,
 		conflictingShifts,
 		isChecking,
 		isSubmitting,
