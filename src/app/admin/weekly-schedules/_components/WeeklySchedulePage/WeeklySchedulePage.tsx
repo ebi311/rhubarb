@@ -22,6 +22,7 @@ import {
 	RestoreShiftDialog,
 	type RestoreShiftDialogShift,
 } from '../RestoreShiftDialog';
+import { ShiftAdjustmentDialog } from '../ShiftAdjustmentDialog';
 import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
 import { StaffWeeklyShiftGrid, WeeklyShiftGrid } from '../WeeklyShiftGrid';
@@ -103,6 +104,7 @@ export const WeeklySchedulePage = ({
 	const [restoreDialogShift, setRestoreDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
 	const [isCreateOneOffOpen, setIsCreateOneOffOpen] = useState(false);
+	const [isShiftAdjustmentOpen, setIsShiftAdjustmentOpen] = useState(false);
 	const [createOneOffDefaultDateStr, setCreateOneOffDefaultDateStr] = useState<
 		string | undefined
 	>();
@@ -170,6 +172,13 @@ export const WeeklySchedulePage = ({
 					onWeekChange={handleWeekChange}
 				/>
 				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						className="btn btn-outline"
+						onClick={() => setIsShiftAdjustmentOpen(true)}
+					>
+						調整相談
+					</button>
 					<WeeklyViewToggleButton
 						currentView={viewMode}
 						onViewChange={setViewMode}
@@ -230,6 +239,14 @@ export const WeeklySchedulePage = ({
 				clientOptions={clientOptions}
 				staffOptions={staffOptions}
 				onClose={() => setIsCreateOneOffOpen(false)}
+			/>
+
+			<ShiftAdjustmentDialog
+				isOpen={isShiftAdjustmentOpen}
+				weekStartDate={weekStartDate}
+				staffOptions={staffOptions}
+				shifts={initialShifts}
+				onClose={() => setIsShiftAdjustmentOpen(false)}
 			/>
 
 			{changeDialogShift && (
