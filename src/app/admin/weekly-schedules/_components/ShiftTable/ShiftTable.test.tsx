@@ -11,6 +11,7 @@ const createShift = (
 	date: new Date('2026-01-19'),
 	startTime: { hour: 9, minute: 0 },
 	endTime: { hour: 10, minute: 0 },
+	clientId: 'client-1',
 	clientName: '田中太郎',
 	serviceTypeId: 'physical-care',
 	staffId: 'staff-1',

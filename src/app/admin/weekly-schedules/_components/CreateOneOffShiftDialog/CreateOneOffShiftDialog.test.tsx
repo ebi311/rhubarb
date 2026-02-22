@@ -138,4 +138,97 @@ describe('CreateOneOffShiftDialog', () => {
 		expect(onClose).not.toHaveBeenCalled();
 		expect(mockRefresh).not.toHaveBeenCalled();
 	});
+
+	it('defaultDateStr を指定して open すると日付入力がその値で初期化される', () => {
+		const weekStartDate = new Date('2026-02-16T00:00:00Z');
+		const defaultDateStr = '2026-02-18';
+
+		const { container } = render(
+			<CreateOneOffShiftDialog
+				isOpen
+				weekStartDate={weekStartDate}
+				defaultDateStr={defaultDateStr}
+				clientOptions={[{ id: TEST_IDS.CLIENT_1, name: '利用者A' }]}
+				staffOptions={[]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const dateInput = container.querySelector(
+			'input[type="date"]',
+		) as HTMLInputElement | null;
+		expect(dateInput).not.toBeNull();
+		expect(dateInput?.value).toBe(defaultDateStr);
+	});
+
+	it('defaultDateStr を変更して rerender すると日付入力が更新される', async () => {
+		const weekStartDate = new Date('2026-02-16T00:00:00Z');
+		const { container, rerender } = render(
+			<CreateOneOffShiftDialog
+				isOpen
+				weekStartDate={weekStartDate}
+				defaultDateStr="2026-02-18"
+				clientOptions={[{ id: TEST_IDS.CLIENT_1, name: '利用者A' }]}
+				staffOptions={[]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		rerender(
+			<CreateOneOffShiftDialog
+				isOpen
+				weekStartDate={weekStartDate}
+				defaultDateStr="2026-02-19"
+				clientOptions={[{ id: TEST_IDS.CLIENT_1, name: '利用者A' }]}
+				staffOptions={[]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await waitFor(() => {
+			const dateInput = container.querySelector(
+				'input[type="date"]',
+			) as HTMLInputElement | null;
+			expect(dateInput).not.toBeNull();
+			expect(dateInput?.value).toBe('2026-02-19');
+		});
+	});
+
+	it('defaultClientId を指定して open すると利用者selectがその値で初期化される（optionsに存在する場合）', () => {
+		render(
+			<CreateOneOffShiftDialog
+				isOpen
+				weekStartDate={new Date('2026-02-16T00:00:00Z')}
+				defaultClientId={TEST_IDS.CLIENT_2}
+				clientOptions={[
+					{ id: TEST_IDS.CLIENT_1, name: '利用者A' },
+					{ id: TEST_IDS.CLIENT_2, name: '利用者B' },
+				]}
+				staffOptions={[]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const clientSelect = screen.getAllByRole('combobox')[0];
+		expect(clientSelect).toHaveValue(TEST_IDS.CLIENT_2);
+	});
+
+	it('defaultClientId が options に存在しない場合は先頭の利用者が選択される', () => {
+		render(
+			<CreateOneOffShiftDialog
+				isOpen
+				weekStartDate={new Date('2026-02-16T00:00:00Z')}
+				defaultClientId={TEST_IDS.CLIENT_3}
+				clientOptions={[
+					{ id: TEST_IDS.CLIENT_1, name: '利用者A' },
+					{ id: TEST_IDS.CLIENT_2, name: '利用者B' },
+				]}
+				staffOptions={[]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const clientSelect = screen.getAllByRole('combobox')[0];
+		expect(clientSelect).toHaveValue(TEST_IDS.CLIENT_1);
+	});
 });

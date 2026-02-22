@@ -35,6 +35,7 @@ describe('WeeklySchedulePage', () => {
 			date: new Date('2026-01-19T00:00:00'),
 			startTime: { hour: 9, minute: 0 },
 			endTime: { hour: 10, minute: 0 },
+			clientId: TEST_IDS.CLIENT_1,
 			clientName: '田中太郎',
 			serviceTypeId: 'physical-care',
 			staffId: TEST_IDS.STAFF_1,

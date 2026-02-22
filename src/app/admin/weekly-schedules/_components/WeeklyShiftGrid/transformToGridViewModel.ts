@@ -17,23 +17,28 @@ const formatTime = (time: { hour: number; minute: number }): string => {
 export const transformToGridViewModel = (
 	shifts: ShiftDisplayRow[],
 ): WeeklyShiftGridViewModel[] => {
-	// 利用者ごとにグルーピング
-	const clientMap = new Map<string, ShiftDisplayRow[]>();
+	// 利用者ごとにグルーピング（キーは clientId）
+	const clientMap = new Map<
+		string,
+		{ clientName: string; shifts: ShiftDisplayRow[] }
+	>();
 
 	for (const shift of shifts) {
-		const key = shift.clientName;
+		const key = shift.clientId;
 		const existing = clientMap.get(key);
 		if (existing) {
-			existing.push(shift);
+			existing.shifts.push(shift);
 		} else {
-			clientMap.set(key, [shift]);
+			clientMap.set(key, { clientName: shift.clientName, shifts: [shift] });
 		}
 	}
 
 	// グリッド形式に変換
 	const gridViewModels: WeeklyShiftGridViewModel[] = [];
 
-	for (const [clientName, clientShifts] of clientMap.entries()) {
+	for (const [clientId, clientGroup] of clientMap.entries()) {
+		const clientName = clientGroup.clientName;
+		const clientShifts = clientGroup.shifts;
 		// 日付ごとにグルーピング
 		const shiftsByDate: WeeklyShiftGridViewModel['shiftsByDate'] = {};
 
@@ -72,10 +77,8 @@ export const transformToGridViewModel = (
 			}
 		}
 
-		// clientId は最初のシフトのIDから利用者情報を使用する想定
-		// 実際には一意の clientId が必要だが、シフトデータにはないため名前をキーにする
 		gridViewModels.push({
-			clientId: clientName, // 一意キーとして名前を使用
+			clientId,
 			clientName,
 			shiftsByDate,
 		});

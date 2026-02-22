@@ -20,6 +20,7 @@ describe('StaffWeeklyShiftGrid', () => {
 		id,
 		staffId,
 		staffName,
+		clientId: `client-${clientName}`,
 		clientName,
 		date,
 		startTime: { hour: startHour, minute: 0 },

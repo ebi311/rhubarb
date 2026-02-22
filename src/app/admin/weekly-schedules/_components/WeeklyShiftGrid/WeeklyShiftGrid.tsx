@@ -12,6 +12,7 @@ import type { WeeklyShiftCell } from './types';
 interface WeeklyShiftGridProps {
 	shifts: ShiftDisplayRow[];
 	weekStartDate: Date;
+	onAddOneOffShift?: (dateStr: string, clientId?: string) => void;
 	onChangeStaff?: (shift: ShiftDisplayRow) => void;
 	onAssignStaff?: (shift: ShiftDisplayRow) => void;
 	onCancelShift?: (shift: ShiftDisplayRow) => void;
@@ -52,6 +53,7 @@ const findShiftFromCell = (
 export const WeeklyShiftGrid = ({
 	shifts,
 	weekStartDate,
+	onAddOneOffShift,
 	onChangeStaff,
 	onAssignStaff,
 	onCancelShift,
@@ -99,27 +101,71 @@ export const WeeklyShiftGrid = ({
 						{weekDates.map((date) => {
 							const dateKey = formatJstDateString(date);
 							const cells = clientRow.shiftsByDate[dateKey];
+							const hasShifts = !!cells && cells.length > 0;
 							return (
 								<div
 									key={`${clientRow.clientId}-${dateKey}`}
-									className="bg-base-100 p-2"
+									data-testid={`weekly-shift-grid-cell-${clientRow.clientId}-${dateKey}`}
+									className="weekly-shift-grid-cell group flex h-full flex-col bg-base-100 p-2"
 								>
-									{cells && cells.length > 0 ? (
-										<div className="flex flex-col gap-2">
-											{cells.map((cell) => (
-												<ShiftCell
-													key={cell.id}
-													cell={cell}
-													shift={findShiftFromCell(cell, shifts)}
-													onChangeStaff={onChangeStaff}
-													onAssignStaff={onAssignStaff}
-													onCancelShift={onCancelShift}
-													onRestoreShift={onRestoreShift}
-												/>
-											))}
-										</div>
+									{hasShifts ? (
+										<>
+											<div
+												data-testid="weekly-shift-grid-cell-shifts"
+												className="flex flex-col gap-2"
+											>
+												{cells.map((cell) => (
+													<ShiftCell
+														key={cell.id}
+														cell={cell}
+														shift={findShiftFromCell(cell, shifts)}
+														onChangeStaff={onChangeStaff}
+														onAssignStaff={onAssignStaff}
+														onCancelShift={onCancelShift}
+														onRestoreShift={onRestoreShift}
+													/>
+												))}
+											</div>
+											<div
+												data-testid="weekly-shift-grid-cell-add-button-container"
+												className="mt-auto flex justify-center"
+											>
+												<button
+													type="button"
+													className="btn invisible btn-circle btn-sm btn-secondary group-hover:visible"
+													aria-label="単発シフト追加"
+													onClick={(e) => {
+														e.stopPropagation();
+														onAddOneOffShift?.(dateKey, clientRow.clientId);
+													}}
+												>
+													<Icon name="add" />
+												</button>
+											</div>
+										</>
 									) : (
-										<div className="min-h-[60px] rounded bg-base-200/50" />
+										<>
+											<div
+												data-testid="weekly-shift-grid-cell-add-button-container"
+												className="flex justify-center"
+											>
+												<button
+													type="button"
+													className="btn invisible btn-circle btn-sm btn-secondary group-hover:visible"
+													aria-label="単発シフト追加"
+													onClick={(e) => {
+														e.stopPropagation();
+														onAddOneOffShift?.(dateKey, clientRow.clientId);
+													}}
+												>
+													<Icon name="add" />
+												</button>
+											</div>
+											<div
+												data-testid="weekly-shift-grid-cell-placeholder"
+												className="min-h-[60px] rounded bg-base-200/50"
+											/>
+										</>
 									)}
 								</div>
 							);

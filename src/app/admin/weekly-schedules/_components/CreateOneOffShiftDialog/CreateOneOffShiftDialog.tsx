@@ -11,7 +11,7 @@ import {
 import { addJstDays, formatJstDateString } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export type CreateOneOffShiftDialogClientOption = {
 	id: string;
@@ -21,6 +21,8 @@ export type CreateOneOffShiftDialogClientOption = {
 export type CreateOneOffShiftDialogProps = {
 	isOpen: boolean;
 	weekStartDate: Date;
+	defaultDateStr?: string;
+	defaultClientId?: string;
 	clientOptions: CreateOneOffShiftDialogClientOption[];
 	staffOptions: StaffPickerOption[];
 	onClose: () => void;
@@ -61,6 +63,17 @@ const getClientSelectDisabled = (
 	return isSubmitting || clientOptionsLength === 0;
 };
 
+const getInitialClientId = (
+	defaultClientId: string | undefined,
+	clientOptions: CreateOneOffShiftDialogClientOption[],
+): string => {
+	if (defaultClientId) {
+		const exists = clientOptions.some((c) => c.id === defaultClientId);
+		if (exists) return defaultClientId;
+	}
+	return clientOptions[0]?.id ?? '';
+};
+
 const renderClientOptions = (
 	clientOptions: CreateOneOffShiftDialogClientOption[],
 ): ReactNode => {
@@ -82,6 +95,8 @@ const getSubmitButtonLabel = (isSubmitting: boolean): string => {
 export const CreateOneOffShiftDialog = ({
 	isOpen,
 	weekStartDate,
+	defaultDateStr,
+	defaultClientId,
 	clientOptions,
 	staffOptions,
 	onClose,
@@ -99,14 +114,28 @@ export const CreateOneOffShiftDialog = ({
 		[weekStartDate],
 	);
 
-	const [dateStr, setDateStr] = useState(weekStartDateStr);
+	const [dateStr, setDateStr] = useState(defaultDateStr ?? weekStartDateStr);
 	const [startTimeStr, setStartTimeStr] = useState('09:00');
 	const [endTimeStr, setEndTimeStr] = useState('10:00');
-	const [clientId, setClientId] = useState(clientOptions[0]?.id ?? '');
+	const [clientId, setClientId] = useState(() =>
+		getInitialClientId(defaultClientId, clientOptions),
+	);
 	const [serviceTypeId, setServiceTypeId] = useState<ServiceTypeId>(
 		ServiceTypeIdValues[0],
 	);
 	const [staffId, setStaffId] = useState('');
+
+	useEffect(() => {
+		if (!isOpen) return;
+		setDateStr(defaultDateStr ?? weekStartDateStr);
+		setClientId(getInitialClientId(defaultClientId, clientOptions));
+	}, [
+		isOpen,
+		defaultDateStr,
+		weekStartDateStr,
+		defaultClientId,
+		clientOptions,
+	]);
 
 	const canSubmit = getCanSubmit({
 		isSubmitting,
