@@ -275,7 +275,7 @@ const ShiftCell = ({
 							}
 						>
 							<Icon
-								name={cell.isUnassigned ? 'person_add' : 'person_edit'}
+								name={cell.isUnassigned ? 'person_add' : 'edit'}
 								className="text-base"
 							/>
 						</button>
