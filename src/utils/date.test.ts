@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatTime, toAbsMinutesFrom0600 } from './date';
+import {
+	formatTime,
+	parseHHmm,
+	toAbsMinutesFrom0600,
+	toJstTimeStr,
+} from './date';
 
 describe('formatTime', () => {
 	it('should format time with time zone to HH:mm', () => {
@@ -41,5 +46,35 @@ describe('toAbsMinutesFrom0600', () => {
 
 	it('05:59 (359分) を 1439 に変換する', () => {
 		expect(toAbsMinutesFrom0600(359)).toBe(1439);
+	});
+});
+
+describe('toJstTimeStr', () => {
+	it('Date を JST の HH:mm 形式に変換する', () => {
+		// 1970-01-01T00:00:00Z は JST 09:00
+		expect(toJstTimeStr(new Date('1970-01-01T00:00:00.000Z'))).toBe('09:00');
+		// 1970-01-01T15:30:00Z は JST 00:30（翌日）
+		expect(toJstTimeStr(new Date('1970-01-01T15:30:00.000Z'))).toBe('00:30');
+	});
+});
+
+describe('parseHHmm', () => {
+	it('HH:mm を {hour, minute} に変換する', () => {
+		expect(parseHHmm('09:30')).toEqual({ hour: 9, minute: 30 });
+	});
+
+	it('1桁の時も許容する', () => {
+		expect(parseHHmm('9:05')).toEqual({ hour: 9, minute: 5 });
+	});
+
+	it('秒を含む場合でも先頭2要素で解釈する', () => {
+		expect(parseHHmm('09:30:00')).toEqual({ hour: 9, minute: 30 });
+	});
+
+	it('不正な値は null を返す', () => {
+		expect(parseHHmm('')).toBeNull();
+		expect(parseHHmm('aa:bb')).toBeNull();
+		expect(parseHHmm('24:00')).toBeNull();
+		expect(parseHHmm('23:60')).toBeNull();
 	});
 });

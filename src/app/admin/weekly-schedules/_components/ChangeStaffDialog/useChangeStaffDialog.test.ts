@@ -4,8 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChangeStaffDialog } from './useChangeStaffDialog';
 
 vi.mock('@/app/actions/shifts', () => ({
-	changeShiftStaffAction: vi.fn(),
+	updateShiftScheduleAction: vi.fn(),
 	validateStaffAvailabilityAction: vi.fn(),
+}));
+
+const refreshMock = vi.hoisted(() => vi.fn());
+vi.mock('next/navigation', () => ({
+	useRouter: () => ({
+		refresh: refreshMock,
+	}),
 }));
 
 vi.mock('@/hooks/useActionResultHandler', () => ({
@@ -14,7 +21,7 @@ vi.mock('@/hooks/useActionResultHandler', () => ({
 	}),
 }));
 
-const { changeShiftStaffAction, validateStaffAvailabilityAction } =
+const { updateShiftScheduleAction, validateStaffAvailabilityAction } =
 	await import('@/app/actions/shifts');
 
 const mockShift = {
@@ -22,8 +29,8 @@ const mockShift = {
 	clientName: '山田太郎',
 	serviceTypeName: '身体介護',
 	date: new Date('2024-01-15'),
-	startTime: new Date('2024-01-15T09:00:00'),
-	endTime: new Date('2024-01-15T10:00:00'),
+	startTime: new Date('2024-01-15T09:00:00+09:00'),
+	endTime: new Date('2024-01-15T10:00:00+09:00'),
 	currentStaffName: '佐藤花子',
 	currentStaffId: 'staff-1',
 };
@@ -36,22 +43,32 @@ describe('useChangeStaffDialog', () => {
 			error: null,
 			status: 200,
 		});
-		vi.mocked(changeShiftStaffAction).mockResolvedValue({
-			data: { oldStaffName: '佐藤花子', newStaffName: '山田太郎' },
+		vi.mocked(updateShiftScheduleAction).mockResolvedValue({
+			data: { shiftId: 'shift-1' },
 			error: null,
 			status: 200,
 		});
 	});
 
-	it('初期状態が正しく設定される', () => {
+	it('初期状態が正しく設定される', async () => {
 		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true));
 
-		expect(result.current.selectedStaffId).toBeNull();
+		expect(result.current.selectedStaffId).toBe('staff-1');
 		expect(result.current.reason).toBe('');
 		expect(result.current.conflictingShifts).toEqual([]);
-		expect(result.current.isChecking).toBe(false);
+		await waitFor(() => {
+			expect(result.current.isChecking).toBe(false);
+		});
 		expect(result.current.isSubmitting).toBe(false);
 		expect(result.current.showStaffPicker).toBe(false);
+	});
+
+	it('元シフトが未割当の場合、selectedStaffId は null のまま', () => {
+		const { result } = renderHook(() =>
+			useChangeStaffDialog({ ...mockShift, currentStaffId: null }, true),
+		);
+
+		expect(result.current.selectedStaffId).toBeNull();
 	});
 
 	it('ダイアログが開いたときに状態がリセットされる', () => {
@@ -72,7 +89,7 @@ describe('useChangeStaffDialog', () => {
 		rerender({ isOpen: true });
 
 		// リセットされる
-		expect(result.current.selectedStaffId).toBeNull();
+		expect(result.current.selectedStaffId).toBe('staff-1');
 		expect(result.current.reason).toBe('');
 		expect(result.current.conflictingShifts).toEqual([]);
 	});
@@ -147,28 +164,37 @@ describe('useChangeStaffDialog', () => {
 			await result.current.handleSubmit();
 		});
 
-		expect(changeShiftStaffAction).toHaveBeenCalledWith({
+		expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 			shiftId: mockShift.id,
-			newStaffId: 'staff-2',
+			staffId: 'staff-2',
+			dateStr: '2024-01-15',
+			startTimeStr: '09:00',
+			endTimeStr: '10:00',
 			reason: '急遽変更',
 		});
 
 		expect(onSuccess).toHaveBeenCalled();
 		expect(onClose).toHaveBeenCalled();
+		expect(refreshMock).toHaveBeenCalled();
 	});
 
 	it('スタッフが選択されていない場合はhandleSubmitが何もしない', async () => {
 		const onSuccess = vi.fn();
 
 		const { result } = renderHook(() =>
-			useChangeStaffDialog(mockShift, true, onSuccess, vi.fn()),
+			useChangeStaffDialog(
+				{ ...mockShift, currentStaffId: null, currentStaffName: '未割当' },
+				true,
+				onSuccess,
+				vi.fn(),
+			),
 		);
 
 		await act(async () => {
 			await result.current.handleSubmit();
 		});
 
-		expect(changeShiftStaffAction).not.toHaveBeenCalled();
+		expect(updateShiftScheduleAction).not.toHaveBeenCalled();
 		expect(onSuccess).not.toHaveBeenCalled();
 	});
 
@@ -185,9 +211,12 @@ describe('useChangeStaffDialog', () => {
 			await result.current.handleSubmit();
 		});
 
-		expect(changeShiftStaffAction).toHaveBeenCalledWith({
+		expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 			shiftId: mockShift.id,
-			newStaffId: 'staff-2',
+			staffId: 'staff-2',
+			dateStr: '2024-01-15',
+			startTimeStr: '09:00',
+			endTimeStr: '10:00',
 			reason: undefined,
 		});
 	});

@@ -55,6 +55,16 @@ export const getJstMinutes = (date: Date): number => {
 };
 
 /**
+ * Date を JST の HH:mm 形式の文字列に変換
+ */
+export const toJstTimeStr = (date: Date): string => {
+	return timeObjectToString({
+		hour: getJstHours(date),
+		minute: getJstMinutes(date),
+	});
+};
+
+/**
  * 指定した Date の JST 日付部分に、指定した時刻を設定した Date を返す
  * 例: date が JST 2026-01-19 15:30 で、hours=9, minutes=0 なら
  *     JST 2026-01-19 09:00:00 を返す
@@ -127,6 +137,23 @@ export const timeObjectToString = (time: TimeValue): string => {
 	const hourStr = time.hour.toString().padStart(2, '0');
 	const minuteStr = time.minute.toString().padStart(2, '0');
 	return `${hourStr}:${minuteStr}`;
+};
+
+/**
+ * HH:mm 形式の文字列を TimeValue オブジェクトに変換（緩めのパース）
+ * - "9:00" のような入力も許容
+ * - "09:30:00" のように秒が含まれていても、先頭2要素を使う
+ * 不正な形式の場合は null を返す
+ */
+export const parseHHmm = (value: string): TimeValue | null => {
+	const [hStr, mStr] = value.split(':');
+	if (!hStr || !mStr) return null;
+	const hour = Number(hStr);
+	const minute = Number(mStr);
+	if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+	if (hour < 0 || hour > 23) return null;
+	if (minute < 0 || minute > 59) return null;
+	return { hour, minute };
 };
 
 /**

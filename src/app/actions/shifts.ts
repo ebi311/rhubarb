@@ -9,6 +9,8 @@ import type {
 	CreateOneOffShiftActionInput,
 	RestoreShiftInput,
 	ShiftRecord,
+	UpdateShiftScheduleActionInput,
+	UpdateShiftScheduleOutput,
 	ValidateStaffAvailabilityInput,
 	ValidateStaffAvailabilityOutput,
 } from '@/models/shiftActionSchemas';
@@ -18,6 +20,8 @@ import {
 	CreateOneOffShiftInputSchema,
 	RestoreShiftInputSchema,
 	ShiftRecordSchema,
+	UpdateShiftScheduleInputSchema,
+	UpdateShiftScheduleOutputSchema,
 	ValidateStaffAvailabilityInputSchema,
 } from '@/models/shiftActionSchemas';
 import { createSupabaseClient } from '@/utils/supabase/server';
@@ -90,6 +94,36 @@ export const changeShiftStaffAction = async (
 		return successResult(result);
 	} catch (err) {
 		return handleServiceError<ChangeShiftStaffOutput>(err);
+	}
+};
+
+/**
+ * シフトの日付/開始/終了（必要に応じて担当者）を更新する
+ */
+export const updateShiftScheduleAction = async (
+	input: UpdateShiftScheduleActionInput,
+): Promise<ActionResult<UpdateShiftScheduleOutput>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput = UpdateShiftScheduleInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		const result = await service.updateShiftSchedule(
+			user.id,
+			parsedInput.data.shiftId,
+			parsedInput.data.newStartTime,
+			parsedInput.data.newEndTime,
+			parsedInput.data.staffId,
+			parsedInput.data.reason,
+		);
+		return successResult(UpdateShiftScheduleOutputSchema.parse(result));
+	} catch (err) {
+		return handleServiceError<UpdateShiftScheduleOutput>(err);
 	}
 };
 

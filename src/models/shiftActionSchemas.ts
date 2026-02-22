@@ -1,4 +1,12 @@
-import { addJstDays, getJstDateOnly, getJstDayOfWeek } from '@/utils/date';
+import {
+	addJstDays,
+	formatJstDateString,
+	getJstDateOnly,
+	getJstDayOfWeek,
+	parseJstDateString,
+	setJstTime,
+	stringToTimeObject,
+} from '@/utils/date';
 import { z } from 'zod';
 import { ShiftStatusSchema } from './shift';
 import { JstDateInputSchema, JstDateSchema } from './valueObjects/jstDate';
@@ -207,3 +215,98 @@ export const ValidateStaffAvailabilityOutputSchema = z.object({
 export type ValidateStaffAvailabilityOutput = z.infer<
 	typeof ValidateStaffAvailabilityOutputSchema
 >;
+
+// updateShiftScheduleAction の入力スキーマ
+const DateStrSchema = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/, 'dateStr は YYYY-MM-DD 形式で指定してください')
+	.refine(
+		(v) => {
+			try {
+				return formatJstDateString(parseJstDateString(v)) === v;
+			} catch {
+				return false;
+			}
+		},
+		{ message: 'dateStr が不正です' },
+	);
+
+const TimeStrSchema = z
+	.string()
+	.regex(/^\d{2}:\d{2}$/, '時刻は HH:mm 形式で指定してください')
+	.refine((v) => stringToTimeObject(v) !== null, {
+		message: '時刻が不正です',
+	});
+
+export const UpdateShiftScheduleInputSchema = z
+	.object({
+		shiftId: z.string().uuid(),
+		staffId: z.string().uuid().nullable().optional(),
+		dateStr: DateStrSchema,
+		startTimeStr: TimeStrSchema,
+		endTimeStr: TimeStrSchema,
+		reason: z.string().optional(),
+	})
+	.superRefine((val, ctx) => {
+		const start = stringToTimeObject(val.startTimeStr);
+		const end = stringToTimeObject(val.endTimeStr);
+		if (!start || !end) return;
+
+		const parsed = TimeRangeSchema.safeParse({ start, end });
+		if (!parsed.success) {
+			parsed.error.issues.forEach((issue) => {
+				const mappedPath = issue.path.map((p) =>
+					p === 'start' ? 'startTimeStr' : p === 'end' ? 'endTimeStr' : p,
+				);
+				ctx.addIssue({ ...issue, path: mappedPath });
+			});
+		}
+	})
+	.transform((val, ctx) => {
+		const baseDate = parseJstDateString(val.dateStr);
+		const start = stringToTimeObject(val.startTimeStr);
+		const end = stringToTimeObject(val.endTimeStr);
+		if (!start || !end) {
+			// refine 済みのため通常ここには到達しないが、
+			// ここで握りつぶすと不正入力を成功扱いにしてしまうため明示的に失敗させる
+			if (!start) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['startTimeStr'],
+					message: '時刻が不正です',
+				});
+			}
+			if (!end) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['endTimeStr'],
+					message: '時刻が不正です',
+				});
+			}
+			return z.NEVER;
+		}
+		return {
+			shiftId: val.shiftId,
+			staffId: val.staffId,
+			newStartTime: setJstTime(baseDate, start.hour, start.minute),
+			newEndTime: setJstTime(baseDate, end.hour, end.minute),
+			reason: val.reason,
+		};
+	});
+
+export type UpdateShiftScheduleActionInput = z.input<
+	typeof UpdateShiftScheduleInputSchema
+>;
+export type UpdateShiftScheduleInput = z.output<
+	typeof UpdateShiftScheduleInputSchema
+>;
+
+export const UpdateShiftScheduleOutputSchema = z.object({
+	shiftId: z.string().uuid(),
+});
+export type UpdateShiftScheduleOutput = z.infer<
+	typeof UpdateShiftScheduleOutputSchema
+>;
+
+// UI での初期値作成などに使うユーティリティ
+export { toJstTimeStr } from '@/utils/date';

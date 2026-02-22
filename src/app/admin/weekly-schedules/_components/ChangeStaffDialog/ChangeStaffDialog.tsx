@@ -38,6 +38,15 @@ export const ChangeStaffDialog = ({
 		selectedStaffId,
 		reason,
 		setReason,
+		dateStr,
+		setDateStr,
+		startTimeStr,
+		setStartTimeStr,
+		endTimeStr,
+		setEndTimeStr,
+		editedDate,
+		editedStartTime,
+		editedEndTime,
 		conflictingShifts,
 		isChecking,
 		isSubmitting,
@@ -76,7 +85,57 @@ export const ChangeStaffDialog = ({
 					</div>
 
 					<div className="mt-4 space-y-4">
-						<ShiftInfoCard shift={shift} />
+						<ShiftInfoCard
+							shift={{
+								...shift,
+								date: editedDate,
+								startTime: editedStartTime,
+								endTime: editedEndTime,
+							}}
+						/>
+
+						{/* 日時 */}
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+							<div>
+								<label className="label" htmlFor="change-staff-date">
+									<span className="label-text font-medium">日付</span>
+								</label>
+								<input
+									id="change-staff-date"
+									type="date"
+									className="input-bordered input w-full"
+									value={dateStr}
+									onChange={(e) => setDateStr(e.target.value)}
+									disabled={isSubmitting}
+								/>
+							</div>
+							<div>
+								<label className="label" htmlFor="change-staff-start">
+									<span className="label-text font-medium">開始</span>
+								</label>
+								<input
+									id="change-staff-start"
+									type="time"
+									className="input-bordered input w-full"
+									value={startTimeStr}
+									onChange={(e) => setStartTimeStr(e.target.value)}
+									disabled={isSubmitting}
+								/>
+							</div>
+							<div>
+								<label className="label" htmlFor="change-staff-end">
+									<span className="label-text font-medium">終了</span>
+								</label>
+								<input
+									id="change-staff-end"
+									type="time"
+									className="input-bordered input w-full"
+									value={endTimeStr}
+									onChange={(e) => setEndTimeStr(e.target.value)}
+									disabled={isSubmitting}
+								/>
+							</div>
+						</div>
 
 						{/* スタッフ選択 */}
 						<div>

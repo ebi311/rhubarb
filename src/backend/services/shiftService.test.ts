@@ -6,8 +6,17 @@ import { ServiceUser } from '@/models/serviceUser';
 import { Shift } from '@/models/shift';
 import { Staff } from '@/models/staff';
 import { createTestId, TEST_IDS } from '@/test/helpers/testIds';
+import { setJstTime } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { beforeEach, describe, expect, it, Mocked, vi } from 'vitest';
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	Mocked,
+	vi,
+} from 'vitest';
 import { ShiftService } from './shiftService';
 
 const createMockStaffRepository = (): Mocked<StaffRepository> => {
@@ -23,10 +32,12 @@ const createMockShiftRepository = (): Mocked<ShiftRepository> => {
 		exists: vi.fn(),
 		create: vi.fn(),
 		updateStaffAssignment: vi.fn(),
+		updateShiftSchedule: vi.fn(),
 		cancelShift: vi.fn(),
 		restoreShift: vi.fn(),
 		findClientConflictingShifts: vi.fn(),
 		findConflictingShifts: vi.fn(),
+		findStaffConflictingShifts: vi.fn(),
 	} as unknown as Mocked<ShiftRepository>;
 };
 
@@ -98,6 +109,15 @@ describe('ShiftService', () => {
 	});
 
 	describe('changeStaffAssignment', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-01-01T00:00:00+09:00'));
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
 		it('should successfully change staff assignment', async () => {
 			const userId = 'auth-user-1';
 			const shiftId = '12345678-1234-1234-8234-123456789011';
@@ -133,6 +153,50 @@ describe('ShiftService', () => {
 				oldStaffName: 'テストスタッフ',
 				newStaffName: '新しいスタッフ',
 			});
+		});
+
+		it('should throw 400 if shift is in the past (JST)', async () => {
+			vi.setSystemTime(new Date('2026-02-22T00:00:00+09:00'));
+
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStaffId = TEST_IDS.STAFF_2;
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const pastShift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				date: new Date('2026-02-21'),
+				time: {
+					start: { hour: 9, minute: 0 },
+					end: { hour: 10, minute: 0 },
+				},
+			});
+			const newStaff = createTestStaff({
+				id: newStaffId,
+				office_id: TEST_IDS.OFFICE_1,
+				name: 'スタッフ2',
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(pastShift);
+			mockStaffRepo.findById.mockResolvedValueOnce(newStaff);
+
+			await expect(
+				service.changeStaffAssignment(
+					userId,
+					shiftId,
+					newStaffId,
+					'担当者変更',
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'Cannot change staff for past shift',
+				}),
+			);
+
+			expect(mockShiftRepo.updateStaffAssignment).not.toHaveBeenCalled();
 		});
 
 		it('should throw 404 if staff not found', async () => {
@@ -323,6 +387,326 @@ describe('ShiftService', () => {
 					message: 'Cannot cancel completed shift',
 				}),
 			);
+		});
+	});
+
+	describe('updateShiftSchedule', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-01-01T00:00:00+09:00'));
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		it('should update schedule and staff when valid', async () => {
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStart = new Date('2026-02-22T01:00:00.000Z');
+			const newEnd = new Date('2026-02-22T02:00:00.000Z');
+			const newStaffId = TEST_IDS.STAFF_2;
+			const reason = '日時調整';
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+			const staff = createTestStaff({
+				id: newStaffId,
+				office_id: TEST_IDS.OFFICE_1,
+				name: 'スタッフ2',
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockStaffRepo.findById.mockResolvedValueOnce(staff);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.findStaffConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.updateShiftSchedule.mockResolvedValueOnce(undefined);
+
+			const result = await service.updateShiftSchedule(
+				userId,
+				shiftId,
+				newStart,
+				newEnd,
+				newStaffId,
+				reason,
+			);
+
+			expect(mockShiftRepo.updateShiftSchedule).toHaveBeenCalledWith(shiftId, {
+				startTime: newStart,
+				endTime: newEnd,
+				staffId: newStaffId,
+				notes: reason,
+			});
+			expect(result).toEqual({ shiftId });
+		});
+
+		it('should throw 409 if client has conflicting shift (excluding itself)', async () => {
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStart = new Date('2026-02-22T01:00:00.000Z');
+			const newEnd = new Date('2026-02-22T02:00:00.000Z');
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+			const conflictingShift = createTestShift({
+				id: TEST_IDS.SCHEDULE_2,
+				client_id: TEST_IDS.CLIENT_1,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([
+				conflictingShift,
+			]);
+
+			await expect(
+				service.updateShiftSchedule(userId, shiftId, newStart, newEnd, null),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 409,
+					message: 'Client has conflicting shift',
+				}),
+			);
+		});
+
+		it('should throw 409 if staff has conflicting shift (excluding itself)', async () => {
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStart = new Date('2026-02-22T01:00:00.000Z');
+			const newEnd = new Date('2026-02-22T02:00:00.000Z');
+			const newStaffId = TEST_IDS.STAFF_2;
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+			const staff = createTestStaff({
+				id: newStaffId,
+				office_id: TEST_IDS.OFFICE_1,
+				name: 'スタッフ2',
+			});
+			const conflictingShift = createTestShift({
+				id: TEST_IDS.SCHEDULE_2,
+				staff_id: newStaffId,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockStaffRepo.findById.mockResolvedValueOnce(staff);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.findStaffConflictingShifts.mockResolvedValueOnce([
+				conflictingShift,
+			]);
+
+			await expect(
+				service.updateShiftSchedule(
+					userId,
+					shiftId,
+					newStart,
+					newEnd,
+					newStaffId,
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 409,
+					message: 'Staff has conflicting shift',
+				}),
+			);
+
+			expect(mockShiftRepo.updateShiftSchedule).not.toHaveBeenCalled();
+		});
+
+		it('should throw 409 if schedule changes with staffId undefined and existing staff has conflicting shift', async () => {
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStart = new Date('2026-02-22T01:00:00.000Z');
+			const newEnd = new Date('2026-02-22T02:00:00.000Z');
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: TEST_IDS.STAFF_2,
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+			const conflictingShift = createTestShift({
+				id: TEST_IDS.SCHEDULE_2,
+				staff_id: TEST_IDS.STAFF_2,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.findStaffConflictingShifts.mockResolvedValueOnce([
+				conflictingShift,
+			]);
+
+			await expect(
+				service.updateShiftSchedule(
+					userId,
+					shiftId,
+					newStart,
+					newEnd,
+					undefined,
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 409,
+					message: 'Staff has conflicting shift',
+				}),
+			);
+
+			expect(mockShiftRepo.findStaffConflictingShifts).toHaveBeenCalledWith(
+				TEST_IDS.STAFF_2,
+				newStart,
+				newEnd,
+				TEST_IDS.OFFICE_1,
+				shiftId,
+			);
+			expect(mockShiftRepo.updateShiftSchedule).not.toHaveBeenCalled();
+		});
+
+		it('should not check staff conflicts when staffId is null (unassigned)', async () => {
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStart = new Date('2026-02-22T01:00:00.000Z');
+			const newEnd = new Date('2026-02-22T02:00:00.000Z');
+			const reason = '未割当化';
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: TEST_IDS.STAFF_1,
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.updateShiftSchedule.mockResolvedValueOnce(undefined);
+
+			await service.updateShiftSchedule(
+				userId,
+				shiftId,
+				newStart,
+				newEnd,
+				null,
+				reason,
+			);
+
+			expect(mockShiftRepo.findStaffConflictingShifts).not.toHaveBeenCalled();
+			expect(mockShiftRepo.updateShiftSchedule).toHaveBeenCalledWith(shiftId, {
+				startTime: newStart,
+				endTime: newEnd,
+				staffId: null,
+				notes: reason,
+			});
+		});
+
+		it('should throw 400 if newStartTime is in the past (JST)', async () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-02-22T00:00:00+09:00'));
+
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			// JST 2026-02-21 23:00 (past relative to system time JST 2026-02-22 00:00)
+			const pastStart = new Date('2026-02-21T14:00:00.000Z');
+			const pastEnd = new Date('2026-02-21T15:00:00.000Z');
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+
+			await expect(
+				service.updateShiftSchedule(userId, shiftId, pastStart, pastEnd, null),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'Cannot move shift to the past',
+				}),
+			);
+
+			vi.useRealTimers();
+		});
+
+		it('should throw 400 if changing staff for past shift even when schedule is unchanged', async () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-02-22T00:00:00+09:00'));
+
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStaffId = TEST_IDS.STAFF_2;
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				// system time (JST 2026-02-22) より過去のシフト
+				date: new Date('2026-02-21'),
+				time: {
+					start: { hour: 9, minute: 0 },
+					end: { hour: 10, minute: 0 },
+				},
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+			const staff = createTestStaff({
+				id: newStaffId,
+				office_id: TEST_IDS.OFFICE_1,
+				name: 'スタッフ2',
+			});
+
+			const sameStart = setJstTime(shift.date, 9, 0);
+			const sameEnd = setJstTime(shift.date, 10, 0);
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockStaffRepo.findById.mockResolvedValueOnce(staff);
+
+			await expect(
+				service.updateShiftSchedule(
+					userId,
+					shiftId,
+					sameStart,
+					sameEnd,
+					newStaffId,
+					'担当者だけ変更',
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'Cannot change staff for past shift',
+				}),
+			);
+
+			expect(mockShiftRepo.updateShiftSchedule).not.toHaveBeenCalled();
+
+			vi.useRealTimers();
 		});
 	});
 
