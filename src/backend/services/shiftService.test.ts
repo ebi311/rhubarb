@@ -530,6 +530,96 @@ describe('ShiftService', () => {
 			expect(mockShiftRepo.updateShiftSchedule).not.toHaveBeenCalled();
 		});
 
+		it('should throw 409 if schedule changes with staffId undefined and existing staff has conflicting shift', async () => {
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStart = new Date('2026-02-22T01:00:00.000Z');
+			const newEnd = new Date('2026-02-22T02:00:00.000Z');
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: TEST_IDS.STAFF_2,
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+			const conflictingShift = createTestShift({
+				id: TEST_IDS.SCHEDULE_2,
+				staff_id: TEST_IDS.STAFF_2,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.findStaffConflictingShifts.mockResolvedValueOnce([
+				conflictingShift,
+			]);
+
+			await expect(
+				service.updateShiftSchedule(
+					userId,
+					shiftId,
+					newStart,
+					newEnd,
+					undefined,
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 409,
+					message: 'Staff has conflicting shift',
+				}),
+			);
+
+			expect(mockShiftRepo.findStaffConflictingShifts).toHaveBeenCalledWith(
+				TEST_IDS.STAFF_2,
+				newStart,
+				newEnd,
+				TEST_IDS.OFFICE_1,
+				shiftId,
+			);
+			expect(mockShiftRepo.updateShiftSchedule).not.toHaveBeenCalled();
+		});
+
+		it('should not check staff conflicts when staffId is null (unassigned)', async () => {
+			const userId = 'auth-user-1';
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStart = new Date('2026-02-22T01:00:00.000Z');
+			const newEnd = new Date('2026-02-22T02:00:00.000Z');
+			const reason = '未割当化';
+
+			const adminStaff = createTestStaff({ office_id: TEST_IDS.OFFICE_1 });
+			const shift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: TEST_IDS.STAFF_1,
+			});
+			const client = createTestServiceUser({ office_id: TEST_IDS.OFFICE_1 });
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(shift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(client);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+			mockShiftRepo.updateShiftSchedule.mockResolvedValueOnce(undefined);
+
+			await service.updateShiftSchedule(
+				userId,
+				shiftId,
+				newStart,
+				newEnd,
+				null,
+				reason,
+			);
+
+			expect(mockShiftRepo.findStaffConflictingShifts).not.toHaveBeenCalled();
+			expect(mockShiftRepo.updateShiftSchedule).toHaveBeenCalledWith(shiftId, {
+				startTime: newStart,
+				endTime: newEnd,
+				staffId: null,
+				notes: reason,
+			});
+		});
+
 		it('should throw 400 if newStartTime is in the past (JST)', async () => {
 			vi.useFakeTimers();
 			vi.setSystemTime(new Date('2026-02-22T00:00:00+09:00'));

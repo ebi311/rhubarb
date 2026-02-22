@@ -378,6 +378,61 @@ export class ShiftService {
 		}
 	}
 
+	private async ensureNoStaffConflicts(params: {
+		staffId: string;
+		startTime: Date;
+		endTime: Date;
+		officeId: string;
+		excludeShiftId: string;
+	}): Promise<void> {
+		const conflicts = await this.shiftRepository.findStaffConflictingShifts(
+			params.staffId,
+			params.startTime,
+			params.endTime,
+			params.officeId,
+			params.excludeShiftId,
+		);
+		if (conflicts.length > 0) {
+			throw new ServiceError(409, 'Staff has conflicting shift', {
+				conflictingShiftIds: conflicts.map((s) => s.id),
+			});
+		}
+	}
+
+	private resolveTargetStaffId(
+		newStaffId: string | null | undefined,
+		currentStaffId: string | null | undefined,
+	): string | null {
+		return newStaffId !== undefined ? newStaffId : (currentStaffId ?? null);
+	}
+
+	private hasScheduleChanged(params: {
+		currentStartTime: Date;
+		currentEndTime: Date;
+		newStartTime: Date;
+		newEndTime: Date;
+	}): boolean {
+		return (
+			params.currentStartTime.getTime() !== params.newStartTime.getTime() ||
+			params.currentEndTime.getTime() !== params.newEndTime.getTime()
+		);
+	}
+
+	private isStaffChanged(
+		currentStaffId: string | null | undefined,
+		targetStaffId: string | null,
+	): boolean {
+		return (currentStaffId ?? null) !== targetStaffId;
+	}
+
+	private shouldCheckStaffConflicts(
+		targetStaffId: string | null,
+		isScheduleChanged: boolean,
+		isStaffChanged: boolean,
+	): targetStaffId is string {
+		return targetStaffId != null && (isScheduleChanged || isStaffChanged);
+	}
+
 	/**
 	 * シフトの日付/開始/終了（必要に応じて担当者）を更新する
 	 */
@@ -386,7 +441,7 @@ export class ShiftService {
 		shiftId: string,
 		newStartTime: Date,
 		newEndTime: Date,
-		newStaffId: string | null,
+		newStaffId: string | null | undefined,
 		reason?: string,
 	): Promise<UpdateShiftScheduleResult> {
 		const adminStaff = await this.getAdminStaff(userId);
@@ -394,9 +449,11 @@ export class ShiftService {
 		const shift = await this.shiftRepository.findById(shiftId);
 		if (!shift) throw new ServiceError(404, 'Shift not found');
 
+		const targetStaffId = this.resolveTargetStaffId(newStaffId, shift.staff_id);
+
 		this.ensureShiftUpdatable(shift);
 		await this.ensureShiftInAdminOffice(adminStaff.office_id, shift);
-		if (newStaffId) {
+		if (newStaffId != null) {
 			await this.ensureStaffAssignableToOffice(
 				newStaffId,
 				adminStaff.office_id,
@@ -412,10 +469,13 @@ export class ShiftService {
 			shift.time.end.hour,
 			shift.time.end.minute,
 		);
-		const isScheduleChanged =
-			currentStartTime.getTime() !== newStartTime.getTime() ||
-			currentEndTime.getTime() !== newEndTime.getTime();
-		const isStaffChanged = (shift.staff_id ?? null) !== newStaffId;
+		const isScheduleChanged = this.hasScheduleChanged({
+			currentStartTime,
+			currentEndTime,
+			newStartTime,
+			newEndTime,
+		});
+		const isStaffChanged = this.isStaffChanged(shift.staff_id, targetStaffId);
 		if (isScheduleChanged) {
 			this.ensureNotMovingToPast(newStartTime);
 		}
@@ -430,25 +490,26 @@ export class ShiftService {
 			excludeShiftId: shiftId,
 		});
 
-		if (newStaffId) {
-			const conflicts = await this.shiftRepository.findStaffConflictingShifts(
-				newStaffId,
-				newStartTime,
-				newEndTime,
-				adminStaff.office_id,
-				shiftId,
-			);
-			if (conflicts.length > 0) {
-				throw new ServiceError(409, 'Staff has conflicting shift', {
-					conflictingShiftIds: conflicts.map((s) => s.id),
-				});
-			}
+		if (
+			this.shouldCheckStaffConflicts(
+				targetStaffId,
+				isScheduleChanged,
+				isStaffChanged,
+			)
+		) {
+			await this.ensureNoStaffConflicts({
+				staffId: targetStaffId,
+				startTime: newStartTime,
+				endTime: newEndTime,
+				officeId: adminStaff.office_id,
+				excludeShiftId: shiftId,
+			});
 		}
 
 		await this.shiftRepository.updateShiftSchedule(shiftId, {
 			startTime: newStartTime,
 			endTime: newEndTime,
-			staffId: newStaffId,
+			staffId: targetStaffId,
 			notes: reason,
 		});
 

@@ -243,7 +243,7 @@ const TimeStrSchema = z
 export const UpdateShiftScheduleInputSchema = z
 	.object({
 		shiftId: z.string().uuid(),
-		staffId: z.string().uuid().nullable(),
+		staffId: z.string().uuid().nullable().optional(),
 		dateStr: DateStrSchema,
 		startTimeStr: TimeStrSchema,
 		endTimeStr: TimeStrSchema,
