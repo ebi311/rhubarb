@@ -201,3 +201,19 @@ export const SuggestShiftAdjustmentsOutputSchema = z.object({
 export type SuggestShiftAdjustmentsOutput = z.infer<
 	typeof SuggestShiftAdjustmentsOutputSchema
 >;
+
+export const SuggestClientDatetimeChangeAdjustmentsOutputSchema = z.object({
+	meta: z
+		.object({
+			timedOut: z.boolean().optional(),
+		})
+		.optional(),
+	change: ClientDatetimeChangeInputSchema,
+	target: z.object({
+		shift: ShiftSnapshotSchema,
+		suggestions: z.array(ShiftAdjustmentSuggestionSchema),
+	}),
+});
+export type SuggestClientDatetimeChangeAdjustmentsOutput = z.infer<
+	typeof SuggestClientDatetimeChangeAdjustmentsOutputSchema
+>;

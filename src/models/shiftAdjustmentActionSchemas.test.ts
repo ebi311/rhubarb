@@ -4,6 +4,7 @@ import {
 	ShiftAdjustmentOperationSchema,
 	ShiftAdjustmentRequestSchema,
 	StaffAbsenceInputSchema,
+	SuggestClientDatetimeChangeAdjustmentsOutputSchema,
 	SuggestShiftAdjustmentsOutputSchema,
 } from './shiftAdjustmentActionSchemas';
 import { TimeRangeSchema } from './valueObjects/timeRange';
@@ -237,6 +238,65 @@ describe('SuggestShiftAdjustmentsOutputSchema', () => {
 			},
 			affected: [],
 		});
+
+		expect(result.success).toBe(true);
+	});
+});
+
+describe('SuggestClientDatetimeChangeAdjustmentsOutputSchema', () => {
+	it('meta が無くてもパースできる（後方互換）', () => {
+		const result = SuggestClientDatetimeChangeAdjustmentsOutputSchema.safeParse(
+			{
+				change: {
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: '2026-02-03',
+					newStartTime: { hour: 9, minute: 0 },
+					newEndTime: { hour: 10, minute: 0 },
+				},
+				target: {
+					shift: {
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_1,
+						date: '2026-02-03',
+						start_time: { hour: 9, minute: 0 },
+						end_time: { hour: 10, minute: 0 },
+						status: 'scheduled',
+					},
+					suggestions: [],
+				},
+			},
+		);
+
+		expect(result.success).toBe(true);
+	});
+
+	it('meta.timedOut を受け付ける', () => {
+		const result = SuggestClientDatetimeChangeAdjustmentsOutputSchema.safeParse(
+			{
+				meta: { timedOut: true },
+				change: {
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: '2026-02-03',
+					newStartTime: { hour: 9, minute: 0 },
+					newEndTime: { hour: 10, minute: 0 },
+				},
+				target: {
+					shift: {
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_1,
+						date: '2026-02-03',
+						start_time: { hour: 9, minute: 0 },
+						end_time: { hour: 10, minute: 0 },
+						status: 'scheduled',
+					},
+					suggestions: [],
+				},
+			},
+		);
 
 		expect(result.success).toBe(true);
 	});
