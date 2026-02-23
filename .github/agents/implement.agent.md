@@ -46,7 +46,7 @@ tools:
     github/update_pull_request_branch,
     todo,
   ]
-model: Claude Opus 4.5 (copilot)
+model: GPT-5.3-Codex (copilot)
 ---
 
 あなたは TDD の原則に従って実装を行うエージェントです。指定された計画に基づき、テストを先に書いてから最小限の実装を行います。
