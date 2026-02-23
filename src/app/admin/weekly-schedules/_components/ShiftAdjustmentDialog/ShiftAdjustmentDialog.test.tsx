@@ -1,4 +1,7 @@
-import { suggestShiftAdjustmentsAction } from '@/app/actions/shiftAdjustments';
+import {
+	suggestClientDatetimeChangeAdjustmentsAction,
+	suggestShiftAdjustmentsAction,
+} from '@/app/actions/shiftAdjustments';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -116,6 +119,54 @@ describe('ShiftAdjustmentDialog', () => {
 			error: null,
 			status: 200,
 		});
+
+		vi.mocked(suggestClientDatetimeChangeAdjustmentsAction).mockResolvedValue({
+			data: {
+				change: {
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: new Date('2026-02-26T00:00:00+09:00'),
+					newStartTime: { hour: 13, minute: 0 },
+					newEndTime: { hour: 14, minute: 0 },
+					memo: '利用者都合の日時変更',
+				},
+				target: {
+					shift: {
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_2,
+						date: new Date('2026-02-24T00:00:00+09:00'),
+						start_time: { hour: 10, minute: 0 },
+						end_time: { hour: 11, minute: 0 },
+						status: 'scheduled',
+					},
+					suggestions: [
+						{
+							operations: [
+								{
+									type: 'update_shift_schedule',
+									shift_id: TEST_IDS.SCHEDULE_1,
+									new_date: new Date('2026-02-26T00:00:00+09:00'),
+									new_start_time: { hour: 13, minute: 0 },
+									new_end_time: { hour: 14, minute: 0 },
+								},
+								{
+									type: 'change_staff',
+									shift_id: TEST_IDS.SCHEDULE_2,
+									from_staff_id: TEST_IDS.STAFF_1,
+									to_staff_id: TEST_IDS.STAFF_3,
+								},
+							],
+							rationale: [
+								{ code: 'time_window_ok', message: '時間帯の調整が可能' },
+							],
+						},
+					],
+				},
+			},
+			error: null,
+			status: 200,
+		});
 	});
 
 	it('ダイアログが開閉する', () => {
@@ -176,7 +227,7 @@ describe('ShiftAdjustmentDialog', () => {
 		await waitFor(() => {
 			expect(screen.getByText('提案結果')).toBeInTheDocument();
 		});
-		expect(screen.getByText(/田中太郎/)).toBeInTheDocument();
+		expect(screen.getByText('田中太郎（10:00〜11:00）')).toBeInTheDocument();
 		// operations[0] (1手目) は別シフトの玉突き、operations[1] (2手目) が対象シフト
 		expect(screen.getByText(/案1:/)).toBeInTheDocument();
 		expect(screen.getByText(/佐々木花子/)).toBeInTheDocument();
@@ -238,6 +289,34 @@ describe('ShiftAdjustmentDialog', () => {
 		});
 	});
 
+	it('欠勤で開始日が終了日より後ならsubmitせずエラーを表示する', async () => {
+		const user = userEvent.setup();
+		render(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={new Date('2026-02-22T00:00:00+09:00')}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.selectOptions(
+			screen.getByLabelText('欠勤スタッフ'),
+			TEST_IDS.STAFF_2,
+		);
+		await user.clear(screen.getByLabelText('開始日'));
+		await user.type(screen.getByLabelText('開始日'), '2026-02-28');
+		await user.clear(screen.getByLabelText('終了日'));
+		await user.type(screen.getByLabelText('終了日'), '2026-02-22');
+		await user.click(screen.getByRole('button', { name: '提案を取得' }));
+
+		expect(suggestShiftAdjustmentsAction).not.toHaveBeenCalled();
+		expect(
+			screen.getByText('開始日は終了日以前を指定してください。'),
+		).toBeInTheDocument();
+	});
+
 	it('action が例外を投げた場合でも画面が落ちず、エラーを表示する', async () => {
 		const user = userEvent.setup();
 		vi.mocked(suggestShiftAdjustmentsAction).mockRejectedValueOnce(
@@ -268,5 +347,147 @@ describe('ShiftAdjustmentDialog', () => {
 			).toBeInTheDocument();
 		});
 		expect(screen.getByRole('dialog')).toBeInTheDocument();
+	});
+
+	it('日時変更フローで対象シフト選択→入力→提案取得→結果表示できる', async () => {
+		const user = userEvent.setup();
+		render(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={new Date('2026-02-22T00:00:00+09:00')}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('radio', { name: '利用者都合の日時変更' }),
+		);
+		await user.selectOptions(
+			screen.getByLabelText(/対象シフト/),
+			TEST_IDS.SCHEDULE_1,
+		);
+		await user.type(
+			screen.getByLabelText('メモ（任意）'),
+			'訪問時間の変更依頼',
+		);
+		await user.clear(screen.getByLabelText('新しい開始時刻'));
+		await user.type(screen.getByLabelText('新しい開始時刻'), '13:00');
+		await user.clear(screen.getByLabelText('新しい終了時刻'));
+		await user.type(screen.getByLabelText('新しい終了時刻'), '14:00');
+
+		await user.click(screen.getByRole('button', { name: '提案を取得' }));
+
+		await waitFor(() => {
+			expect(suggestClientDatetimeChangeAdjustmentsAction).toHaveBeenCalledWith(
+				expect.objectContaining({
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newStartTime: { hour: 13, minute: 0 },
+					newEndTime: { hour: 14, minute: 0 },
+					memo: '訪問時間の変更依頼',
+				}),
+			);
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText('提案結果')).toBeInTheDocument();
+		});
+		expect(screen.getByText('田中太郎（10:00〜11:00）')).toBeInTheDocument();
+		expect(
+			screen.getByText(/日時を 2026-02-26 13:00〜14:00 に変更/),
+		).toBeInTheDocument();
+		expect(screen.getByText(/2手目:/)).toBeInTheDocument();
+	});
+
+	it('日時変更で開始時刻が終了時刻以上ならsubmitせずエラーを表示する', async () => {
+		const user = userEvent.setup();
+		render(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={new Date('2026-02-22T00:00:00+09:00')}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('radio', { name: '利用者都合の日時変更' }),
+		);
+		await user.selectOptions(
+			screen.getByLabelText(/対象シフト/),
+			TEST_IDS.SCHEDULE_1,
+		);
+		await user.clear(screen.getByLabelText('新しい開始時刻'));
+		await user.type(screen.getByLabelText('新しい開始時刻'), '14:00');
+		await user.clear(screen.getByLabelText('新しい終了時刻'));
+		await user.type(screen.getByLabelText('新しい終了時刻'), '14:00');
+		await user.click(screen.getByRole('button', { name: '提案を取得' }));
+
+		expect(suggestClientDatetimeChangeAdjustmentsAction).not.toHaveBeenCalled();
+		expect(
+			screen.getByText('開始時刻は終了時刻より前を指定してください。'),
+		).toBeInTheDocument();
+	});
+
+	it('日時変更フローで timedOut=true のとき警告を表示する', async () => {
+		const user = userEvent.setup();
+		vi.mocked(
+			suggestClientDatetimeChangeAdjustmentsAction,
+		).mockResolvedValueOnce({
+			data: {
+				meta: { timedOut: true },
+				change: {
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: new Date('2026-02-26T00:00:00+09:00'),
+					newStartTime: { hour: 13, minute: 0 },
+					newEndTime: { hour: 14, minute: 0 },
+					memo: '利用者都合の日時変更',
+				},
+				target: {
+					shift: {
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_2,
+						date: new Date('2026-02-24T00:00:00+09:00'),
+						start_time: { hour: 10, minute: 0 },
+						end_time: { hour: 11, minute: 0 },
+						status: 'scheduled',
+					},
+					suggestions: [],
+				},
+			},
+			error: null,
+			status: 200,
+		});
+
+		render(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={new Date('2026-02-22T00:00:00+09:00')}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('radio', { name: '利用者都合の日時変更' }),
+		);
+		await user.selectOptions(
+			screen.getByLabelText(/対象シフト/),
+			TEST_IDS.SCHEDULE_1,
+		);
+		await user.click(screen.getByRole('button', { name: '提案を取得' }));
+
+		await waitFor(() => {
+			expect(
+				screen.getByText(
+					'一部の提案探索が時間上限に達したため、結果は部分的な可能性があります。',
+				),
+			).toBeInTheDocument();
+		});
 	});
 });
