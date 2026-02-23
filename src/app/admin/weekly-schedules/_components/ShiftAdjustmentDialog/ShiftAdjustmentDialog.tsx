@@ -129,6 +129,12 @@ export const ShiftAdjustmentDialog = ({
 
 	const handleStaffAbsenceSubmit = async () => {
 		setErrorMessage(null);
+		setResultData(null);
+		setClientResultData(null);
+		if (startDateStr > endDateStr) {
+			setErrorMessage('開始日は終了日以前を指定してください。');
+			return;
+		}
 		setIsSubmitting(true);
 		try {
 			const action = requestSuggestions ?? suggestShiftAdjustmentsAction;
@@ -155,10 +161,19 @@ export const ShiftAdjustmentDialog = ({
 
 	const handleClientDatetimeChangeSubmit = async () => {
 		setErrorMessage(null);
+		setResultData(null);
+		setClientResultData(null);
 		const parsedStartTime = stringToTimeObject(newStartTime);
 		const parsedEndTime = stringToTimeObject(newEndTime);
 		if (!parsedStartTime || !parsedEndTime) {
 			setErrorMessage('時刻の形式が不正です。HH:mm 形式で入力してください。');
+			return;
+		}
+		const startTotalMinutes =
+			parsedStartTime.hour * 60 + parsedStartTime.minute;
+		const endTotalMinutes = parsedEndTime.hour * 60 + parsedEndTime.minute;
+		if (startTotalMinutes >= endTotalMinutes) {
+			setErrorMessage('開始時刻は終了時刻より前を指定してください。');
 			return;
 		}
 		setIsSubmitting(true);

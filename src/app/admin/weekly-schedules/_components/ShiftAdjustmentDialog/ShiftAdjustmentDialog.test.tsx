@@ -289,6 +289,34 @@ describe('ShiftAdjustmentDialog', () => {
 		});
 	});
 
+	it('欠勤で開始日が終了日より後ならsubmitせずエラーを表示する', async () => {
+		const user = userEvent.setup();
+		render(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={new Date('2026-02-22T00:00:00+09:00')}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.selectOptions(
+			screen.getByLabelText('欠勤スタッフ'),
+			TEST_IDS.STAFF_2,
+		);
+		await user.clear(screen.getByLabelText('開始日'));
+		await user.type(screen.getByLabelText('開始日'), '2026-02-28');
+		await user.clear(screen.getByLabelText('終了日'));
+		await user.type(screen.getByLabelText('終了日'), '2026-02-22');
+		await user.click(screen.getByRole('button', { name: '提案を取得' }));
+
+		expect(suggestShiftAdjustmentsAction).not.toHaveBeenCalled();
+		expect(
+			screen.getByText('開始日は終了日以前を指定してください。'),
+		).toBeInTheDocument();
+	});
+
 	it('action が例外を投げた場合でも画面が落ちず、エラーを表示する', async () => {
 		const user = userEvent.setup();
 		vi.mocked(suggestShiftAdjustmentsAction).mockRejectedValueOnce(
@@ -370,6 +398,37 @@ describe('ShiftAdjustmentDialog', () => {
 			screen.getByText(/日時を 2026-02-26 13:00〜14:00 に変更/),
 		).toBeInTheDocument();
 		expect(screen.getByText(/2手目:/)).toBeInTheDocument();
+	});
+
+	it('日時変更で開始時刻が終了時刻以上ならsubmitせずエラーを表示する', async () => {
+		const user = userEvent.setup();
+		render(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={new Date('2026-02-22T00:00:00+09:00')}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('radio', { name: '利用者都合の日時変更' }),
+		);
+		await user.selectOptions(
+			screen.getByLabelText(/対象シフト/),
+			TEST_IDS.SCHEDULE_1,
+		);
+		await user.clear(screen.getByLabelText('新しい開始時刻'));
+		await user.type(screen.getByLabelText('新しい開始時刻'), '14:00');
+		await user.clear(screen.getByLabelText('新しい終了時刻'));
+		await user.type(screen.getByLabelText('新しい終了時刻'), '14:00');
+		await user.click(screen.getByRole('button', { name: '提案を取得' }));
+
+		expect(suggestClientDatetimeChangeAdjustmentsAction).not.toHaveBeenCalled();
+		expect(
+			screen.getByText('開始時刻は終了時刻より前を指定してください。'),
+		).toBeInTheDocument();
 	});
 
 	it('日時変更フローで timedOut=true のとき警告を表示する', async () => {
