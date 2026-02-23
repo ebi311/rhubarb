@@ -107,7 +107,10 @@ export const ShiftSnapshotSchema = z.object({
 export type ShiftSnapshot = z.infer<typeof ShiftSnapshotSchema>;
 
 /**
- * 操作（Phase 1: change_staff のみ、1手のみ）
+ * 操作（`change_staff` または `update_shift_schedule`）
+ *
+ * - `ShiftAdjustmentOperationSchema` は上記2種類の discriminated union
+ * - 提案（ShiftAdjustmentSuggestion）では operations が最大2件になり得る
  */
 const ChangeStaffShiftAdjustmentOperationSchema = z.object({
 	type: z.literal('change_staff'),
@@ -180,6 +183,7 @@ export type ShiftAdjustmentShiftSuggestion = z.infer<
 export const SuggestShiftAdjustmentsOutputSchema = z.object({
 	meta: z
 		.object({
+			// 後方互換のため optional（旧クライアントでもパースできるようにする）
 			timedOut: z.boolean().optional(),
 		})
 		.optional(),
