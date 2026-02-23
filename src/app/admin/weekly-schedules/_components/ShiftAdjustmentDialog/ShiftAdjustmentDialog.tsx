@@ -18,7 +18,7 @@ import {
 	getJstDateOnly,
 	stringToTimeObject,
 } from '@/utils/date';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ShiftDisplayRow } from '../ShiftTable';
 
 type ShiftAdjustmentDialogProps = {
@@ -97,6 +97,24 @@ export const ShiftAdjustmentDialog = ({
 		useState<SuggestShiftAdjustmentsOutput | null>(null);
 	const [clientResultData, setClientResultData] =
 		useState<SuggestClientDatetimeChangeAdjustmentsOutput | null>(null);
+
+	useEffect(() => {
+		if (!isOpen) return;
+
+		setAdjustmentType('staff_absence');
+		setStaffId('');
+		setStartDateStr(formatJstDateString(weekStartDate));
+		setEndDateStr(formatJstDateString(weekEndDate));
+		setTargetShiftId('');
+		setNewDateStr(formatJstDateString(weekStartDate));
+		setNewStartTime('09:00');
+		setNewEndTime('10:00');
+		setMemo('');
+		setIsSubmitting(false);
+		setErrorMessage(null);
+		setResultData(null);
+		setClientResultData(null);
+	}, [isOpen, weekStartDate, weekEndDate]);
 
 	const shiftMap = useMemo(() => {
 		const map = new Map<string, ShiftDisplayRow>();

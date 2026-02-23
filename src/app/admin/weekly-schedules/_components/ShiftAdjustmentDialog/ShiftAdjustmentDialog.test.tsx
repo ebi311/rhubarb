@@ -490,4 +490,85 @@ describe('ShiftAdjustmentDialog', () => {
 			).toBeInTheDocument();
 		});
 	});
+
+	it('ダイアログを再オープンすると入力・エラー・提案結果が初期化される', async () => {
+		const user = userEvent.setup();
+		const weekStartDate = new Date('2026-02-22T00:00:00+09:00');
+		const { rerender } = render(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={weekStartDate}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.selectOptions(
+			screen.getByLabelText('欠勤スタッフ'),
+			TEST_IDS.STAFF_2,
+		);
+		await user.type(screen.getByLabelText('メモ（任意）'), '急休メモ');
+		await user.click(screen.getByRole('button', { name: '提案を取得' }));
+
+		await waitFor(() => {
+			expect(screen.getByText('提案結果')).toBeInTheDocument();
+		});
+
+		await user.click(
+			screen.getByRole('radio', { name: '利用者都合の日時変更' }),
+		);
+		await user.selectOptions(
+			screen.getByLabelText(/対象シフト/),
+			TEST_IDS.SCHEDULE_1,
+		);
+		await user.clear(screen.getByLabelText('新しい開始時刻'));
+		await user.type(screen.getByLabelText('新しい開始時刻'), '14:00');
+		await user.clear(screen.getByLabelText('新しい終了時刻'));
+		await user.type(screen.getByLabelText('新しい終了時刻'), '14:00');
+		await user.click(screen.getByRole('button', { name: '提案を取得' }));
+
+		expect(
+			screen.getByText('開始時刻は終了時刻より前を指定してください。'),
+		).toBeInTheDocument();
+
+		rerender(
+			<ShiftAdjustmentDialog
+				isOpen={false}
+				weekStartDate={weekStartDate}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+		rerender(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={weekStartDate}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByRole('radio', { name: 'スタッフ欠勤' })).toBeChecked();
+		expect(screen.getByLabelText('欠勤スタッフ')).toHaveValue('');
+		expect(screen.getByLabelText('開始日')).toHaveValue('2026-02-22');
+		expect(screen.getByLabelText('終了日')).toHaveValue('2026-02-28');
+		expect(screen.getByLabelText('メモ（任意）')).toHaveValue('');
+		expect(
+			screen.queryByText('開始時刻は終了時刻より前を指定してください。'),
+		).not.toBeInTheDocument();
+		expect(screen.queryByText('提案結果')).not.toBeInTheDocument();
+
+		await user.click(
+			screen.getByRole('radio', { name: '利用者都合の日時変更' }),
+		);
+		expect(screen.getByLabelText(/対象シフト/)).toHaveValue('');
+		expect(screen.getByLabelText('2) 新しい日付')).toHaveValue('2026-02-22');
+		expect(screen.getByLabelText('新しい開始時刻')).toHaveValue('09:00');
+		expect(screen.getByLabelText('新しい終了時刻')).toHaveValue('10:00');
+	});
 });
