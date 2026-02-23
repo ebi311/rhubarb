@@ -31,6 +31,7 @@ const createMockStaffRepository = (): Mocked<StaffRepository> => {
 const createMockShiftRepository = (): Mocked<ShiftRepository> => {
 	return {
 		list: vi.fn(),
+		findById: vi.fn(),
 	} as unknown as Mocked<ShiftRepository>;
 };
 
@@ -555,5 +556,486 @@ describe('ShiftAdjustmentSuggestionService', () => {
 		});
 
 		expect(result.affected).toHaveLength(0);
+	});
+
+	describe('client_datetime_change', () => {
+		it('staff維持で日時変更できる提案が出る', async () => {
+			const userId = createTestId();
+			const staffAId = TEST_IDS.STAFF_2;
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+				createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+			);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: staffAId,
+					name: '担当A',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			const targetShift = createShift({
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: staffAId,
+				date: new Date('2026-02-24T00:00:00+09:00'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			});
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockShiftRepo.list.mockImplementation(async (filters = {}) => {
+				const start = filters.startDate?.toISOString();
+				const end = filters.endDate?.toISOString();
+				if (
+					filters.officeId === TEST_IDS.OFFICE_1 &&
+					filters.clientId === TEST_IDS.CLIENT_1 &&
+					start === targetShift.date.toISOString() &&
+					end === targetShift.date.toISOString()
+				) {
+					return [targetShift];
+				}
+				// newDate 側の検索（衝突なし）
+				return [];
+			});
+
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: staffAId,
+						service_type_id: 'life-support',
+					},
+				],
+			);
+
+			const result = await service.suggestClientDatetimeChangeAdjustments(
+				userId,
+				{
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: new Date('2026-02-25T00:00:00+09:00'),
+					newStartTime: { hour: 14, minute: 0 },
+					newEndTime: { hour: 15, minute: 0 },
+				},
+			);
+
+			expect(result.target.shift.id).toBe(TEST_IDS.SCHEDULE_1);
+			expect(result.target.suggestions).toHaveLength(1);
+			expect(result.target.suggestions[0]?.operations).toEqual([
+				expect.objectContaining({
+					type: 'update_shift_schedule',
+					shift_id: TEST_IDS.SCHEDULE_1,
+					new_date: new Date('2026-02-25T00:00:00+09:00'),
+					new_start_time: { hour: 14, minute: 0 },
+					new_end_time: { hour: 15, minute: 0 },
+				}),
+			]);
+		});
+
+		it('staff維持は衝突→staff変更で解決する提案が出る', async () => {
+			const userId = createTestId();
+			const staffAId = TEST_IDS.STAFF_2;
+			const staffBId = createTestId();
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+				createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+			);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: staffAId,
+					name: '担当A',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: staffBId,
+					name: '候補B',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			const targetShift = createShift({
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: staffAId,
+				date: new Date('2026-02-24T00:00:00+09:00'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			});
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+
+			const conflictShiftForA = createShift({
+				id: TEST_IDS.SCHEDULE_2,
+				client_id: TEST_IDS.CLIENT_2,
+				staff_id: staffAId,
+				date: new Date('2026-02-25T00:00:00+09:00'),
+				time: {
+					start: { hour: 14, minute: 30 },
+					end: { hour: 15, minute: 30 },
+				},
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			});
+
+			mockShiftRepo.list.mockImplementation(async (filters = {}) => {
+				const start = filters.startDate?.toISOString();
+				const end = filters.endDate?.toISOString();
+				if (
+					filters.officeId === TEST_IDS.OFFICE_1 &&
+					filters.clientId === TEST_IDS.CLIENT_1 &&
+					start === targetShift.date.toISOString() &&
+					end === targetShift.date.toISOString()
+				) {
+					return [targetShift];
+				}
+				if (
+					filters.officeId === TEST_IDS.OFFICE_1 &&
+					filters.status === 'scheduled' &&
+					start === new Date('2026-02-25T00:00:00+09:00').toISOString() &&
+					end === new Date('2026-02-25T00:00:00+09:00').toISOString()
+				) {
+					return [conflictShiftForA];
+				}
+				return [];
+			});
+
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: staffAId,
+						service_type_id: 'life-support',
+					},
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: staffBId,
+						service_type_id: 'life-support',
+					},
+				],
+			);
+
+			const result = await service.suggestClientDatetimeChangeAdjustments(
+				userId,
+				{
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: new Date('2026-02-25T00:00:00+09:00'),
+					newStartTime: { hour: 14, minute: 0 },
+					newEndTime: { hour: 15, minute: 0 },
+				},
+			);
+
+			expect(result.target.suggestions).toHaveLength(1);
+			const suggestion = result.target.suggestions[0]!;
+			expect(suggestion.operations).toHaveLength(2);
+			expect(suggestion.operations[0]).toMatchObject({
+				type: 'change_staff',
+				shift_id: TEST_IDS.SCHEDULE_1,
+				from_staff_id: staffAId,
+				to_staff_id: staffBId,
+			});
+			expect(suggestion.operations[1]).toMatchObject({
+				type: 'update_shift_schedule',
+				shift_id: TEST_IDS.SCHEDULE_1,
+				new_date: new Date('2026-02-25T00:00:00+09:00'),
+				new_start_time: { hour: 14, minute: 0 },
+				new_end_time: { hour: 15, minute: 0 },
+			});
+		});
+
+		it('深さ1（2手）が出る', async () => {
+			const userId = createTestId();
+			const staffBId = TEST_IDS.STAFF_2;
+			const staffCId = createTestId();
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+				createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+			);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: staffBId,
+					name: '担当B',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: staffCId,
+					name: '玉突き先C',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			const targetShift = createShift({
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: staffBId,
+				date: new Date('2026-02-24T00:00:00+09:00'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			});
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+
+			const conflictShift = createShift({
+				id: TEST_IDS.SCHEDULE_2,
+				client_id: TEST_IDS.CLIENT_2,
+				staff_id: staffBId,
+				date: new Date('2026-02-25T00:00:00+09:00'),
+				time: {
+					start: { hour: 14, minute: 30 },
+					end: { hour: 15, minute: 30 },
+				},
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			});
+
+			mockShiftRepo.list.mockImplementation(async (filters = {}) => {
+				const start = filters.startDate?.toISOString();
+				const end = filters.endDate?.toISOString();
+				if (
+					filters.officeId === TEST_IDS.OFFICE_1 &&
+					filters.clientId === TEST_IDS.CLIENT_1 &&
+					start === targetShift.date.toISOString() &&
+					end === targetShift.date.toISOString()
+				) {
+					return [targetShift];
+				}
+				if (
+					filters.officeId === TEST_IDS.OFFICE_1 &&
+					filters.status === 'scheduled' &&
+					start === new Date('2026-02-25T00:00:00+09:00').toISOString() &&
+					end === new Date('2026-02-25T00:00:00+09:00').toISOString()
+				) {
+					return [conflictShift];
+				}
+				return [];
+			});
+
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[
+					// 対象シフトは担当Bのまま（Bがallowlistにある）
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: staffBId,
+						service_type_id: 'life-support',
+					},
+					// conflictShift は C へ玉突きできる
+					{
+						client_id: TEST_IDS.CLIENT_2,
+						staff_id: staffCId,
+						service_type_id: 'life-support',
+					},
+				],
+			);
+
+			const result = await service.suggestClientDatetimeChangeAdjustments(
+				userId,
+				{
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: new Date('2026-02-25T00:00:00+09:00'),
+					newStartTime: { hour: 14, minute: 0 },
+					newEndTime: { hour: 15, minute: 0 },
+				},
+			);
+
+			expect(result.target.suggestions).toHaveLength(1);
+			const suggestion = result.target.suggestions[0]!;
+			expect(suggestion.operations).toHaveLength(2);
+			expect(suggestion.operations[0]).toMatchObject({
+				type: 'change_staff',
+				shift_id: TEST_IDS.SCHEDULE_2,
+				from_staff_id: staffBId,
+				to_staff_id: staffCId,
+			});
+			expect(suggestion.operations[1]).toMatchObject({
+				type: 'update_shift_schedule',
+				shift_id: TEST_IDS.SCHEDULE_1,
+				new_date: new Date('2026-02-25T00:00:00+09:00'),
+				new_start_time: { hour: 14, minute: 0 },
+				new_end_time: { hour: 15, minute: 0 },
+			});
+		});
+
+		it('allowlist無い候補が除外される', async () => {
+			const userId = createTestId();
+			const staffAId = TEST_IDS.STAFF_2;
+			const allowedCandidateId = createTestId();
+			const notAllowedCandidateId = createTestId();
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+				createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+			);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: staffAId,
+					name: '担当A',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: allowedCandidateId,
+					name: '許可あり候補',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: notAllowedCandidateId,
+					name: '許可なし候補',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			const targetShift = createShift({
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: staffAId,
+				date: new Date('2026-02-24T00:00:00+09:00'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			});
+
+			const conflictShiftForA = createShift({
+				id: TEST_IDS.SCHEDULE_2,
+				client_id: TEST_IDS.CLIENT_2,
+				staff_id: staffAId,
+				date: new Date('2026-02-25T00:00:00+09:00'),
+				time: {
+					start: { hour: 14, minute: 30 },
+					end: { hour: 15, minute: 30 },
+				},
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			});
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockShiftRepo.list.mockImplementation(async (filters = {}) => {
+				const start = filters.startDate?.toISOString();
+				const end = filters.endDate?.toISOString();
+				if (
+					filters.officeId === TEST_IDS.OFFICE_1 &&
+					filters.clientId === TEST_IDS.CLIENT_1 &&
+					start === targetShift.date.toISOString() &&
+					end === targetShift.date.toISOString()
+				) {
+					return [targetShift];
+				}
+				if (
+					filters.officeId === TEST_IDS.OFFICE_1 &&
+					filters.status === 'scheduled' &&
+					start === new Date('2026-02-25T00:00:00+09:00').toISOString() &&
+					end === new Date('2026-02-25T00:00:00+09:00').toISOString()
+				) {
+					return [conflictShiftForA];
+				}
+				return [];
+			});
+
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: staffAId,
+						service_type_id: 'life-support',
+					},
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: allowedCandidateId,
+						service_type_id: 'life-support',
+					},
+				],
+			);
+
+			const result = await service.suggestClientDatetimeChangeAdjustments(
+				userId,
+				{
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: new Date('2026-02-25T00:00:00+09:00'),
+					newStartTime: { hour: 14, minute: 0 },
+					newEndTime: { hour: 15, minute: 0 },
+				},
+			);
+
+			expect(result.target.suggestions).toHaveLength(1);
+			const op = result.target.suggestions[0]?.operations[0];
+			if (!op || op.type !== 'change_staff') {
+				throw new Error(`unexpected operation type: ${op?.type ?? 'missing'}`);
+			}
+			expect(op.to_staff_id).toBe(allowedCandidateId);
+			expect(op.to_staff_id).not.toBe(notAllowedCandidateId);
+		});
+
+		it('maxExecutionMs を極小にして timedOut=true になる', async () => {
+			const userId = createTestId();
+			const staffAId = TEST_IDS.STAFF_2;
+
+			let t = 0;
+			service = new ShiftAdjustmentSuggestionService(mockSupabase, {
+				staffRepository: mockStaffRepo,
+				shiftRepository: mockShiftRepo,
+				clientStaffAssignmentRepository: mockClientStaffAssignmentRepo,
+				maxExecutionMs: 0,
+				now: () => {
+					t += 1;
+					return t;
+				},
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+				createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+			);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: staffAId,
+					name: '担当A',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				...Array.from({ length: 50 }).map((_, i) =>
+					createStaffWithServiceTypes({
+						id: createTestId(),
+						name: `候補${i}`,
+						role: 'helper',
+						service_type_ids: ['life-support'],
+					}),
+				),
+			]);
+
+			const targetShift = createShift({
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: staffAId,
+				date: new Date('2026-02-24T00:00:00+09:00'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			});
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockShiftRepo.list.mockImplementation(async () => [targetShift]);
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: staffAId,
+						service_type_id: 'life-support',
+					},
+				],
+			);
+
+			const result = await service.suggestClientDatetimeChangeAdjustments(
+				userId,
+				{
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: new Date('2026-02-25T00:00:00+09:00'),
+					newStartTime: { hour: 14, minute: 0 },
+					newEndTime: { hour: 15, minute: 0 },
+				},
+			);
+
+			expect(result.meta?.timedOut).toBe(true);
+		});
 	});
 });

@@ -3,6 +3,8 @@ import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import {
+	ClientDatetimeChangeInput,
+	ClientDatetimeChangeInputSchema,
 	ShiftAdjustmentOperation,
 	ShiftAdjustmentRationaleItem,
 	ShiftAdjustmentSuggestion,
@@ -30,7 +32,20 @@ interface ShiftAdjustmentSuggestionServiceOptions {
 	staffRepository?: StaffRepository;
 	shiftRepository?: ShiftRepository;
 	clientStaffAssignmentRepository?: ClientStaffAssignmentRepository;
+	maxExecutionMs?: number;
+	now?: () => number;
 }
+
+export type SuggestClientDatetimeChangeAdjustmentsOutput = {
+	meta?: {
+		timedOut?: boolean;
+	};
+	change: ClientDatetimeChangeInput;
+	target: {
+		shift: ShiftSnapshot;
+		suggestions: ShiftAdjustmentSuggestion[];
+	};
+};
 
 const isOverlapping = (
 	a: { start: Date; end: Date },
@@ -75,6 +90,8 @@ export class ShiftAdjustmentSuggestionService {
 	private staffRepository: StaffRepository;
 	private shiftRepository: ShiftRepository;
 	private clientStaffAssignmentRepository: ClientStaffAssignmentRepository;
+	private maxExecutionMs: number;
+	private now: () => number;
 
 	constructor(
 		private supabase: SupabaseClient<Database>,
@@ -87,6 +104,8 @@ export class ShiftAdjustmentSuggestionService {
 		this.clientStaffAssignmentRepository =
 			options?.clientStaffAssignmentRepository ??
 			new ClientStaffAssignmentRepository(this.supabase);
+		this.maxExecutionMs = options?.maxExecutionMs ?? 8000;
+		this.now = options?.now ?? (() => Date.now());
 	}
 
 	private async getAdminStaff(userId: string) {
@@ -126,6 +145,21 @@ export class ShiftAdjustmentSuggestionService {
 			shift_id: params.shiftId,
 			from_staff_id: params.fromStaffId,
 			to_staff_id: params.toStaffId,
+		};
+	}
+
+	private buildUpdateShiftScheduleOperation(params: {
+		shiftId: string;
+		newDate: Date;
+		newStartTime: { hour: number; minute: number };
+		newEndTime: { hour: number; minute: number };
+	}): ShiftAdjustmentOperation {
+		return {
+			type: 'update_shift_schedule',
+			shift_id: params.shiftId,
+			new_date: params.newDate,
+			new_start_time: params.newStartTime,
+			new_end_time: params.newEndTime,
 		};
 	}
 
@@ -267,6 +301,7 @@ export class ShiftAdjustmentSuggestionService {
 		assignableStaffMap: AssignableStaffMap;
 		shiftsByStaff: StaffShiftsByStaff;
 		maxSuggestions: number;
+		checkTimeout?: () => boolean;
 	}): ShiftAdjustmentSuggestion[] => {
 		const { start: shiftStart, end: shiftEnd } = this.getShiftDateTimes(
 			params.shift,
@@ -274,6 +309,7 @@ export class ShiftAdjustmentSuggestionService {
 		const suggestions: ShiftAdjustmentSuggestion[] = [];
 
 		for (const candidate of params.candidates) {
+			if (params.checkTimeout?.()) break;
 			if (!candidate.service_type_ids.includes(params.shift.service_type_id))
 				continue;
 			if (
@@ -379,10 +415,12 @@ export class ShiftAdjustmentSuggestionService {
 		shiftsByStaff: StaffShiftsByStaff;
 		shiftById: Map<string, ScheduledShift>;
 		maxSuggestions: number;
+		checkTimeout?: () => boolean;
 	}): ShiftAdjustmentSuggestion[] => {
 		const suggestions: ShiftAdjustmentSuggestion[] = [];
 
 		for (const candidateB of params.candidates) {
+			if (params.checkTimeout?.()) return suggestions;
 			if (!candidateB.service_type_ids.includes(params.shift.service_type_id))
 				continue;
 			if (
@@ -404,6 +442,7 @@ export class ShiftAdjustmentSuggestionService {
 			if (!conflictShift) continue;
 
 			for (const candidateC of params.candidates) {
+				if (params.checkTimeout?.()) return suggestions;
 				if (candidateC.id === candidateB.id) continue;
 				if (
 					!candidateC.service_type_ids.includes(conflictShift.service_type_id)
@@ -456,6 +495,7 @@ export class ShiftAdjustmentSuggestionService {
 		shiftsByStaff: StaffShiftsByStaff;
 		shiftById: Map<string, ScheduledShift>;
 		maxSuggestions: number;
+		checkTimeout?: () => boolean;
 	}): ShiftAdjustmentSuggestion[] => {
 		const depth0Suggestions = this.buildDepth0Suggestions({
 			shift: params.shift,
@@ -464,6 +504,7 @@ export class ShiftAdjustmentSuggestionService {
 			assignableStaffMap: params.assignableStaffMap,
 			shiftsByStaff: params.shiftsByStaff,
 			maxSuggestions: params.maxSuggestions,
+			checkTimeout: params.checkTimeout,
 		});
 		if (depth0Suggestions.length > 0) return depth0Suggestions;
 
@@ -475,6 +516,7 @@ export class ShiftAdjustmentSuggestionService {
 			shiftsByStaff: params.shiftsByStaff,
 			shiftById: params.shiftById,
 			maxSuggestions: params.maxSuggestions,
+			checkTimeout: params.checkTimeout,
 		});
 	};
 
@@ -483,6 +525,17 @@ export class ShiftAdjustmentSuggestionService {
 		absence: StaffAbsenceInput,
 	): Promise<SuggestShiftAdjustmentsOutput> {
 		const adminStaff = await this.getAdminStaff(userId);
+
+		const startedAt = this.now();
+		let timedOut = false;
+		const checkTimeout = () => {
+			if (this.now() - startedAt > this.maxExecutionMs) {
+				timedOut = true;
+				return true;
+			}
+			return false;
+		};
+
 		const validatedAbsence = this.validateAbsence(absence);
 
 		const officeId = adminStaff.office_id;
@@ -499,8 +552,8 @@ export class ShiftAdjustmentSuggestionService {
 			}),
 		]);
 
-		const absentStaff = staffs.find((s) => s.id === validatedAbsence.staffId);
-		if (!absentStaff) throw new ServiceError(404, 'Staff not found');
+		const _absentStaff = staffs.find((s) => s.id === validatedAbsence.staffId);
+		if (!_absentStaff) throw new ServiceError(404, 'Staff not found');
 
 		const filteredScheduledShifts = this.filterScheduledShifts({
 			scheduledShifts,
@@ -519,10 +572,11 @@ export class ShiftAdjustmentSuggestionService {
 			officeId,
 			shifts: filteredScheduledShifts,
 		});
-
 		const shiftById = new Map(filteredScheduledShifts.map((s) => [s.id, s]));
 
-		const affected = affectedShifts.map((shift) => {
+		const affected: SuggestShiftAdjustmentsOutput['affected'] = [];
+		for (const shift of affectedShifts) {
+			if (checkTimeout()) break;
 			const suggestions = this.buildSuggestionsForShift({
 				shift,
 				absentStaffId: validatedAbsence.staffId,
@@ -531,17 +585,344 @@ export class ShiftAdjustmentSuggestionService {
 				shiftsByStaff,
 				shiftById,
 				maxSuggestions: 3,
+				checkTimeout,
 			});
-
-			return {
-				shift: toShiftSnapshot(shift),
-				suggestions,
-			};
-		});
+			affected.push({ shift: toShiftSnapshot(shift), suggestions });
+		}
 
 		return {
+			...(timedOut ? { meta: { timedOut: true } } : {}),
 			absence: validatedAbsence,
 			affected,
+		};
+	}
+
+	async suggestClientDatetimeChangeAdjustments(
+		userId: string,
+		change: ClientDatetimeChangeInput,
+	): Promise<SuggestClientDatetimeChangeAdjustmentsOutput> {
+		const adminStaff = await this.getAdminStaff(userId);
+
+		const startedAt = this.now();
+		let timedOut = false;
+		const checkTimeout = () => {
+			if (this.now() - startedAt > this.maxExecutionMs) {
+				timedOut = true;
+				return true;
+			}
+			return false;
+		};
+
+		const parsedChange = ClientDatetimeChangeInputSchema.safeParse(change);
+		if (!parsedChange.success) {
+			throw new ServiceError(
+				400,
+				'Validation error',
+				parsedChange.error.issues,
+			);
+		}
+		const validatedChange = parsedChange.data;
+
+		const officeId = adminStaff.office_id;
+
+		const targetShift = await this.shiftRepository.findById(
+			validatedChange.shiftId,
+		);
+		if (!targetShift) throw new ServiceError(404, 'Shift not found');
+		if (targetShift.status !== 'scheduled') {
+			throw new ServiceError(400, 'Shift must be scheduled');
+		}
+		if (!targetShift.staff_id) {
+			throw new ServiceError(400, 'Shift must have staff_id');
+		}
+
+		// office 境界チェック（ShiftRepository.findById は office を join しないため）
+		const sameOfficeShifts = await this.shiftRepository.list({
+			officeId,
+			startDate: targetShift.date,
+			endDate: targetShift.date,
+			clientId: targetShift.client_id,
+		});
+		if (!sameOfficeShifts.some((s) => s.id === targetShift.id)) {
+			throw new ServiceError(404, 'Shift not found');
+		}
+
+		const [staffs, scheduledShiftsOnNewDate] = await Promise.all([
+			this.staffRepository.listByOffice(officeId),
+			this.shiftRepository.list({
+				officeId,
+				startDate: validatedChange.newDate,
+				endDate: validatedChange.newDate,
+				status: 'scheduled',
+			}),
+		]);
+
+		const currentStaff = staffs.find((s) => s.id === targetShift.staff_id);
+		if (!currentStaff) throw new ServiceError(404, 'Staff not found');
+
+		const newStart = setJstTime(
+			getJstDateOnly(validatedChange.newDate),
+			validatedChange.newStartTime.hour,
+			validatedChange.newStartTime.minute,
+		);
+		const newEnd = setJstTime(
+			getJstDateOnly(validatedChange.newDate),
+			validatedChange.newEndTime.hour,
+			validatedChange.newEndTime.minute,
+		);
+
+		const shiftsByStaff = new Map<
+			string,
+			{ shiftId: string; start: Date; end: Date }[]
+		>();
+		for (const shift of scheduledShiftsOnNewDate) {
+			if (!shift.staff_id) continue;
+			if (shift.id === targetShift.id) continue;
+
+			const start = setJstTime(
+				shift.date,
+				shift.time.start.hour,
+				shift.time.start.minute,
+			);
+			const end = setJstTime(
+				shift.date,
+				shift.time.end.hour,
+				shift.time.end.minute,
+			);
+			const list = shiftsByStaff.get(shift.staff_id) ?? [];
+			list.push({ shiftId: shift.id, start, end });
+			shiftsByStaff.set(shift.staff_id, list);
+		}
+
+		const clientIds = Array.from(
+			new Set([
+				targetShift.client_id,
+				...scheduledShiftsOnNewDate.map((s) => s.client_id),
+			]),
+		);
+		const assignmentLinks =
+			clientIds.length === 0
+				? []
+				: await this.clientStaffAssignmentRepository.listLinksByOfficeAndClientIds(
+						officeId,
+						clientIds,
+					);
+		const assignableStaffMap = new Map<string, Set<string>>();
+		for (const link of assignmentLinks) {
+			const key = this.assignmentKey({
+				clientId: link.client_id,
+				serviceTypeId: link.service_type_id,
+			});
+			const set = assignableStaffMap.get(key) ?? new Set<string>();
+			set.add(link.staff_id);
+			assignableStaffMap.set(key, set);
+		}
+
+		const candidates = staffs
+			.filter((s) => s.role === 'helper')
+			.filter((s) => s.id !== currentStaff.id)
+			.slice()
+			.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+		const canAssign = (params: {
+			staffId: string;
+			clientId: string;
+			serviceTypeId: ServiceTypeId;
+		}) =>
+			assignableStaffMap
+				.get(
+					this.assignmentKey({
+						clientId: params.clientId,
+						serviceTypeId: params.serviceTypeId,
+					}),
+				)
+				?.has(params.staffId) ?? false;
+
+		const hasConflict = (
+			staffId: string,
+			range: { start: Date; end: Date },
+		) => {
+			const staffShifts = shiftsByStaff.get(staffId) ?? [];
+			return staffShifts.some((s) =>
+				isOverlapping(range, { start: s.start, end: s.end }),
+			);
+		};
+
+		const suggestions: ShiftAdjustmentSuggestion[] = [];
+
+		// 深さ0: staff維持で日時変更（update_shift_schedule のみ）
+		if (!checkTimeout()) {
+			const serviceTypeOk = currentStaff.service_type_ids.includes(
+				targetShift.service_type_id,
+			);
+			const assignable = canAssign({
+				staffId: currentStaff.id,
+				clientId: targetShift.client_id,
+				serviceTypeId: targetShift.service_type_id,
+			});
+			if (serviceTypeOk && assignable) {
+				const conflict = hasConflict(currentStaff.id, {
+					start: newStart,
+					end: newEnd,
+				});
+				if (!conflict) {
+					suggestions.push(
+						this.buildSuggestion({
+							operations: [
+								this.buildUpdateShiftScheduleOperation({
+									shiftId: targetShift.id,
+									newDate: validatedChange.newDate,
+									newStartTime: validatedChange.newStartTime,
+									newEndTime: validatedChange.newEndTime,
+								}),
+							],
+							rationale: this.buildRationale({
+								serviceTypeOk: true,
+								noConflict: true,
+							}),
+						}),
+					);
+				}
+			}
+		}
+
+		// 深さ0: staff変更で解決（change_staff -> update_shift_schedule）
+		if (suggestions.length === 0) {
+			for (const candidate of candidates) {
+				if (checkTimeout()) break;
+				if (!candidate.service_type_ids.includes(targetShift.service_type_id)) {
+					continue;
+				}
+				if (
+					!canAssign({
+						staffId: candidate.id,
+						clientId: targetShift.client_id,
+						serviceTypeId: targetShift.service_type_id,
+					})
+				) {
+					continue;
+				}
+				if (
+					hasConflict(candidate.id, {
+						start: newStart,
+						end: newEnd,
+					})
+				) {
+					continue;
+				}
+
+				suggestions.push(
+					this.buildSuggestion({
+						operations: [
+							this.buildChangeStaffOperation({
+								shiftId: targetShift.id,
+								fromStaffId: currentStaff.id,
+								toStaffId: candidate.id,
+							}),
+							this.buildUpdateShiftScheduleOperation({
+								shiftId: targetShift.id,
+								newDate: validatedChange.newDate,
+								newStartTime: validatedChange.newStartTime,
+								newEndTime: validatedChange.newEndTime,
+							}),
+						],
+						rationale: this.buildRationale({
+							serviceTypeOk: true,
+							noConflict: true,
+						}),
+					}),
+				);
+				if (suggestions.length >= 3) break;
+			}
+		}
+
+		// 深さ1: staff維持のまま、衝突シフトを玉突き（change_staff -> update_shift_schedule）
+		if (suggestions.length === 0 && !checkTimeout()) {
+			const staffShifts = shiftsByStaff.get(currentStaff.id) ?? [];
+			const conflicts = staffShifts.filter((s) =>
+				isOverlapping(
+					{ start: newStart, end: newEnd },
+					{ start: s.start, end: s.end },
+				),
+			);
+			if (conflicts.length === 1) {
+				const shiftById = new Map(
+					scheduledShiftsOnNewDate.map((s) => [s.id, s]),
+				);
+				const conflictShift = shiftById.get(conflicts[0]!.shiftId);
+				if (conflictShift && conflictShift.staff_id === currentStaff.id) {
+					const conflictStart = setJstTime(
+						conflictShift.date,
+						conflictShift.time.start.hour,
+						conflictShift.time.start.minute,
+					);
+					const conflictEnd = setJstTime(
+						conflictShift.date,
+						conflictShift.time.end.hour,
+						conflictShift.time.end.minute,
+					);
+
+					for (const candidateC of candidates) {
+						if (checkTimeout()) break;
+						if (
+							!candidateC.service_type_ids.includes(
+								conflictShift.service_type_id,
+							)
+						) {
+							continue;
+						}
+						if (
+							!canAssign({
+								staffId: candidateC.id,
+								clientId: conflictShift.client_id,
+								serviceTypeId: conflictShift.service_type_id,
+							})
+						) {
+							continue;
+						}
+						if (
+							hasConflict(candidateC.id, {
+								start: conflictStart,
+								end: conflictEnd,
+							})
+						) {
+							continue;
+						}
+
+						suggestions.push(
+							this.buildSuggestion({
+								operations: [
+									this.buildChangeStaffOperation({
+										shiftId: conflictShift.id,
+										fromStaffId: currentStaff.id,
+										toStaffId: candidateC.id,
+									}),
+									this.buildUpdateShiftScheduleOperation({
+										shiftId: targetShift.id,
+										newDate: validatedChange.newDate,
+										newStartTime: validatedChange.newStartTime,
+										newEndTime: validatedChange.newEndTime,
+									}),
+								],
+								rationale: this.buildRationale({
+									serviceTypeOk: true,
+									noConflict: true,
+								}),
+							}),
+						);
+						if (suggestions.length >= 3) break;
+					}
+				}
+			}
+		}
+
+		return {
+			...(timedOut ? { meta: { timedOut: true } } : {}),
+			change: validatedChange,
+			target: {
+				shift: toShiftSnapshot(targetShift),
+				suggestions,
+			},
 		};
 	}
 }
