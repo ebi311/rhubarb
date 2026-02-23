@@ -182,10 +182,11 @@ export const useShiftAdjustmentDialogSubmit = ({
 
 	const handleUnexpectedError = (message: string, error: unknown) => {
 		console.error(message, { error });
-		handleActionResult(
-			{ data: null, error: ACTION_ERROR_MESSAGE, status: 500 },
-			{ errorMessage: ACTION_ERROR_MESSAGE },
-		);
+		handleActionResult({
+			data: null,
+			error: ACTION_ERROR_MESSAGE,
+			status: 500,
+		});
 	};
 
 	const handleAdjustmentTypeChange = () => {
