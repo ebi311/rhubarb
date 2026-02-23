@@ -17,7 +17,6 @@ import { useShiftAdjustmentDialogState } from './useShiftAdjustmentDialogState';
 import { useShiftAdjustmentDialogSubmit } from './useShiftAdjustmentDialogSubmit';
 
 type UseShiftAdjustmentDialogParams = {
-	isOpen: boolean;
 	weekStartDate: Date;
 	staffOptions: StaffPickerOption[];
 	shifts: ShiftDisplayRow[];
@@ -33,7 +32,6 @@ type UseShiftAdjustmentDialogParams = {
 };
 
 export const useShiftAdjustmentDialog = ({
-	isOpen,
 	weekStartDate,
 	staffOptions,
 	shifts,
@@ -41,7 +39,6 @@ export const useShiftAdjustmentDialog = ({
 	requestClientDatetimeChangeSuggestions,
 }: UseShiftAdjustmentDialogParams) => {
 	const state = useShiftAdjustmentDialogState({
-		isOpen,
 		weekStartDate,
 	});
 

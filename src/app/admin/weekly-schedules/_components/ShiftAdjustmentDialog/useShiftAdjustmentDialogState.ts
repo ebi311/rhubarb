@@ -1,10 +1,9 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import type {
 	SuggestClientDatetimeChangeAdjustmentsOutput,
 	SuggestShiftAdjustmentsOutput,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { formatJstDateString, getJstDateOnly } from '@/utils/date';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
 	DEFAULT_END_TIME,
 	DEFAULT_START_TIME,
@@ -12,12 +11,10 @@ import {
 } from './shiftAdjustmentDialogHelpers';
 
 type UseShiftAdjustmentDialogStateParams = {
-	isOpen: boolean;
 	weekStartDate: Date;
 };
 
 export const useShiftAdjustmentDialogState = ({
-	isOpen,
 	weekStartDate,
 }: UseShiftAdjustmentDialogStateParams) => {
 	const todayDateStr = formatJstDateString(getJstDateOnly(new Date()));
@@ -40,24 +37,6 @@ export const useShiftAdjustmentDialogState = ({
 		useState<SuggestShiftAdjustmentsOutput | null>(null);
 	const [clientResultData, setClientResultData] =
 		useState<SuggestClientDatetimeChangeAdjustmentsOutput | null>(null);
-
-	useEffect(() => {
-		if (!isOpen) return;
-
-		setAdjustmentType('staff_absence');
-		setStaffId('');
-		setStartDateStr(todayDateStr);
-		setEndDateStr(todayDateStr);
-		setTargetShiftId('');
-		setNewDateStr(formatJstDateString(weekStartDate));
-		setNewStartTime(DEFAULT_START_TIME);
-		setNewEndTime(DEFAULT_END_TIME);
-		setMemo('');
-		setIsSubmitting(false);
-		setErrorMessage(null);
-		setResultData(null);
-		setClientResultData(null);
-	}, [isOpen, todayDateStr, weekStartDate]);
 
 	return {
 		todayDateStr,

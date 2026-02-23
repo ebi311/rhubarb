@@ -30,16 +30,127 @@ type ShiftAdjustmentDialogProps = {
 	) => Promise<ActionResult<SuggestClientDatetimeChangeAdjustmentsOutput>>;
 };
 
-/* eslint-disable complexity */
-export const ShiftAdjustmentDialog = ({
-	isOpen,
+type ShiftAdjustmentDialogContentProps = Omit<
+	ShiftAdjustmentDialogProps,
+	'isOpen'
+>;
+
+type AdjustmentTypeSpecificFormProps = {
+	adjustmentType: 'staff_absence' | 'client_datetime_change';
+	helperStaffOptions: StaffPickerOption[];
+	staffId: string;
+	startDateStr: string;
+	endDateStr: string;
+	startDateMin: string;
+	startDateMax: string;
+	endDateMin: string;
+	endDateMax: string;
+	targetShiftId: string;
+	targetableShifts: ShiftDisplayRow[];
+	newDateStr: string;
+	newStartTime: string;
+	newEndTime: string;
+	isSubmitting: boolean;
+	onStaffIdChange: (value: string) => void;
+	onStartDateChange: (value: string) => void;
+	onEndDateChange: (value: string) => void;
+	onTargetShiftChange: (value: string) => void;
+	onNewDateChange: (value: string) => void;
+	onNewStartTimeChange: (value: string) => void;
+	onNewEndTimeChange: (value: string) => void;
+};
+
+const AdjustmentTypeSpecificForm = ({
+	adjustmentType,
+	helperStaffOptions,
+	staffId,
+	startDateStr,
+	endDateStr,
+	startDateMin,
+	startDateMax,
+	endDateMin,
+	endDateMax,
+	targetShiftId,
+	targetableShifts,
+	newDateStr,
+	newStartTime,
+	newEndTime,
+	isSubmitting,
+	onStaffIdChange,
+	onStartDateChange,
+	onEndDateChange,
+	onTargetShiftChange,
+	onNewDateChange,
+	onNewStartTimeChange,
+	onNewEndTimeChange,
+}: AdjustmentTypeSpecificFormProps) =>
+	adjustmentType === 'staff_absence' ? (
+		<StaffAbsenceForm
+			helperStaffOptions={helperStaffOptions}
+			staffId={staffId}
+			startDateStr={startDateStr}
+			endDateStr={endDateStr}
+			startDateMin={startDateMin}
+			startDateMax={startDateMax}
+			endDateMin={endDateMin}
+			endDateMax={endDateMax}
+			isSubmitting={isSubmitting}
+			onStaffIdChange={onStaffIdChange}
+			onStartDateChange={onStartDateChange}
+			onEndDateChange={onEndDateChange}
+		/>
+	) : (
+		<ClientDatetimeChangeForm
+			targetShiftId={targetShiftId}
+			targetableShifts={targetableShifts}
+			newDateStr={newDateStr}
+			newStartTime={newStartTime}
+			newEndTime={newEndTime}
+			isSubmitting={isSubmitting}
+			onTargetShiftChange={onTargetShiftChange}
+			onNewDateChange={onNewDateChange}
+			onNewStartTimeChange={onNewStartTimeChange}
+			onNewEndTimeChange={onNewEndTimeChange}
+		/>
+	);
+
+const getSubmitDisabled = (params: {
+	adjustmentType: 'staff_absence' | 'client_datetime_change';
+	staffId: string;
+	startDateStr: string;
+	endDateStr: string;
+	targetShiftId: string;
+	newDateStr: string;
+	newStartTime: string;
+	newEndTime: string;
+	isSubmitting: boolean;
+}) => {
+	if (params.adjustmentType === 'staff_absence') {
+		return (
+			!params.staffId ||
+			!params.startDateStr ||
+			!params.endDateStr ||
+			params.isSubmitting
+		);
+	}
+
+	return (
+		!params.targetShiftId ||
+		!params.newDateStr ||
+		!params.newStartTime ||
+		!params.newEndTime ||
+		params.isSubmitting
+	);
+};
+
+const ShiftAdjustmentDialogContent = ({
 	weekStartDate,
 	staffOptions,
 	shifts,
 	onClose,
 	requestSuggestions,
 	requestClientDatetimeChangeSuggestions,
-}: ShiftAdjustmentDialogProps) => {
+}: ShiftAdjustmentDialogContentProps) => {
 	const {
 		adjustmentType,
 		helperStaffOptions,
@@ -74,7 +185,6 @@ export const ShiftAdjustmentDialog = ({
 		handleSubmit,
 		handleAdjustmentTypeChange,
 	} = useShiftAdjustmentDialog({
-		isOpen,
 		weekStartDate,
 		staffOptions,
 		shifts,
@@ -82,7 +192,17 @@ export const ShiftAdjustmentDialog = ({
 		requestClientDatetimeChangeSuggestions,
 	});
 
-	if (!isOpen) return null;
+	const submitDisabled = getSubmitDisabled({
+		adjustmentType,
+		staffId,
+		startDateStr,
+		endDateStr,
+		targetShiftId,
+		newDateStr,
+		newStartTime,
+		newEndTime,
+		isSubmitting,
+	});
 
 	return (
 		<div
@@ -133,35 +253,30 @@ export const ShiftAdjustmentDialog = ({
 						/>
 					</div>
 
-					{adjustmentType === 'staff_absence' ? (
-						<StaffAbsenceForm
-							helperStaffOptions={helperStaffOptions}
-							staffId={staffId}
-							startDateStr={startDateStr}
-							endDateStr={endDateStr}
-							startDateMin={startDateMin}
-							startDateMax={startDateMax}
-							endDateMin={endDateMin}
-							endDateMax={endDateMax}
-							isSubmitting={isSubmitting}
-							onStaffIdChange={setStaffId}
-							onStartDateChange={setStartDateStr}
-							onEndDateChange={setEndDateStr}
-						/>
-					) : (
-						<ClientDatetimeChangeForm
-							targetShiftId={targetShiftId}
-							targetableShifts={targetableShifts}
-							newDateStr={newDateStr}
-							newStartTime={newStartTime}
-							newEndTime={newEndTime}
-							isSubmitting={isSubmitting}
-							onTargetShiftChange={setTargetShiftId}
-							onNewDateChange={setNewDateStr}
-							onNewStartTimeChange={setNewStartTime}
-							onNewEndTimeChange={setNewEndTime}
-						/>
-					)}
+					<AdjustmentTypeSpecificForm
+						adjustmentType={adjustmentType}
+						helperStaffOptions={helperStaffOptions}
+						staffId={staffId}
+						startDateStr={startDateStr}
+						endDateStr={endDateStr}
+						startDateMin={startDateMin}
+						startDateMax={startDateMax}
+						endDateMin={endDateMin}
+						endDateMax={endDateMax}
+						targetShiftId={targetShiftId}
+						targetableShifts={targetableShifts}
+						newDateStr={newDateStr}
+						newStartTime={newStartTime}
+						newEndTime={newEndTime}
+						isSubmitting={isSubmitting}
+						onStaffIdChange={setStaffId}
+						onStartDateChange={setStartDateStr}
+						onEndDateChange={setEndDateStr}
+						onTargetShiftChange={setTargetShiftId}
+						onNewDateChange={setNewDateStr}
+						onNewStartTimeChange={setNewStartTime}
+						onNewEndTimeChange={setNewEndTime}
+					/>
 
 					<div>
 						<label className="label" htmlFor="shift-adjust-memo">
@@ -209,15 +324,7 @@ export const ShiftAdjustmentDialog = ({
 						type="button"
 						className="btn btn-primary"
 						onClick={handleSubmit}
-						disabled={
-							adjustmentType === 'staff_absence'
-								? !staffId || !startDateStr || !endDateStr || isSubmitting
-								: !targetShiftId ||
-									!newDateStr ||
-									!newStartTime ||
-									!newEndTime ||
-									isSubmitting
-						}
+						disabled={submitDisabled}
 					>
 						{isSubmitting ? '取得中...' : '提案を取得'}
 					</button>
@@ -226,4 +333,29 @@ export const ShiftAdjustmentDialog = ({
 		</div>
 	);
 };
-/* eslint-enable complexity */
+
+export const ShiftAdjustmentDialog = ({
+	isOpen,
+	weekStartDate,
+	staffOptions,
+	shifts,
+	onClose,
+	requestSuggestions,
+	requestClientDatetimeChangeSuggestions,
+}: ShiftAdjustmentDialogProps) => {
+	if (!isOpen) return null;
+
+	return (
+		<ShiftAdjustmentDialogContent
+			key={weekStartDate.toISOString()}
+			weekStartDate={weekStartDate}
+			staffOptions={staffOptions}
+			shifts={shifts}
+			onClose={onClose}
+			requestSuggestions={requestSuggestions}
+			requestClientDatetimeChangeSuggestions={
+				requestClientDatetimeChangeSuggestions
+			}
+		/>
+	);
+};
