@@ -1,6 +1,9 @@
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
-import type { HandleActionResult } from '@/hooks/useActionResultHandler';
+import type {
+	HandleActionResult,
+	HandleActionResultOptions,
+} from '@/hooks/useActionResultHandler';
 import type {
 	ClientDatetimeChangeActionInput,
 	SuggestClientDatetimeChangeAdjustmentsOutput,
@@ -66,6 +69,11 @@ type BuildSubmitParamsArgs = {
 	) => Promise<ActionResult<SuggestClientDatetimeChangeAdjustmentsOutput>>;
 	handleActionResult: HandleActionResult;
 };
+
+export type ShiftAdjustmentHandleActionResultOptions<T> = NonNullable<
+	Parameters<HandleActionResult>[1]
+> &
+	HandleActionResultOptions<T>;
 
 export const buildSubmitParams = ({
 	state,

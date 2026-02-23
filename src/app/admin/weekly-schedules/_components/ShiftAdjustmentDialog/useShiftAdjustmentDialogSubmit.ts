@@ -17,6 +17,7 @@ import {
 	validateStaffAbsenceRange,
 	type AdjustmentType,
 } from './shiftAdjustmentDialogHelpers';
+import type { ShiftAdjustmentHandleActionResultOptions } from './useShiftAdjustmentDialogInternals';
 
 type UseShiftAdjustmentDialogSubmitParams = {
 	adjustmentType: AdjustmentType;
@@ -142,29 +143,36 @@ export const useShiftAdjustmentDialogSubmit = ({
 
 	const handleStaffAbsenceActionResult = (
 		res: ActionResult<SuggestShiftAdjustmentsOutput>,
-	) =>
-		handleActionResult(res, {
-			errorMessage: ACTION_ERROR_MESSAGE,
-			onError: () => {
-				console.error('Failed to suggest shift adjustments', {
-					error: res.error,
-					details: res.details,
-				});
-			},
-		});
+	) => handleActionResult(res, createStaffAbsenceActionErrorOptions(res));
 
 	const handleClientDatetimeChangeActionResult = (
 		res: ActionResult<SuggestClientDatetimeChangeAdjustmentsOutput>,
 	) =>
-		handleActionResult(res, {
-			errorMessage: ACTION_ERROR_MESSAGE,
-			onError: () => {
-				console.error('Failed to suggest client datetime change adjustments', {
-					error: res.error,
-					details: res.details,
-				});
-			},
-		});
+		handleActionResult(res, createClientDatetimeChangeActionErrorOptions(res));
+
+	const createStaffAbsenceActionErrorOptions = (
+		res: ActionResult<SuggestShiftAdjustmentsOutput>,
+	): ShiftAdjustmentHandleActionResultOptions<SuggestShiftAdjustmentsOutput> => ({
+		errorMessage: ACTION_ERROR_MESSAGE,
+		onError: () => {
+			console.error('Failed to suggest shift adjustments', {
+				error: res.error,
+				details: res.details,
+			});
+		},
+	});
+
+	const createClientDatetimeChangeActionErrorOptions = (
+		res: ActionResult<SuggestClientDatetimeChangeAdjustmentsOutput>,
+	): ShiftAdjustmentHandleActionResultOptions<SuggestClientDatetimeChangeAdjustmentsOutput> => ({
+		errorMessage: ACTION_ERROR_MESSAGE,
+		onError: () => {
+			console.error('Failed to suggest client datetime change adjustments', {
+				error: res.error,
+				details: res.details,
+			});
+		},
+	});
 
 	const handleStaffAbsenceUnexpectedError = (error: unknown) => {
 		handleUnexpectedError(
