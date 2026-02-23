@@ -11,7 +11,6 @@ import type {
 import type { Dispatch, SetStateAction } from 'react';
 import {
 	ACTION_ERROR_MESSAGE,
-	NETWORK_ERROR_MESSAGE,
 	toOptionalMemo,
 	validateClientDatetimeChangeTimes,
 	validateStaffAbsenceRange,
@@ -95,7 +94,6 @@ export const useShiftAdjustmentDialogSubmit = ({
 				memo: toOptionalMemo(memo),
 			});
 			if (!handleStaffAbsenceActionResult(res)) {
-				setErrorMessage(ACTION_ERROR_MESSAGE);
 				return;
 			}
 			setResultData(res.data);
@@ -130,7 +128,6 @@ export const useShiftAdjustmentDialogSubmit = ({
 				memo: toOptionalMemo(memo),
 			});
 			if (!handleClientDatetimeChangeActionResult(res)) {
-				setErrorMessage(ACTION_ERROR_MESSAGE);
 				return;
 			}
 			setClientResultData(res.data);
@@ -184,7 +181,6 @@ export const useShiftAdjustmentDialogSubmit = ({
 			{ data: null, error: ACTION_ERROR_MESSAGE, status: 500 },
 			{ errorMessage: ACTION_ERROR_MESSAGE },
 		);
-		setErrorMessage(NETWORK_ERROR_MESSAGE);
 	};
 
 	const handleClientDatetimeChangeUnexpectedError = (error: unknown) => {
@@ -196,7 +192,6 @@ export const useShiftAdjustmentDialogSubmit = ({
 			{ data: null, error: ACTION_ERROR_MESSAGE, status: 500 },
 			{ errorMessage: ACTION_ERROR_MESSAGE },
 		);
-		setErrorMessage(NETWORK_ERROR_MESSAGE);
 	};
 
 	const handleAdjustmentTypeChange = () => {

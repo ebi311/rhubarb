@@ -416,7 +416,7 @@ describe('ShiftAdjustmentDialog', () => {
 		).toBeInTheDocument();
 	});
 
-	it('action が例外を投げた場合でも画面が落ちず、エラーを表示する', async () => {
+	it('action が例外を投げた場合でも画面が落ちず、toastで固定エラーを表示する', async () => {
 		const user = userEvent.setup();
 		vi.mocked(suggestShiftAdjustmentsAction).mockRejectedValueOnce(
 			new Error('Network failure'),
@@ -439,12 +439,13 @@ describe('ShiftAdjustmentDialog', () => {
 		await user.click(screen.getByRole('button', { name: '提案を取得' }));
 
 		await waitFor(() => {
-			expect(
-				screen.getByText(
-					'提案の取得に失敗しました。通信状況を確認して再度お試しください。',
-				),
-			).toBeInTheDocument();
+			expect(toast.error).toHaveBeenCalledWith('処理できませんでした。');
 		});
+		expect(
+			screen.queryByText(
+				'提案の取得に失敗しました。通信状況を確認して再度お試しください。',
+			),
+		).not.toBeInTheDocument();
 		expect(screen.getByRole('dialog')).toBeInTheDocument();
 	});
 
