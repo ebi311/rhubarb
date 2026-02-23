@@ -1,6 +1,6 @@
+import { ClientStaffAssignmentRepository } from '@/backend/repositories/clientStaffAssignmentRepository';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
-import { ClientStaffAssignmentRepository } from '@/backend/repositories/clientStaffAssignmentRepository';
 import { Database } from '@/backend/types/supabase';
 import { Shift } from '@/models/shift';
 import { Staff, StaffWithServiceTypes } from '@/models/staff';
@@ -211,9 +211,14 @@ describe('ShiftAdjustmentSuggestionService', () => {
 		expect(result.affected).toHaveLength(1);
 		const [affected] = result.affected;
 		expect(affected.shift.id).toBe(TEST_IDS.SCHEDULE_1);
-		expect(
-			affected.suggestions.map((s) => s.operations[0].to_staff_id),
-		).toEqual([candidateAId, candidateDId]);
+		const toStaffIds = affected.suggestions.map((s) => {
+			const op = s.operations[0];
+			if (!op || op.type !== 'change_staff') {
+				throw new Error(`unexpected operation type: ${op?.type ?? 'missing'}`);
+			}
+			return op.to_staff_id;
+		});
+		expect(toStaffIds).toEqual([candidateAId, candidateDId]);
 		expect(affected.suggestions[0]?.rationale.map((r) => r.code)).toEqual([
 			'service_type_ok',
 			'no_conflict',
@@ -296,9 +301,13 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			endDate: new Date('2026-02-28T00:00:00+09:00'),
 		});
 
-		const toStaffIds = result.affected[0]?.suggestions.map(
-			(s) => s.operations[0].to_staff_id,
-		);
+		const toStaffIds = result.affected[0]?.suggestions.map((s) => {
+			const op = s.operations[0];
+			if (!op || op.type !== 'change_staff') {
+				throw new Error(`unexpected operation type: ${op?.type ?? 'missing'}`);
+			}
+			return op.to_staff_id;
+		});
 		expect(toStaffIds).toEqual([helperCandidateId]);
 		expect(toStaffIds).not.toContain(adminCandidateId);
 	});
@@ -360,9 +369,13 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			endDate: new Date('2026-02-28T00:00:00+09:00'),
 		});
 
-		const toStaffIds = result.affected[0]?.suggestions.map(
-			(s) => s.operations[0].to_staff_id,
-		);
+		const toStaffIds = result.affected[0]?.suggestions.map((s) => {
+			const op = s.operations[0];
+			if (!op || op.type !== 'change_staff') {
+				throw new Error(`unexpected operation type: ${op?.type ?? 'missing'}`);
+			}
+			return op.to_staff_id;
+		});
 		expect(toStaffIds).toEqual([allowedCandidateId]);
 		expect(toStaffIds).not.toContain(notAllowedCandidateId);
 	});

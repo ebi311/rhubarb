@@ -4,6 +4,7 @@ import { ShiftStatusSchema } from './shift';
 import { JstDateInputSchema } from './valueObjects/jstDate';
 import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeValueSchema } from './valueObjects/time';
+import { TimeRangeSchema } from './valueObjects/timeRange';
 
 const toJstDay = (date: Date) => dateJst(date).startOf('day');
 
@@ -39,6 +40,57 @@ export type StaffAbsenceInput = z.output<typeof StaffAbsenceInputSchema>;
 export type StaffAbsenceActionInput = z.input<typeof StaffAbsenceInputSchema>;
 
 /**
+ * client_datetime_change（利用者都合の日時変更）入力（Phase 1: 提案のみ）
+ */
+export const ClientDatetimeChangeInputSchema = z
+	.object({
+		shiftId: z.uuid(),
+		newDate: JstDateInputSchema,
+		newStartTime: TimeValueSchema,
+		newEndTime: TimeValueSchema,
+		memo: z.string().max(500).optional(),
+	})
+	.superRefine((val, ctx) => {
+		const parsed = TimeRangeSchema.safeParse({
+			start: val.newStartTime,
+			end: val.newEndTime,
+		});
+		if (!parsed.success) {
+			parsed.error.issues.forEach((issue) => {
+				const mappedPath = issue.path.map((p) =>
+					p === 'start' ? 'newStartTime' : p === 'end' ? 'newEndTime' : p,
+				);
+				ctx.addIssue({ ...issue, path: mappedPath });
+			});
+		}
+	});
+
+export type ClientDatetimeChangeInput = z.output<
+	typeof ClientDatetimeChangeInputSchema
+>;
+export type ClientDatetimeChangeActionInput = z.input<
+	typeof ClientDatetimeChangeInputSchema
+>;
+
+/**
+ * request（変更リクエスト）
+ */
+export const ShiftAdjustmentRequestSchema = z.discriminatedUnion('type', [
+	z.object({
+		type: z.literal('staff_absence'),
+		payload: StaffAbsenceInputSchema,
+	}),
+	z.object({
+		type: z.literal('client_datetime_change'),
+		payload: ClientDatetimeChangeInputSchema,
+	}),
+]);
+
+export type ShiftAdjustmentRequest = z.infer<
+	typeof ShiftAdjustmentRequestSchema
+>;
+
+/**
  * 提案対象シフト（表示/検証用の最小スナップショット）
  */
 export const ShiftSnapshotSchema = z.object({
@@ -57,12 +109,40 @@ export type ShiftSnapshot = z.infer<typeof ShiftSnapshotSchema>;
 /**
  * 操作（Phase 1: change_staff のみ、1手のみ）
  */
-export const ShiftAdjustmentOperationSchema = z.object({
+const ChangeStaffShiftAdjustmentOperationSchema = z.object({
 	type: z.literal('change_staff'),
 	shift_id: z.uuid(),
 	from_staff_id: z.uuid(),
 	to_staff_id: z.uuid(),
 });
+
+const UpdateShiftScheduleShiftAdjustmentOperationSchema = z
+	.object({
+		type: z.literal('update_shift_schedule'),
+		shift_id: z.uuid(),
+		new_date: JstDateInputSchema,
+		new_start_time: TimeValueSchema,
+		new_end_time: TimeValueSchema,
+	})
+	.superRefine((val, ctx) => {
+		const parsed = TimeRangeSchema.safeParse({
+			start: val.new_start_time,
+			end: val.new_end_time,
+		});
+		if (!parsed.success) {
+			parsed.error.issues.forEach((issue) => {
+				const mappedPath = issue.path.map((p) =>
+					p === 'start' ? 'new_start_time' : p === 'end' ? 'new_end_time' : p,
+				);
+				ctx.addIssue({ ...issue, path: mappedPath });
+			});
+		}
+	});
+
+export const ShiftAdjustmentOperationSchema = z.discriminatedUnion('type', [
+	ChangeStaffShiftAdjustmentOperationSchema,
+	UpdateShiftScheduleShiftAdjustmentOperationSchema,
+]);
 export type ShiftAdjustmentOperation = z.infer<
 	typeof ShiftAdjustmentOperationSchema
 >;
@@ -98,6 +178,11 @@ export type ShiftAdjustmentShiftSuggestion = z.infer<
 >;
 
 export const SuggestShiftAdjustmentsOutputSchema = z.object({
+	meta: z
+		.object({
+			timedOut: z.boolean().optional(),
+		})
+		.optional(),
 	absence: StaffAbsenceInputSchema,
 	affected: z.array(ShiftAdjustmentShiftSuggestionSchema),
 });

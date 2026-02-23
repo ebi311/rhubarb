@@ -4,6 +4,7 @@ import { suggestShiftAdjustmentsAction } from '@/app/actions/shiftAdjustments';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import type {
+	ShiftAdjustmentOperation,
 	ShiftAdjustmentShiftSuggestion,
 	SuggestShiftAdjustmentsOutput,
 } from '@/models/shiftAdjustmentActionSchemas';
@@ -147,37 +148,57 @@ export const ShiftAdjustmentDialog = ({
 					) : (
 						<ul className="list">
 							{affected.suggestions.map((s, idx) => {
-									const describeOperation = (op: {
-										shift_id: string;
-										to_staff_id: string;
-									}) => {
-										const row = shiftMap.get(op.shift_id);
-										const startStr = row
-											? `${row.startTime.hour.toString().padStart(2, '0')}:${row.startTime.minute
+								const describeOperation = (op: ShiftAdjustmentOperation) => {
+									const row = shiftMap.get(op.shift_id);
+									const startStr = row
+										? `${row.startTime.hour.toString().padStart(2, '0')}:${row.startTime.minute
 												.toString()
 												.padStart(2, '0')}`
-											: '--:--';
-										const endStr = row
-											? `${row.endTime.hour.toString().padStart(2, '0')}:${row.endTime.minute
+										: '--:--';
+									const endStr = row
+										? `${row.endTime.hour.toString().padStart(2, '0')}:${row.endTime.minute
 												.toString()
 												.padStart(2, '0')}`
-											: '--:--';
+										: '--:--';
+									const shiftTitle = resolveShiftTitle(row, {
+										id: op.shift_id,
+										date: row?.date ?? shift.date,
+										start: startStr,
+										end: endStr,
+									});
+
+									if (op.type === 'change_staff') {
+										const toName =
+											staffNameMap.get(op.to_staff_id) ?? op.to_staff_id;
 										return {
 											shiftId: op.shift_id,
-											shiftTitle: resolveShiftTitle(row, {
-												id: op.shift_id,
-												date: row?.date ?? shift.date,
-												start: startStr,
-												end: endStr,
-											}),
-											toName: staffNameMap.get(op.to_staff_id) ?? op.to_staff_id,
+											summary:
+												op.shift_id === shift.id
+													? `${toName} に変更`
+													: `${shiftTitle} を ${toName} に変更`,
 										};
-									};
+									}
 
-									const firstOp = s.operations[0]!;
-									const secondOp = s.operations[1];
-									const first = describeOperation(firstOp);
-									const second = secondOp ? describeOperation(secondOp) : null;
+									const newDateStr = formatJstDateString(op.new_date);
+									const newStart = `${op.new_start_time.hour.toString().padStart(2, '0')}:${op.new_start_time.minute
+										.toString()
+										.padStart(2, '0')}`;
+									const newEnd = `${op.new_end_time.hour.toString().padStart(2, '0')}:${op.new_end_time.minute
+										.toString()
+										.padStart(2, '0')}`;
+									return {
+										shiftId: op.shift_id,
+										summary:
+											op.shift_id === shift.id
+												? `日時を ${newDateStr} ${newStart}〜${newEnd} に変更`
+												: `${shiftTitle} の日時を ${newDateStr} ${newStart}〜${newEnd} に変更`,
+									};
+								};
+
+								const firstOp = s.operations[0]!;
+								const secondOp = s.operations[1];
+								const first = describeOperation(firstOp);
+								const second = secondOp ? describeOperation(secondOp) : null;
 								const rationaleText = s.rationale
 									.map((r) => r.message)
 									.join(' / ');
@@ -185,17 +206,11 @@ export const ShiftAdjustmentDialog = ({
 									<li key={`${shift.id}-${idx}`} className="list-row">
 										<div className="text-sm">
 											<div className="font-medium">
-													案{idx + 1}:{' '}
-													{first.shiftId === shift.id
-														? `${first.toName} に変更`
-														: `${first.shiftTitle} を ${first.toName} に変更`}
+												案{idx + 1}: {first.summary}
 											</div>
-												{second ? (
+											{second ? (
 												<div className="text-base-content/70">
-														2手目:{' '}
-														{second.shiftId === shift.id
-															? `${second.toName} に変更`
-															: `${second.shiftTitle} を ${second.toName} に変更`}
+													2手目: {second.summary}
 												</div>
 											) : null}
 											<div className="text-base-content/70">
