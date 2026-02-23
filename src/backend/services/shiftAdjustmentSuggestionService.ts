@@ -887,16 +887,7 @@ export class ShiftAdjustmentSuggestionService {
 		absence: StaffAbsenceInput,
 	): Promise<SuggestShiftAdjustmentsOutput> {
 		const adminStaff = await this.getAdminStaff(userId);
-
-		const startedAt = this.now();
-		let timedOut = false;
-		const checkTimeout = () => {
-			if (this.now() - startedAt > this.maxExecutionMs) {
-				timedOut = true;
-				return true;
-			}
-			return false;
-		};
+		const { checkTimeout, isTimedOut } = this.createTimeoutChecker();
 
 		const validatedAbsence = this.validateAbsence(absence);
 
@@ -953,7 +944,7 @@ export class ShiftAdjustmentSuggestionService {
 		}
 
 		return {
-			...(timedOut ? { meta: { timedOut: true } } : {}),
+			...(isTimedOut() ? { meta: { timedOut: true } } : {}),
 			absence: validatedAbsence,
 			affected,
 		};
