@@ -1,9 +1,18 @@
-import { getJstDayOfWeek } from '@/utils/date';
+import {
+	addJstDays,
+	formatJstDateString,
+	getJstDateOnly,
+	getJstDayOfWeek,
+	parseJstDateString,
+	setJstTime,
+	stringToTimeObject,
+} from '@/utils/date';
 import { z } from 'zod';
 import { ShiftStatusSchema } from './shift';
-import { JstDateInputSchema } from './valueObjects/jstDate';
+import { JstDateInputSchema, JstDateSchema } from './valueObjects/jstDate';
 import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeValueSchema } from './valueObjects/time';
+import { TimeRangeSchema } from './valueObjects/timeRange';
 import { TimestampSchema } from './valueObjects/timestamp';
 
 // 週間シフト生成入力スキーマ
@@ -11,7 +20,7 @@ export const GenerateWeeklyShiftsInputSchema = z.object({
 	weekStartDate: JstDateInputSchema.refine(
 		(date) => getJstDayOfWeek(date) === 1,
 		{
-			message: 'weekStartDate must be a Monday',
+			message: 'weekStartDate は月曜日の日付を指定してください',
 		},
 	),
 });
@@ -70,6 +79,72 @@ export const ShiftRecordSchema = z.object({
 	updated_at: TimestampSchema,
 });
 export type ShiftRecord = z.infer<typeof ShiftRecordSchema>;
+
+const withTimeRangeValidation = <
+	T extends { start_time: unknown; end_time: unknown },
+>(
+	schema: z.ZodType<T>,
+) =>
+	schema.superRefine((val, ctx) => {
+		const parsed = TimeRangeSchema.safeParse({
+			start: val.start_time,
+			end: val.end_time,
+		});
+		if (!parsed.success) {
+			parsed.error.issues.forEach((issue) => {
+				const mappedPath = issue.path.map((p) =>
+					p === 'start' ? 'start_time' : p === 'end' ? 'end_time' : p,
+				);
+				ctx.addIssue({ ...issue, path: mappedPath });
+			});
+		}
+	});
+
+// 単発シフト作成入力スキーマ
+export const CreateOneOffShiftInputSchema = withTimeRangeValidation(
+	z.object({
+		weekStartDate: JstDateSchema.refine((date) => getJstDayOfWeek(date) === 1, {
+			message: 'weekStartDate は月曜日の日付を指定してください',
+		}),
+		client_id: z.uuid({ message: 'client_id は UUID 形式で指定してください' }),
+		service_type_id: ServiceTypeIdSchema,
+		staff_id: z
+			.uuid({ message: 'staff_id は UUID 形式で指定してください' })
+			.nullable()
+			.optional(),
+		date: JstDateSchema,
+		start_time: TimeValueSchema,
+		end_time: TimeValueSchema,
+	}),
+).superRefine((val, ctx) => {
+	const weekStart = getJstDateOnly(val.weekStartDate);
+	const weekEnd = addJstDays(weekStart, 6);
+	const shiftDate = getJstDateOnly(val.date);
+
+	if (shiftDate < weekStart || shiftDate > weekEnd) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'date は表示中の週の範囲内で指定してください',
+			path: ['date'],
+		});
+	}
+});
+
+// Action 外部入力: transform 前の入力型（weekStartDate/date は YYYY-MM-DD の string）
+export type CreateOneOffShiftActionInput = z.input<
+	typeof CreateOneOffShiftInputSchema
+>;
+
+// parse 後（transform 後）の型（weekStartDate/date は Date）
+export type CreateOneOffShiftInput = z.output<
+	typeof CreateOneOffShiftInputSchema
+>;
+
+// Service 用 DTO: Action で weekStartDate の整合性は検証済みなので渡さない
+export type CreateOneOffShiftServiceInput = Omit<
+	CreateOneOffShiftInput,
+	'weekStartDate'
+>;
 
 // changeShiftStaffAction の入力スキーマ
 export const ChangeShiftStaffInputSchema = z.object({
@@ -140,3 +215,98 @@ export const ValidateStaffAvailabilityOutputSchema = z.object({
 export type ValidateStaffAvailabilityOutput = z.infer<
 	typeof ValidateStaffAvailabilityOutputSchema
 >;
+
+// updateShiftScheduleAction の入力スキーマ
+const DateStrSchema = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/, 'dateStr は YYYY-MM-DD 形式で指定してください')
+	.refine(
+		(v) => {
+			try {
+				return formatJstDateString(parseJstDateString(v)) === v;
+			} catch {
+				return false;
+			}
+		},
+		{ message: 'dateStr が不正です' },
+	);
+
+const TimeStrSchema = z
+	.string()
+	.regex(/^\d{2}:\d{2}$/, '時刻は HH:mm 形式で指定してください')
+	.refine((v) => stringToTimeObject(v) !== null, {
+		message: '時刻が不正です',
+	});
+
+export const UpdateShiftScheduleInputSchema = z
+	.object({
+		shiftId: z.string().uuid(),
+		staffId: z.string().uuid().nullable().optional(),
+		dateStr: DateStrSchema,
+		startTimeStr: TimeStrSchema,
+		endTimeStr: TimeStrSchema,
+		reason: z.string().optional(),
+	})
+	.superRefine((val, ctx) => {
+		const start = stringToTimeObject(val.startTimeStr);
+		const end = stringToTimeObject(val.endTimeStr);
+		if (!start || !end) return;
+
+		const parsed = TimeRangeSchema.safeParse({ start, end });
+		if (!parsed.success) {
+			parsed.error.issues.forEach((issue) => {
+				const mappedPath = issue.path.map((p) =>
+					p === 'start' ? 'startTimeStr' : p === 'end' ? 'endTimeStr' : p,
+				);
+				ctx.addIssue({ ...issue, path: mappedPath });
+			});
+		}
+	})
+	.transform((val, ctx) => {
+		const baseDate = parseJstDateString(val.dateStr);
+		const start = stringToTimeObject(val.startTimeStr);
+		const end = stringToTimeObject(val.endTimeStr);
+		if (!start || !end) {
+			// refine 済みのため通常ここには到達しないが、
+			// ここで握りつぶすと不正入力を成功扱いにしてしまうため明示的に失敗させる
+			if (!start) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['startTimeStr'],
+					message: '時刻が不正です',
+				});
+			}
+			if (!end) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['endTimeStr'],
+					message: '時刻が不正です',
+				});
+			}
+			return z.NEVER;
+		}
+		return {
+			shiftId: val.shiftId,
+			staffId: val.staffId,
+			newStartTime: setJstTime(baseDate, start.hour, start.minute),
+			newEndTime: setJstTime(baseDate, end.hour, end.minute),
+			reason: val.reason,
+		};
+	});
+
+export type UpdateShiftScheduleActionInput = z.input<
+	typeof UpdateShiftScheduleInputSchema
+>;
+export type UpdateShiftScheduleInput = z.output<
+	typeof UpdateShiftScheduleInputSchema
+>;
+
+export const UpdateShiftScheduleOutputSchema = z.object({
+	shiftId: z.string().uuid(),
+});
+export type UpdateShiftScheduleOutput = z.infer<
+	typeof UpdateShiftScheduleOutputSchema
+>;
+
+// UI での初期値作成などに使うユーティリティ
+export { toJstTimeStr } from '@/utils/date';

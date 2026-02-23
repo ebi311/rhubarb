@@ -1,4 +1,6 @@
 name: Vitest Run
+permissions:
+  contents: read
 on:
   pull_request:
     branches: [main, develop] # 必要に応じてブランチ名を調整

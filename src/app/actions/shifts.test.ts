@@ -1,10 +1,14 @@
 import { ServiceError, ShiftService } from '@/backend/services/shiftService';
+import type { CreateOneOffShiftActionInput } from '@/models/shiftActionSchemas';
+import { TEST_IDS, createTestId } from '@/test/helpers/testIds';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
 	cancelShiftAction,
 	changeShiftStaffAction,
+	createOneOffShiftAction,
 	restoreShiftAction,
+	updateShiftScheduleAction,
 	validateStaffAvailabilityAction,
 } from './shifts';
 
@@ -30,6 +34,8 @@ const createMockService = () => ({
 	cancelShift: vi.fn(),
 	restoreShift: vi.fn(),
 	validateStaffAvailability: vi.fn(),
+	createOneOffShift: vi.fn(),
+	updateShiftSchedule: vi.fn(),
 });
 
 type MockService = ReturnType<typeof createMockService>;
@@ -264,6 +270,182 @@ describe('cancelShiftAction', () => {
 			error: null,
 			status: 200,
 		});
+	});
+});
+
+describe('updateShiftScheduleAction', () => {
+	const authUserId = createTestId();
+	const validInput = {
+		shiftId: createTestId(),
+		staffId: TEST_IDS.STAFF_1,
+		dateStr: '2026-02-22',
+		startTimeStr: '09:00',
+		endTimeStr: '10:00',
+		reason: '変更理由',
+	};
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result = await updateShiftScheduleAction(validInput);
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+		expect(mockService.updateShiftSchedule).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す（shiftIdが不正）', async () => {
+		mockAuthUser(createTestId());
+
+		const result = await updateShiftScheduleAction({
+			...validInput,
+			shiftId: 'invalid-uuid',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.updateShiftSchedule).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す（dateStrが不正）', async () => {
+		mockAuthUser(createTestId());
+
+		const result = await updateShiftScheduleAction({
+			...validInput,
+			dateStr: '2026/02/22',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.updateShiftSchedule).not.toHaveBeenCalled();
+	});
+
+	it('更新に成功し shiftId を返す', async () => {
+		mockAuthUser(authUserId);
+		mockService.updateShiftSchedule.mockResolvedValue({
+			shiftId: validInput.shiftId,
+		});
+
+		const result = await updateShiftScheduleAction(validInput);
+
+		expect(mockService.updateShiftSchedule).toHaveBeenCalledWith(
+			authUserId,
+			validInput.shiftId,
+			expect.any(Date),
+			expect.any(Date),
+			validInput.staffId,
+			validInput.reason,
+		);
+		expect(result).toEqual({
+			data: { shiftId: validInput.shiftId },
+			error: null,
+			status: 200,
+		});
+	});
+});
+
+describe('createOneOffShiftAction', () => {
+	const validInput = {
+		weekStartDate: '2026-02-16',
+		client_id: TEST_IDS.CLIENT_1,
+		service_type_id: 'physical-care' as const,
+		staff_id: TEST_IDS.STAFF_1,
+		date: '2026-02-19',
+		start_time: { hour: 9, minute: 0 },
+		end_time: { hour: 10, minute: 0 },
+	} satisfies CreateOneOffShiftActionInput;
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result = await createOneOffShiftAction(validInput);
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+		expect(mockService.createOneOffShift).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す（client_idが不正）', async () => {
+		mockAuthUser(createTestId());
+		const result = await createOneOffShiftAction({
+			...validInput,
+			client_id: 'invalid-uuid',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.createOneOffShift).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す（start_time >= end_time）', async () => {
+		mockAuthUser(createTestId());
+		const result = await createOneOffShiftAction({
+			...validInput,
+			start_time: { hour: 10, minute: 0 },
+			end_time: { hour: 10, minute: 0 },
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.createOneOffShift).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す（週外の日付）', async () => {
+		mockAuthUser(createTestId());
+		const result = await createOneOffShiftAction({
+			...validInput,
+			date: '2026-02-23',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.createOneOffShift).not.toHaveBeenCalled();
+	});
+
+	it('ServiceErrorを委譲する（409）', async () => {
+		mockAuthUser(createTestId());
+		mockService.createOneOffShift.mockRejectedValue(
+			new ServiceError(409, 'Shift already exists'),
+		);
+
+		const result = await createOneOffShiftAction(validInput);
+		expect(result.status).toBe(409);
+		expect(result.error).toBe('Shift already exists');
+	});
+
+	it('作成に成功し、ShiftRecord を返す', async () => {
+		const userId = createTestId();
+		mockAuthUser(userId);
+		const now = new Date('2026-02-19T00:00:00Z');
+		mockService.createOneOffShift.mockResolvedValue({
+			id: createTestId(),
+			client_id: validInput.client_id,
+			service_type_id: validInput.service_type_id,
+			staff_id: validInput.staff_id,
+			date: new Date(validInput.date),
+			time: { start: validInput.start_time, end: validInput.end_time },
+			status: 'scheduled',
+			is_unassigned: false,
+			created_at: now,
+			updated_at: now,
+		});
+
+		const result = await createOneOffShiftAction(validInput);
+
+		expect(mockService.createOneOffShift).toHaveBeenCalledWith(userId, {
+			client_id: validInput.client_id,
+			service_type_id: validInput.service_type_id,
+			staff_id: validInput.staff_id,
+			date: expect.any(Date),
+			start_time: validInput.start_time,
+			end_time: validInput.end_time,
+		});
+		expect(result.status).toBe(201);
+		expect(result.data?.client_id).toBe(validInput.client_id);
 	});
 });
 

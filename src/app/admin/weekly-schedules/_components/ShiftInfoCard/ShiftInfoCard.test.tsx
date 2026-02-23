@@ -6,8 +6,8 @@ const mockShift = {
 	clientName: '山田太郎',
 	serviceTypeName: '身体介護',
 	date: new Date('2024-01-15'),
-	startTime: new Date('2024-01-15T09:00:00'),
-	endTime: new Date('2024-01-15T10:00:00'),
+	startTime: new Date('2024-01-15T09:00:00Z'),
+	endTime: new Date('2024-01-15T10:00:00Z'),
 	currentStaffName: '佐藤花子',
 };
 

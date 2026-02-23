@@ -1,3 +1,4 @@
+import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import { Shift, ShiftSchema } from '@/models/shift';
 import {
@@ -15,6 +16,10 @@ export interface ShiftFilters {
 	officeId?: string;
 	startDate?: Date;
 	endDate?: Date;
+	/** 日時レンジの開始（gte で適用） */
+	startDateTime?: Date;
+	/** 日時レンジの終了（lt で適用、排他的） */
+	endDateTime?: Date;
 	staffId?: string;
 	clientId?: string;
 	status?: Shift['status'];
@@ -101,6 +106,12 @@ export class ShiftRepository {
 		);
 		query = applyIf(query, filters.endDate, (q, d) =>
 			q.lte('start_time', setJstTime(d, 23, 59).toISOString()),
+		);
+		query = applyIf(query, filters.startDateTime, (q, d) =>
+			q.gte('start_time', d.toISOString()),
+		);
+		query = applyIf(query, filters.endDateTime, (q, d) =>
+			q.lt('start_time', d.toISOString()),
 		);
 		query = applyIf(query, filters.staffId, (q, v) => q.eq('staff_id', v));
 		query = applyIf(query, filters.clientId, (q, v) => q.eq('client_id', v));
@@ -244,6 +255,34 @@ export class ShiftRepository {
 	}
 
 	/**
+	 * シフトの開始/終了時刻（必要に応じて担当者）を更新する
+	 * start_time, end_time は timestamptz (ISO文字列) として保存する
+	 */
+	async updateShiftSchedule(
+		shiftId: string,
+		params: {
+			startTime: Date;
+			endTime: Date;
+			staffId: string | null;
+			notes?: string;
+		},
+	): Promise<void> {
+		const { error } = await this.supabase
+			.from('shifts')
+			.update({
+				start_time: params.startTime.toISOString(),
+				end_time: params.endTime.toISOString(),
+				staff_id: params.staffId,
+				is_unassigned: params.staffId === null,
+				notes: params.notes,
+				updated_at: new Date().toISOString(),
+			})
+			.eq('id', shiftId);
+
+		if (error) throw error;
+	}
+
+	/**
 	 * シフトをキャンセルする
 	 */
 	async cancelShift(
@@ -298,13 +337,20 @@ export class ShiftRepository {
 		endTime: Date,
 		excludeShiftId?: string,
 	): Promise<Shift[]> {
+		const bufferedStart = new Date(
+			startTime.getTime() - STAFF_SHIFT_INTERVAL_MINUTES * 60_000,
+		);
+		const bufferedEnd = new Date(
+			endTime.getTime() + STAFF_SHIFT_INTERVAL_MINUTES * 60_000,
+		);
+
 		let query = this.supabase
 			.from('shifts')
 			.select('*')
 			.eq('staff_id', staffId)
 			.neq('status', 'canceled')
 			.or(
-				`and(start_time.lt.${endTime.toISOString()},end_time.gt.${startTime.toISOString()})`,
+				`and(start_time.lt.${bufferedEnd.toISOString()},end_time.gt.${bufferedStart.toISOString()})`,
 			);
 
 		if (excludeShiftId) {
@@ -313,6 +359,70 @@ export class ShiftRepository {
 
 		const { data, error } = await query.order('start_time');
 
+		if (error) throw error;
+		return (data ?? []).map((row) => this.toDomain(row));
+	}
+
+	/**
+	 * 指定クライアントの指定時間帯の重複シフトを検索する（部分的な重なりも含む）
+	 * 重複判定: start < existingEnd && end > existingStart
+	 */
+	async findClientConflictingShifts(
+		clientId: string,
+		startTime: Date,
+		endTime: Date,
+		officeId?: string,
+		excludeShiftId?: string,
+	): Promise<Shift[]> {
+		const baseQuery = officeId
+			? this.supabase
+					.from('shifts')
+					.select('*, clients!inner(office_id)')
+					.eq('clients.office_id', officeId)
+			: this.supabase.from('shifts').select('*');
+		type Query = typeof baseQuery;
+
+		let query: Query = baseQuery
+			.eq('client_id', clientId)
+			.neq('status', 'canceled')
+			.lt('start_time', endTime.toISOString())
+			.gt('end_time', startTime.toISOString());
+
+		if (excludeShiftId) {
+			query = query.neq('id', excludeShiftId);
+		}
+
+		const { data, error } = await query.order('start_time');
+		if (error) throw error;
+		return (data ?? []).map((row) => this.toDomain(row));
+	}
+
+	/**
+	 * 指定スタッフの指定時間帯の重複シフトを検索する（部分的な重なりも含む）
+	 * 重複判定: start < existingEnd && end > existingStart
+	 * office 境界は client(=shifts.client_id) の office_id で判定する
+	 */
+	async findStaffConflictingShifts(
+		staffId: string,
+		startTime: Date,
+		endTime: Date,
+		officeId: string,
+		excludeShiftId?: string,
+	): Promise<Shift[]> {
+		let query = this.supabase
+			.from('shifts')
+			.select('*, clients!inner(office_id)')
+			.eq('clients.office_id', officeId)
+			.eq('staff_id', staffId)
+			.neq('status', 'canceled')
+			.lt('start_time', endTime.toISOString())
+			.gt('end_time', startTime.toISOString());
+
+		if (excludeShiftId) {
+			query = query.neq('id', excludeShiftId);
+		}
+
+		const { data, error } = await query.order('start_time');
 		if (error) throw error;
 		return (data ?? []).map((row) => this.toDomain(row));
 	}

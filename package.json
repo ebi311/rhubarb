@@ -20,6 +20,8 @@
 		"supa:reset": "supabase db reset",
 		"supa:types": "supabase gen types typescript --local > ./src/backend/types/supabase.ts",
 		"supa:migrate": "supabase migration up",
+		"testdata:generate": "node ./scripts/generate-test-data.mjs",
+		"testdata:import": "node ./scripts/import-test-data.mjs",
 		"format": "prettier --write .",
 		"prepare": "husky"
 	},
@@ -33,6 +35,7 @@
 		]
 	},
 	"dependencies": {
+		"@emotion/react": "^11.14.0",
 		"@hookform/resolvers": "^5.2.2",
 		"@supabase/ssr": "^0.8.0",
 		"@supabase/supabase-js": "^2.87.1",

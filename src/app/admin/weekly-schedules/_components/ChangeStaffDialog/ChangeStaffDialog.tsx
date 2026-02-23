@@ -2,6 +2,7 @@
 
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { StaffPickerDialog } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import { useId } from 'react';
 import { ShiftInfoCard } from '../ShiftInfoCard';
 import { StaffConflictWarning } from '../StaffConflictWarning';
 import { useChangeStaffDialog } from './useChangeStaffDialog';
@@ -32,12 +33,24 @@ export const ChangeStaffDialog = ({
 	onClose,
 	onSuccess,
 }: ChangeStaffDialogProps) => {
+	const inputIdBase = useId();
+	const reasonTextareaId = `${inputIdBase}-reason`;
+
 	const {
 		showStaffPicker,
 		setShowStaffPicker,
 		selectedStaffId,
 		reason,
 		setReason,
+		dateStr,
+		setDateStr,
+		startTimeStr,
+		setStartTimeStr,
+		endTimeStr,
+		setEndTimeStr,
+		editedDate,
+		editedStartTime,
+		editedEndTime,
 		conflictingShifts,
 		isChecking,
 		isSubmitting,
@@ -76,7 +89,57 @@ export const ChangeStaffDialog = ({
 					</div>
 
 					<div className="mt-4 space-y-4">
-						<ShiftInfoCard shift={shift} />
+						<ShiftInfoCard
+							shift={{
+								...shift,
+								date: editedDate,
+								startTime: editedStartTime,
+								endTime: editedEndTime,
+							}}
+						/>
+
+						{/* 日時 */}
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+							<div>
+								<label className="label" htmlFor="change-staff-date">
+									<span className="label-text font-medium">日付</span>
+								</label>
+								<input
+									id="change-staff-date"
+									type="date"
+									className="input-bordered input w-full"
+									value={dateStr}
+									onChange={(e) => setDateStr(e.target.value)}
+									disabled={isSubmitting}
+								/>
+							</div>
+							<div>
+								<label className="label" htmlFor="change-staff-start">
+									<span className="label-text font-medium">開始</span>
+								</label>
+								<input
+									id="change-staff-start"
+									type="time"
+									className="input-bordered input w-full"
+									value={startTimeStr}
+									onChange={(e) => setStartTimeStr(e.target.value)}
+									disabled={isSubmitting}
+								/>
+							</div>
+							<div>
+								<label className="label" htmlFor="change-staff-end">
+									<span className="label-text font-medium">終了</span>
+								</label>
+								<input
+									id="change-staff-end"
+									type="time"
+									className="input-bordered input w-full"
+									value={endTimeStr}
+									onChange={(e) => setEndTimeStr(e.target.value)}
+									disabled={isSubmitting}
+								/>
+							</div>
+						</div>
 
 						{/* スタッフ選択 */}
 						<div>
@@ -86,6 +149,11 @@ export const ChangeStaffDialog = ({
 							<button
 								type="button"
 								className="btn w-full btn-outline"
+								aria-label={
+									selectedStaff
+										? `新しい担当者: ${selectedStaff.name}`
+										: '新しい担当者'
+								}
 								onClick={() => setShowStaffPicker(true)}
 								disabled={isSubmitting}
 							>
@@ -103,10 +171,11 @@ export const ChangeStaffDialog = ({
 
 						{/* 変更理由 */}
 						<div>
-							<label className="label">
+							<label className="label" htmlFor={reasonTextareaId}>
 								<span className="label-text">変更理由（任意）</span>
 							</label>
 							<textarea
+								id={reasonTextareaId}
 								className="textarea-bordered textarea w-full"
 								rows={3}
 								placeholder="変更理由を入力してください（任意）"

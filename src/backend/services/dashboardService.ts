@@ -9,7 +9,13 @@ import type {
 } from '@/models/dashboardActionSchemas';
 import { Shift } from '@/models/shift';
 import { timeToMinutes } from '@/models/valueObjects/time';
-import { dateJst, timeObjectToString } from '@/utils/date';
+import {
+	addJstDays,
+	dateJst,
+	setJstTime,
+	timeObjectToString,
+	toAbsMinutesFrom0600,
+} from '@/utils/date';
 
 export interface DashboardServiceDeps {
 	shiftRepository: ShiftRepository;
@@ -47,6 +53,10 @@ export class DashboardService {
 
 	/**
 	 * ダッシュボード統計データを取得
+	 *
+	 * 注意: todayShiftCount は暦日（00:00〜23:59）でフィルタされるため、
+	 * getTodayTimeline（06:00〜翌06:00）とは対象シフトが異なる場合がある。
+	 * 例: 深夜 02:00 のシフトは Stats では翌日扱いだが、Timeline では当日扱いになる。
 	 */
 	async getDashboardStats(
 		officeId: string,
@@ -90,24 +100,29 @@ export class DashboardService {
 	}
 
 	/**
-	 * 今日のタイムラインを取得
+	 * 今日のタイムラインを取得（06:00〜翌06:00）
 	 */
 	async getTodayTimeline(
 		officeId: string,
 		today: Date,
 	): Promise<TodayTimelineItem[]> {
+		const rangeStart = setJstTime(today, 6, 0);
+		const rangeEnd = setJstTime(addJstDays(today, 1), 6, 0);
+
 		const filters: ShiftFilters = {
 			officeId,
-			startDate: today,
-			endDate: today,
+			startDateTime: rangeStart,
+			endDateTime: rangeEnd,
 		};
 		const shifts = await this.shiftRepository.list(filters);
 
 		const items = shifts.map((shift) => this.toTimelineItem(shift));
 
-		// 開始時間でソート
+		// 06:00起点でソート
 		return items.sort((a, b) => {
-			return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+			const aAbs = toAbsMinutesFrom0600(timeToMinutes(a.startTime));
+			const bAbs = toAbsMinutesFrom0600(timeToMinutes(b.startTime));
+			return aAbs - bAbs;
 		});
 	}
 

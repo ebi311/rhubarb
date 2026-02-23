@@ -220,7 +220,7 @@ const ShiftCell = ({
 							onClick={handleChangeStaffAction}
 							aria-label="担当者を変更"
 						>
-							<Icon name="person_edit" className="text-base" />
+							<Icon name="edit" className="text-base" />
 						</button>
 						<button
 							type="button"

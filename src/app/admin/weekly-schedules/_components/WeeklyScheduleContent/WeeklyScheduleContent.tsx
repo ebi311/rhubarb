@@ -2,6 +2,7 @@ import { getServiceUsersAction } from '@/app/actions/serviceUsers';
 import { listStaffsAction } from '@/app/actions/staffs';
 import { listShiftsAction } from '@/app/actions/weeklySchedules';
 import { addJstDays, formatJstDateString } from '@/utils/date';
+import type { CreateOneOffShiftDialogClientOption } from '../CreateOneOffShiftDialog';
 import type { ShiftDisplayRow } from '../ShiftTable';
 import { WeeklySchedulePage } from '../WeeklySchedulePage';
 
@@ -45,6 +46,7 @@ export const WeeklyScheduleContent = async ({
 		date: shift.date,
 		startTime: shift.start_time,
 		endTime: shift.end_time,
+		clientId: shift.client_id,
 		clientName: clientNameMap.get(shift.client_id) ?? '不明な利用者',
 		serviceTypeId: shift.service_type_id,
 		staffId: shift.staff_id,
@@ -65,11 +67,19 @@ export const WeeklyScheduleContent = async ({
 		serviceTypeIds: staff.service_type_ids,
 	}));
 
+	const clientOptions: CreateOneOffShiftDialogClientOption[] = (
+		clientsResult.data ?? []
+	).map((client) => ({
+		id: client.id,
+		name: client.name,
+	}));
+
 	return (
 		<WeeklySchedulePage
 			weekStartDate={weekStartDate}
 			initialShifts={shifts}
 			staffOptions={staffOptions}
+			clientOptions={clientOptions}
 		/>
 	);
 };

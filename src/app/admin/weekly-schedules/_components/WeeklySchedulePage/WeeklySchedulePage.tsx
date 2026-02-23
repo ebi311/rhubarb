@@ -14,12 +14,15 @@ import {
 	ChangeStaffDialog,
 	type ChangeStaffDialogShift,
 } from '../ChangeStaffDialog';
+import { CreateOneOffShiftButton } from '../CreateOneOffShiftButton';
+import { CreateOneOffShiftDialog } from '../CreateOneOffShiftDialog';
 import { EmptyState } from '../EmptyState';
 import { GenerateButton, type GenerateResult } from '../GenerateButton';
 import {
 	RestoreShiftDialog,
 	type RestoreShiftDialogShift,
 } from '../RestoreShiftDialog';
+import { ShiftAdjustmentDialog } from '../ShiftAdjustmentDialog';
 import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
 import { StaffWeeklyShiftGrid, WeeklyShiftGrid } from '../WeeklyShiftGrid';
@@ -32,6 +35,7 @@ export interface WeeklySchedulePageProps {
 	weekStartDate: Date;
 	initialShifts: ShiftDisplayRow[];
 	staffOptions: StaffPickerOption[];
+	clientOptions: { id: string; name: string }[];
 }
 
 const shiftToDateTime = (
@@ -88,8 +92,10 @@ export const WeeklySchedulePage = ({
 	weekStartDate,
 	initialShifts,
 	staffOptions,
+	clientOptions,
 }: WeeklySchedulePageProps) => {
 	const router = useRouter();
+	const weekStartDateStr = formatJstDateString(weekStartDate);
 	const [viewMode, setViewMode] = useState<WeeklyViewMode>('list');
 	const [changeDialogShift, setChangeDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
@@ -97,6 +103,22 @@ export const WeeklySchedulePage = ({
 		useState<ShiftDisplayRow | null>(null);
 	const [restoreDialogShift, setRestoreDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
+	const [isCreateOneOffOpen, setIsCreateOneOffOpen] = useState(false);
+	const [isShiftAdjustmentOpen, setIsShiftAdjustmentOpen] = useState(false);
+	const [createOneOffDefaultDateStr, setCreateOneOffDefaultDateStr] = useState<
+		string | undefined
+	>();
+	const [createOneOffDefaultClientId, setCreateOneOffDefaultClientId] =
+		useState<string | undefined>();
+
+	const handleOpenCreateOneOffShiftDialog = (
+		defaultDateStr: string,
+		defaultClientId?: string,
+	) => {
+		setCreateOneOffDefaultDateStr(defaultDateStr);
+		setCreateOneOffDefaultClientId(defaultClientId);
+		setIsCreateOneOffOpen(true);
+	};
 
 	const handleWeekChange = (date: Date) => {
 		const weekParam = formatJstDateString(date);
@@ -150,6 +172,13 @@ export const WeeklySchedulePage = ({
 					onWeekChange={handleWeekChange}
 				/>
 				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						className="btn btn-outline"
+						onClick={() => setIsShiftAdjustmentOpen(true)}
+					>
+						調整相談
+					</button>
 					<WeeklyViewToggleButton
 						currentView={viewMode}
 						onViewChange={setViewMode}
@@ -158,6 +187,9 @@ export const WeeklySchedulePage = ({
 						weekStartDate={weekStartDate}
 						onGenerated={handleGenerated}
 						disabled={false}
+					/>
+					<CreateOneOffShiftButton
+						onOpen={() => handleOpenCreateOneOffShiftDialog(weekStartDateStr)}
 					/>
 				</div>
 			</div>
@@ -179,6 +211,9 @@ export const WeeklySchedulePage = ({
 						onAssignStaff={handleAssignStaff}
 						onCancelShift={handleCancelShift}
 						onRestoreShift={handleRestoreShift}
+						onAddOneOffShift={(dateStr, clientId) =>
+							handleOpenCreateOneOffShiftDialog(dateStr, clientId)
+						}
 					/>
 				) : (
 					<StaffWeeklyShiftGrid
@@ -195,6 +230,24 @@ export const WeeklySchedulePage = ({
 					onGenerate={handleGenerateFromEmpty}
 				/>
 			)}
+
+			<CreateOneOffShiftDialog
+				isOpen={isCreateOneOffOpen}
+				weekStartDate={weekStartDate}
+				defaultDateStr={createOneOffDefaultDateStr}
+				defaultClientId={createOneOffDefaultClientId}
+				clientOptions={clientOptions}
+				staffOptions={staffOptions}
+				onClose={() => setIsCreateOneOffOpen(false)}
+			/>
+
+			<ShiftAdjustmentDialog
+				isOpen={isShiftAdjustmentOpen}
+				weekStartDate={weekStartDate}
+				staffOptions={staffOptions}
+				shifts={initialShifts}
+				onClose={() => setIsShiftAdjustmentOpen(false)}
+			/>
 
 			{changeDialogShift && (
 				<ChangeStaffDialog

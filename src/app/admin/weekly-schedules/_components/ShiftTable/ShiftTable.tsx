@@ -14,6 +14,7 @@ export type ShiftDisplayRow = {
 	date: Date;
 	startTime: { hour: number; minute: number };
 	endTime: { hour: number; minute: number };
+	clientId: string;
 	clientName: string;
 	serviceTypeId: ServiceTypeId;
 	staffId: string | null;
@@ -156,7 +157,7 @@ export const ShiftTable = ({
 											onClick={() => onChangeStaff?.(shift)}
 											aria-label="担当者を変更"
 										>
-											<Icon name="person_edit" className="text-base" />
+											<Icon name="edit" className="text-base" />
 										</button>
 									)}
 								</>

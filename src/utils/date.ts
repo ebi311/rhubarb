@@ -25,7 +25,7 @@ export const dateJst = (date: Date): Dayjs => {
  * 例: "2026-01-19" → JST 2026-01-19 00:00:00 の Date
  */
 export const parseJstDateString = (dateStr: string): Date => {
-	// ISO 形式の場合、dayjs にわたすと、タイムゾーンの指定が無視されるので、	Date に変換してから渡す
+	// ISO 形式の場合、dayjs にわたすと、タイムゾーンの指定が無視されるので、Date に変換してから渡す
 	let ds: string | Date = dateStr;
 	if (/^T[\d:]+[z+-]/i.test(dateStr)) {
 		ds = new Date(dateStr);
@@ -52,6 +52,16 @@ export const getJstHours = (date: Date): number => {
  */
 export const getJstMinutes = (date: Date): number => {
 	return dayjs(date).tz(JST).minute();
+};
+
+/**
+ * Date を JST の HH:mm 形式の文字列に変換
+ */
+export const toJstTimeStr = (date: Date): string => {
+	return timeObjectToString({
+		hour: getJstHours(date),
+		minute: getJstMinutes(date),
+	});
 };
 
 /**
@@ -130,6 +140,23 @@ export const timeObjectToString = (time: TimeValue): string => {
 };
 
 /**
+ * HH:mm 形式の文字列を TimeValue オブジェクトに変換（緩めのパース）
+ * - "9:00" のような入力も許容
+ * - "09:30:00" のように秒が含まれていても、先頭2要素を使う
+ * 不正な形式の場合は null を返す
+ */
+export const parseHHmm = (value: string): TimeValue | null => {
+	const [hStr, mStr] = value.split(':');
+	if (!hStr || !mStr) return null;
+	const hour = Number(hStr);
+	const minute = Number(mStr);
+	if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+	if (hour < 0 || hour > 23) return null;
+	if (minute < 0 || minute > 59) return null;
+	return { hour, minute };
+};
+
+/**
  * HH:mm 形式の文字列を TimeValue オブジェクトに変換
  * 例: "09:30" -> { hour: 9, minute: 30 }
  * 不正な形式の場合は null を返す
@@ -150,4 +177,13 @@ export const timeObjectToStringWithTimezone = (time: TimeValue): string => {
 	const hourStr = time.hour.toString().padStart(2, '0');
 	const minuteStr = time.minute.toString().padStart(2, '0');
 	return `${hourStr}:${minuteStr}+09:00`;
+};
+
+/**
+ * 06:00起点の絶対分数に変換
+ * 06:00が0、翌05:59が1439になる
+ */
+export const toAbsMinutesFrom0600 = (totalMinutes: number): number => {
+	const offset = totalMinutes - 360; // 06:00 = 360分
+	return offset < 0 ? offset + 1440 : offset;
 };
