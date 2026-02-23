@@ -86,20 +86,7 @@ export const suggestClientDatetimeChangeAdjustmentsAction = async (
 
 	const service = new ShiftAdjustmentSuggestionService(supabase);
 	try {
-		const suggestClientDatetimeChangeAdjustments = (
-			service as ShiftAdjustmentSuggestionService & {
-				suggestClientDatetimeChangeAdjustments?: (
-					userId: string,
-					input: ClientDatetimeChangeActionInput,
-				) => Promise<SuggestClientDatetimeChangeAdjustmentsOutput>;
-			}
-		).suggestClientDatetimeChangeAdjustments;
-
-		if (!suggestClientDatetimeChangeAdjustments) {
-			throw new ServiceError(501, 'Not implemented');
-		}
-
-		const result = await suggestClientDatetimeChangeAdjustments(
+		const result = await service.suggestClientDatetimeChangeAdjustments(
 			user.id,
 			parsedInput.data,
 		);
