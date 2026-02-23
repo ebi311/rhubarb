@@ -37,6 +37,7 @@ let mockService: MockService;
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	vi.spyOn(console, 'error').mockImplementation(() => {});
 	mockService = createMockService();
 	mockSupabase.auth.getUser.mockReset();
 	(createSupabaseClient as Mock).mockResolvedValue(mockSupabase);
@@ -84,6 +85,26 @@ describe('suggestShiftAdjustmentsAction', () => {
 
 		expect(result.status).toBe(400);
 		expect(result.error).toBe('Validation failed');
+		expect(console.error).toHaveBeenCalledWith(
+			'suggestShiftAdjustmentsAction validation failed',
+			expect.objectContaining({
+				issues: expect.arrayContaining([
+					expect.objectContaining({
+						path: ['staffId'],
+						code: 'invalid_format',
+					}),
+				]),
+			}),
+		);
+		expect(Array.isArray(result.details)).toBe(true);
+		expect(result.details).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: ['staffId'],
+					code: 'invalid_format',
+				}),
+			]),
+		);
 		expect(mockService.suggestShiftAdjustments).not.toHaveBeenCalled();
 	});
 
@@ -172,6 +193,26 @@ describe('suggestClientDatetimeChangeAdjustmentsAction', () => {
 
 		expect(result.status).toBe(400);
 		expect(result.error).toBe('Validation failed');
+		expect(console.error).toHaveBeenCalledWith(
+			'suggestClientDatetimeChangeAdjustmentsAction validation failed',
+			expect.objectContaining({
+				issues: expect.arrayContaining([
+					expect.objectContaining({
+						path: ['shiftId'],
+						code: 'invalid_format',
+					}),
+				]),
+			}),
+		);
+		expect(Array.isArray(result.details)).toBe(true);
+		expect(result.details).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: ['shiftId'],
+					code: 'invalid_format',
+				}),
+			]),
+		);
 		expect(
 			mockService.suggestClientDatetimeChangeAdjustments,
 		).not.toHaveBeenCalled();

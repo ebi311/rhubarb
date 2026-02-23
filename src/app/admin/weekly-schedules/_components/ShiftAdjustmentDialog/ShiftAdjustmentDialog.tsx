@@ -6,6 +6,7 @@ import {
 } from '@/app/actions/shiftAdjustments';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type {
 	ClientDatetimeChangeActionInput,
 	ShiftAdjustmentOperation,
@@ -14,8 +15,10 @@ import type {
 	SuggestShiftAdjustmentsOutput,
 } from '@/models/shiftAdjustmentActionSchemas';
 import {
+	addJstDays,
 	formatJstDateString,
 	getJstDateOnly,
+	parseJstDateString,
 	stringToTimeObject,
 } from '@/utils/date';
 import { useEffect, useMemo, useState } from 'react';
@@ -54,6 +57,19 @@ const resolveShiftTitle = (
 		.padStart(2, '0')}:${shift.endTime.minute.toString().padStart(2, '0')}）`;
 };
 
+const toDateInputString = (
+	value: string,
+	offsetDays: number,
+	fallback: string,
+) => {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+		return fallback;
+	}
+	return formatJstDateString(addJstDays(parseJstDateString(value), offsetDays));
+};
+
+const ACTION_ERROR_MESSAGE = '処理できませんでした。';
+
 /* eslint-disable complexity */
 export const ShiftAdjustmentDialog = ({
 	isOpen,
@@ -71,19 +87,15 @@ export const ShiftAdjustmentDialog = ({
 		() => staffOptions.filter((s) => s.role === 'helper'),
 		[staffOptions],
 	);
-
-	const weekEndDate = useMemo(() => {
-		const start = getJstDateOnly(weekStartDate);
-		return new Date(start.getTime() + 6 * 86400000);
-	}, [weekStartDate]);
+	const { handleActionResult } = useActionResultHandler();
+	const todayDateStr = useMemo(
+		() => formatJstDateString(getJstDateOnly(new Date())),
+		[isOpen],
+	);
 
 	const [staffId, setStaffId] = useState('');
-	const [startDateStr, setStartDateStr] = useState(
-		formatJstDateString(weekStartDate),
-	);
-	const [endDateStr, setEndDateStr] = useState(
-		formatJstDateString(weekEndDate),
-	);
+	const [startDateStr, setStartDateStr] = useState(todayDateStr);
+	const [endDateStr, setEndDateStr] = useState(todayDateStr);
 	const [targetShiftId, setTargetShiftId] = useState('');
 	const [newDateStr, setNewDateStr] = useState(
 		formatJstDateString(weekStartDate),
@@ -103,8 +115,8 @@ export const ShiftAdjustmentDialog = ({
 
 		setAdjustmentType('staff_absence');
 		setStaffId('');
-		setStartDateStr(formatJstDateString(weekStartDate));
-		setEndDateStr(formatJstDateString(weekEndDate));
+		setStartDateStr(todayDateStr);
+		setEndDateStr(todayDateStr);
 		setTargetShiftId('');
 		setNewDateStr(formatJstDateString(weekStartDate));
 		setNewStartTime('09:00');
@@ -114,7 +126,18 @@ export const ShiftAdjustmentDialog = ({
 		setErrorMessage(null);
 		setResultData(null);
 		setClientResultData(null);
-	}, [isOpen, weekStartDate, weekEndDate]);
+	}, [isOpen, todayDateStr, weekStartDate]);
+
+	const startDateMin = useMemo(
+		() => toDateInputString(endDateStr, -13, todayDateStr),
+		[endDateStr, todayDateStr],
+	);
+	const startDateMax = endDateStr;
+	const endDateMin = startDateStr;
+	const endDateMax = useMemo(
+		() => toDateInputString(startDateStr, 13, todayDateStr),
+		[startDateStr, todayDateStr],
+	);
 
 	const shiftMap = useMemo(() => {
 		const map = new Map<string, ShiftDisplayRow>();
@@ -162,13 +185,30 @@ export const ShiftAdjustmentDialog = ({
 				endDate: endDateStr,
 				memo: memo.trim() ? memo.trim() : undefined,
 			});
-			if (res.error) {
-				setErrorMessage(res.error);
+			if (
+				!handleActionResult(res, {
+					errorMessage: ACTION_ERROR_MESSAGE,
+					onError: () => {
+						console.error('Failed to suggest shift adjustments', {
+							error: res.error,
+							details: res.details,
+						});
+					},
+				})
+			) {
+				setErrorMessage(ACTION_ERROR_MESSAGE);
 				return;
 			}
 			setResultData(res.data);
 			setClientResultData(null);
-		} catch {
+		} catch (error) {
+			console.error('Unexpected error while suggesting shift adjustments', {
+				error,
+			});
+			handleActionResult(
+				{ data: null, error: ACTION_ERROR_MESSAGE, status: 500 },
+				{ errorMessage: ACTION_ERROR_MESSAGE },
+			);
 			setErrorMessage(
 				'提案の取得に失敗しました。通信状況を確認して再度お試しください。',
 			);
@@ -206,13 +246,34 @@ export const ShiftAdjustmentDialog = ({
 				newEndTime: parsedEndTime,
 				memo: memo.trim() ? memo.trim() : undefined,
 			});
-			if (res.error) {
-				setErrorMessage(res.error);
+			if (
+				!handleActionResult(res, {
+					errorMessage: ACTION_ERROR_MESSAGE,
+					onError: () => {
+						console.error(
+							'Failed to suggest client datetime change adjustments',
+							{
+								error: res.error,
+								details: res.details,
+							},
+						);
+					},
+				})
+			) {
+				setErrorMessage(ACTION_ERROR_MESSAGE);
 				return;
 			}
 			setClientResultData(res.data);
 			setResultData(null);
-		} catch {
+		} catch (error) {
+			console.error(
+				'Unexpected error while suggesting client datetime change adjustments',
+				{ error },
+			);
+			handleActionResult(
+				{ data: null, error: ACTION_ERROR_MESSAGE, status: 500 },
+				{ errorMessage: ACTION_ERROR_MESSAGE },
+			);
 			setErrorMessage(
 				'提案の取得に失敗しました。通信状況を確認して再度お試しください。',
 			);
@@ -435,6 +496,8 @@ export const ShiftAdjustmentDialog = ({
 									type="date"
 									className="input-bordered input w-full"
 									value={startDateStr}
+									min={startDateMin}
+									max={startDateMax}
 									onChange={(e) => setStartDateStr(e.target.value)}
 									disabled={isSubmitting}
 								/>
@@ -448,6 +511,8 @@ export const ShiftAdjustmentDialog = ({
 									type="date"
 									className="input-bordered input w-full"
 									value={endDateStr}
+									min={endDateMin}
+									max={endDateMax}
 									onChange={(e) => setEndDateStr(e.target.value)}
 									disabled={isSubmitting}
 								/>
