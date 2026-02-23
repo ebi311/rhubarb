@@ -4,13 +4,26 @@ import {
 } from '@/app/actions/shiftAdjustments';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { TEST_IDS } from '@/test/helpers/testIds';
+import {
+	addJstDays,
+	formatJstDateString,
+	getJstDateOnly,
+	parseJstDateString,
+} from '@/utils/date';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'react-toastify';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShiftDisplayRow } from '../ShiftTable';
 import { ShiftAdjustmentDialog } from './ShiftAdjustmentDialog';
 
 vi.mock('@/app/actions/shiftAdjustments');
+vi.mock('react-toastify', () => ({
+	toast: {
+		error: vi.fn(),
+		success: vi.fn(),
+	},
+}));
 
 const mockStaffOptions: StaffPickerOption[] = [
 	{
@@ -71,6 +84,7 @@ const sampleShifts: ShiftDisplayRow[] = [
 describe('ShiftAdjustmentDialog', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.spyOn(console, 'error').mockImplementation(() => {});
 		vi.mocked(suggestShiftAdjustmentsAction).mockResolvedValue({
 			data: {
 				absence: {
@@ -260,11 +274,88 @@ describe('ShiftAdjustmentDialog', () => {
 		).not.toBeInTheDocument();
 	});
 
-	it('エラー時は最小のエラーメッセージを表示する', async () => {
+	it('初期表示で欠勤の日付デフォルトは today / today', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-03-10T09:00:00+09:00'));
+		try {
+			render(
+				<ShiftAdjustmentDialog
+					isOpen={true}
+					weekStartDate={new Date('2026-02-22T00:00:00+09:00')}
+					staffOptions={mockStaffOptions}
+					shifts={sampleShifts}
+					onClose={vi.fn()}
+				/>,
+			);
+
+			expect(screen.getByLabelText('開始日')).toHaveValue('2026-03-10');
+			expect(screen.getByLabelText('終了日')).toHaveValue('2026-03-10');
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('欠勤の日付入力に14日以内の min/max が付与される', async () => {
+		const user = userEvent.setup();
+		render(
+			<ShiftAdjustmentDialog
+				isOpen={true}
+				weekStartDate={new Date('2026-02-22T00:00:00+09:00')}
+				staffOptions={mockStaffOptions}
+				shifts={sampleShifts}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const startInput = screen.getByLabelText('開始日');
+		const endInput = screen.getByLabelText('終了日');
+		const today = formatJstDateString(getJstDateOnly(new Date()));
+		const todayMinus13 = formatJstDateString(
+			addJstDays(parseJstDateString(today), -13),
+		);
+		const todayPlus13 = formatJstDateString(
+			addJstDays(parseJstDateString(today), 13),
+		);
+
+		expect(startInput).toHaveAttribute('min', todayMinus13);
+		expect(startInput).toHaveAttribute('max', today);
+		expect(endInput).toHaveAttribute('min', today);
+		expect(endInput).toHaveAttribute('max', todayPlus13);
+
+		const startDate = formatJstDateString(
+			addJstDays(parseJstDateString(today), -3),
+		);
+		const endDate = formatJstDateString(
+			addJstDays(parseJstDateString(today), 2),
+		);
+
+		await user.clear(startInput);
+		await user.type(startInput, startDate);
+
+		expect(startInput).toHaveValue(startDate);
+		expect(endInput).toHaveAttribute('min', startDate);
+		expect(endInput).toHaveAttribute(
+			'max',
+			formatJstDateString(addJstDays(parseJstDateString(startDate), 13)),
+		);
+
+		await user.clear(endInput);
+		await user.type(endInput, endDate);
+
+		expect(endInput).toHaveValue(endDate);
+		expect(startInput).toHaveAttribute(
+			'min',
+			formatJstDateString(addJstDays(parseJstDateString(endDate), -13)),
+		);
+		expect(startInput).toHaveAttribute('max', endDate);
+	});
+
+	it('action error 時は toast と console.error を出す（詳細はUIに出さない）', async () => {
 		const user = userEvent.setup();
 		vi.mocked(suggestShiftAdjustmentsAction).mockResolvedValueOnce({
 			data: null,
 			error: 'Staff not found',
+			details: [{ path: ['staffId'], code: 'custom', message: 'not found' }],
 			status: 404,
 		});
 
@@ -285,8 +376,16 @@ describe('ShiftAdjustmentDialog', () => {
 		await user.click(screen.getByRole('button', { name: '提案を取得' }));
 
 		await waitFor(() => {
-			expect(screen.getByText('Staff not found')).toBeInTheDocument();
+			expect(toast.error).toHaveBeenCalledWith('処理できませんでした。');
 		});
+		expect(console.error).toHaveBeenCalledWith(
+			'Failed to suggest shift adjustments',
+			expect.objectContaining({
+				error: 'Staff not found',
+				details: [{ path: ['staffId'], code: 'custom', message: 'not found' }],
+			}),
+		);
+		expect(screen.queryByText('Staff not found')).not.toBeInTheDocument();
 	});
 
 	it('欠勤で開始日が終了日より後ならsubmitせずエラーを表示する', async () => {
@@ -317,7 +416,7 @@ describe('ShiftAdjustmentDialog', () => {
 		).toBeInTheDocument();
 	});
 
-	it('action が例外を投げた場合でも画面が落ちず、エラーを表示する', async () => {
+	it('action が例外を投げた場合でも画面が落ちず、toastで固定エラーを表示する', async () => {
 		const user = userEvent.setup();
 		vi.mocked(suggestShiftAdjustmentsAction).mockRejectedValueOnce(
 			new Error('Network failure'),
@@ -340,12 +439,13 @@ describe('ShiftAdjustmentDialog', () => {
 		await user.click(screen.getByRole('button', { name: '提案を取得' }));
 
 		await waitFor(() => {
-			expect(
-				screen.getByText(
-					'提案の取得に失敗しました。通信状況を確認して再度お試しください。',
-				),
-			).toBeInTheDocument();
+			expect(toast.error).toHaveBeenCalledWith('処理できませんでした。');
 		});
+		expect(
+			screen.queryByText(
+				'提案の取得に失敗しました。通信状況を確認して再度お試しください。',
+			),
+		).not.toBeInTheDocument();
 		expect(screen.getByRole('dialog')).toBeInTheDocument();
 	});
 
@@ -493,6 +593,7 @@ describe('ShiftAdjustmentDialog', () => {
 
 	it('ダイアログを再オープンすると入力・エラー・提案結果が初期化される', async () => {
 		const user = userEvent.setup();
+		const todayDateStr = formatJstDateString(getJstDateOnly(new Date()));
 		const weekStartDate = new Date('2026-02-22T00:00:00+09:00');
 		const { rerender } = render(
 			<ShiftAdjustmentDialog
@@ -555,8 +656,8 @@ describe('ShiftAdjustmentDialog', () => {
 
 		expect(screen.getByRole('radio', { name: 'スタッフ欠勤' })).toBeChecked();
 		expect(screen.getByLabelText('欠勤スタッフ')).toHaveValue('');
-		expect(screen.getByLabelText('開始日')).toHaveValue('2026-02-22');
-		expect(screen.getByLabelText('終了日')).toHaveValue('2026-02-28');
+		expect(screen.getByLabelText('開始日')).toHaveValue(todayDateStr);
+		expect(screen.getByLabelText('終了日')).toHaveValue(todayDateStr);
 		expect(screen.getByLabelText('メモ（任意）')).toHaveValue('');
 		expect(
 			screen.queryByText('開始時刻は終了時刻より前を指定してください。'),

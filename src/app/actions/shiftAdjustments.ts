@@ -24,6 +24,15 @@ import {
 	successResult,
 } from './utils/actionResult';
 
+const toSanitizedIssues = (
+	issues: Array<{ path: PropertyKey[]; code: string; message: string }>,
+) =>
+	issues.map((issue) => ({
+		path: issue.path,
+		code: issue.code,
+		message: issue.message,
+	}));
+
 const getAuthUser = async () => {
 	const supabase = await createSupabaseClient();
 	const {
@@ -55,7 +64,11 @@ export const suggestShiftAdjustmentsAction = async (
 
 	const parsedInput = StaffAbsenceInputSchema.safeParse(input);
 	if (!parsedInput.success) {
-		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+		const issues = toSanitizedIssues(parsedInput.error.issues);
+		console.error('suggestShiftAdjustmentsAction validation failed', {
+			issues,
+		});
+		return errorResult('Validation failed', 400, issues);
 	}
 
 	const service = new ShiftAdjustmentSuggestionService(supabase);
@@ -81,7 +94,12 @@ export const suggestClientDatetimeChangeAdjustmentsAction = async (
 
 	const parsedInput = ClientDatetimeChangeInputSchema.safeParse(input);
 	if (!parsedInput.success) {
-		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+		const issues = toSanitizedIssues(parsedInput.error.issues);
+		console.error(
+			'suggestClientDatetimeChangeAdjustmentsAction validation failed',
+			{ issues },
+		);
+		return errorResult('Validation failed', 400, issues);
 	}
 
 	const service = new ShiftAdjustmentSuggestionService(supabase);

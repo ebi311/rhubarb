@@ -43,4 +43,8 @@ export const useActionResultHandler = () => {
 	return { handleActionResult };
 };
 
+export type HandleActionResult = ReturnType<
+	typeof useActionResultHandler
+>['handleActionResult'];
+
 export type { HandleActionResultOptions };
