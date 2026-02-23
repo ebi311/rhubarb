@@ -3,6 +3,7 @@ import {
 	suggestShiftAdjustmentsAction,
 } from '@/app/actions/shiftAdjustments';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
+import type { HandleActionResult } from '@/hooks/useActionResultHandler';
 import type {
 	ClientDatetimeChangeActionInput,
 	SuggestClientDatetimeChangeAdjustmentsOutput,
@@ -36,15 +37,7 @@ type UseShiftAdjustmentDialogSubmitParams = {
 	requestClientDatetimeChangeSuggestions?: (
 		input: ClientDatetimeChangeActionInput,
 	) => Promise<ActionResult<SuggestClientDatetimeChangeAdjustmentsOutput>>;
-	handleActionResult: (
-		result: ActionResult<unknown>,
-		options?: {
-			successMessage?: string;
-			errorMessage?: string;
-			onSuccess?: (data: unknown) => void;
-			onError?: () => void;
-		},
-	) => boolean;
+	handleActionResult: HandleActionResult;
 	setIsSubmitting: Dispatch<SetStateAction<boolean>>;
 	setErrorMessage: Dispatch<SetStateAction<string | null>>;
 	setResultData: Dispatch<SetStateAction<SuggestShiftAdjustmentsOutput | null>>;

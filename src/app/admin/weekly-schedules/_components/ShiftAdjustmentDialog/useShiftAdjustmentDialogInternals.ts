@@ -1,5 +1,6 @@
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import type { HandleActionResult } from '@/hooks/useActionResultHandler';
 import type {
 	ClientDatetimeChangeActionInput,
 	SuggestClientDatetimeChangeAdjustmentsOutput,
@@ -63,15 +64,7 @@ type BuildSubmitParamsArgs = {
 	requestClientDatetimeChangeSuggestions?: (
 		input: ClientDatetimeChangeActionInput,
 	) => Promise<ActionResult<SuggestClientDatetimeChangeAdjustmentsOutput>>;
-	handleActionResult: (
-		result: ActionResult<unknown>,
-		options?: {
-			successMessage?: string;
-			errorMessage?: string;
-			onSuccess?: (data: unknown) => void;
-			onError?: () => void;
-		},
-	) => boolean;
+	handleActionResult: HandleActionResult;
 };
 
 export const buildSubmitParams = ({
