@@ -1,4 +1,7 @@
-import { suggestShiftAdjustmentsAction } from '@/app/actions/shiftAdjustments';
+import {
+	suggestClientDatetimeChangeAdjustmentsAction,
+	suggestShiftAdjustmentsAction,
+} from '@/app/actions/shiftAdjustments';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
@@ -61,6 +64,54 @@ const meta = {
 						],
 					},
 				],
+			},
+			error: null,
+			status: 200,
+		});
+
+		mocked(suggestClientDatetimeChangeAdjustmentsAction).mockResolvedValue({
+			data: {
+				change: {
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newDate: new Date('2026-02-26T00:00:00+09:00'),
+					newStartTime: { hour: 13, minute: 0 },
+					newEndTime: { hour: 14, minute: 0 },
+					memo: '利用者都合の日時変更',
+				},
+				target: {
+					shift: {
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_2,
+						date: new Date('2026-02-24T00:00:00+09:00'),
+						start_time: { hour: 10, minute: 0 },
+						end_time: { hour: 11, minute: 0 },
+						status: 'scheduled',
+					},
+					suggestions: [
+						{
+							operations: [
+								{
+									type: 'update_shift_schedule',
+									shift_id: TEST_IDS.SCHEDULE_1,
+									new_date: new Date('2026-02-26T00:00:00+09:00'),
+									new_start_time: { hour: 13, minute: 0 },
+									new_end_time: { hour: 14, minute: 0 },
+								},
+								{
+									type: 'change_staff',
+									shift_id: TEST_IDS.SCHEDULE_2,
+									from_staff_id: TEST_IDS.STAFF_1,
+									to_staff_id: TEST_IDS.STAFF_3,
+								},
+							],
+							rationale: [
+								{ code: 'time_window_ok', message: '時間帯の調整が可能' },
+							],
+						},
+					],
+				},
 			},
 			error: null,
 			status: 200,
@@ -140,9 +191,7 @@ export const Default: Story = {
 		await expect(canvas.getByText(/佐々木花子/)).toBeInTheDocument();
 		await expect(canvas.getByText(/案1:.*佐藤次郎/)).toBeInTheDocument();
 		await expect(canvas.getByText(/2手目:/)).toBeInTheDocument();
-		await expect(
-			canvas.getAllByText(/2手目: 山田太郎 に変更/),
-		).toHaveLength(1);
+		await expect(canvas.getAllByText(/2手目: 山田太郎 に変更/)).toHaveLength(1);
 	},
 };
 
@@ -150,5 +199,31 @@ export const Closed: Story = {
 	args: {
 		...Default.args,
 		isOpen: false,
+	},
+};
+
+export const ClientDatetimeChange: Story = {
+	args: {
+		...Default.args,
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			canvas.getByRole('radio', { name: '利用者都合の日時変更' }),
+		);
+		await userEvent.selectOptions(
+			canvas.getByLabelText(/対象シフト/),
+			TEST_IDS.SCHEDULE_1,
+		);
+		await userEvent.clear(canvas.getByLabelText('新しい開始時刻'));
+		await userEvent.type(canvas.getByLabelText('新しい開始時刻'), '13:00');
+		await userEvent.clear(canvas.getByLabelText('新しい終了時刻'));
+		await userEvent.type(canvas.getByLabelText('新しい終了時刻'), '14:00');
+		await userEvent.click(canvas.getByRole('button', { name: '提案を取得' }));
+		await expect(canvas.getByText('提案結果')).toBeInTheDocument();
+		await expect(
+			canvas.getByText(/日時を 2026-02-26 13:00〜14:00 に変更/),
+		).toBeInTheDocument();
+		await expect(canvas.getByText(/2手目:/)).toBeInTheDocument();
 	},
 };

@@ -1,14 +1,23 @@
 'use client';
 
-import { suggestShiftAdjustmentsAction } from '@/app/actions/shiftAdjustments';
+import {
+	suggestClientDatetimeChangeAdjustmentsAction,
+	suggestShiftAdjustmentsAction,
+} from '@/app/actions/shiftAdjustments';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import type {
+	ClientDatetimeChangeActionInput,
 	ShiftAdjustmentOperation,
 	ShiftAdjustmentShiftSuggestion,
+	SuggestClientDatetimeChangeAdjustmentsOutput,
 	SuggestShiftAdjustmentsOutput,
 } from '@/models/shiftAdjustmentActionSchemas';
-import { formatJstDateString, getJstDateOnly } from '@/utils/date';
+import {
+	formatJstDateString,
+	getJstDateOnly,
+	stringToTimeObject,
+} from '@/utils/date';
 import { useMemo, useState } from 'react';
 import type { ShiftDisplayRow } from '../ShiftTable';
 
@@ -24,6 +33,9 @@ type ShiftAdjustmentDialogProps = {
 		endDate: string;
 		memo?: string;
 	}) => Promise<ActionResult<SuggestShiftAdjustmentsOutput>>;
+	requestClientDatetimeChangeSuggestions?: (
+		input: ClientDatetimeChangeActionInput,
+	) => Promise<ActionResult<SuggestClientDatetimeChangeAdjustmentsOutput>>;
 };
 
 const resolveShiftTitle = (
@@ -42,6 +54,7 @@ const resolveShiftTitle = (
 		.padStart(2, '0')}:${shift.endTime.minute.toString().padStart(2, '0')}）`;
 };
 
+/* eslint-disable complexity */
 export const ShiftAdjustmentDialog = ({
 	isOpen,
 	weekStartDate,
@@ -49,7 +62,11 @@ export const ShiftAdjustmentDialog = ({
 	shifts,
 	onClose,
 	requestSuggestions,
+	requestClientDatetimeChangeSuggestions,
 }: ShiftAdjustmentDialogProps) => {
+	const [adjustmentType, setAdjustmentType] = useState<
+		'staff_absence' | 'client_datetime_change'
+	>('staff_absence');
 	const helperStaffOptions = useMemo(
 		() => staffOptions.filter((s) => s.role === 'helper'),
 		[staffOptions],
@@ -67,11 +84,19 @@ export const ShiftAdjustmentDialog = ({
 	const [endDateStr, setEndDateStr] = useState(
 		formatJstDateString(weekEndDate),
 	);
+	const [targetShiftId, setTargetShiftId] = useState('');
+	const [newDateStr, setNewDateStr] = useState(
+		formatJstDateString(weekStartDate),
+	);
+	const [newStartTime, setNewStartTime] = useState('09:00');
+	const [newEndTime, setNewEndTime] = useState('10:00');
 	const [memo, setMemo] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [resultData, setResultData] =
 		useState<SuggestShiftAdjustmentsOutput | null>(null);
+	const [clientResultData, setClientResultData] =
+		useState<SuggestClientDatetimeChangeAdjustmentsOutput | null>(null);
 
 	const shiftMap = useMemo(() => {
 		const map = new Map<string, ShiftDisplayRow>();
@@ -87,8 +112,29 @@ export const ShiftAdjustmentDialog = ({
 
 	const selectedStaffName = staffNameMap.get(staffId);
 
-	const handleSubmit = async () => {
+	const targetableShifts = useMemo(() => {
+		const weekStart = getJstDateOnly(weekStartDate).getTime();
+		const weekEnd = weekStart + 6 * 86400000;
+		return shifts.filter((shift) => {
+			const dateTime = getJstDateOnly(shift.date).getTime();
+			return (
+				shift.status === 'scheduled' &&
+				!shift.isUnassigned &&
+				shift.staffId !== null &&
+				dateTime >= weekStart &&
+				dateTime <= weekEnd
+			);
+		});
+	}, [shifts, weekStartDate]);
+
+	const handleStaffAbsenceSubmit = async () => {
 		setErrorMessage(null);
+		setResultData(null);
+		setClientResultData(null);
+		if (startDateStr > endDateStr) {
+			setErrorMessage('開始日は終了日以前を指定してください。');
+			return;
+		}
 		setIsSubmitting(true);
 		try {
 			const action = requestSuggestions ?? suggestShiftAdjustmentsAction;
@@ -103,6 +149,7 @@ export const ShiftAdjustmentDialog = ({
 				return;
 			}
 			setResultData(res.data);
+			setClientResultData(null);
 		} catch {
 			setErrorMessage(
 				'提案の取得に失敗しました。通信状況を確認して再度お試しください。',
@@ -110,6 +157,58 @@ export const ShiftAdjustmentDialog = ({
 		} finally {
 			setIsSubmitting(false);
 		}
+	};
+
+	const handleClientDatetimeChangeSubmit = async () => {
+		setErrorMessage(null);
+		setResultData(null);
+		setClientResultData(null);
+		const parsedStartTime = stringToTimeObject(newStartTime);
+		const parsedEndTime = stringToTimeObject(newEndTime);
+		if (!parsedStartTime || !parsedEndTime) {
+			setErrorMessage('時刻の形式が不正です。HH:mm 形式で入力してください。');
+			return;
+		}
+		const startTotalMinutes =
+			parsedStartTime.hour * 60 + parsedStartTime.minute;
+		const endTotalMinutes = parsedEndTime.hour * 60 + parsedEndTime.minute;
+		if (startTotalMinutes >= endTotalMinutes) {
+			setErrorMessage('開始時刻は終了時刻より前を指定してください。');
+			return;
+		}
+		setIsSubmitting(true);
+		try {
+			const action =
+				requestClientDatetimeChangeSuggestions ??
+				suggestClientDatetimeChangeAdjustmentsAction;
+			const res = await action({
+				shiftId: targetShiftId,
+				newDate: newDateStr,
+				newStartTime: parsedStartTime,
+				newEndTime: parsedEndTime,
+				memo: memo.trim() ? memo.trim() : undefined,
+			});
+			if (res.error) {
+				setErrorMessage(res.error);
+				return;
+			}
+			setClientResultData(res.data);
+			setResultData(null);
+		} catch {
+			setErrorMessage(
+				'提案の取得に失敗しました。通信状況を確認して再度お試しください。',
+			);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const handleSubmit = async () => {
+		if (adjustmentType === 'staff_absence') {
+			await handleStaffAbsenceSubmit();
+			return;
+		}
+		await handleClientDatetimeChangeSubmit();
 	};
 
 	const renderAffected = (affected: ShiftAdjustmentShiftSuggestion) => {
@@ -240,7 +339,7 @@ export const ShiftAdjustmentDialog = ({
 					<div>
 						<h2 className="text-xl font-semibold">調整相談（Phase 1）</h2>
 						<p className="text-sm text-base-content/70">
-							欠勤スタッフの期間に影響するシフトと、担当者変更の提案を表示します（提案のみ・自動適用なし）
+							調整タイプを選び、提案結果を確認できます（提案のみ・自動適用なし）
 						</p>
 					</div>
 					<button
@@ -255,55 +354,170 @@ export const ShiftAdjustmentDialog = ({
 				</div>
 
 				<div className="mt-4 space-y-4">
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-						<div className="sm:col-span-1">
-							<label className="label" htmlFor="shift-adjust-staff">
-								<span className="label-text font-medium">欠勤スタッフ</span>
-							</label>
-							<select
-								id="shift-adjust-staff"
-								className="select-bordered select w-full"
-								value={staffId}
-								onChange={(e) => setStaffId(e.target.value)}
-								disabled={isSubmitting}
-							>
-								<option value="" disabled>
-									スタッフを選択
-								</option>
-								{helperStaffOptions.map((s) => (
-									<option key={s.id} value={s.id}>
-										{s.name}
-									</option>
-								))}
-							</select>
-						</div>
-						<div>
-							<label className="label" htmlFor="shift-adjust-start">
-								<span className="label-text font-medium">開始日</span>
-							</label>
-							<input
-								id="shift-adjust-start"
-								type="date"
-								className="input-bordered input w-full"
-								value={startDateStr}
-								onChange={(e) => setStartDateStr(e.target.value)}
-								disabled={isSubmitting}
-							/>
-						</div>
-						<div>
-							<label className="label" htmlFor="shift-adjust-end">
-								<span className="label-text font-medium">終了日</span>
-							</label>
-							<input
-								id="shift-adjust-end"
-								type="date"
-								className="input-bordered input w-full"
-								value={endDateStr}
-								onChange={(e) => setEndDateStr(e.target.value)}
-								disabled={isSubmitting}
-							/>
-						</div>
+					<div role="radiogroup" aria-label="調整タイプ" className="join">
+						<input
+							type="radio"
+							name="adjustment-type"
+							className="btn join-item"
+							aria-label="スタッフ欠勤"
+							checked={adjustmentType === 'staff_absence'}
+							onChange={() => {
+								setAdjustmentType('staff_absence');
+								setResultData(null);
+								setClientResultData(null);
+								setErrorMessage(null);
+							}}
+							disabled={isSubmitting}
+						/>
+						<input
+							type="radio"
+							name="adjustment-type"
+							className="btn join-item"
+							aria-label="利用者都合の日時変更"
+							checked={adjustmentType === 'client_datetime_change'}
+							onChange={() => {
+								setAdjustmentType('client_datetime_change');
+								setResultData(null);
+								setClientResultData(null);
+								setErrorMessage(null);
+							}}
+							disabled={isSubmitting}
+						/>
 					</div>
+
+					{adjustmentType === 'staff_absence' ? (
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+							<div className="sm:col-span-1">
+								<label className="label" htmlFor="shift-adjust-staff">
+									<span className="label-text font-medium">欠勤スタッフ</span>
+								</label>
+								<select
+									id="shift-adjust-staff"
+									className="select-bordered select w-full"
+									value={staffId}
+									onChange={(e) => setStaffId(e.target.value)}
+									disabled={isSubmitting}
+								>
+									<option value="" disabled>
+										スタッフを選択
+									</option>
+									{helperStaffOptions.map((s) => (
+										<option key={s.id} value={s.id}>
+											{s.name}
+										</option>
+									))}
+								</select>
+							</div>
+							<div>
+								<label className="label" htmlFor="shift-adjust-start">
+									<span className="label-text font-medium">開始日</span>
+								</label>
+								<input
+									id="shift-adjust-start"
+									type="date"
+									className="input-bordered input w-full"
+									value={startDateStr}
+									onChange={(e) => setStartDateStr(e.target.value)}
+									disabled={isSubmitting}
+								/>
+							</div>
+							<div>
+								<label className="label" htmlFor="shift-adjust-end">
+									<span className="label-text font-medium">終了日</span>
+								</label>
+								<input
+									id="shift-adjust-end"
+									type="date"
+									className="input-bordered input w-full"
+									value={endDateStr}
+									onChange={(e) => setEndDateStr(e.target.value)}
+									disabled={isSubmitting}
+								/>
+							</div>
+						</div>
+					) : (
+						<div className="space-y-3">
+							<div>
+								<label className="label" htmlFor="shift-adjust-target-shift">
+									<span className="label-text font-medium">1) 対象シフト</span>
+								</label>
+								<select
+									id="shift-adjust-target-shift"
+									className="select-bordered select w-full"
+									value={targetShiftId}
+									onChange={(e) => setTargetShiftId(e.target.value)}
+									disabled={isSubmitting}
+								>
+									<option value="" disabled>
+										対象シフトを選択
+									</option>
+									{targetableShifts.map((shift) => (
+										<option key={shift.id} value={shift.id}>
+											{`${formatJstDateString(shift.date)} ${shift.startTime.hour
+												.toString()
+												.padStart(2, '0')}:${shift.startTime.minute
+												.toString()
+												.padStart(2, '0')}〜${shift.endTime.hour
+												.toString()
+												.padStart(2, '0')}:${shift.endTime.minute
+												.toString()
+												.padStart(2, '0')} ${shift.clientName}`}
+										</option>
+									))}
+								</select>
+							</div>
+							<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+								<div>
+									<label className="label" htmlFor="shift-adjust-new-date">
+										<span className="label-text font-medium">
+											2) 新しい日付
+										</span>
+									</label>
+									<input
+										id="shift-adjust-new-date"
+										type="date"
+										className="input-bordered input w-full"
+										value={newDateStr}
+										onChange={(e) => setNewDateStr(e.target.value)}
+										disabled={isSubmitting}
+									/>
+								</div>
+								<div>
+									<label
+										className="label"
+										htmlFor="shift-adjust-new-start-time"
+									>
+										<span className="label-text font-medium">
+											新しい開始時刻
+										</span>
+									</label>
+									<input
+										id="shift-adjust-new-start-time"
+										type="time"
+										className="input-bordered input w-full"
+										value={newStartTime}
+										onChange={(e) => setNewStartTime(e.target.value)}
+										disabled={isSubmitting}
+									/>
+								</div>
+								<div>
+									<label className="label" htmlFor="shift-adjust-new-end-time">
+										<span className="label-text font-medium">
+											新しい終了時刻
+										</span>
+									</label>
+									<input
+										id="shift-adjust-new-end-time"
+										type="time"
+										className="input-bordered input w-full"
+										value={newEndTime}
+										onChange={(e) => setNewEndTime(e.target.value)}
+										disabled={isSubmitting}
+									/>
+								</div>
+							</div>
+						</div>
+					)}
 
 					<div>
 						<label className="label" htmlFor="shift-adjust-memo">
@@ -320,7 +534,7 @@ export const ShiftAdjustmentDialog = ({
 						/>
 					</div>
 
-					{selectedStaffName && (
+					{adjustmentType === 'staff_absence' && selectedStaffName && (
 						<div className="alert alert-info">
 							<strong className="font-medium">対象:</strong> {selectedStaffName}
 						</div>
@@ -329,9 +543,14 @@ export const ShiftAdjustmentDialog = ({
 						<div className="alert alert-error">{errorMessage}</div>
 					)}
 
-					{resultData && (
+					{adjustmentType === 'staff_absence' && resultData && (
 						<div className="space-y-3">
 							<div className="divider">提案結果</div>
+							{resultData.meta?.timedOut ? (
+								<div className="alert alert-warning">
+									一部の提案探索が時間上限に達したため、結果は部分的な可能性があります。
+								</div>
+							) : null}
 							{resultData.affected.length === 0 ? (
 								<div className="alert alert-success">
 									対象期間に該当するシフトがありません。
@@ -343,6 +562,21 @@ export const ShiftAdjustmentDialog = ({
 							)}
 							<div className="alert alert-soft">
 								提案は自動適用されません。必要に応じて、各シフトの「担当者変更」から反映してください。
+							</div>
+						</div>
+					)}
+
+					{adjustmentType === 'client_datetime_change' && clientResultData && (
+						<div className="space-y-3">
+							<div className="divider">提案結果</div>
+							{clientResultData.meta?.timedOut ? (
+								<div className="alert alert-warning">
+									一部の提案探索が時間上限に達したため、結果は部分的な可能性があります。
+								</div>
+							) : null}
+							{renderAffected(clientResultData.target)}
+							<div className="alert alert-soft">
+								提案は自動適用されません。内容を確認して必要に応じて手動反映してください。
 							</div>
 						</div>
 					)}
@@ -361,7 +595,15 @@ export const ShiftAdjustmentDialog = ({
 						type="button"
 						className="btn btn-primary"
 						onClick={handleSubmit}
-						disabled={!staffId || !startDateStr || !endDateStr || isSubmitting}
+						disabled={
+							adjustmentType === 'staff_absence'
+								? !staffId || !startDateStr || !endDateStr || isSubmitting
+								: !targetShiftId ||
+									!newDateStr ||
+									!newStartTime ||
+									!newEndTime ||
+									isSubmitting
+						}
 					>
 						{isSubmitting ? '取得中...' : '提案を取得'}
 					</button>
@@ -370,3 +612,4 @@ export const ShiftAdjustmentDialog = ({
 		</div>
 	);
 };
+/* eslint-enable complexity */
