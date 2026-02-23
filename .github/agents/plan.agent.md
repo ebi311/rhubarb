@@ -68,7 +68,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: GPT-5.2 (copilot)
+model: Claude Sonnet 4.6 (copilot)
 ---
 
 与えられたイシューの実装計画を立ててください。
