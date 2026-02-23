@@ -3,6 +3,8 @@ import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import {
+	ClientDatetimeChangeInput,
+	ClientDatetimeChangeInputSchema,
 	ShiftAdjustmentOperation,
 	ShiftAdjustmentRationaleItem,
 	ShiftAdjustmentSuggestion,
@@ -30,7 +32,20 @@ interface ShiftAdjustmentSuggestionServiceOptions {
 	staffRepository?: StaffRepository;
 	shiftRepository?: ShiftRepository;
 	clientStaffAssignmentRepository?: ClientStaffAssignmentRepository;
+	maxExecutionMs?: number;
+	now?: () => number;
 }
+
+export type SuggestClientDatetimeChangeAdjustmentsOutput = {
+	meta?: {
+		timedOut?: boolean;
+	};
+	change: ClientDatetimeChangeInput;
+	target: {
+		shift: ShiftSnapshot;
+		suggestions: ShiftAdjustmentSuggestion[];
+	};
+};
 
 const isOverlapping = (
 	a: { start: Date; end: Date },
@@ -75,18 +90,28 @@ export class ShiftAdjustmentSuggestionService {
 	private staffRepository: StaffRepository;
 	private shiftRepository: ShiftRepository;
 	private clientStaffAssignmentRepository: ClientStaffAssignmentRepository;
+	private maxExecutionMs: number;
+	private now: () => number;
 
 	constructor(
 		private supabase: SupabaseClient<Database>,
-		options?: ShiftAdjustmentSuggestionServiceOptions,
+		options: ShiftAdjustmentSuggestionServiceOptions = {},
 	) {
-		this.staffRepository =
-			options?.staffRepository ?? new StaffRepository(this.supabase);
-		this.shiftRepository =
-			options?.shiftRepository ?? new ShiftRepository(this.supabase);
-		this.clientStaffAssignmentRepository =
-			options?.clientStaffAssignmentRepository ??
-			new ClientStaffAssignmentRepository(this.supabase);
+		const {
+			staffRepository = new StaffRepository(this.supabase),
+			shiftRepository = new ShiftRepository(this.supabase),
+			clientStaffAssignmentRepository = new ClientStaffAssignmentRepository(
+				this.supabase,
+			),
+			maxExecutionMs = 8000,
+			now = () => Date.now(),
+		} = options;
+
+		this.staffRepository = staffRepository;
+		this.shiftRepository = shiftRepository;
+		this.clientStaffAssignmentRepository = clientStaffAssignmentRepository;
+		this.maxExecutionMs = maxExecutionMs;
+		this.now = now;
 	}
 
 	private async getAdminStaff(userId: string) {
@@ -129,6 +154,21 @@ export class ShiftAdjustmentSuggestionService {
 		};
 	}
 
+	private buildUpdateShiftScheduleOperation(params: {
+		shiftId: string;
+		newDate: Date;
+		newStartTime: { hour: number; minute: number };
+		newEndTime: { hour: number; minute: number };
+	}): ShiftAdjustmentOperation {
+		return {
+			type: 'update_shift_schedule',
+			shift_id: params.shiftId,
+			new_date: params.newDate,
+			new_start_time: params.newStartTime,
+			new_end_time: params.newEndTime,
+		};
+	}
+
 	private assignmentKey(params: {
 		clientId: string;
 		serviceTypeId: ServiceTypeId;
@@ -147,6 +187,38 @@ export class ShiftAdjustmentSuggestionService {
 		}
 
 		return parsedAbsence.data;
+	};
+
+	private validateClientDatetimeChange = (
+		change: ClientDatetimeChangeInput,
+	): ClientDatetimeChangeInput => {
+		const parsedChange = ClientDatetimeChangeInputSchema.safeParse(change);
+		if (!parsedChange.success) {
+			throw new ServiceError(
+				400,
+				'Validation error',
+				parsedChange.error.issues,
+			);
+		}
+
+		return parsedChange.data;
+	};
+
+	private createTimeoutChecker = (): {
+		checkTimeout: () => boolean;
+		isTimedOut: () => boolean;
+	} => {
+		const startedAt = this.now();
+		let timedOut = false;
+		const checkTimeout = () => {
+			if (this.now() - startedAt > this.maxExecutionMs) {
+				timedOut = true;
+				return true;
+			}
+			return false;
+		};
+
+		return { checkTimeout, isTimedOut: () => timedOut };
 	};
 
 	private resolveStartDateTime = (startDate: Date): Date => {
@@ -267,6 +339,7 @@ export class ShiftAdjustmentSuggestionService {
 		assignableStaffMap: AssignableStaffMap;
 		shiftsByStaff: StaffShiftsByStaff;
 		maxSuggestions: number;
+		checkTimeout?: () => boolean;
 	}): ShiftAdjustmentSuggestion[] => {
 		const { start: shiftStart, end: shiftEnd } = this.getShiftDateTimes(
 			params.shift,
@@ -274,6 +347,7 @@ export class ShiftAdjustmentSuggestionService {
 		const suggestions: ShiftAdjustmentSuggestion[] = [];
 
 		for (const candidate of params.candidates) {
+			if (params.checkTimeout?.()) break;
 			if (!candidate.service_type_ids.includes(params.shift.service_type_id))
 				continue;
 			if (
@@ -371,6 +445,81 @@ export class ShiftAdjustmentSuggestionService {
 		);
 	};
 
+	private canCandidateTakeShift = (params: {
+		candidate: OfficeStaff;
+		shift: ScheduledShift;
+		assignableStaffMap: AssignableStaffMap;
+	}): boolean => {
+		if (
+			!params.candidate.service_type_ids.includes(params.shift.service_type_id)
+		) {
+			return false;
+		}
+		return this.canAssignStaffToShift({
+			shift: params.shift,
+			staffId: params.candidate.id,
+			assignableStaffMap: params.assignableStaffMap,
+		});
+	};
+
+	private appendDepth1SuggestionsForCandidateB = (params: {
+		suggestions: ShiftAdjustmentSuggestion[];
+		shift: ScheduledShift;
+		absentStaffId: string;
+		candidateB: OfficeStaff;
+		conflictShift: ScheduledShift;
+		candidates: OfficeStaff[];
+		assignableStaffMap: AssignableStaffMap;
+		shiftsByStaff: StaffShiftsByStaff;
+		maxSuggestions: number;
+		checkTimeout?: () => boolean;
+	}): void => {
+		for (const candidateC of params.candidates) {
+			if (params.checkTimeout?.()) return;
+			if (candidateC.id === params.candidateB.id) continue;
+			if (
+				!candidateC.service_type_ids.includes(
+					params.conflictShift.service_type_id,
+				)
+			) {
+				continue;
+			}
+			if (
+				!this.canUseCandidateForConflictShift({
+					candidateId: candidateC.id,
+					conflictShift: params.conflictShift,
+					assignableStaffMap: params.assignableStaffMap,
+					shiftsByStaff: params.shiftsByStaff,
+				})
+			) {
+				continue;
+			}
+
+			params.suggestions.push(
+				this.buildSuggestion({
+					operations: [
+						this.buildChangeStaffOperation({
+							shiftId: params.conflictShift.id,
+							fromStaffId: params.candidateB.id,
+							toStaffId: candidateC.id,
+						}),
+						this.buildChangeStaffOperation({
+							shiftId: params.shift.id,
+							fromStaffId: params.absentStaffId,
+							toStaffId: params.candidateB.id,
+						}),
+					],
+					rationale: this.buildRationale({
+						serviceTypeOk: true,
+						noConflict: true,
+					}),
+				}),
+			);
+
+			if (params.suggestions.length >= params.maxSuggestions) return;
+		}
+	};
+
 	private buildDepth1Suggestions = (params: {
 		shift: ScheduledShift;
 		absentStaffId: string;
@@ -379,16 +528,16 @@ export class ShiftAdjustmentSuggestionService {
 		shiftsByStaff: StaffShiftsByStaff;
 		shiftById: Map<string, ScheduledShift>;
 		maxSuggestions: number;
+		checkTimeout?: () => boolean;
 	}): ShiftAdjustmentSuggestion[] => {
 		const suggestions: ShiftAdjustmentSuggestion[] = [];
 
 		for (const candidateB of params.candidates) {
-			if (!candidateB.service_type_ids.includes(params.shift.service_type_id))
-				continue;
+			if (params.checkTimeout?.()) return suggestions;
 			if (
-				!this.canAssignStaffToShift({
+				!this.canCandidateTakeShift({
+					candidate: candidateB,
 					shift: params.shift,
-					staffId: candidateB.id,
 					assignableStaffMap: params.assignableStaffMap,
 				})
 			) {
@@ -403,49 +552,301 @@ export class ShiftAdjustmentSuggestionService {
 			});
 			if (!conflictShift) continue;
 
-			for (const candidateC of params.candidates) {
-				if (candidateC.id === candidateB.id) continue;
-				if (
-					!candidateC.service_type_ids.includes(conflictShift.service_type_id)
-				) {
-					continue;
-				}
-				if (
-					!this.canUseCandidateForConflictShift({
-						candidateId: candidateC.id,
-						conflictShift,
-						assignableStaffMap: params.assignableStaffMap,
-						shiftsByStaff: params.shiftsByStaff,
-					})
-				)
-					continue;
-
-				suggestions.push(
-					this.buildSuggestion({
-						operations: [
-							this.buildChangeStaffOperation({
-								shiftId: conflictShift.id,
-								fromStaffId: candidateB.id,
-								toStaffId: candidateC.id,
-							}),
-							this.buildChangeStaffOperation({
-								shiftId: params.shift.id,
-								fromStaffId: params.absentStaffId,
-								toStaffId: candidateB.id,
-							}),
-						],
-						rationale: this.buildRationale({
-							serviceTypeOk: true,
-							noConflict: true,
-						}),
-					}),
-				);
-
-				if (suggestions.length >= params.maxSuggestions) return suggestions;
-			}
+			this.appendDepth1SuggestionsForCandidateB({
+				suggestions,
+				shift: params.shift,
+				absentStaffId: params.absentStaffId,
+				candidateB,
+				conflictShift,
+				candidates: params.candidates,
+				assignableStaffMap: params.assignableStaffMap,
+				shiftsByStaff: params.shiftsByStaff,
+				maxSuggestions: params.maxSuggestions,
+				checkTimeout: params.checkTimeout,
+			});
+			if (suggestions.length >= params.maxSuggestions) return suggestions;
 		}
 
 		return suggestions;
+	};
+
+	private canAssignByClientAndServiceType = (params: {
+		assignableStaffMap: AssignableStaffMap;
+		staffId: string;
+		clientId: string;
+		serviceTypeId: ServiceTypeId;
+	}): boolean => {
+		return (
+			params.assignableStaffMap
+				.get(
+					this.assignmentKey({
+						clientId: params.clientId,
+						serviceTypeId: params.serviceTypeId,
+					}),
+				)
+				?.has(params.staffId) ?? false
+		);
+	};
+
+	private getScheduledShiftWithStaffOrThrow = async (
+		shiftId: string,
+	): Promise<ScheduledShift> => {
+		const targetShift = await this.shiftRepository.findById(shiftId);
+		if (!targetShift) throw new ServiceError(404, 'Shift not found');
+		if (targetShift.status !== 'scheduled') {
+			throw new ServiceError(400, 'Shift must be scheduled');
+		}
+		if (!targetShift.staff_id) {
+			throw new ServiceError(400, 'Shift must have staff_id');
+		}
+		return targetShift;
+	};
+
+	private assertShiftInOffice = async (params: {
+		officeId: string;
+		targetShift: ScheduledShift;
+	}): Promise<void> => {
+		const sameOfficeShifts = await this.shiftRepository.list({
+			officeId: params.officeId,
+			startDate: params.targetShift.date,
+			endDate: params.targetShift.date,
+			clientId: params.targetShift.client_id,
+		});
+		if (!sameOfficeShifts.some((s) => s.id === params.targetShift.id)) {
+			throw new ServiceError(404, 'Shift not found');
+		}
+	};
+
+	private buildRangeOnDate = (params: {
+		date: Date;
+		startTime: { hour: number; minute: number };
+		endTime: { hour: number; minute: number };
+	}): { start: Date; end: Date } => {
+		const start = setJstTime(
+			getJstDateOnly(params.date),
+			params.startTime.hour,
+			params.startTime.minute,
+		);
+		const end = setJstTime(
+			getJstDateOnly(params.date),
+			params.endTime.hour,
+			params.endTime.minute,
+		);
+		return { start, end };
+	};
+
+	private hasConflictForRange = (params: {
+		shiftsByStaff: StaffShiftsByStaff;
+		staffId: string;
+		range: { start: Date; end: Date };
+	}): boolean => {
+		const staffShifts = params.shiftsByStaff.get(params.staffId) ?? [];
+		return staffShifts.some((s) =>
+			isOverlapping(params.range, { start: s.start, end: s.end }),
+		);
+	};
+
+	private addDepth0SameStaffSuggestion = (params: {
+		suggestions: ShiftAdjustmentSuggestion[];
+		targetShift: ScheduledShift;
+		currentStaff: OfficeStaff;
+		validatedChange: ClientDatetimeChangeInput;
+		range: { start: Date; end: Date };
+		assignableStaffMap: AssignableStaffMap;
+		shiftsByStaff: StaffShiftsByStaff;
+		checkTimeout: () => boolean;
+	}): void => {
+		if (params.checkTimeout()) return;
+		const serviceTypeOk = params.currentStaff.service_type_ids.includes(
+			params.targetShift.service_type_id,
+		);
+		if (!serviceTypeOk) return;
+		const assignable = this.canAssignByClientAndServiceType({
+			assignableStaffMap: params.assignableStaffMap,
+			staffId: params.currentStaff.id,
+			clientId: params.targetShift.client_id,
+			serviceTypeId: params.targetShift.service_type_id,
+		});
+		if (!assignable) return;
+		const conflict = this.hasConflictForRange({
+			shiftsByStaff: params.shiftsByStaff,
+			staffId: params.currentStaff.id,
+			range: params.range,
+		});
+		if (conflict) return;
+
+		params.suggestions.push(
+			this.buildSuggestion({
+				operations: [
+					this.buildUpdateShiftScheduleOperation({
+						shiftId: params.targetShift.id,
+						newDate: params.validatedChange.newDate,
+						newStartTime: params.validatedChange.newStartTime,
+						newEndTime: params.validatedChange.newEndTime,
+					}),
+				],
+				rationale: this.buildRationale({
+					serviceTypeOk: true,
+					noConflict: true,
+				}),
+			}),
+		);
+	};
+
+	private addDepth0ChangeStaffSuggestions = (params: {
+		suggestions: ShiftAdjustmentSuggestion[];
+		targetShift: ScheduledShift;
+		currentStaff: OfficeStaff;
+		validatedChange: ClientDatetimeChangeInput;
+		range: { start: Date; end: Date };
+		candidates: OfficeStaff[];
+		assignableStaffMap: AssignableStaffMap;
+		shiftsByStaff: StaffShiftsByStaff;
+		checkTimeout: () => boolean;
+	}): void => {
+		for (const candidate of params.candidates) {
+			if (params.checkTimeout()) return;
+			if (
+				!candidate.service_type_ids.includes(params.targetShift.service_type_id)
+			) {
+				continue;
+			}
+			if (
+				!this.canAssignByClientAndServiceType({
+					assignableStaffMap: params.assignableStaffMap,
+					staffId: candidate.id,
+					clientId: params.targetShift.client_id,
+					serviceTypeId: params.targetShift.service_type_id,
+				})
+			) {
+				continue;
+			}
+			if (
+				this.hasConflictForRange({
+					shiftsByStaff: params.shiftsByStaff,
+					staffId: candidate.id,
+					range: params.range,
+				})
+			) {
+				continue;
+			}
+
+			params.suggestions.push(
+				this.buildSuggestion({
+					operations: [
+						this.buildChangeStaffOperation({
+							shiftId: params.targetShift.id,
+							fromStaffId: params.currentStaff.id,
+							toStaffId: candidate.id,
+						}),
+						this.buildUpdateShiftScheduleOperation({
+							shiftId: params.targetShift.id,
+							newDate: params.validatedChange.newDate,
+							newStartTime: params.validatedChange.newStartTime,
+							newEndTime: params.validatedChange.newEndTime,
+						}),
+					],
+					rationale: this.buildRationale({
+						serviceTypeOk: true,
+						noConflict: true,
+					}),
+				}),
+			);
+			if (params.suggestions.length >= 3) return;
+		}
+	};
+
+	private findSingleConflictShiftForRange = (params: {
+		shiftById: Map<string, ScheduledShift>;
+		shiftsByStaff: StaffShiftsByStaff;
+		staffId: string;
+		range: { start: Date; end: Date };
+	}): ScheduledShift | null => {
+		const staffShifts = params.shiftsByStaff.get(params.staffId) ?? [];
+		const conflicts = staffShifts.filter((s) =>
+			isOverlapping(params.range, { start: s.start, end: s.end }),
+		);
+		if (conflicts.length !== 1) return null;
+
+		const conflictShift = params.shiftById.get(conflicts[0]!.shiftId);
+		if (!conflictShift) return null;
+		if (conflictShift.staff_id !== params.staffId) return null;
+		return conflictShift;
+	};
+
+	private addDepth1BumpConflictSuggestions = (params: {
+		suggestions: ShiftAdjustmentSuggestion[];
+		targetShift: ScheduledShift;
+		currentStaff: OfficeStaff;
+		validatedChange: ClientDatetimeChangeInput;
+		range: { start: Date; end: Date };
+		candidates: OfficeStaff[];
+		assignableStaffMap: AssignableStaffMap;
+		shiftsByStaff: StaffShiftsByStaff;
+		shiftById: Map<string, ScheduledShift>;
+		checkTimeout: () => boolean;
+	}): void => {
+		if (params.checkTimeout()) return;
+		const conflictShift = this.findSingleConflictShiftForRange({
+			shiftById: params.shiftById,
+			shiftsByStaff: params.shiftsByStaff,
+			staffId: params.currentStaff.id,
+			range: params.range,
+		});
+		if (!conflictShift) return;
+		const { start: conflictStart, end: conflictEnd } =
+			this.getShiftDateTimes(conflictShift);
+
+		for (const candidateC of params.candidates) {
+			if (params.checkTimeout()) return;
+			if (
+				!candidateC.service_type_ids.includes(conflictShift.service_type_id)
+			) {
+				continue;
+			}
+			if (
+				!this.canAssignByClientAndServiceType({
+					assignableStaffMap: params.assignableStaffMap,
+					staffId: candidateC.id,
+					clientId: conflictShift.client_id,
+					serviceTypeId: conflictShift.service_type_id,
+				})
+			) {
+				continue;
+			}
+			if (
+				this.hasConflictForRange({
+					shiftsByStaff: params.shiftsByStaff,
+					staffId: candidateC.id,
+					range: { start: conflictStart, end: conflictEnd },
+				})
+			) {
+				continue;
+			}
+
+			params.suggestions.push(
+				this.buildSuggestion({
+					operations: [
+						this.buildChangeStaffOperation({
+							shiftId: conflictShift.id,
+							fromStaffId: params.currentStaff.id,
+							toStaffId: candidateC.id,
+						}),
+						this.buildUpdateShiftScheduleOperation({
+							shiftId: params.targetShift.id,
+							newDate: params.validatedChange.newDate,
+							newStartTime: params.validatedChange.newStartTime,
+							newEndTime: params.validatedChange.newEndTime,
+						}),
+					],
+					rationale: this.buildRationale({
+						serviceTypeOk: true,
+						noConflict: true,
+					}),
+				}),
+			);
+			if (params.suggestions.length >= 3) return;
+		}
 	};
 
 	private buildSuggestionsForShift = (params: {
@@ -456,6 +857,7 @@ export class ShiftAdjustmentSuggestionService {
 		shiftsByStaff: StaffShiftsByStaff;
 		shiftById: Map<string, ScheduledShift>;
 		maxSuggestions: number;
+		checkTimeout?: () => boolean;
 	}): ShiftAdjustmentSuggestion[] => {
 		const depth0Suggestions = this.buildDepth0Suggestions({
 			shift: params.shift,
@@ -464,6 +866,7 @@ export class ShiftAdjustmentSuggestionService {
 			assignableStaffMap: params.assignableStaffMap,
 			shiftsByStaff: params.shiftsByStaff,
 			maxSuggestions: params.maxSuggestions,
+			checkTimeout: params.checkTimeout,
 		});
 		if (depth0Suggestions.length > 0) return depth0Suggestions;
 
@@ -475,6 +878,7 @@ export class ShiftAdjustmentSuggestionService {
 			shiftsByStaff: params.shiftsByStaff,
 			shiftById: params.shiftById,
 			maxSuggestions: params.maxSuggestions,
+			checkTimeout: params.checkTimeout,
 		});
 	};
 
@@ -483,6 +887,8 @@ export class ShiftAdjustmentSuggestionService {
 		absence: StaffAbsenceInput,
 	): Promise<SuggestShiftAdjustmentsOutput> {
 		const adminStaff = await this.getAdminStaff(userId);
+		const { checkTimeout, isTimedOut } = this.createTimeoutChecker();
+
 		const validatedAbsence = this.validateAbsence(absence);
 
 		const officeId = adminStaff.office_id;
@@ -499,8 +905,8 @@ export class ShiftAdjustmentSuggestionService {
 			}),
 		]);
 
-		const absentStaff = staffs.find((s) => s.id === validatedAbsence.staffId);
-		if (!absentStaff) throw new ServiceError(404, 'Staff not found');
+		const _absentStaff = staffs.find((s) => s.id === validatedAbsence.staffId);
+		if (!_absentStaff) throw new ServiceError(404, 'Staff not found');
 
 		const filteredScheduledShifts = this.filterScheduledShifts({
 			scheduledShifts,
@@ -519,10 +925,11 @@ export class ShiftAdjustmentSuggestionService {
 			officeId,
 			shifts: filteredScheduledShifts,
 		});
-
 		const shiftById = new Map(filteredScheduledShifts.map((s) => [s.id, s]));
 
-		const affected = affectedShifts.map((shift) => {
+		const affected: SuggestShiftAdjustmentsOutput['affected'] = [];
+		for (const shift of affectedShifts) {
+			if (checkTimeout()) break;
 			const suggestions = this.buildSuggestionsForShift({
 				shift,
 				absentStaffId: validatedAbsence.staffId,
@@ -531,17 +938,116 @@ export class ShiftAdjustmentSuggestionService {
 				shiftsByStaff,
 				shiftById,
 				maxSuggestions: 3,
+				checkTimeout,
 			});
-
-			return {
-				shift: toShiftSnapshot(shift),
-				suggestions,
-			};
-		});
+			affected.push({ shift: toShiftSnapshot(shift), suggestions });
+		}
 
 		return {
+			...(isTimedOut() ? { meta: { timedOut: true } } : {}),
 			absence: validatedAbsence,
 			affected,
+		};
+	}
+
+	async suggestClientDatetimeChangeAdjustments(
+		userId: string,
+		change: ClientDatetimeChangeInput,
+	): Promise<SuggestClientDatetimeChangeAdjustmentsOutput> {
+		const adminStaff = await this.getAdminStaff(userId);
+		const { checkTimeout, isTimedOut } = this.createTimeoutChecker();
+		const validatedChange = this.validateClientDatetimeChange(change);
+
+		const officeId = adminStaff.office_id;
+		const targetShift = await this.getScheduledShiftWithStaffOrThrow(
+			validatedChange.shiftId,
+		);
+		await this.assertShiftInOffice({ officeId, targetShift });
+
+		const [staffs, scheduledShiftsOnNewDate] = await Promise.all([
+			this.staffRepository.listByOffice(officeId),
+			this.shiftRepository.list({
+				officeId,
+				startDate: validatedChange.newDate,
+				endDate: validatedChange.newDate,
+				status: 'scheduled',
+			}),
+		]);
+
+		const currentStaff = staffs.find((s) => s.id === targetShift.staff_id);
+		if (!currentStaff) throw new ServiceError(404, 'Staff not found');
+		const range = this.buildRangeOnDate({
+			date: validatedChange.newDate,
+			startTime: validatedChange.newStartTime,
+			endTime: validatedChange.newEndTime,
+		});
+		const shiftsByStaff = this.buildShiftsByStaff(
+			scheduledShiftsOnNewDate.filter((s) => s.id !== targetShift.id),
+		);
+		const assignableStaffMap = await this.buildAssignableStaffMap({
+			officeId,
+			shifts: [targetShift, ...scheduledShiftsOnNewDate],
+		});
+		const candidates = this.buildCandidates({
+			staffs,
+			absentStaffId: currentStaff.id,
+		});
+		const shiftById: Map<string, ScheduledShift> = new Map(
+			scheduledShiftsOnNewDate.map((s) => [s.id, s]),
+		);
+
+		const suggestions: ShiftAdjustmentSuggestion[] = [];
+
+		// 深さ0: staff維持で日時変更（update_shift_schedule のみ）
+		this.addDepth0SameStaffSuggestion({
+			suggestions,
+			targetShift,
+			currentStaff,
+			validatedChange,
+			range,
+			assignableStaffMap,
+			shiftsByStaff,
+			checkTimeout,
+		});
+
+		// 深さ0: staff変更で解決（change_staff -> update_shift_schedule）
+		if (suggestions.length === 0) {
+			this.addDepth0ChangeStaffSuggestions({
+				suggestions,
+				targetShift,
+				currentStaff,
+				validatedChange,
+				range,
+				candidates,
+				assignableStaffMap,
+				shiftsByStaff,
+				checkTimeout,
+			});
+		}
+
+		// 深さ1: staff維持のまま、衝突シフトを玉突き（change_staff -> update_shift_schedule）
+		if (suggestions.length === 0) {
+			this.addDepth1BumpConflictSuggestions({
+				suggestions,
+				targetShift,
+				currentStaff,
+				validatedChange,
+				range,
+				candidates,
+				assignableStaffMap,
+				shiftsByStaff,
+				shiftById,
+				checkTimeout,
+			});
+		}
+
+		return {
+			...(isTimedOut() ? { meta: { timedOut: true } } : {}),
+			change: validatedChange,
+			target: {
+				shift: toShiftSnapshot(targetShift),
+				suggestions,
+			},
 		};
 	}
 }
