@@ -174,20 +174,21 @@ export const useShiftAdjustmentDialogSubmit = ({
 		});
 
 	const handleStaffAbsenceUnexpectedError = (error: unknown) => {
-		console.error('Unexpected error while suggesting shift adjustments', {
+		handleUnexpectedError(
+			'Unexpected error while suggesting shift adjustments',
 			error,
-		});
-		handleActionResult(
-			{ data: null, error: ACTION_ERROR_MESSAGE, status: 500 },
-			{ errorMessage: ACTION_ERROR_MESSAGE },
 		);
 	};
 
 	const handleClientDatetimeChangeUnexpectedError = (error: unknown) => {
-		console.error(
+		handleUnexpectedError(
 			'Unexpected error while suggesting client datetime change adjustments',
-			{ error },
+			error,
 		);
+	};
+
+	const handleUnexpectedError = (message: string, error: unknown) => {
+		console.error(message, { error });
 		handleActionResult(
 			{ data: null, error: ACTION_ERROR_MESSAGE, status: 500 },
 			{ errorMessage: ACTION_ERROR_MESSAGE },
