@@ -8,6 +8,24 @@ import { TimeRangeSchema } from './valueObjects/timeRange';
 
 const toJstDay = (date: Date) => dateJst(date).startOf('day');
 
+const addTimeRangeValidationIssues = (
+	ctx: z.core.$RefinementCtx,
+	start: unknown,
+	end: unknown,
+	startField: string,
+	endField: string,
+) => {
+	const parsed = TimeRangeSchema.safeParse({ start, end });
+	if (!parsed.success) {
+		parsed.error.issues.forEach((issue) => {
+			const mappedPath = issue.path.map((p) =>
+				p === 'start' ? startField : p === 'end' ? endField : p,
+			);
+			ctx.addIssue({ ...issue, path: mappedPath });
+		});
+	}
+};
+
 /**
  * staff_absence（スタッフ急休）入力（Phase 1: DB永続化なし）
  */
@@ -51,18 +69,13 @@ export const ClientDatetimeChangeInputSchema = z
 		memo: z.string().max(500).optional(),
 	})
 	.superRefine((val, ctx) => {
-		const parsed = TimeRangeSchema.safeParse({
-			start: val.newStartTime,
-			end: val.newEndTime,
-		});
-		if (!parsed.success) {
-			parsed.error.issues.forEach((issue) => {
-				const mappedPath = issue.path.map((p) =>
-					p === 'start' ? 'newStartTime' : p === 'end' ? 'newEndTime' : p,
-				);
-				ctx.addIssue({ ...issue, path: mappedPath });
-			});
-		}
+		addTimeRangeValidationIssues(
+			ctx,
+			val.newStartTime,
+			val.newEndTime,
+			'newStartTime',
+			'newEndTime',
+		);
 	});
 
 export type ClientDatetimeChangeInput = z.output<
@@ -128,18 +141,13 @@ const UpdateShiftScheduleShiftAdjustmentOperationSchema = z
 		new_end_time: TimeValueSchema,
 	})
 	.superRefine((val, ctx) => {
-		const parsed = TimeRangeSchema.safeParse({
-			start: val.new_start_time,
-			end: val.new_end_time,
-		});
-		if (!parsed.success) {
-			parsed.error.issues.forEach((issue) => {
-				const mappedPath = issue.path.map((p) =>
-					p === 'start' ? 'new_start_time' : p === 'end' ? 'new_end_time' : p,
-				);
-				ctx.addIssue({ ...issue, path: mappedPath });
-			});
-		}
+		addTimeRangeValidationIssues(
+			ctx,
+			val.new_start_time,
+			val.new_end_time,
+			'new_start_time',
+			'new_end_time',
+		);
 	});
 
 export const ShiftAdjustmentOperationSchema = z.discriminatedUnion('type', [
