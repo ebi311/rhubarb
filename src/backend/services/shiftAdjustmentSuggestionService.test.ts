@@ -80,6 +80,28 @@ const createShift = (overrides: Partial<Shift> = {}): Shift => ({
 	...overrides,
 });
 
+type ShiftListFilters = Parameters<ShiftRepository['list']>[0];
+
+const buildShiftListKey = (filters: ShiftListFilters = {}): string => {
+	// JSON.stringify は Date を toJSON() (= ISO文字列) に変換する
+	// undefined は省略されるので、filters の組み合わせで一意なキーになる
+	return JSON.stringify({
+		officeId: filters.officeId,
+		clientId: filters.clientId,
+		status: filters.status,
+		startDate: filters.startDate,
+		endDate: filters.endDate,
+		startDateTime: filters.startDateTime,
+		endDateTime: filters.endDateTime,
+	});
+};
+
+const createShiftListMock = (table: Record<string, Shift[]>) => {
+	return async (filters: ShiftListFilters = {}) => {
+		return table[buildShiftListKey(filters)] ?? [];
+	};
+};
+
 describe('ShiftAdjustmentSuggestionService', () => {
 	let service: ShiftAdjustmentSuggestionService;
 	let mockStaffRepo: Mocked<StaffRepository>;
@@ -680,27 +702,22 @@ describe('ShiftAdjustmentSuggestionService', () => {
 				service_type_id: 'life-support',
 			});
 
-			mockShiftRepo.list.mockImplementation(async (filters = {}) => {
-				const start = filters.startDate?.toISOString();
-				const end = filters.endDate?.toISOString();
-				if (
-					filters.officeId === TEST_IDS.OFFICE_1 &&
-					filters.clientId === TEST_IDS.CLIENT_1 &&
-					start === targetShift.date.toISOString() &&
-					end === targetShift.date.toISOString()
-				) {
-					return [targetShift];
-				}
-				if (
-					filters.officeId === TEST_IDS.OFFICE_1 &&
-					filters.status === 'scheduled' &&
-					start === new Date('2026-02-25T00:00:00+09:00').toISOString() &&
-					end === new Date('2026-02-25T00:00:00+09:00').toISOString()
-				) {
-					return [conflictShiftForA];
-				}
-				return [];
-			});
+			mockShiftRepo.list.mockImplementation(
+				createShiftListMock({
+					[buildShiftListKey({
+						officeId: TEST_IDS.OFFICE_1,
+						clientId: TEST_IDS.CLIENT_1,
+						startDate: targetShift.date,
+						endDate: targetShift.date,
+					})]: [targetShift],
+					[buildShiftListKey({
+						officeId: TEST_IDS.OFFICE_1,
+						status: 'scheduled',
+						startDate: new Date('2026-02-25T00:00:00+09:00'),
+						endDate: new Date('2026-02-25T00:00:00+09:00'),
+					})]: [conflictShiftForA],
+				}),
+			);
 
 			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
 				[
@@ -792,27 +809,22 @@ describe('ShiftAdjustmentSuggestionService', () => {
 				service_type_id: 'life-support',
 			});
 
-			mockShiftRepo.list.mockImplementation(async (filters = {}) => {
-				const start = filters.startDate?.toISOString();
-				const end = filters.endDate?.toISOString();
-				if (
-					filters.officeId === TEST_IDS.OFFICE_1 &&
-					filters.clientId === TEST_IDS.CLIENT_1 &&
-					start === targetShift.date.toISOString() &&
-					end === targetShift.date.toISOString()
-				) {
-					return [targetShift];
-				}
-				if (
-					filters.officeId === TEST_IDS.OFFICE_1 &&
-					filters.status === 'scheduled' &&
-					start === new Date('2026-02-25T00:00:00+09:00').toISOString() &&
-					end === new Date('2026-02-25T00:00:00+09:00').toISOString()
-				) {
-					return [conflictShift];
-				}
-				return [];
-			});
+			mockShiftRepo.list.mockImplementation(
+				createShiftListMock({
+					[buildShiftListKey({
+						officeId: TEST_IDS.OFFICE_1,
+						clientId: TEST_IDS.CLIENT_1,
+						startDate: targetShift.date,
+						endDate: targetShift.date,
+					})]: [targetShift],
+					[buildShiftListKey({
+						officeId: TEST_IDS.OFFICE_1,
+						status: 'scheduled',
+						startDate: new Date('2026-02-25T00:00:00+09:00'),
+						endDate: new Date('2026-02-25T00:00:00+09:00'),
+					})]: [conflictShift],
+				}),
+			);
 
 			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
 				[
@@ -912,27 +924,22 @@ describe('ShiftAdjustmentSuggestionService', () => {
 				service_type_id: 'life-support',
 			});
 			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
-			mockShiftRepo.list.mockImplementation(async (filters = {}) => {
-				const start = filters.startDate?.toISOString();
-				const end = filters.endDate?.toISOString();
-				if (
-					filters.officeId === TEST_IDS.OFFICE_1 &&
-					filters.clientId === TEST_IDS.CLIENT_1 &&
-					start === targetShift.date.toISOString() &&
-					end === targetShift.date.toISOString()
-				) {
-					return [targetShift];
-				}
-				if (
-					filters.officeId === TEST_IDS.OFFICE_1 &&
-					filters.status === 'scheduled' &&
-					start === new Date('2026-02-25T00:00:00+09:00').toISOString() &&
-					end === new Date('2026-02-25T00:00:00+09:00').toISOString()
-				) {
-					return [conflictShiftForA];
-				}
-				return [];
-			});
+			mockShiftRepo.list.mockImplementation(
+				createShiftListMock({
+					[buildShiftListKey({
+						officeId: TEST_IDS.OFFICE_1,
+						clientId: TEST_IDS.CLIENT_1,
+						startDate: targetShift.date,
+						endDate: targetShift.date,
+					})]: [targetShift],
+					[buildShiftListKey({
+						officeId: TEST_IDS.OFFICE_1,
+						status: 'scheduled',
+						startDate: new Date('2026-02-25T00:00:00+09:00'),
+						endDate: new Date('2026-02-25T00:00:00+09:00'),
+					})]: [conflictShiftForA],
+				}),
+			);
 
 			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
 				[
