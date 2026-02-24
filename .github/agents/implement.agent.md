@@ -60,7 +60,36 @@ model: GPT-5.3-Codex (copilot)
   - `What changed`（何を変えたかを3〜8行で）
   - `Commands run`（実行したコマンド。無ければ「なし」）
   - `Next`（次にやる1〜3手）
+- 最終メッセージの末尾に、機械可読な **Handoff JSON**（共通スキーマ）を `json` コードブロックで **1つだけ** 付ける。
+  - `payload` 目安: `changedFiles`, `commandsRun`, `testsRun`, `nextSteps`
+  - 変更点の説明は人間向け本文に書き、`payload` は次工程に必要な最小情報だけにする。
+- `next` は **任意の提案**（書けるときだけ）。次の agent を最終決定するのは orchestrator。
 - 実行が中断/キャンセル/タイムアウトしそうな場合は、無理に完走せず、**どこまでできたか**と**続きの最短手順**を返して終了する。
+
+### Handoff JSON（共通スキーマ）
+
+最終出力の末尾に、以下の形で 1 つだけ付ける。
+
+```json
+{
+	"handoffVersion": 1,
+	"agent": "implement",
+	"status": "ok | partial | blocked",
+	"summary": "1〜3行で要約",
+	"artifactPaths": ["workspace-relative/path"],
+	"payload": {
+		"changedFiles": ["(任意) 変更したファイルパス"],
+		"commandsRun": ["(任意) 実行したコマンド"],
+		"testsRun": ["(任意) 実行したテスト"],
+		"nextSteps": ["(任意) 次の1〜3手"]
+	},
+	"questions": ["(任意) 次に進むための確認"],
+	"next": {
+		"agent": "review",
+		"prompt": "次のエージェントに渡す短い依頼文（レビュー観点・関連パスを含む）"
+	}
+}
+```
 
 ## 手順 (#tool:todo)
 

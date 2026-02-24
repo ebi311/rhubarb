@@ -58,7 +58,35 @@ model: GPT-5 mini (copilot)
   - `PR body`（貼り付け用本文）
   - `Commands`（実行/提案コマンド）
   - `Review points`（2〜4個）
+- 最終メッセージの末尾に、機械可読な **Handoff JSON**（共通スキーマ）を `json` コードブロックで **1つだけ** 付ける。
+  - `payload` 目安: `prLink`, `prBody`, `commands`, `reviewPoints`
+- `next` は **任意の提案**（書けるときだけ）。次の agent を最終決定するのは orchestrator。
 - PRを自動作成できない場合（未コミット変更、認証不足、gh無し等）は、必要コマンド列とPR本文を返して終了する。
+
+### Handoff JSON（共通スキーマ）
+
+最終出力の末尾に、以下の形で 1 つだけ付ける。
+
+```json
+{
+	"handoffVersion": 1,
+	"agent": "pr",
+	"status": "ok | partial | blocked",
+	"summary": "1〜3行で要約",
+	"artifactPaths": ["workspace-relative/path"],
+	"payload": {
+		"prLink": "(任意) PR link",
+		"prBody": "(任意) PR body",
+		"commands": ["(任意) コマンド"],
+		"reviewPoints": ["(任意) レビューポイント"]
+	},
+	"questions": ["(任意) 次に進むための確認"],
+	"next": {
+		"agent": "issue",
+		"prompt": "(任意) 関連Issueへのコメントやクローズ更新が必要なら、その依頼文"
+	}
+}
+```
 
 ## 手順 (#tool:todo)
 

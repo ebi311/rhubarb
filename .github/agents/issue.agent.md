@@ -91,7 +91,35 @@ model: GPT-5.2 (copilot)
   - `Assumptions`（仮定）
   - `Questions`（確認質問。必要なら）
   - `Next`（次のアクション）
+- 最終メッセージの末尾に、機械可読な **Handoff JSON**（共通スキーマ）を `json` コードブロックで **1つだけ** 付ける。
+  - `payload` 目安: `issueDraftMarkdown`, `assumptions`, `questions`
+  - 文章が長い場合は `payload` に全文を詰めず、`artifactPaths` に作成したドラフトのパスを入れる。
+- `next` は **任意の提案**（書けるときだけ）。次の agent を最終決定するのは orchestrator。
 - 中断/タイムアウトしそうな場合は、途中までのドラフトと不足点を返して終了する。
+
+### Handoff JSON（共通スキーマ）
+
+最終出力の末尾に、以下の形で 1 つだけ付ける。
+
+```json
+{
+	"handoffVersion": 1,
+	"agent": "issue",
+	"status": "ok | partial | blocked",
+	"summary": "1〜3行で要約",
+	"artifactPaths": ["workspace-relative/path"],
+	"payload": {
+		"issueDraftMarkdown": "(任意) Issue draft の本文",
+		"assumptions": ["(任意) 仮定"],
+		"questions": ["(任意) 質問"]
+	},
+	"questions": ["(任意) 次に進むための確認"],
+	"next": {
+		"agent": "plan",
+		"prompt": "次のエージェントに渡す短い依頼文（必要な前提・パス・制約を含む）"
+	}
+}
+```
 
 ## 手順 (#tool:todo)
 

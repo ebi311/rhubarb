@@ -57,7 +57,34 @@ model: Claude Opus 4.5 (copilot)
   - `Suggested fixes`（具体的な修正案）
   - `Risks`（残る懸念）
   - `Next`（次のアクション）
+- 最終メッセージの末尾に、機械可読な **Handoff JSON**（共通スキーマ）を `json` コードブロックで **1つだけ** 付ける。
+  - `payload` 目安: `keyFindings`, `suggestedFixes`, `risks`
+- `next` は **任意の提案**（書けるときだけ）。次の agent を最終決定するのは orchestrator。
 - 中断/タイムアウトしそうな場合は、確認できた範囲の指摘だけでも返して終了する。
+
+### Handoff JSON（共通スキーマ）
+
+最終出力の末尾に、以下の形で 1 つだけ付ける。
+
+```json
+{
+	"handoffVersion": 1,
+	"agent": "review",
+	"status": "ok | partial | blocked",
+	"summary": "1〜3行で要約",
+	"artifactPaths": ["workspace-relative/path"],
+	"payload": {
+		"keyFindings": ["(任意) 重要指摘"],
+		"suggestedFixes": ["(任意) 修正案"],
+		"risks": ["(任意) 懸念"]
+	},
+	"questions": ["(任意) 次に進むための確認"],
+	"next": {
+		"agent": "implement",
+		"prompt": "次のエージェントに渡す短い依頼文（修正方針・対象範囲・参照パスを含む）"
+	}
+}
+```
 
 ## 手順 (#tool:todo)
 
