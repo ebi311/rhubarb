@@ -278,6 +278,61 @@ describe('ChangeStaffDialog', () => {
 		});
 	});
 
+	it('onStartAdjustment が渡された場合、調整相談ボタンが表示される', () => {
+		render(
+			<ChangeStaffDialog
+				isOpen={true}
+				shift={mockShift}
+				staffOptions={mockStaffOptions}
+				onClose={vi.fn()}
+				onSuccess={vi.fn()}
+				onStartAdjustment={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.getByRole('button', { name: '調整相談' }),
+		).toBeInTheDocument();
+	});
+
+	it('onStartAdjustment が渡されない場合、調整相談ボタンは表示されない', () => {
+		render(
+			<ChangeStaffDialog
+				isOpen={true}
+				shift={mockShift}
+				staffOptions={mockStaffOptions}
+				onClose={vi.fn()}
+				onSuccess={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.queryByRole('button', { name: '調整相談' }),
+		).not.toBeInTheDocument();
+	});
+
+	it('調整相談ボタンをクリックすると onClose と onStartAdjustment が呼ばれる', async () => {
+		const user = userEvent.setup();
+		const onClose = vi.fn();
+		const onStartAdjustment = vi.fn();
+
+		render(
+			<ChangeStaffDialog
+				isOpen={true}
+				shift={mockShift}
+				staffOptions={mockStaffOptions}
+				onClose={onClose}
+				onSuccess={vi.fn()}
+				onStartAdjustment={onStartAdjustment}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+
+		expect(onClose).toHaveBeenCalled();
+		expect(onStartAdjustment).toHaveBeenCalledWith('shift-1');
+	});
+
 	it('元シフトが未割当の場合は変更ボタンが無効', () => {
 		render(
 			<ChangeStaffDialog

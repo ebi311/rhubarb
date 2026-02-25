@@ -24,6 +24,7 @@ type ChangeStaffDialogProps = {
 	staffOptions: StaffPickerOption[];
 	onClose: () => void;
 	onSuccess?: () => void;
+	onStartAdjustment?: (shiftId: string) => void;
 };
 
 export const ChangeStaffDialog = ({
@@ -32,6 +33,7 @@ export const ChangeStaffDialog = ({
 	staffOptions,
 	onClose,
 	onSuccess,
+	onStartAdjustment,
 }: ChangeStaffDialogProps) => {
 	const inputIdBase = useId();
 	const reasonTextareaId = `${inputIdBase}-reason`;
@@ -187,6 +189,19 @@ export const ChangeStaffDialog = ({
 					</div>
 
 					<div className="modal-action">
+						{onStartAdjustment && (
+							<button
+								type="button"
+								className="btn btn-outline btn-sm"
+								onClick={() => {
+									onClose();
+									onStartAdjustment(shift.id);
+								}}
+								disabled={isSubmitting}
+							>
+								調整相談
+							</button>
+						)}
 						<button
 							type="button"
 							className="btn btn-ghost"

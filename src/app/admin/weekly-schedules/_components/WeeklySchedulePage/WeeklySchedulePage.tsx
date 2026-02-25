@@ -6,6 +6,7 @@ import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { AdjustmentWizardDialog } from '../AdjustmentWizardDialog';
 import {
 	CancelShiftDialog,
 	type CancelShiftDialogShift,
@@ -22,7 +23,6 @@ import {
 	RestoreShiftDialog,
 	type RestoreShiftDialogShift,
 } from '../RestoreShiftDialog';
-import { ShiftAdjustmentDialog } from '../ShiftAdjustmentDialog';
 import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
 import { StaffWeeklyShiftGrid, WeeklyShiftGrid } from '../WeeklyShiftGrid';
@@ -104,7 +104,7 @@ export const WeeklySchedulePage = ({
 	const [restoreDialogShift, setRestoreDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
 	const [isCreateOneOffOpen, setIsCreateOneOffOpen] = useState(false);
-	const [isShiftAdjustmentOpen, setIsShiftAdjustmentOpen] = useState(false);
+	const [wizardShiftId, setWizardShiftId] = useState<string | null>(null);
 	const [createOneOffDefaultDateStr, setCreateOneOffDefaultDateStr] = useState<
 		string | undefined
 	>();
@@ -172,13 +172,6 @@ export const WeeklySchedulePage = ({
 					onWeekChange={handleWeekChange}
 				/>
 				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						className="btn btn-outline"
-						onClick={() => setIsShiftAdjustmentOpen(true)}
-					>
-						調整相談
-					</button>
 					<WeeklyViewToggleButton
 						currentView={viewMode}
 						onViewChange={setViewMode}
@@ -241,12 +234,10 @@ export const WeeklySchedulePage = ({
 				onClose={() => setIsCreateOneOffOpen(false)}
 			/>
 
-			<ShiftAdjustmentDialog
-				isOpen={isShiftAdjustmentOpen}
-				weekStartDate={weekStartDate}
-				staffOptions={staffOptions}
-				shifts={initialShifts}
-				onClose={() => setIsShiftAdjustmentOpen(false)}
+			<AdjustmentWizardDialog
+				isOpen={!!wizardShiftId}
+				shiftId={wizardShiftId ?? ''}
+				onClose={() => setWizardShiftId(null)}
 			/>
 
 			{changeDialogShift && (
@@ -256,6 +247,10 @@ export const WeeklySchedulePage = ({
 					staffOptions={staffOptions}
 					onClose={() => setChangeDialogShift(null)}
 					onSuccess={handleDialogSuccess}
+					onStartAdjustment={(shiftId) => {
+						setChangeDialogShift(null);
+						setWizardShiftId(shiftId);
+					}}
 				/>
 			)}
 
