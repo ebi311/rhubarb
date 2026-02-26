@@ -82,7 +82,7 @@
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"rimraf": "^6.1.2",
-		"storybook": "^10.2.8",
+		"storybook": "^10.2.10",
 		"supabase": "^2.75.5",
 		"tailwindcss": "^4",
 		"typescript": "^5",
