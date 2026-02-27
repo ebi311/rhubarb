@@ -2,6 +2,7 @@ import { createTestId, TEST_IDS } from '@/test/helpers/testIds';
 import { formatJstDateString, toJstTimeStr } from '@/utils/date';
 import { describe, expect, it } from 'vitest';
 import {
+	ConflictingShiftSchema,
 	CreateOneOffShiftInputSchema,
 	UpdateShiftScheduleInputSchema,
 } from './shiftActionSchemas';
@@ -211,5 +212,34 @@ describe('UpdateShiftScheduleInputSchema', () => {
 		expect(invalidStaff.error.issues.some((i) => i.path[0] === 'staffId')).toBe(
 			true,
 		);
+	});
+});
+
+describe('ConflictingShiftSchema', () => {
+	it('date は YYYY-MM-DD 形式のみ許可する', () => {
+		const base = {
+			shiftId: TEST_IDS.SCHEDULE_1,
+			clientName: 'テスト利用者',
+			startTime: { hour: 9, minute: 0 },
+			endTime: { hour: 10, minute: 0 },
+		} as const;
+
+		const valid = ConflictingShiftSchema.safeParse({
+			...base,
+			date: '2026-02-19',
+		});
+		expect(valid.success).toBe(true);
+
+		const invalidFormat = ConflictingShiftSchema.safeParse({
+			...base,
+			date: '2026/02/19',
+		});
+		expect(invalidFormat.success).toBe(false);
+
+		const invalidDate = ConflictingShiftSchema.safeParse({
+			...base,
+			date: '2026-02-30',
+		});
+		expect(invalidDate.success).toBe(false);
 	});
 });

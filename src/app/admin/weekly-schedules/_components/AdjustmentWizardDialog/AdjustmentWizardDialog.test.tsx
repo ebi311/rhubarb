@@ -4,6 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AdjustmentWizardDialog } from './AdjustmentWizardDialog';
 
+vi.mock('./StepHelperCandidates', () => ({
+	StepHelperCandidates: ({ onComplete }: { onComplete: () => void }) => (
+		<div>
+			<p>ヘルパー候補ステップ</p>
+			<button type="button" onClick={onComplete}>
+				完了
+			</button>
+		</div>
+	),
+}));
+
 const originalShowModal = HTMLDialogElement.prototype.showModal;
 const originalClose = HTMLDialogElement.prototype.close;
 
@@ -75,11 +86,48 @@ describe('AdjustmentWizardDialog', () => {
 
 		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
 
-		expect(screen.getByText('ヘルパー変更（準備中）')).toBeInTheDocument();
+		expect(screen.getByText('ヘルパー候補ステップ')).toBeInTheDocument();
 
 		await user.click(screen.getByRole('button', { name: '戻る' }));
 
 		expect(screen.getByText('処理を選択')).toBeInTheDocument();
+	});
+
+	it('ヘルパー候補ステップ完了で onClose が呼ばれる', async () => {
+		const user = userEvent.setup();
+		const onClose = vi.fn();
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				onClose={onClose}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
+		await user.click(screen.getByRole('button', { name: '完了' }));
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('ヘルパー候補ステップ完了で onAssigned が呼ばれる', async () => {
+		const user = userEvent.setup();
+		const onAssigned = vi.fn();
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				onClose={vi.fn()}
+				onAssigned={onAssigned}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
+		await user.click(screen.getByRole('button', { name: '完了' }));
+
+		expect(onAssigned).toHaveBeenCalledTimes(1);
 	});
 
 	it('日時の変更は選択できない（準備中）', async () => {
@@ -139,7 +187,7 @@ describe('AdjustmentWizardDialog', () => {
 		);
 
 		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
-		expect(screen.getByText('ヘルパー変更（準備中）')).toBeInTheDocument();
+		expect(screen.getByText('ヘルパー候補ステップ')).toBeInTheDocument();
 
 		rerender(
 			<AdjustmentWizardDialog

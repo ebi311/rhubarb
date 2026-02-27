@@ -60,10 +60,28 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 	AdjustmentWizardDialog: ({
 		isOpen,
 		shiftId,
+		onAssigned,
+		onCascadeReopen,
 	}: {
 		isOpen: boolean;
 		shiftId: string;
-	}) => (isOpen ? <div>Wizard Open: {shiftId}</div> : null),
+		onAssigned?: () => void;
+		onCascadeReopen?: (shiftIds: string[]) => void;
+	}) =>
+		isOpen ? (
+			<div>
+				<p>Wizard Open: {shiftId}</p>
+				<button type="button" onClick={() => onAssigned?.()}>
+					割当完了
+				</button>
+				<button
+					type="button"
+					onClick={() => onCascadeReopen?.([TEST_IDS.SCHEDULE_2])}
+				>
+					連鎖再オープン
+				</button>
+			</div>
+		) : null,
 }));
 
 vi.mock('../ShiftAdjustmentDialog', () => ({
@@ -106,33 +124,36 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 
 		render(<WeeklySchedulePage {...defaultProps} />);
 
-		// 担当者を変更ボタンをクリックして ChangeStaffDialog を開く
 		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
-
-		// ChangeStaffDialog 内の調整相談ボタンをクリック
 		await user.click(screen.getByRole('button', { name: '調整相談' }));
 
-		// AdjustmentWizardDialog が開く
 		expect(
 			screen.getByText(`Wizard Open: ${TEST_IDS.SCHEDULE_1}`),
 		).toBeInTheDocument();
 	});
 
-	it('AdjustmentWizardDialog が開いた後 ChangeStaffDialog は閉じている', async () => {
+	it('assign成功導線で一覧リフレッシュを呼ぶ', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(screen.getByRole('button', { name: '割当完了' }));
+
+		expect(mockRefresh).toHaveBeenCalledTimes(1);
+	});
+
+	it('onCascadeReopen で指定shiftが再オープンされる', async () => {
 		const user = userEvent.setup();
 
 		render(<WeeklySchedulePage {...defaultProps} />);
 
 		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
 		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(screen.getByRole('button', { name: '連鎖再オープン' }));
 
-		// ChangeStaffDialog は閉じている（調整相談ボタンが消えている）
 		expect(
-			screen.queryByRole('button', { name: '調整相談' }),
-		).not.toBeInTheDocument();
-		// AdjustmentWizardDialog が開いている
-		expect(
-			screen.getByText(`Wizard Open: ${TEST_IDS.SCHEDULE_1}`),
+			screen.getByText(`Wizard Open: ${TEST_IDS.SCHEDULE_2}`),
 		).toBeInTheDocument();
 	});
 });

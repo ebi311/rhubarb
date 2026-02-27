@@ -1,6 +1,7 @@
 'use client';
 
 import { type SyntheticEvent, useEffect, useId, useRef, useState } from 'react';
+import { StepHelperCandidates } from './StepHelperCandidates';
 
 type WizardStep =
 	| 'select'
@@ -8,7 +9,6 @@ type WizardStep =
 	| 'datetime-input'
 	| 'datetime-candidates';
 
-// 将来ステップUIがさらに肥大化したら、各サブコンポーネントを別ファイルへ分離する方針。
 const SelectStep = ({
 	onSelectHelperCandidates,
 }: {
@@ -37,17 +37,6 @@ const SelectStep = ({
 					日時の変更
 				</button>
 			</div>
-		</div>
-	);
-};
-
-const HelperCandidatesStep = () => {
-	return (
-		<div className="space-y-3">
-			<h3 className="text-lg font-semibold">ヘルパー変更（準備中）</h3>
-			<p className="text-sm text-base-content/70">
-				Phase 2 で候補表示を実装します。
-			</p>
 		</div>
 	);
 };
@@ -87,12 +76,16 @@ type AdjustmentWizardDialogProps = {
 	isOpen: boolean;
 	shiftId: string;
 	onClose: () => void;
+	onAssigned?: () => void;
+	onCascadeReopen?: (shiftIds: string[]) => void;
 };
 
 export const AdjustmentWizardDialog = ({
 	isOpen,
-	shiftId: _shiftId,
+	shiftId,
 	onClose,
+	onAssigned,
+	onCascadeReopen,
 }: AdjustmentWizardDialogProps) => {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const inputIdBase = useId();
@@ -131,6 +124,11 @@ export const AdjustmentWizardDialog = ({
 		onClose();
 	};
 
+	const handleAssignedComplete = () => {
+		onAssigned?.();
+		handleRequestClose();
+	};
+
 	const handleBack = () => {
 		switch (step) {
 			case 'helper-candidates':
@@ -156,7 +154,13 @@ export const AdjustmentWizardDialog = ({
 					/>
 				);
 			case 'helper-candidates':
-				return <HelperCandidatesStep />;
+				return (
+					<StepHelperCandidates
+						shiftId={shiftId}
+						onComplete={handleAssignedComplete}
+						onCascadeReopen={onCascadeReopen}
+					/>
+				);
 			case 'datetime-input':
 				return (
 					<DateTimeInputStep

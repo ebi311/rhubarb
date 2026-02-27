@@ -162,6 +162,11 @@ export const WeeklySchedulePage = ({
 		router.refresh();
 	};
 
+	const handleWizardAssigned = () => {
+		setWizardShiftId(null);
+		router.refresh();
+	};
+
 	const hasShifts = initialShifts.length > 0;
 
 	return (
@@ -238,6 +243,13 @@ export const WeeklySchedulePage = ({
 				isOpen={!!wizardShiftId}
 				shiftId={wizardShiftId ?? ''}
 				onClose={() => setWizardShiftId(null)}
+				onAssigned={handleWizardAssigned}
+				onCascadeReopen={(shiftIds) => {
+					const reopenShiftId = shiftIds[0];
+					if (reopenShiftId) {
+						setWizardShiftId(reopenShiftId);
+					}
+				}}
 			/>
 
 			{changeDialogShift && (
