@@ -213,6 +213,20 @@ export type SuggestCandidateStaffForShiftOutput = z.infer<
 	typeof SuggestCandidateStaffForShiftOutputSchema
 >;
 
+export const SuggestCandidateStaffForShiftWithNewDatetimeInputSchema = z
+	.object({
+		shiftId: z.string().uuid(),
+		newStartTime: z.coerce.date(),
+		newEndTime: z.coerce.date(),
+	})
+	.refine((data) => data.newEndTime.getTime() > data.newStartTime.getTime(), {
+		message: 'newEndTime must be after newStartTime',
+		path: ['newEndTime'],
+	});
+export type SuggestCandidateStaffForShiftWithNewDatetimeInput = z.infer<
+	typeof SuggestCandidateStaffForShiftWithNewDatetimeInputSchema
+>;
+
 export const AssignStaffWithCascadeInputSchema = z.object({
 	shiftId: z.string().uuid(),
 	newStaffId: z.string().uuid(),
@@ -228,6 +242,22 @@ export const AssignStaffWithCascadeOutputSchema = z.object({
 });
 export type AssignStaffWithCascadeOutput = z.infer<
 	typeof AssignStaffWithCascadeOutputSchema
+>;
+
+export const UpdateDatetimeAndAssignWithCascadeInputSchema = z
+	.object({
+		shiftId: z.string().uuid(),
+		newStaffId: z.string().uuid(),
+		newStartTime: z.coerce.date(),
+		newEndTime: z.coerce.date(),
+		reason: z.string().optional(),
+	})
+	.refine((data) => data.newEndTime.getTime() > data.newStartTime.getTime(), {
+		message: 'newEndTime must be after newStartTime',
+		path: ['newEndTime'],
+	});
+export type UpdateDatetimeAndAssignWithCascadeInput = z.infer<
+	typeof UpdateDatetimeAndAssignWithCascadeInputSchema
 >;
 
 // cancelShiftAction の入力スキーマ

@@ -13,6 +13,8 @@ import type {
 	ShiftRecord,
 	SuggestCandidateStaffForShiftInput,
 	SuggestCandidateStaffForShiftOutput,
+	SuggestCandidateStaffForShiftWithNewDatetimeInput,
+	UpdateDatetimeAndAssignWithCascadeInput,
 	UpdateShiftScheduleActionInput,
 	UpdateShiftScheduleOutput,
 	ValidateStaffAvailabilityInput,
@@ -28,6 +30,8 @@ import {
 	ShiftRecordSchema,
 	SuggestCandidateStaffForShiftInputSchema,
 	SuggestCandidateStaffForShiftOutputSchema,
+	SuggestCandidateStaffForShiftWithNewDatetimeInputSchema,
+	UpdateDatetimeAndAssignWithCascadeInputSchema,
 	UpdateShiftScheduleInputSchema,
 	UpdateShiftScheduleOutputSchema,
 	ValidateStaffAvailabilityInputSchema,
@@ -186,6 +190,63 @@ export const assignStaffWithCascadeUnassignAction = async (
 			parsedInput.data.newStaffId,
 			parsedInput.data.reason,
 		);
+		return successResult(AssignStaffWithCascadeOutputSchema.parse(result));
+	} catch (err) {
+		return handleServiceError<AssignStaffWithCascadeOutput>(err);
+	}
+};
+
+/**
+ * 新しい日時でシフト候補スタッフを提案する
+ */
+export const suggestCandidateStaffForShiftWithNewDatetimeAction = async (
+	input: SuggestCandidateStaffForShiftWithNewDatetimeInput,
+): Promise<ActionResult<SuggestCandidateStaffForShiftOutput>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput =
+		SuggestCandidateStaffForShiftWithNewDatetimeInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		const result = await service.suggestCandidateStaffForShiftWithNewDatetime(
+			user.id,
+			parsedInput.data,
+		);
+		return successResult(
+			SuggestCandidateStaffForShiftOutputSchema.parse(result),
+		);
+	} catch (err) {
+		return handleServiceError<SuggestCandidateStaffForShiftOutput>(err);
+	}
+};
+
+/**
+ * シフト日時変更と担当再割当を行い、競合シフトを連鎖解除する
+ */
+export const updateDatetimeAndAssignWithCascadeUnassignAction = async (
+	input: UpdateDatetimeAndAssignWithCascadeInput,
+): Promise<ActionResult<AssignStaffWithCascadeOutput>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput =
+		UpdateDatetimeAndAssignWithCascadeInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		const result =
+			await service.updateShiftScheduleAndAssignWithCascadeUnassign(
+				user.id,
+				parsedInput.data,
+			);
 		return successResult(AssignStaffWithCascadeOutputSchema.parse(result));
 	} catch (err) {
 		return handleServiceError<AssignStaffWithCascadeOutput>(err);

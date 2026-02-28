@@ -1,6 +1,8 @@
 'use client';
 
 import { type SyntheticEvent, useEffect, useId, useRef, useState } from 'react';
+import { StepDatetimeCandidates } from './StepDatetimeCandidates';
+import { StepDatetimeInput } from './StepDatetimeInput';
 import { StepHelperCandidates } from './StepHelperCandidates';
 
 type WizardStep =
@@ -11,8 +13,10 @@ type WizardStep =
 
 const SelectStep = ({
 	onSelectHelperCandidates,
+	onSelectDatetime,
 }: {
 	onSelectHelperCandidates: () => void;
+	onSelectDatetime: () => void;
 }) => {
 	return (
 		<div className="space-y-3">
@@ -31,8 +35,7 @@ const SelectStep = ({
 				<button
 					type="button"
 					className="btn btn-outline"
-					disabled
-					aria-disabled="true"
+					onClick={onSelectDatetime}
 				>
 					日時の変更
 				</button>
@@ -41,40 +44,11 @@ const SelectStep = ({
 	);
 };
 
-const DateTimeInputStep = ({
-	onShowCandidates,
-}: {
-	onShowCandidates: () => void;
-}) => {
-	return (
-		<div className="space-y-3">
-			<h3 className="text-lg font-semibold">日時変更（準備中）</h3>
-			<p className="text-sm text-base-content/70">このステップは未実装です。</p>
-			<div>
-				<button
-					type="button"
-					className="btn btn-outline"
-					onClick={onShowCandidates}
-				>
-					候補を表示
-				</button>
-			</div>
-		</div>
-	);
-};
-
-const DateTimeCandidatesStep = () => {
-	return (
-		<div className="space-y-3">
-			<h3 className="text-lg font-semibold">日時候補（準備中）</h3>
-			<p className="text-sm text-base-content/70">このステップは未実装です。</p>
-		</div>
-	);
-};
-
 type AdjustmentWizardDialogProps = {
 	isOpen: boolean;
 	shiftId: string;
+	initialStartTime: Date;
+	initialEndTime: Date;
 	onClose: () => void;
 	onAssigned?: () => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
@@ -83,6 +57,8 @@ type AdjustmentWizardDialogProps = {
 export const AdjustmentWizardDialog = ({
 	isOpen,
 	shiftId,
+	initialStartTime,
+	initialEndTime,
 	onClose,
 	onAssigned,
 	onCascadeReopen,
@@ -92,6 +68,13 @@ export const AdjustmentWizardDialog = ({
 	const titleId = `${inputIdBase}-title`;
 	const descriptionId = `${inputIdBase}-description`;
 	const [step, setStep] = useState<WizardStep>('select');
+	const [candidateDatetime, setCandidateDatetime] = useState<{
+		newStartTime: Date;
+		newEndTime: Date;
+	}>({
+		newStartTime: initialStartTime,
+		newEndTime: initialEndTime,
+	});
 
 	useEffect(() => {
 		const dialog = dialogRef.current;
@@ -151,6 +134,7 @@ export const AdjustmentWizardDialog = ({
 				return (
 					<SelectStep
 						onSelectHelperCandidates={() => setStep('helper-candidates')}
+						onSelectDatetime={() => setStep('datetime-input')}
 					/>
 				);
 			case 'helper-candidates':
@@ -163,12 +147,25 @@ export const AdjustmentWizardDialog = ({
 				);
 			case 'datetime-input':
 				return (
-					<DateTimeInputStep
-						onShowCandidates={() => setStep('datetime-candidates')}
+					<StepDatetimeInput
+						initialStartTime={candidateDatetime.newStartTime}
+						initialEndTime={candidateDatetime.newEndTime}
+						onShowCandidates={(payload) => {
+							setCandidateDatetime(payload);
+							setStep('datetime-candidates');
+						}}
 					/>
 				);
 			case 'datetime-candidates':
-				return <DateTimeCandidatesStep />;
+				return (
+					<StepDatetimeCandidates
+						shiftId={shiftId}
+						newStartTime={candidateDatetime.newStartTime}
+						newEndTime={candidateDatetime.newEndTime}
+						onComplete={handleAssignedComplete}
+						onCascadeReopen={onCascadeReopen}
+					/>
+				);
 			default:
 				return null;
 		}

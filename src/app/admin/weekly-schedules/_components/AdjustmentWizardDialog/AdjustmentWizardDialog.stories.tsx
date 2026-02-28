@@ -12,6 +12,8 @@ const meta = {
 	tags: ['autodocs'],
 	args: {
 		onClose: fn(),
+		initialStartTime: new Date('2026-02-22T09:00:00+09:00'),
+		initialEndTime: new Date('2026-02-22T10:00:00+09:00'),
 	},
 } satisfies Meta<typeof AdjustmentWizardDialog>;
 

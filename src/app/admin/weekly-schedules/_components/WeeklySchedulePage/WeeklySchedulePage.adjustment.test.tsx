@@ -60,17 +60,23 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 	AdjustmentWizardDialog: ({
 		isOpen,
 		shiftId,
+		initialStartTime,
+		initialEndTime,
 		onAssigned,
 		onCascadeReopen,
 	}: {
 		isOpen: boolean;
 		shiftId: string;
+		initialStartTime: Date;
+		initialEndTime: Date;
 		onAssigned?: () => void;
 		onCascadeReopen?: (shiftIds: string[]) => void;
 	}) =>
 		isOpen ? (
 			<div>
 				<p>Wizard Open: {shiftId}</p>
+				<p>Start: {initialStartTime.toISOString()}</p>
+				<p>End: {initialEndTime.toISOString()}</p>
 				<button type="button" onClick={() => onAssigned?.()}>
 					割当完了
 				</button>
@@ -130,6 +136,12 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		expect(
 			screen.getByText(`Wizard Open: ${TEST_IDS.SCHEDULE_1}`),
 		).toBeInTheDocument();
+		expect(
+			screen.getByText('Start: 2026-01-19T00:00:00.000Z'),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('End: 2026-01-19T01:00:00.000Z'),
+		).toBeInTheDocument();
 	});
 
 	it('assign成功導線で一覧リフレッシュを呼ぶ', async () => {
@@ -143,7 +155,7 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		expect(mockRefresh).toHaveBeenCalledTimes(1);
 	});
 
-	it('onCascadeReopen で指定shiftが再オープンされる', async () => {
+	it('onCascadeReopen が unknown shiftId を返したときは wizard を開かない', async () => {
 		const user = userEvent.setup();
 
 		render(<WeeklySchedulePage {...defaultProps} />);
@@ -153,7 +165,10 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		await user.click(screen.getByRole('button', { name: '連鎖再オープン' }));
 
 		expect(
-			screen.getByText(`Wizard Open: ${TEST_IDS.SCHEDULE_2}`),
-		).toBeInTheDocument();
+			screen.queryByText(`Wizard Open: ${TEST_IDS.SCHEDULE_2}`),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByText(`Wizard Open: ${TEST_IDS.SCHEDULE_1}`),
+		).not.toBeInTheDocument();
 	});
 });

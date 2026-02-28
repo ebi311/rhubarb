@@ -15,6 +15,36 @@ vi.mock('./StepHelperCandidates', () => ({
 	),
 }));
 
+vi.mock('./StepDatetimeInput', () => ({
+	StepDatetimeInput: ({
+		onShowCandidates,
+	}: {
+		onShowCandidates: (payload: {
+			newStartTime: Date;
+			newEndTime: Date;
+		}) => void;
+	}) => (
+		<div>
+			<p>日時入力ステップ</p>
+			<button
+				type="button"
+				onClick={() =>
+					onShowCandidates({
+						newStartTime: new Date('2026-02-22T09:00:00+09:00'),
+						newEndTime: new Date('2026-02-22T10:00:00+09:00'),
+					})
+				}
+			>
+				候補を表示
+			</button>
+		</div>
+	),
+}));
+
+vi.mock('./StepDatetimeCandidates', () => ({
+	StepDatetimeCandidates: () => <p>日時候補ステップ</p>,
+}));
+
 const originalShowModal = HTMLDialogElement.prototype.showModal;
 const originalClose = HTMLDialogElement.prototype.close;
 
@@ -40,6 +70,8 @@ describe('AdjustmentWizardDialog', () => {
 			<AdjustmentWizardDialog
 				isOpen={false}
 				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -53,6 +85,8 @@ describe('AdjustmentWizardDialog', () => {
 			<AdjustmentWizardDialog
 				isOpen={true}
 				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -62,15 +96,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(
 			screen.getByRole('button', { name: 'ヘルパーの変更' }),
 		).toBeInTheDocument();
-		expect(
-			screen.getByRole('button', { name: '日時の変更' }),
-		).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: '日時の変更' })).toBeDisabled();
-		expect(screen.queryByText(TEST_IDS.SCHEDULE_1)).not.toBeInTheDocument();
-
-		const dialog = screen.getByRole('dialog');
-		expect(dialog).toHaveAttribute('aria-labelledby');
-		expect(dialog).toHaveAttribute('aria-describedby');
+		expect(screen.getByRole('button', { name: '日時の変更' })).toBeEnabled();
 	});
 
 	it('ヘルパーの変更を選ぶとStepが進み、戻るでStep1に戻れる', async () => {
@@ -80,46 +106,53 @@ describe('AdjustmentWizardDialog', () => {
 			<AdjustmentWizardDialog
 				isOpen={true}
 				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={vi.fn()}
 			/>,
 		);
 
 		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
-
 		expect(screen.getByText('ヘルパー候補ステップ')).toBeInTheDocument();
 
 		await user.click(screen.getByRole('button', { name: '戻る' }));
-
 		expect(screen.getByText('処理を選択')).toBeInTheDocument();
 	});
 
-	it('ヘルパー候補ステップ完了で onClose が呼ばれる', async () => {
+	it('日時変更ルート: input -> candidates へ遷移し、戻るでinputへ戻る', async () => {
 		const user = userEvent.setup();
-		const onClose = vi.fn();
-
 		render(
 			<AdjustmentWizardDialog
 				isOpen={true}
 				shiftId={TEST_IDS.SCHEDULE_1}
-				onClose={onClose}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
 			/>,
 		);
 
-		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
-		await user.click(screen.getByRole('button', { name: '完了' }));
+		await user.click(screen.getByRole('button', { name: '日時の変更' }));
+		expect(screen.getByText('日時入力ステップ')).toBeInTheDocument();
 
-		expect(onClose).toHaveBeenCalledTimes(1);
+		await user.click(screen.getByRole('button', { name: '候補を表示' }));
+		expect(screen.getByText('日時候補ステップ')).toBeInTheDocument();
+
+		await user.click(screen.getByRole('button', { name: '戻る' }));
+		expect(screen.getByText('日時入力ステップ')).toBeInTheDocument();
 	});
 
-	it('ヘルパー候補ステップ完了で onAssigned が呼ばれる', async () => {
+	it('ヘルパー候補完了時に onAssigned が呼ばれる', async () => {
 		const user = userEvent.setup();
+		const onClose = vi.fn();
 		const onAssigned = vi.fn();
 
 		render(
 			<AdjustmentWizardDialog
 				isOpen={true}
 				shiftId={TEST_IDS.SCHEDULE_1}
-				onClose={vi.fn()}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={onClose}
 				onAssigned={onAssigned}
 			/>,
 		);
@@ -130,25 +163,63 @@ describe('AdjustmentWizardDialog', () => {
 		expect(onAssigned).toHaveBeenCalledTimes(1);
 	});
 
-	it('日時の変更は選択できない（準備中）', async () => {
+	it('ヘルパー候補完了時に onClose が呼ばれる', async () => {
 		const user = userEvent.setup();
+		const onClose = vi.fn();
 
 		render(
 			<AdjustmentWizardDialog
 				isOpen={true}
 				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={onClose}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
+		await user.click(screen.getByRole('button', { name: '完了' }));
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('close -> reopen で step が select にリセットされる', async () => {
+		const user = userEvent.setup();
+		const { rerender } = render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={vi.fn()}
 			/>,
 		);
 
-		const datetimeButton = screen.getByRole('button', { name: '日時の変更' });
-		expect(datetimeButton).toBeDisabled();
+		await user.click(screen.getByRole('button', { name: '日時の変更' }));
+		expect(screen.getByText('日時入力ステップ')).toBeInTheDocument();
 
-		await user.click(datetimeButton);
+		rerender(
+			<AdjustmentWizardDialog
+				isOpen={false}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		rerender(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+			/>,
+		);
 
 		expect(screen.getByText('処理を選択')).toBeInTheDocument();
-		expect(screen.queryByText('日時変更（準備中）')).not.toBeInTheDocument();
-		expect(screen.queryByText('日時候補（準備中）')).not.toBeInTheDocument();
+		expect(screen.queryByText('日時入力ステップ')).not.toBeInTheDocument();
 	});
 
 	it('Escキャンセル時にonCloseが呼ばれる', () => {
@@ -158,6 +229,8 @@ describe('AdjustmentWizardDialog', () => {
 			<AdjustmentWizardDialog
 				isOpen={true}
 				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={onClose}
 			/>,
 		);
@@ -172,39 +245,5 @@ describe('AdjustmentWizardDialog', () => {
 		);
 
 		expect(onClose).toHaveBeenCalledTimes(1);
-	});
-
-	it('閉じて再度開くとselectステップから開始する', async () => {
-		const user = userEvent.setup();
-		const onClose = vi.fn();
-
-		const { rerender } = render(
-			<AdjustmentWizardDialog
-				isOpen={true}
-				shiftId={TEST_IDS.SCHEDULE_1}
-				onClose={onClose}
-			/>,
-		);
-
-		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
-		expect(screen.getByText('ヘルパー候補ステップ')).toBeInTheDocument();
-
-		rerender(
-			<AdjustmentWizardDialog
-				isOpen={false}
-				shiftId={TEST_IDS.SCHEDULE_1}
-				onClose={onClose}
-			/>,
-		);
-
-		rerender(
-			<AdjustmentWizardDialog
-				isOpen={true}
-				shiftId={TEST_IDS.SCHEDULE_1}
-				onClose={onClose}
-			/>,
-		);
-
-		expect(screen.getByText('処理を選択')).toBeInTheDocument();
 	});
 });
