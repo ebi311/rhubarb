@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	ConflictingShiftSchema,
 	CreateOneOffShiftInputSchema,
+	SuggestCandidateStaffForShiftWithNewDatetimeInputSchema,
+	UpdateDatetimeAndAssignWithCascadeInputSchema,
 	UpdateShiftScheduleInputSchema,
 } from './shiftActionSchemas';
 
@@ -241,5 +243,37 @@ describe('ConflictingShiftSchema', () => {
 			date: '2026-02-30',
 		});
 		expect(invalidDate.success).toBe(false);
+	});
+});
+
+describe('new datetime refine messages', () => {
+	it('候補スタッフ提案の日時入力で終了時刻が開始時刻以前なら日本語メッセージを返す', () => {
+		const result =
+			SuggestCandidateStaffForShiftWithNewDatetimeInputSchema.safeParse({
+				shiftId: createTestId(),
+				newStartTime: '2026-02-19T10:00:00+09:00',
+				newEndTime: '2026-02-19T10:00:00+09:00',
+			});
+
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.issues[0]?.message).toBe(
+			'newEndTime は newStartTime より後の時刻を指定してください',
+		);
+	});
+
+	it('日時変更+担当者変更入力で終了時刻が開始時刻以前なら日本語メッセージを返す', () => {
+		const result = UpdateDatetimeAndAssignWithCascadeInputSchema.safeParse({
+			shiftId: createTestId(),
+			newStaffId: TEST_IDS.STAFF_1,
+			newStartTime: '2026-02-19T10:00:00+09:00',
+			newEndTime: '2026-02-19T10:00:00+09:00',
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.issues[0]?.message).toBe(
+			'newEndTime は newStartTime より後の時刻を指定してください',
+		);
 	});
 });

@@ -1,3 +1,4 @@
+import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { ServiceUserRepository } from '@/backend/repositories/serviceUserRepository';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
@@ -463,7 +464,10 @@ export class ShiftService {
 		bStart: Date;
 		bEnd: Date;
 	}): boolean {
-		return params.aStart < params.bEnd && params.aEnd > params.bStart;
+		const intervalMs = STAFF_SHIFT_INTERVAL_MINUTES * 60_000;
+		const bufferedBStart = new Date(params.bStart.getTime() - intervalMs);
+		const bufferedBEnd = new Date(params.bEnd.getTime() + intervalMs);
+		return params.aStart < bufferedBEnd && params.aEnd > bufferedBStart;
 	}
 
 	private toShiftRecord(shift: Shift) {

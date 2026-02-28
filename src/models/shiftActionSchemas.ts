@@ -220,7 +220,7 @@ export const SuggestCandidateStaffForShiftWithNewDatetimeInputSchema = z
 		newEndTime: z.coerce.date(),
 	})
 	.refine((data) => data.newEndTime.getTime() > data.newStartTime.getTime(), {
-		message: 'newEndTime must be after newStartTime',
+		message: 'newEndTime は newStartTime より後の時刻を指定してください',
 		path: ['newEndTime'],
 	});
 export type SuggestCandidateStaffForShiftWithNewDatetimeInput = z.infer<
@@ -253,7 +253,7 @@ export const UpdateDatetimeAndAssignWithCascadeInputSchema = z
 		reason: z.string().optional(),
 	})
 	.refine((data) => data.newEndTime.getTime() > data.newStartTime.getTime(), {
-		message: 'newEndTime must be after newStartTime',
+		message: 'newEndTime は newStartTime より後の時刻を指定してください',
 		path: ['newEndTime'],
 	});
 export type UpdateDatetimeAndAssignWithCascadeInput = z.infer<

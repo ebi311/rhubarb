@@ -798,7 +798,10 @@ describe('ShiftService', () => {
 				staff_id: TEST_IDS.STAFF_2,
 				client_id: TEST_IDS.CLIENT_3,
 				date: new Date('2026-01-20'),
-				time: { start: { hour: 11, minute: 0 }, end: { hour: 12, minute: 0 } },
+				time: {
+					start: { hour: 11, minute: 31 },
+					end: { hour: 12, minute: 30 },
+				},
 			});
 
 			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
@@ -1116,6 +1119,84 @@ describe('ShiftService', () => {
 			);
 		});
 
+		it('should treat a 30-minute adjacent shift as conflicting for cascade unassign', async () => {
+			const userId = createTestId();
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const newStaffId = TEST_IDS.STAFF_2;
+			const reason = '再割当';
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const targetShift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				date: new Date('2026-03-20'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+			});
+			const adjacentShift = createTestShift({
+				id: TEST_IDS.SCHEDULE_2,
+				staff_id: newStaffId,
+				status: 'scheduled',
+				date: new Date('2026-03-20'),
+				time: { start: { hour: 11, minute: 0 }, end: { hour: 12, minute: 0 } },
+			});
+			const updatedShift = createTestShift({
+				id: shiftId,
+				staff_id: newStaffId,
+				is_unassigned: false,
+				date: new Date('2026-03-20'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+				canceled_reason: null,
+				canceled_category: null,
+				canceled_at: null,
+			});
+			const assignableStaff = createTestStaff({
+				id: newStaffId,
+				office_id: TEST_IDS.OFFICE_1,
+				role: 'helper',
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById
+				.mockResolvedValueOnce(targetShift)
+				.mockResolvedValueOnce(updatedShift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(
+				createTestServiceUser({
+					id: TEST_IDS.CLIENT_1,
+					office_id: TEST_IDS.OFFICE_1,
+				}),
+			);
+			mockStaffRepo.findById.mockResolvedValueOnce(assignableStaff);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				{ ...assignableStaff, service_type_ids: ['physical-care'] },
+			]);
+			mockShiftRepo.list.mockResolvedValueOnce([targetShift, adjacentShift]);
+
+			const result = await service.assignStaffWithCascadeUnassign(
+				userId,
+				shiftId,
+				newStaffId,
+				reason,
+			);
+
+			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenCalledTimes(2);
+			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenNthCalledWith(
+				1,
+				shiftId,
+				newStaffId,
+				reason,
+			);
+			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenNthCalledWith(
+				2,
+				adjacentShift.id,
+				null,
+				reason,
+			);
+			expect(result.cascadeUnassignedShiftIds).toEqual([adjacentShift.id]);
+		});
+
 		it('should throw 404 for cross-office shift', async () => {
 			const userId = createTestId();
 			const shiftId = TEST_IDS.SCHEDULE_1;
@@ -1224,7 +1305,10 @@ describe('ShiftService', () => {
 				id: createTestId(),
 				staff_id: newStaffId,
 				date: new Date('2026-03-20'),
-				time: { start: { hour: 11, minute: 0 }, end: { hour: 12, minute: 0 } },
+				time: {
+					start: { hour: 11, minute: 31 },
+					end: { hour: 12, minute: 30 },
+				},
 			});
 			const updatedShift = createTestShift({
 				id: shiftId,
