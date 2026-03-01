@@ -189,3 +189,4 @@ model: GPT-5.3-Codex (copilot)
 - `create-story` - Storybook の Story を実装する際のテンプレートと注意点
 - `create-vitest` - コンポーネントテストのテンプレート
 - `code-implement` - 実装時の注意
+- `pr-review-guard` - PR 前の再指摘防止チェック（提出前に確認）
