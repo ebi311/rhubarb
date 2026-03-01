@@ -90,11 +90,6 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		) : null,
 }));
 
-vi.mock('../ShiftAdjustmentDialog', () => ({
-	ShiftAdjustmentDialog: ({ isOpen }: { isOpen: boolean }) =>
-		isOpen ? <div>Shift Adjustment Open</div> : null,
-}));
-
 import type { ShiftDisplayRow } from '../ShiftTable';
 import {
 	WeeklySchedulePage,
