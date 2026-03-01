@@ -1885,16 +1885,11 @@ describe('ShiftService', () => {
 			expect(mockShiftRepo.updateShiftSchedule).toHaveBeenCalledWith(shiftId, {
 				startTime: newStartTime,
 				endTime: newEndTime,
-				staffId: targetShift.staff_id ?? null,
+				staffId: newStaffId,
+				notes: reason,
 			});
-			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenNthCalledWith(
-				1,
-				shiftId,
-				newStaffId,
-				reason,
-			);
-			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenNthCalledWith(
-				2,
+			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenCalledTimes(1);
+			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenCalledWith(
 				conflictShift.id,
 				null,
 				reason,
@@ -1972,7 +1967,6 @@ describe('ShiftService', () => {
 				conflict2,
 			]);
 			mockShiftRepo.updateStaffAssignment
-				.mockResolvedValueOnce(undefined)
 				.mockResolvedValueOnce(undefined)
 				.mockRejectedValueOnce(new Error('db error'));
 

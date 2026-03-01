@@ -812,7 +812,8 @@ export class ShiftService {
 			await this.shiftRepository.updateShiftSchedule(input.shiftId, {
 				startTime: input.newStartTime,
 				endTime: input.newEndTime,
-				staffId: shift.staff_id ?? null,
+				staffId: input.newStaffId,
+				notes: input.reason,
 			});
 		} catch (cause) {
 			throw new ServiceError(500, 'Failed to update shift datetime', {
@@ -834,20 +835,6 @@ export class ShiftService {
 			targetEnd: input.newEndTime,
 			shifts: sameDayShifts,
 		});
-
-		try {
-			await this.shiftRepository.updateStaffAssignment(
-				input.shiftId,
-				input.newStaffId,
-				input.reason,
-			);
-		} catch (cause) {
-			throw new ServiceError(500, 'Failed to assign new staff', {
-				shiftId: input.shiftId,
-				newStaffId: input.newStaffId,
-				cause,
-			});
-		}
 
 		const cascadeUnassignedShiftIds = await this.cascadeUnassignShifts({
 			conflictingShifts,
