@@ -4,10 +4,14 @@ import { TEST_IDS, createTestId } from '@/test/helpers/testIds';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
+	assignStaffWithCascadeUnassignAction,
 	cancelShiftAction,
 	changeShiftStaffAction,
 	createOneOffShiftAction,
 	restoreShiftAction,
+	suggestCandidateStaffForShiftAction,
+	suggestCandidateStaffForShiftWithNewDatetimeAction,
+	updateDatetimeAndAssignWithCascadeUnassignAction,
 	updateShiftScheduleAction,
 	validateStaffAvailabilityAction,
 } from './shifts';
@@ -36,6 +40,10 @@ const createMockService = () => ({
 	validateStaffAvailability: vi.fn(),
 	createOneOffShift: vi.fn(),
 	updateShiftSchedule: vi.fn(),
+	suggestCandidateStaffForShift: vi.fn(),
+	assignStaffWithCascadeUnassign: vi.fn(),
+	suggestCandidateStaffForShiftWithNewDatetime: vi.fn(),
+	updateShiftScheduleAndAssignWithCascadeUnassign: vi.fn(),
 });
 
 type MockService = ReturnType<typeof createMockService>;
@@ -641,5 +649,403 @@ describe('validateStaffAvailabilityAction', () => {
 			undefined,
 		);
 		expect(result.status).toBe(200);
+	});
+});
+
+describe('suggestCandidateStaffForShiftAction', () => {
+	const validInput = { shiftId: createTestId() };
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result = await suggestCandidateStaffForShiftAction(validInput);
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+		expect(mockService.suggestCandidateStaffForShift).not.toHaveBeenCalled();
+	});
+
+	it('候補提案を返す', async () => {
+		const userId = createTestId();
+		mockAuthUser(userId);
+		mockService.suggestCandidateStaffForShift.mockResolvedValue({
+			candidates: [
+				{
+					staffId: TEST_IDS.STAFF_1,
+					staffName: '山田太郎',
+					conflictingShifts: [],
+				},
+			],
+		});
+
+		const result = await suggestCandidateStaffForShiftAction(validInput);
+
+		expect(mockService.suggestCandidateStaffForShift).toHaveBeenCalledWith(
+			userId,
+			validInput.shiftId,
+		);
+		expect(result).toEqual({
+			data: {
+				candidates: [
+					{
+						staffId: TEST_IDS.STAFF_1,
+						staffName: '山田太郎',
+						conflictingShifts: [],
+					},
+				],
+			},
+			error: null,
+			status: 200,
+		});
+	});
+
+	it('バリデーションエラーは400を返す（shiftIdが不正）', async () => {
+		mockAuthUser(createTestId());
+
+		const result = await suggestCandidateStaffForShiftAction({
+			shiftId: 'invalid-uuid',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.suggestCandidateStaffForShift).not.toHaveBeenCalled();
+	});
+
+	it('conflictingShifts がある候補提案を返す', async () => {
+		const userId = createTestId();
+		mockAuthUser(userId);
+		const conflictingShiftId = createTestId();
+		mockService.suggestCandidateStaffForShift.mockResolvedValue({
+			candidates: [
+				{
+					staffId: TEST_IDS.STAFF_1,
+					staffName: '山田太郎',
+					conflictingShifts: [
+						{
+							shiftId: conflictingShiftId,
+							clientName: '田中様',
+							date: '2026-02-22',
+							startTime: { hour: 9, minute: 0 },
+							endTime: { hour: 10, minute: 0 },
+						},
+					],
+				},
+			],
+		});
+
+		const result = await suggestCandidateStaffForShiftAction(validInput);
+
+		expect(result.status).toBe(200);
+		expect(result.data?.candidates[0]?.conflictingShifts).toHaveLength(1);
+		expect(result.data?.candidates[0]?.conflictingShifts[0]?.shiftId).toBe(
+			conflictingShiftId,
+		);
+	});
+	it('ServiceErrorを委譲する', async () => {
+		mockAuthUser(createTestId());
+		mockService.suggestCandidateStaffForShift.mockRejectedValue(
+			new ServiceError(404, 'Shift not found'),
+		);
+
+		const result = await suggestCandidateStaffForShiftAction(validInput);
+
+		expect(result.status).toBe(404);
+		expect(result.error).toBe('Shift not found');
+	});
+});
+
+describe('assignStaffWithCascadeUnassignAction', () => {
+	const validInput = {
+		shiftId: createTestId(),
+		newStaffId: TEST_IDS.STAFF_1,
+		reason: '担当変更',
+	};
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result = await assignStaffWithCascadeUnassignAction(validInput);
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+		expect(mockService.assignStaffWithCascadeUnassign).not.toHaveBeenCalled();
+	});
+
+	it('担当者変更と連鎖解除結果を返す', async () => {
+		const userId = createTestId();
+		mockAuthUser(userId);
+		const now = new Date('2026-02-19T00:00:00Z');
+		const updatedShiftId = createTestId();
+		mockService.assignStaffWithCascadeUnassign.mockResolvedValue({
+			updatedShift: {
+				id: updatedShiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				service_type_id: 'physical-care',
+				staff_id: TEST_IDS.STAFF_1,
+				date: new Date('2026-02-19'),
+				start_time: { hour: 9, minute: 0 },
+				end_time: { hour: 10, minute: 0 },
+				status: 'scheduled',
+				is_unassigned: false,
+				canceled_reason: null,
+				canceled_category: null,
+				canceled_at: null,
+				created_at: now,
+				updated_at: now,
+			},
+			cascadeUnassignedShiftIds: [createTestId()],
+		});
+
+		const result = await assignStaffWithCascadeUnassignAction(validInput);
+
+		expect(mockService.assignStaffWithCascadeUnassign).toHaveBeenCalledWith(
+			userId,
+			validInput.shiftId,
+			validInput.newStaffId,
+			validInput.reason,
+		);
+		expect(result.status).toBe(200);
+		expect(result.error).toBeNull();
+		expect(result.data?.updatedShift.id).toBe(updatedShiftId);
+		expect(result.data?.cascadeUnassignedShiftIds).toHaveLength(1);
+	});
+
+	it('バリデーションエラーは400を返す（shiftIdが不正）', async () => {
+		mockAuthUser(createTestId());
+
+		const result = await assignStaffWithCascadeUnassignAction({
+			...validInput,
+			shiftId: 'invalid-uuid',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(mockService.assignStaffWithCascadeUnassign).not.toHaveBeenCalled();
+	});
+	it('ServiceErrorを委譲する', async () => {
+		mockAuthUser(createTestId());
+		mockService.assignStaffWithCascadeUnassign.mockRejectedValue(
+			new ServiceError(400, 'New staff is not assignable to this shift'),
+		);
+
+		const result = await assignStaffWithCascadeUnassignAction(validInput);
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('New staff is not assignable to this shift');
+	});
+
+	it('ServiceError details を result.details に載せる', async () => {
+		mockAuthUser(createTestId());
+		const details = { reason: 'staff_conflict', shiftIds: [createTestId()] };
+		mockService.assignStaffWithCascadeUnassign.mockRejectedValue(
+			new ServiceError(409, 'Conflict detected', details),
+		);
+
+		const result = await assignStaffWithCascadeUnassignAction(validInput);
+
+		expect(result.status).toBe(409);
+		expect(result.error).toBe('Conflict detected');
+		expect(result.details).toEqual(details);
+	});
+
+	it('500系 ServiceError の details はマスクする', async () => {
+		mockAuthUser(createTestId());
+		mockService.assignStaffWithCascadeUnassign.mockRejectedValue(
+			new ServiceError(500, 'Internal error', {
+				failedShiftId: createTestId(),
+			}),
+		);
+
+		const result = await assignStaffWithCascadeUnassignAction(validInput);
+
+		expect(result.status).toBe(500);
+		expect(result.error).toBe('Internal error');
+		expect(result.details).toBeUndefined();
+	});
+});
+
+describe('suggestCandidateStaffForShiftWithNewDatetimeAction', () => {
+	const validInput = {
+		shiftId: createTestId(),
+		newStartTime: new Date('2026-04-10T10:00:00+09:00'),
+		newEndTime: new Date('2026-04-10T11:00:00+09:00'),
+	};
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result =
+			await suggestCandidateStaffForShiftWithNewDatetimeAction(validInput);
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+		expect(
+			mockService.suggestCandidateStaffForShiftWithNewDatetime,
+		).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す', async () => {
+		mockAuthUser(createTestId());
+
+		const result = await suggestCandidateStaffForShiftWithNewDatetimeAction({
+			...validInput,
+			shiftId: 'invalid-uuid',
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(
+			mockService.suggestCandidateStaffForShiftWithNewDatetime,
+		).not.toHaveBeenCalled();
+	});
+
+	it('候補提案を返す', async () => {
+		const userId = createTestId();
+		mockAuthUser(userId);
+		mockService.suggestCandidateStaffForShiftWithNewDatetime.mockResolvedValue({
+			candidates: [
+				{
+					staffId: TEST_IDS.STAFF_1,
+					staffName: '山田太郎',
+					conflictingShifts: [],
+				},
+			],
+		});
+
+		const result =
+			await suggestCandidateStaffForShiftWithNewDatetimeAction(validInput);
+
+		expect(
+			mockService.suggestCandidateStaffForShiftWithNewDatetime,
+		).toHaveBeenCalledWith(userId, validInput);
+		expect(result.status).toBe(200);
+		expect(result.data?.candidates).toHaveLength(1);
+	});
+
+	it('ServiceErrorを委譲する', async () => {
+		mockAuthUser(createTestId());
+		mockService.suggestCandidateStaffForShiftWithNewDatetime.mockRejectedValue(
+			new ServiceError(404, 'Shift not found'),
+		);
+
+		const result =
+			await suggestCandidateStaffForShiftWithNewDatetimeAction(validInput);
+		expect(result.status).toBe(404);
+		expect(result.error).toBe('Shift not found');
+	});
+});
+
+describe('updateDatetimeAndAssignWithCascadeUnassignAction', () => {
+	const validInput = {
+		shiftId: createTestId(),
+		newStaffId: TEST_IDS.STAFF_1,
+		newStartTime: new Date('2026-04-10T10:00:00+09:00'),
+		newEndTime: new Date('2026-04-10T11:00:00+09:00'),
+		reason: '日時変更',
+	};
+
+	it('未認証は401を返す', async () => {
+		mockSupabase.auth.getUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const result =
+			await updateDatetimeAndAssignWithCascadeUnassignAction(validInput);
+
+		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
+		expect(
+			mockService.updateShiftScheduleAndAssignWithCascadeUnassign,
+		).not.toHaveBeenCalled();
+	});
+
+	it('バリデーションエラーは400を返す', async () => {
+		mockAuthUser(createTestId());
+
+		const result = await updateDatetimeAndAssignWithCascadeUnassignAction({
+			...validInput,
+			newEndTime: new Date('2026-04-10T10:00:00+09:00'),
+		});
+
+		expect(result.status).toBe(400);
+		expect(result.error).toBe('Validation failed');
+		expect(
+			mockService.updateShiftScheduleAndAssignWithCascadeUnassign,
+		).not.toHaveBeenCalled();
+	});
+
+	it('成功時に結果を返す', async () => {
+		const userId = createTestId();
+		mockAuthUser(userId);
+		const now = new Date('2026-04-01T00:00:00Z');
+		mockService.updateShiftScheduleAndAssignWithCascadeUnassign.mockResolvedValue(
+			{
+				updatedShift: {
+					id: validInput.shiftId,
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'physical-care',
+					staff_id: TEST_IDS.STAFF_1,
+					date: new Date('2026-04-10'),
+					start_time: { hour: 10, minute: 0 },
+					end_time: { hour: 11, minute: 0 },
+					status: 'scheduled',
+					is_unassigned: false,
+					canceled_reason: null,
+					canceled_category: null,
+					canceled_at: null,
+					created_at: now,
+					updated_at: now,
+				},
+				cascadeUnassignedShiftIds: [createTestId()],
+			},
+		);
+
+		const result =
+			await updateDatetimeAndAssignWithCascadeUnassignAction(validInput);
+
+		expect(
+			mockService.updateShiftScheduleAndAssignWithCascadeUnassign,
+		).toHaveBeenCalledWith(userId, validInput);
+		expect(result.status).toBe(200);
+		expect(result.error).toBeNull();
+		expect(result.data?.updatedShift.id).toBe(validInput.shiftId);
+	});
+
+	it('ServiceErrorを委譲する', async () => {
+		mockAuthUser(createTestId());
+		mockService.updateShiftScheduleAndAssignWithCascadeUnassign.mockRejectedValue(
+			new ServiceError(409, 'Conflict detected', {
+				shiftIds: [createTestId()],
+			}),
+		);
+
+		const result =
+			await updateDatetimeAndAssignWithCascadeUnassignAction(validInput);
+
+		expect(result.status).toBe(409);
+		expect(result.error).toBe('Conflict detected');
+		expect(result.details).toEqual({ shiftIds: expect.any(Array) });
+	});
+
+	it('500系 ServiceError の details はマスクする', async () => {
+		mockAuthUser(createTestId());
+		mockService.updateShiftScheduleAndAssignWithCascadeUnassign.mockRejectedValue(
+			new ServiceError(500, 'Internal error', {
+				failedShiftId: createTestId(),
+			}),
+		);
+
+		const result =
+			await updateDatetimeAndAssignWithCascadeUnassignAction(validInput);
+
+		expect(result.status).toBe(500);
+		expect(result.error).toBe('Internal error');
+		expect(result.details).toBeUndefined();
 	});
 });

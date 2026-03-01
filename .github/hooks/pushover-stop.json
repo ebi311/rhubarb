@@ -1,0 +1,11 @@
+{
+	"hooks": {
+		"Stop": [
+			{
+				"type": "command",
+				"command": "./scripts/copilot-hook-pushover.sh",
+				"timeout": 15
+			}
+		]
+	}
+}

@@ -1,8 +1,8 @@
 import { Database } from '@/backend/types/supabase';
 import { ClientStaffAssignmentSchema } from '@/models/clientStaffAssignment';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
-import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 
 const ClientStaffAssignmentLinkSchema = ClientStaffAssignmentSchema.pick({
 	client_id: true,

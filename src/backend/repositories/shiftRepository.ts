@@ -238,14 +238,14 @@ export class ShiftRepository {
 	 */
 	async updateStaffAssignment(
 		shiftId: string,
-		staffId: string,
+		staffId: string | null,
 		notes?: string,
 	): Promise<void> {
 		const { error } = await this.supabase
 			.from('shifts')
 			.update({
 				staff_id: staffId,
-				is_unassigned: false,
+				is_unassigned: staffId === null,
 				notes,
 				updated_at: new Date().toISOString(),
 			})

@@ -79,6 +79,24 @@ describe('ShiftRepository', () => {
 			});
 		});
 
+		it('should set is_unassigned to true when staffId is null', async () => {
+			const shiftId = 'shift-1';
+
+			mockSupabase._mockQuery.eq.mockResolvedValueOnce({
+				data: null,
+				error: null,
+			});
+
+			await repository.updateStaffAssignment(shiftId, null);
+
+			expect(mockSupabase._mockQuery.update).toHaveBeenCalledWith({
+				staff_id: null,
+				is_unassigned: true,
+				notes: undefined,
+				updated_at: expect.any(String),
+			});
+		});
+
 		it('should throw error if update fails', async () => {
 			const error = new Error('Update failed');
 			mockSupabase._mockQuery.eq.mockResolvedValueOnce({ data: null, error });

@@ -1,6 +1,6 @@
 ---
 name: code-implement
-describe: React コンポーネントを作成するときのガイドライン
+description: React コンポーネントを作成するときのガイドライン
 ---
 
 ## 型安全性

@@ -83,6 +83,15 @@ export const Closed: Story = {
 	},
 };
 
+export const WithAdjustmentButton: Story = {
+	args: {
+		isOpen: true,
+		shift: mockShift,
+		staffOptions: mockStaffOptions,
+		onStartAdjustment: fn(),
+	},
+};
+
 export const WithUnassignedShift: Story = {
 	args: {
 		isOpen: true,

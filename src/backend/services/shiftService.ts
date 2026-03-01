@@ -1,10 +1,18 @@
+import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { ServiceUserRepository } from '@/backend/repositories/serviceUserRepository';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import { Shift } from '@/models/shift';
-import { CreateOneOffShiftServiceInput } from '@/models/shiftActionSchemas';
-import { getJstDateOnly, setJstTime } from '@/utils/date';
+import {
+	AssignStaffWithCascadeOutput,
+	CreateOneOffShiftServiceInput,
+	SuggestCandidateStaffForShiftOutput,
+	SuggestCandidateStaffForShiftWithNewDatetimeInput,
+	UpdateDatetimeAndAssignWithCascadeInput,
+} from '@/models/shiftActionSchemas';
+import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+import { formatJstDateString, getJstDateOnly, setJstTime } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { v7 as randomUUID } from 'uuid';
 
@@ -357,6 +365,23 @@ export class ShiftService {
 		}
 	}
 
+	private ensureEndAfterStart(newStartTime: Date, newEndTime: Date): void {
+		if (newEndTime.getTime() <= newStartTime.getTime()) {
+			throw new ServiceError(400, 'newEndTime must be after newStartTime');
+		}
+	}
+
+	private ensureSameDayDatetimeRange(
+		newStartTime: Date,
+		newEndTime: Date,
+	): void {
+		const startDate = getJstDateOnly(newStartTime);
+		const endDate = getJstDateOnly(newEndTime);
+		if (startDate.getTime() !== endDate.getTime()) {
+			throw new ServiceError(400, 'Cross-day datetime is not supported');
+		}
+	}
+
 	private async ensureNoClientConflicts(params: {
 		clientId: string;
 		startTime: Date;
@@ -433,9 +458,399 @@ export class ShiftService {
 		return targetStaffId != null && (isScheduleChanged || isStaffChanged);
 	}
 
+	private hasTimeOverlap(params: {
+		aStart: Date;
+		aEnd: Date;
+		bStart: Date;
+		bEnd: Date;
+	}): boolean {
+		const intervalMs = STAFF_SHIFT_INTERVAL_MINUTES * 60_000;
+		const bufferedBStart = new Date(params.bStart.getTime() - intervalMs);
+		const bufferedBEnd = new Date(params.bEnd.getTime() + intervalMs);
+		return params.aStart < bufferedBEnd && params.aEnd > bufferedBStart;
+	}
+
+	private toShiftRecord(shift: Shift) {
+		return {
+			id: shift.id,
+			client_id: shift.client_id,
+			service_type_id: shift.service_type_id,
+			staff_id: shift.staff_id ?? null,
+			date: shift.date,
+			start_time: shift.time.start,
+			end_time: shift.time.end,
+			status: shift.status,
+			is_unassigned: shift.is_unassigned,
+			canceled_reason: shift.canceled_reason ?? null,
+			canceled_category: shift.canceled_category ?? null,
+			canceled_at: shift.canceled_at ?? null,
+			created_at: shift.created_at,
+			updated_at: shift.updated_at,
+		};
+	}
+
+	private buildShiftDateWindow(shift: Shift): { start: Date; end: Date } {
+		return {
+			start: setJstTime(
+				shift.date,
+				shift.time.start.hour,
+				shift.time.start.minute,
+			),
+			end: setJstTime(shift.date, shift.time.end.hour, shift.time.end.minute),
+		};
+	}
+
+	private async ensureStaffAssignableForShift(params: {
+		newStaffId: string;
+		adminOfficeId: string;
+		serviceTypeId: ServiceTypeId;
+	}): Promise<void> {
+		const [newStaff, officeStaff] = await Promise.all([
+			this.staffRepository.findById(params.newStaffId),
+			this.staffRepository.listByOffice(params.adminOfficeId),
+		]);
+
+		if (!newStaff || newStaff.office_id !== params.adminOfficeId) {
+			throw new ServiceError(404, 'Assigned staff not found');
+		}
+
+		const newStaffWithAbilities = officeStaff.find(
+			(staff) => staff.id === params.newStaffId,
+		);
+		if (
+			!newStaffWithAbilities ||
+			newStaffWithAbilities.role !== 'helper' ||
+			!newStaffWithAbilities.service_type_ids.includes(params.serviceTypeId)
+		) {
+			throw new ServiceError(400, 'New staff is not assignable to this shift');
+		}
+	}
+
+	private filterScheduledOverlappingShifts(params: {
+		targetShiftId: string;
+		targetStart: Date;
+		targetEnd: Date;
+		shifts: Shift[];
+	}): Shift[] {
+		return params.shifts.filter((sameDayShift) => {
+			if (sameDayShift.id === params.targetShiftId) return false;
+			if (sameDayShift.status !== 'scheduled') return false;
+			const sameDayShiftWindow = this.buildShiftDateWindow(sameDayShift);
+			return this.hasTimeOverlap({
+				aStart: params.targetStart,
+				aEnd: params.targetEnd,
+				bStart: sameDayShiftWindow.start,
+				bEnd: sameDayShiftWindow.end,
+			});
+		});
+	}
+
+	private async cascadeUnassignShifts(params: {
+		conflictingShifts: Shift[];
+		reason?: string;
+		assignedShiftId: string;
+	}): Promise<string[]> {
+		const cascadeUnassignedShiftIds: string[] = [];
+		for (const conflictingShift of params.conflictingShifts) {
+			try {
+				await this.shiftRepository.updateStaffAssignment(
+					conflictingShift.id,
+					null,
+					params.reason,
+				);
+				cascadeUnassignedShiftIds.push(conflictingShift.id);
+			} catch (cause) {
+				throw new ServiceError(500, 'Cascade unassign partially failed', {
+					failedShiftId: conflictingShift.id,
+					assignedShiftId: params.assignedShiftId,
+					cascadeUnassignedShiftIds,
+					cause,
+				});
+			}
+		}
+		return cascadeUnassignedShiftIds;
+	}
+
+	private async getClientNameWithCache(
+		clientId: string,
+		clientNameCache: Map<string, Promise<string>>,
+	): Promise<string> {
+		const cachedNamePromise = clientNameCache.get(clientId);
+		if (cachedNamePromise) return cachedNamePromise;
+
+		const clientNamePromise = this.serviceUserRepository
+			.findById(clientId)
+			.then((client) => client?.name ?? '不明');
+		clientNameCache.set(clientId, clientNamePromise);
+		return clientNamePromise;
+	}
+
+	private async suggestCandidatesByDatetime(params: {
+		adminOfficeId: string;
+		shift: Shift;
+		targetStart: Date;
+		targetEnd: Date;
+	}): Promise<SuggestCandidateStaffForShiftOutput> {
+		const officeStaff = await this.staffRepository.listByOffice(
+			params.adminOfficeId,
+		);
+		const candidates = officeStaff
+			.filter(
+				(staff) =>
+					staff.role === 'helper' &&
+					staff.service_type_ids.includes(params.shift.service_type_id) &&
+					staff.id !== params.shift.staff_id,
+			)
+			.slice(0, 30);
+
+		if (candidates.length === 0) return { candidates: [] };
+
+		const targetDate = getJstDateOnly(params.targetStart);
+		const dayShifts = await this.shiftRepository.list({
+			officeId: params.adminOfficeId,
+			startDate: targetDate,
+			endDate: targetDate,
+		});
+
+		const clientNameCache = new Map<string, Promise<string>>();
+		const candidateResults = await Promise.all(
+			candidates.map(async (candidate) => {
+				const conflictingShifts = dayShifts.filter((dayShift) => {
+					if (dayShift.id === params.shift.id) return false;
+					if (dayShift.status !== 'scheduled') return false;
+					if (dayShift.staff_id !== candidate.id) return false;
+					const dayShiftWindow = this.buildShiftDateWindow(dayShift);
+					return this.hasTimeOverlap({
+						aStart: params.targetStart,
+						aEnd: params.targetEnd,
+						bStart: dayShiftWindow.start,
+						bEnd: dayShiftWindow.end,
+					});
+				});
+
+				const conflictsWithClient = await Promise.all(
+					conflictingShifts.map(async (conflictingShift) => ({
+						shiftId: conflictingShift.id,
+						clientName: await this.getClientNameWithCache(
+							conflictingShift.client_id,
+							clientNameCache,
+						),
+						date: formatJstDateString(conflictingShift.date),
+						startTime: conflictingShift.time.start,
+						endTime: conflictingShift.time.end,
+					})),
+				);
+
+				return {
+					staffId: candidate.id,
+					staffName: candidate.name,
+					conflictingShifts: conflictsWithClient,
+				};
+			}),
+		);
+
+		return { candidates: candidateResults };
+	}
+
+	async suggestCandidateStaffForShift(
+		userId: string,
+		shiftId: string,
+	): Promise<SuggestCandidateStaffForShiftOutput> {
+		const adminStaff = await this.getAdminStaff(userId);
+		const shift = await this.shiftRepository.findById(shiftId);
+		if (!shift) throw new ServiceError(404, 'Shift not found');
+		await this.ensureShiftInAdminOffice(adminStaff.office_id, shift);
+
+		const targetStart = setJstTime(
+			shift.date,
+			shift.time.start.hour,
+			shift.time.start.minute,
+		);
+		const targetEnd = setJstTime(
+			shift.date,
+			shift.time.end.hour,
+			shift.time.end.minute,
+		);
+
+		return this.suggestCandidatesByDatetime({
+			adminOfficeId: adminStaff.office_id,
+			shift,
+			targetStart,
+			targetEnd,
+		});
+	}
+
+	async suggestCandidateStaffForShiftWithNewDatetime(
+		userId: string,
+		input: SuggestCandidateStaffForShiftWithNewDatetimeInput,
+	): Promise<SuggestCandidateStaffForShiftOutput> {
+		const adminStaff = await this.getAdminStaff(userId);
+		const shift = await this.shiftRepository.findById(input.shiftId);
+		if (!shift) throw new ServiceError(404, 'Shift not found');
+		await this.ensureShiftInAdminOffice(adminStaff.office_id, shift);
+		this.ensureEndAfterStart(input.newStartTime, input.newEndTime);
+		this.ensureSameDayDatetimeRange(input.newStartTime, input.newEndTime);
+
+		return this.suggestCandidatesByDatetime({
+			adminOfficeId: adminStaff.office_id,
+			shift,
+			targetStart: input.newStartTime,
+			targetEnd: input.newEndTime,
+		});
+	}
+
+	async assignStaffWithCascadeUnassign(
+		userId: string,
+		shiftId: string,
+		newStaffId: string,
+		reason?: string,
+	): Promise<AssignStaffWithCascadeOutput> {
+		const adminStaff = await this.getAdminStaff(userId);
+		const shift = await this.shiftRepository.findById(shiftId);
+		if (!shift) throw new ServiceError(404, 'Shift not found');
+
+		this.ensureShiftUpdatable(shift);
+		await this.ensureShiftInAdminOffice(adminStaff.office_id, shift);
+
+		const targetWindow = this.buildShiftDateWindow(shift);
+		this.ensureNotChangingStaffForPastShift(targetWindow.start);
+		if (shift.staff_id === newStaffId) {
+			throw new ServiceError(
+				400,
+				'New staff is already assigned to this shift',
+			);
+		}
+
+		await this.ensureStaffAssignableForShift({
+			newStaffId,
+			adminOfficeId: adminStaff.office_id,
+			serviceTypeId: shift.service_type_id,
+		});
+
+		const sameDayShifts = await this.shiftRepository.list({
+			officeId: adminStaff.office_id,
+			staffId: newStaffId,
+			startDate: shift.date,
+			endDate: shift.date,
+		});
+		const conflictingShifts = this.filterScheduledOverlappingShifts({
+			targetShiftId: shift.id,
+			targetStart: targetWindow.start,
+			targetEnd: targetWindow.end,
+			shifts: sameDayShifts,
+		});
+
+		await this.shiftRepository.updateStaffAssignment(
+			shiftId,
+			newStaffId,
+			reason,
+		);
+		const cascadeUnassignedShiftIds = await this.cascadeUnassignShifts({
+			conflictingShifts,
+			reason,
+			assignedShiftId: shiftId,
+		});
+
+		const updatedShift = await this.shiftRepository.findById(shiftId);
+		if (!updatedShift) throw new ServiceError(404, 'Shift not found');
+
+		return {
+			updatedShift: this.toShiftRecord(updatedShift),
+			cascadeUnassignedShiftIds,
+		};
+	}
+
 	/**
 	 * シフトの日付/開始/終了（必要に応じて担当者）を更新する
 	 */
+
+	async updateShiftScheduleAndAssignWithCascadeUnassign(
+		userId: string,
+		input: UpdateDatetimeAndAssignWithCascadeInput,
+	): Promise<AssignStaffWithCascadeOutput> {
+		const adminStaff = await this.getAdminStaff(userId);
+		const shift = await this.shiftRepository.findById(input.shiftId);
+		if (!shift) throw new ServiceError(404, 'Shift not found');
+
+		this.ensureShiftUpdatable(shift);
+		await this.ensureShiftInAdminOffice(adminStaff.office_id, shift);
+		this.ensureEndAfterStart(input.newStartTime, input.newEndTime);
+		this.ensureSameDayDatetimeRange(input.newStartTime, input.newEndTime);
+
+		const currentWindow = this.buildShiftDateWindow(shift);
+		const isScheduleChanged = this.hasScheduleChanged({
+			currentStartTime: currentWindow.start,
+			currentEndTime: currentWindow.end,
+			newStartTime: input.newStartTime,
+			newEndTime: input.newEndTime,
+		});
+		const isStaffChanged = this.isStaffChanged(
+			shift.staff_id,
+			input.newStaffId,
+		);
+		if (isScheduleChanged) {
+			this.ensureNotMovingToPast(input.newStartTime);
+		}
+		if (isStaffChanged) {
+			this.ensureNotChangingStaffForPastShift(currentWindow.start);
+		}
+
+		await this.ensureStaffAssignableForShift({
+			newStaffId: input.newStaffId,
+			adminOfficeId: adminStaff.office_id,
+			serviceTypeId: shift.service_type_id,
+		});
+		await this.ensureNoClientConflicts({
+			clientId: shift.client_id,
+			startTime: input.newStartTime,
+			endTime: input.newEndTime,
+			officeId: adminStaff.office_id,
+			excludeShiftId: input.shiftId,
+		});
+
+		try {
+			await this.shiftRepository.updateShiftSchedule(input.shiftId, {
+				startTime: input.newStartTime,
+				endTime: input.newEndTime,
+				staffId: input.newStaffId,
+				notes: input.reason,
+			});
+		} catch (cause) {
+			throw new ServiceError(500, 'Failed to update shift datetime', {
+				shiftId: input.shiftId,
+				cause,
+			});
+		}
+
+		const targetDate = getJstDateOnly(input.newStartTime);
+		const sameDayShifts = await this.shiftRepository.list({
+			officeId: adminStaff.office_id,
+			staffId: input.newStaffId,
+			startDate: targetDate,
+			endDate: targetDate,
+		});
+		const conflictingShifts = this.filterScheduledOverlappingShifts({
+			targetShiftId: shift.id,
+			targetStart: input.newStartTime,
+			targetEnd: input.newEndTime,
+			shifts: sameDayShifts,
+		});
+
+		const cascadeUnassignedShiftIds = await this.cascadeUnassignShifts({
+			conflictingShifts,
+			reason: input.reason,
+			assignedShiftId: input.shiftId,
+		});
+
+		const updatedShift = await this.shiftRepository.findById(input.shiftId);
+		if (!updatedShift) throw new ServiceError(404, 'Shift not found');
+
+		return {
+			updatedShift: this.toShiftRecord(updatedShift),
+			cascadeUnassignedShiftIds,
+		};
+	}
+
 	async updateShiftSchedule(
 		userId: string,
 		shiftId: string,
