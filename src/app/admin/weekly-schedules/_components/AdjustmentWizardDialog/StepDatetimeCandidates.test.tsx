@@ -134,6 +134,66 @@ describe('StepDatetimeCandidates', () => {
 		expect(screen.getByText('田中様 09:30-10:30')).toBeInTheDocument();
 	});
 
+	it('同一表示文言の重複シフトでも React key 警告を出さない', async () => {
+		const consoleErrorSpy = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => undefined);
+
+		try {
+			const requestCandidates = vi.fn().mockResolvedValue(
+				successResult({
+					candidates: [
+						{
+							staffId: TEST_IDS.STAFF_1,
+							staffName: '山田太郎',
+							conflictingShifts: [
+								{
+									shiftId: TEST_IDS.SCHEDULE_1,
+									clientName: '田中様',
+									date: '2026-02-22',
+									startTime: { hour: 9, minute: 30 },
+									endTime: { hour: 10, minute: 30 },
+								},
+								{
+									shiftId: TEST_IDS.SCHEDULE_2,
+									clientName: '田中様',
+									date: '2026-02-22',
+									startTime: { hour: 9, minute: 30 },
+									endTime: { hour: 10, minute: 30 },
+								},
+							],
+						},
+					],
+				}),
+			);
+
+			render(
+				<StepDatetimeCandidates
+					shiftId={TEST_IDS.SCHEDULE_1}
+					newStartTime={new Date('2026-02-22T09:00:00+09:00')}
+					newEndTime={new Date('2026-02-22T10:00:00+09:00')}
+					onComplete={vi.fn()}
+					requestCandidates={requestCandidates}
+					requestAssign={vi.fn()}
+				/>,
+			);
+
+			const duplicatedConflicts =
+				await screen.findAllByText('田中様 09:30-10:30');
+			expect(duplicatedConflicts).toHaveLength(2);
+
+			const hasDuplicateKeyWarning = consoleErrorSpy.mock.calls.some((args) =>
+				args.some((arg) =>
+					String(arg).includes('Encountered two children with the same key'),
+				),
+			);
+
+			expect(hasDuplicateKeyWarning).toBe(false);
+		} finally {
+			consoleErrorSpy.mockRestore();
+		}
+	});
+
 	it('候補取得エラー時にエラートーストを表示する', async () => {
 		const requestCandidates = vi.fn().mockRejectedValue(new Error('network'));
 
