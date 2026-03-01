@@ -105,7 +105,7 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 	const sampleShifts: ShiftDisplayRow[] = [
 		{
 			id: TEST_IDS.SCHEDULE_1,
-			date: new Date('2026-01-19T00:00:00'),
+			date: new Date('2026-01-19T00:00:00Z'),
 			startTime: { hour: 9, minute: 0 },
 			endTime: { hour: 10, minute: 0 },
 			clientId: TEST_IDS.CLIENT_1,
@@ -119,7 +119,7 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 	];
 
 	const defaultProps: WeeklySchedulePageProps = {
-		weekStartDate: new Date('2026-01-19T00:00:00'),
+		weekStartDate: new Date('2026-01-19T00:00:00Z'),
 		initialShifts: sampleShifts,
 		staffOptions: [],
 		clientOptions: [{ id: TEST_IDS.CLIENT_1, name: '田中太郎' }],
