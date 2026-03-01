@@ -88,7 +88,7 @@ supabase/                  # Supabase 設定ファイル
 
 - **構成単位**: コンポーネント本体、テスト、Storybook をセットとし、コンポーネント名のディレクトリに格納する。
 
-```text
+```
 # コンポーネント配置テンプレート（ツリー）
 
 src/
@@ -138,7 +138,7 @@ src/
 
 `copilot chat` の完了 Hook からスマートフォン通知するためのスクリプトを追加しています。
 
-```bash
+```
 chmod +x scripts/copilot-hook-pushover.sh
 export PUSHOVER_APP_TOKEN="your_app_token"
 export PUSHOVER_USER_KEY="your_user_key"
