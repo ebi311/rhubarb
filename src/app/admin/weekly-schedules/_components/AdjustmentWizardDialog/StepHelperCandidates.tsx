@@ -184,13 +184,17 @@ export const StepHelperCandidates = ({
 								<span className="badge badge-warning">重複あり</span>
 							)}
 						</button>
-						{candidate.conflictingShifts.length > 0 && (
-							<ul className="mt-2 list-disc pl-6 text-sm text-base-content/70">
-								{formatConflict(candidate).map((conflict) => (
-									<li key={conflict}>{conflict}</li>
-								))}
-							</ul>
-						)}
+						{candidate.conflictingShifts.length > 0 &&
+							(() => {
+								const conflicts = formatConflict(candidate);
+								return (
+									<ul className="mt-2 list-disc pl-6 text-sm text-base-content/70">
+										{candidate.conflictingShifts.map((conflict, index) => (
+											<li key={conflict.shiftId}>{conflicts[index]}</li>
+										))}
+									</ul>
+								);
+							})()}
 					</li>
 				))}
 			</ul>
