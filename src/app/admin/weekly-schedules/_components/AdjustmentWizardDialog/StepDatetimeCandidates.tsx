@@ -188,9 +188,13 @@ export const StepDatetimeCandidates = ({
 						</button>
 						{candidate.conflictingShifts.length > 0 && (
 							<ul className="mt-2 list-disc pl-6 text-sm text-base-content/70">
-								{formatConflict(candidate).map((conflict) => (
-									<li key={conflict}>{conflict}</li>
-								))}
+								{formatConflict(candidate).map((conflict, index) => {
+									const conflictShiftId =
+										candidate.conflictingShifts[index]?.shiftId ??
+										`${candidate.staffId}-${index}`;
+
+									return <li key={conflictShiftId}>{conflict}</li>;
+								})}
 							</ul>
 						)}
 					</li>

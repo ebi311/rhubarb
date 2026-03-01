@@ -1119,6 +1119,79 @@ describe('ShiftService', () => {
 			);
 		});
 
+		it('should throw 404 for cross-office shift', async () => {
+			const userId = createTestId();
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const targetShift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(
+				createTestServiceUser({
+					id: TEST_IDS.CLIENT_1,
+					office_id: TEST_IDS.OFFICE_2,
+				}),
+			);
+
+			await expect(
+				service.suggestCandidateStaffForShift(userId, shiftId),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 404,
+					message: 'Shift not found',
+				}),
+			);
+		});
+	});
+
+	describe('assignStaffWithCascadeUnassign', () => {
+		it('should throw 400 when newStaffId is already assigned to target shift', async () => {
+			const userId = createTestId();
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const targetShift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				staff_id: TEST_IDS.STAFF_2,
+				date: new Date('2026-03-20'),
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(
+				createTestServiceUser({
+					id: TEST_IDS.CLIENT_1,
+					office_id: TEST_IDS.OFFICE_1,
+				}),
+			);
+
+			await expect(
+				service.assignStaffWithCascadeUnassign(
+					userId,
+					shiftId,
+					TEST_IDS.STAFF_2,
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'New staff is already assigned to this shift',
+				}),
+			);
+			expect(mockShiftRepo.updateStaffAssignment).not.toHaveBeenCalled();
+		});
+
 		it('should treat a 30-minute adjacent shift as conflicting for cascade unassign', async () => {
 			const userId = createTestId();
 			const shiftId = TEST_IDS.SCHEDULE_1;
@@ -1195,79 +1268,6 @@ describe('ShiftService', () => {
 				reason,
 			);
 			expect(result.cascadeUnassignedShiftIds).toEqual([adjacentShift.id]);
-		});
-
-		it('should throw 404 for cross-office shift', async () => {
-			const userId = createTestId();
-			const shiftId = TEST_IDS.SCHEDULE_1;
-			const adminStaff = createTestStaff({
-				auth_user_id: userId,
-				role: 'admin',
-				office_id: TEST_IDS.OFFICE_1,
-			});
-			const targetShift = createTestShift({
-				id: shiftId,
-				client_id: TEST_IDS.CLIENT_1,
-			});
-
-			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
-			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
-			mockServiceUserRepo.findById.mockResolvedValueOnce(
-				createTestServiceUser({
-					id: TEST_IDS.CLIENT_1,
-					office_id: TEST_IDS.OFFICE_2,
-				}),
-			);
-
-			await expect(
-				service.suggestCandidateStaffForShift(userId, shiftId),
-			).rejects.toThrow(
-				expect.objectContaining({
-					status: 404,
-					message: 'Shift not found',
-				}),
-			);
-		});
-	});
-
-	describe('assignStaffWithCascadeUnassign', () => {
-		it('should throw 400 when newStaffId is already assigned to target shift', async () => {
-			const userId = createTestId();
-			const shiftId = TEST_IDS.SCHEDULE_1;
-			const adminStaff = createTestStaff({
-				auth_user_id: userId,
-				role: 'admin',
-				office_id: TEST_IDS.OFFICE_1,
-			});
-			const targetShift = createTestShift({
-				id: shiftId,
-				client_id: TEST_IDS.CLIENT_1,
-				staff_id: TEST_IDS.STAFF_2,
-				date: new Date('2026-03-20'),
-			});
-
-			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
-			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
-			mockServiceUserRepo.findById.mockResolvedValueOnce(
-				createTestServiceUser({
-					id: TEST_IDS.CLIENT_1,
-					office_id: TEST_IDS.OFFICE_1,
-				}),
-			);
-
-			await expect(
-				service.assignStaffWithCascadeUnassign(
-					userId,
-					shiftId,
-					TEST_IDS.STAFF_2,
-				),
-			).rejects.toThrow(
-				expect.objectContaining({
-					status: 400,
-					message: 'New staff is already assigned to this shift',
-				}),
-			);
-			expect(mockShiftRepo.updateStaffAssignment).not.toHaveBeenCalled();
 		});
 
 		it('should assign target shift then unassign conflicting shifts sequentially', async () => {

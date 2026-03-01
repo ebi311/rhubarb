@@ -88,7 +88,6 @@ supabase/                  # Supabase 設定ファイル
 
 - **構成単位**: コンポーネント本体、テスト、Storybook をセットとし、コンポーネント名のディレクトリに格納する。
 
-````text
 ```text
 # コンポーネント配置テンプレート（ツリー）
 
@@ -125,9 +124,7 @@ src/
 - 汎用コンポーネントは src/app/_components、ページ固有は該当ページ配下の _components に配置する。
 - サブ責務がある場合は subcomponents フォルダで分割する。
 - 実装は TypeScript の厳密な型付けを行い、Arrow Function を原則として使用する。
-````
-
-````
+```
 
 - **配置場所**:
   - 汎用的なもの: `src/app/_components`
@@ -145,7 +142,7 @@ src/
 chmod +x scripts/copilot-hook-pushover.sh
 export PUSHOVER_APP_TOKEN="your_app_token"
 export PUSHOVER_USER_KEY="your_user_key"
-````
+```
 
 Hook の完了イベントで `scripts/copilot-hook-pushover.sh` を実行するよう設定してください。  
 任意で `PUSHOVER_TITLE` / `PUSHOVER_DEVICE` / `PUSHOVER_PRIORITY` / `PUSHOVER_SOUND` も指定できます。
