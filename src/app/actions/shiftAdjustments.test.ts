@@ -5,10 +5,7 @@ import {
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import {
-	suggestClientDatetimeChangeAdjustmentsAction,
-	suggestShiftAdjustmentsAction,
-} from './shiftAdjustments';
+import { suggestClientDatetimeChangeAdjustmentsAction } from './shiftAdjustments';
 
 vi.mock('@/utils/supabase/server');
 vi.mock('@/backend/services/shiftAdjustmentSuggestionService', async () => {
@@ -28,7 +25,6 @@ const mockSupabase = {
 };
 
 const createMockService = () => ({
-	suggestShiftAdjustments: vi.fn(),
 	suggestClientDatetimeChangeAdjustments: vi.fn(),
 });
 
@@ -55,107 +51,13 @@ const mockAuthUser = (userId: string) => {
 	});
 };
 
-describe('suggestShiftAdjustmentsAction', () => {
-	const validInput = {
-		staffId: '12345678-1234-1234-8234-123456789abc',
-		startDate: '2026-02-22',
-		endDate: '2026-02-28',
-		memo: '急休',
-	};
+describe('legacy export', () => {
+	it('旧 suggestShiftAdjustmentsAction を公開しない', async () => {
+		const shiftAdjustmentsModule = await import('./shiftAdjustments');
 
-	it('未認証は401を返す', async () => {
-		mockSupabase.auth.getUser.mockResolvedValue({
-			data: { user: null },
-			error: null,
-		});
-
-		const result = await suggestShiftAdjustmentsAction(validInput);
-
-		expect(result).toEqual({ data: null, error: 'Unauthorized', status: 401 });
-		expect(mockService.suggestShiftAdjustments).not.toHaveBeenCalled();
-	});
-
-	it('バリデーションエラーは400を返す（staffIdが不正）', async () => {
-		mockAuthUser('user-1');
-
-		const result = await suggestShiftAdjustmentsAction({
-			...validInput,
-			staffId: 'invalid-uuid',
-		});
-
-		expect(result.status).toBe(400);
-		expect(result.error).toBe('Validation failed');
-		expect(console.error).toHaveBeenCalledWith(
-			'suggestShiftAdjustmentsAction validation failed',
-			expect.objectContaining({
-				issues: expect.arrayContaining([
-					expect.objectContaining({
-						path: ['staffId'],
-						code: 'invalid_format',
-					}),
-				]),
-			}),
+		expect('suggestShiftAdjustmentsAction' in shiftAdjustmentsModule).toBe(
+			false,
 		);
-		expect(Array.isArray(result.details)).toBe(true);
-		expect(result.details).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({
-					path: ['staffId'],
-					code: 'invalid_format',
-				}),
-			]),
-		);
-		expect(mockService.suggestShiftAdjustments).not.toHaveBeenCalled();
-	});
-
-	it('ServiceErrorを委譲する（403）', async () => {
-		mockAuthUser('user-1');
-		mockService.suggestShiftAdjustments.mockRejectedValue(
-			new ServiceError(403, 'Forbidden'),
-		);
-
-		const result = await suggestShiftAdjustmentsAction(validInput);
-
-		expect(result.status).toBe(403);
-		expect(result.error).toBe('Forbidden');
-	});
-
-	it('ServiceErrorを委譲する（404）', async () => {
-		mockAuthUser('user-1');
-		mockService.suggestShiftAdjustments.mockRejectedValue(
-			new ServiceError(404, 'Staff not found'),
-		);
-
-		const result = await suggestShiftAdjustmentsAction(validInput);
-
-		expect(result.status).toBe(404);
-		expect(result.error).toBe('Staff not found');
-	});
-
-	it('提案取得に成功し、結果を返す', async () => {
-		mockAuthUser('user-1');
-		mockService.suggestShiftAdjustments.mockResolvedValue({
-			absence: {
-				staffId: validInput.staffId,
-				startDate: new Date('2026-02-22T00:00:00+09:00'),
-				endDate: new Date('2026-02-28T00:00:00+09:00'),
-				memo: validInput.memo,
-			},
-			affected: [],
-		});
-
-		const result = await suggestShiftAdjustmentsAction(validInput);
-
-		expect(mockService.suggestShiftAdjustments).toHaveBeenCalledWith(
-			'user-1',
-			expect.objectContaining({
-				staffId: validInput.staffId,
-				memo: validInput.memo,
-			}),
-		);
-		expect(result.status).toBe(200);
-		expect(result.error).toBeNull();
-		expect(result.data?.affected).toEqual([]);
 	});
 });
 
@@ -234,7 +136,9 @@ describe('suggestClientDatetimeChangeAdjustmentsAction', () => {
 	it('ServiceErrorを委譲する（404）', async () => {
 		mockAuthUser('user-1');
 		mockService.suggestClientDatetimeChangeAdjustments.mockRejectedValue(
-			new ServiceError(404, 'Shift not found'),
+			new ServiceError(404, 'Shift not found', {
+				shiftId: validInput.shiftId,
+			}),
 		);
 
 		const result =
@@ -242,6 +146,36 @@ describe('suggestClientDatetimeChangeAdjustmentsAction', () => {
 
 		expect(result.status).toBe(404);
 		expect(result.error).toBe('Shift not found');
+		expect(result).toHaveProperty('details');
+		expect(result.details).toEqual({ shiftId: validInput.shiftId });
+	});
+
+	it('ServiceError(500)はdetailsを返さない', async () => {
+		mockAuthUser('user-1');
+		mockService.suggestClientDatetimeChangeAdjustments.mockRejectedValue(
+			new ServiceError(500, 'Internal Server Error', { reason: 'sensitive' }),
+		);
+
+		const result =
+			await suggestClientDatetimeChangeAdjustmentsAction(validInput);
+
+		expect(result.status).toBe(500);
+		expect(result.error).toBe('Internal Server Error');
+		expect(result).not.toHaveProperty('details');
+	});
+
+	it('ServiceError(503)はdetailsを返さない', async () => {
+		mockAuthUser('user-1');
+		mockService.suggestClientDatetimeChangeAdjustments.mockRejectedValue(
+			new ServiceError(503, 'Service Unavailable', { reason: 'sensitive' }),
+		);
+
+		const result =
+			await suggestClientDatetimeChangeAdjustmentsAction(validInput);
+
+		expect(result.status).toBe(503);
+		expect(result.error).toBe('Service Unavailable');
+		expect(result).not.toHaveProperty('details');
 	});
 
 	it('提案取得に成功し、結果を返す', async () => {

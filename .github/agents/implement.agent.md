@@ -167,6 +167,16 @@ model: GPT-5.3-Codex (copilot)
 - コンポーネントは 本体 + テスト + Storybook + index.ts をセットで作成
 - `pnpm format` をコミット前に実行する
 
+### 再指摘防止: 実装前チェック
+
+- 既存定数を再利用できる箇所は新規定義せず、既存定数（例: `STAFF_SHIFT_INTERVAL_MINUTES`）を優先して使用する。
+- 500 エラー時の `details` はクライアント返却時にマスクし、内部情報を露出させない。
+- 同一処理内で同じ対象に対する二重更新を行わない（更新責務を一箇所に集約する）。
+- `new Date()` などの暗黙フォールバックを禁止し、必須値欠落時は fail-fast で明示的に失敗させる。
+- Action 実行結果のハンドリングは `useActionResultHandler` に統一する。
+- React の `key` は一意性を必ず担保し、index など衝突しうる値を安易に使わない。
+- README / Docs 変更時はコードフェンス（開始・終了・言語指定）の整合を確認する。
+
 ## ツール
 
 - Supabase 関連の操作（利用可能なツールがある場合）
@@ -179,3 +189,4 @@ model: GPT-5.3-Codex (copilot)
 - `create-story` - Storybook の Story を実装する際のテンプレートと注意点
 - `create-vitest` - コンポーネントテストのテンプレート
 - `code-implement` - 実装時の注意
+- `pr-review-guard` - PR 前の再指摘防止チェック（提出前に確認）

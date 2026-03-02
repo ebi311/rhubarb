@@ -5,6 +5,7 @@ import {
 	suggestCandidateStaffForShiftAction,
 } from '@/app/actions/shifts';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type {
 	AssignStaffWithCascadeInput,
 	AssignStaffWithCascadeOutput,
@@ -16,7 +17,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 
 const PAGE_SIZE = 5;
-
 type StepHelperCandidatesProps = {
 	shiftId: string;
 	onComplete: () => void;
@@ -56,6 +56,7 @@ export const StepHelperCandidates = ({
 	);
 	const [candidates, setCandidates] = useState<CandidateStaff[]>([]);
 	const [page, setPage] = useState(1);
+	const { handleActionResult } = useActionResultHandler();
 
 	useEffect(() => {
 		let active = true;
@@ -67,10 +68,11 @@ export const StepHelperCandidates = ({
 
 				if (!active) return;
 
-				if (result.error || !result.data) {
-					toast.error(
+				const success = handleActionResult(result, {
+					errorMessage:
 						'候補ヘルパーの取得に失敗しました。時間をおいて再度お試しください。',
-					);
+				});
+				if (!success || !result.data) {
 					setCandidates([]);
 					return;
 				}
@@ -79,8 +81,16 @@ export const StepHelperCandidates = ({
 				setPage(1);
 			} catch {
 				if (!active) return;
-				toast.error(
-					'候補ヘルパーの取得に失敗しました。時間をおいて再度お試しください。',
+				handleActionResult(
+					{
+						data: null,
+						error: 'Failed to fetch candidates',
+						status: 500,
+					},
+					{
+						errorMessage:
+							'候補ヘルパーの取得に失敗しました。時間をおいて再度お試しください。',
+					},
 				);
 				setCandidates([]);
 			} finally {
@@ -95,7 +105,7 @@ export const StepHelperCandidates = ({
 		return () => {
 			active = false;
 		};
-	}, [requestCandidates, shiftId]);
+	}, [handleActionResult, requestCandidates, shiftId]);
 
 	const pagedCandidates = useMemo(() => {
 		const from = (page - 1) * PAGE_SIZE;
@@ -114,29 +124,35 @@ export const StepHelperCandidates = ({
 		setIsAssigningStaffId(staffId);
 		try {
 			const result = await requestAssign({ shiftId, newStaffId: staffId });
-			if (result.error || !result.data) {
-				toast.error(
-					`${selectedStaffName}さんへのヘルパー変更に失敗しました。時間をおいて再度お試しください。`,
-				);
-				return;
-			}
-
-			const cascadedShiftIds = result.data.cascadeUnassignedShiftIds;
-			if (cascadedShiftIds.length === 0) {
-				toast.success(`${selectedStaffName}さんをヘルパーに変更しました。`);
-			} else {
-				toast.warning(
-					`${selectedStaffName}さんに変更し、${cascadedShiftIds.length}件のシフトが未割当になりました（クリックで確認）`,
-					{
-						onClick: () => onCascadeReopen?.(cascadedShiftIds),
-					},
-				);
-			}
-
+			const success = handleActionResult(result, {
+				errorMessage: `${selectedStaffName}さんへのヘルパー変更に失敗しました。時間をおいて再度お試しください。`,
+				onSuccess: (data) => {
+					if (!data) return;
+					const cascadedShiftIds = data.cascadeUnassignedShiftIds;
+					if (cascadedShiftIds.length === 0) {
+						toast.success(`${selectedStaffName}さんをヘルパーに変更しました。`);
+						return;
+					}
+					toast.warning(
+						`${selectedStaffName}さんに変更し、${cascadedShiftIds.length}件のシフトが未割当になりました（クリックで確認）`,
+						{
+							onClick: () => onCascadeReopen?.(cascadedShiftIds),
+						},
+					);
+				},
+			});
+			if (!success) return;
 			onComplete();
 		} catch {
-			toast.error(
-				`${selectedStaffName}さんへのヘルパー変更に失敗しました。時間をおいて再度お試しください。`,
+			handleActionResult(
+				{
+					data: null,
+					error: 'Failed to assign staff',
+					status: 500,
+				},
+				{
+					errorMessage: `${selectedStaffName}さんへのヘルパー変更に失敗しました。時間をおいて再度お試しください。`,
+				},
 			);
 		} finally {
 			setIsAssigningStaffId(null);

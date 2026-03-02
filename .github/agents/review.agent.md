@@ -101,6 +101,16 @@ model: Claude Opus 4.5 (copilot)
 
 ## レビュー観点
 
+### 必須レビュー観点チェックリスト
+
+- [ ] 既存定数を再利用しているか（例: `STAFF_SHIFT_INTERVAL_MINUTES`）
+- [ ] 500 エラー時の `details` がクライアント返却時にマスクされているか
+- [ ] 同一処理内で同じ対象への二重更新が発生していないか
+- [ ] `new Date()` などの暗黙フォールバックがなく、必須値欠落時に fail-fast しているか
+- [ ] Action 実行結果のハンドリングが `useActionResultHandler` に統一されているか
+- [ ] React の `key` の一意性が担保されているか
+- [ ] README / Docs 変更時にコードフェンス（開始・終了・言語指定）の整合が取れているか
+
 ### アーキテクチャ違反
 
 - Server Action から直接 DB（Supabase）にアクセスしていないか
