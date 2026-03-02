@@ -4,15 +4,29 @@ import userEvent from '@testing-library/user-event';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AdjustmentWizardDialog } from './AdjustmentWizardDialog';
 
+const stepHelperCandidatesSpy = vi.fn();
+const stepDatetimeCandidatesSpy = vi.fn();
+
 vi.mock('./StepHelperCandidates', () => ({
-	StepHelperCandidates: ({ onComplete }: { onComplete: () => void }) => (
-		<div>
-			<p>ヘルパー候補ステップ</p>
-			<button type="button" onClick={onComplete}>
-				完了
-			</button>
-		</div>
-	),
+	StepHelperCandidates: ({
+		onComplete,
+		requestCandidates,
+		requestAssign,
+	}: {
+		onComplete: () => void;
+		requestCandidates: unknown;
+		requestAssign: unknown;
+	}) => {
+		stepHelperCandidatesSpy({ requestCandidates, requestAssign });
+		return (
+			<div>
+				<p>ヘルパー候補ステップ</p>
+				<button type="button" onClick={onComplete}>
+					完了
+				</button>
+			</div>
+		);
+	},
 }));
 
 vi.mock('./StepDatetimeInput', () => ({
@@ -42,7 +56,16 @@ vi.mock('./StepDatetimeInput', () => ({
 }));
 
 vi.mock('./StepDatetimeCandidates', () => ({
-	StepDatetimeCandidates: () => <p>日時候補ステップ</p>,
+	StepDatetimeCandidates: ({
+		requestCandidates,
+		requestAssign,
+	}: {
+		requestCandidates: unknown;
+		requestAssign: unknown;
+	}) => {
+		stepDatetimeCandidatesSpy({ requestCandidates, requestAssign });
+		return <p>日時候補ステップ</p>;
+	},
 }));
 
 const originalShowModal = HTMLDialogElement.prototype.showModal;
@@ -65,6 +88,40 @@ afterAll(() => {
 });
 
 describe('AdjustmentWizardDialog', () => {
+	it('各Stepに requestCandidates / requestAssign を注入する', async () => {
+		const user = userEvent.setup();
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
+		expect(stepHelperCandidatesSpy).toHaveBeenCalled();
+		const helperProps = stepHelperCandidatesSpy.mock.lastCall?.[0] as {
+			requestCandidates: unknown;
+			requestAssign: unknown;
+		};
+		expect(helperProps.requestCandidates).toBeTypeOf('function');
+		expect(helperProps.requestAssign).toBeTypeOf('function');
+
+		await user.click(screen.getByRole('button', { name: '戻る' }));
+		await user.click(screen.getByRole('button', { name: '日時の変更' }));
+		await user.click(screen.getByRole('button', { name: '候補を表示' }));
+
+		expect(stepDatetimeCandidatesSpy).toHaveBeenCalled();
+		const datetimeProps = stepDatetimeCandidatesSpy.mock.lastCall?.[0] as {
+			requestCandidates: unknown;
+			requestAssign: unknown;
+		};
+		expect(datetimeProps.requestCandidates).toBeTypeOf('function');
+		expect(datetimeProps.requestAssign).toBeTypeOf('function');
+	});
+
 	it('isOpen=false のときは open されない', () => {
 		const { container } = render(
 			<AdjustmentWizardDialog

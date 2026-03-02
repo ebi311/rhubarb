@@ -1,9 +1,35 @@
 'use client';
 
-import { type SyntheticEvent, useEffect, useId, useRef, useState } from 'react';
-import { StepDatetimeCandidates } from './StepDatetimeCandidates';
+import {
+	changeShiftStaffAction,
+	updateShiftScheduleAction,
+	validateStaffAvailabilityAction,
+} from '@/app/actions/shifts';
+import { listStaffsAction } from '@/app/actions/staffs';
+import { errorResult, successResult } from '@/app/actions/utils/actionResult';
+import {
+	formatJstDateString,
+	getJstHours,
+	getJstMinutes,
+	toJstTimeStr,
+} from '@/utils/date';
+import {
+	type SyntheticEvent,
+	useCallback,
+	useEffect,
+	useId,
+	useRef,
+	useState,
+} from 'react';
+import {
+	StepDatetimeCandidates,
+	type StepDatetimeCandidatesProps,
+} from './StepDatetimeCandidates';
 import { StepDatetimeInput } from './StepDatetimeInput';
-import { StepHelperCandidates } from './StepHelperCandidates';
+import {
+	StepHelperCandidates,
+	type StepHelperCandidatesProps,
+} from './StepHelperCandidates';
 
 type WizardStep =
 	| 'select'
@@ -54,6 +80,86 @@ type AdjustmentWizardDialogProps = {
 	onCascadeReopen?: (shiftIds: string[]) => void;
 };
 
+type Candidate =
+	Awaited<
+		ReturnType<NonNullable<StepHelperCandidatesProps['requestCandidates']>>
+	> extends { data: infer T }
+		? T extends { candidates: infer U }
+			? U extends Array<infer V>
+				? V
+				: never
+			: never
+		: never;
+
+const mapValidationError = <T,>(message: string) =>
+	errorResult<T>(message, 500);
+
+const buildCandidates = async (
+	shiftId: string,
+	startTime: Date,
+	endTime: Date,
+) => {
+	const staffResult = await listStaffsAction();
+	if (staffResult.error || !staffResult.data) {
+		return errorResult<{ candidates: Candidate[] }>(
+			staffResult.error ?? '候補スタッフの取得に失敗しました',
+			staffResult.status,
+			staffResult.details,
+		);
+	}
+
+	const helperStaffs = staffResult.data.filter(
+		(staff) => staff.role === 'helper',
+	);
+	const validationResults = await Promise.all(
+		helperStaffs.map(async (staff) => {
+			const availability = await validateStaffAvailabilityAction({
+				staffId: staff.id,
+				startTime: startTime.toISOString(),
+				endTime: endTime.toISOString(),
+				excludeShiftId: shiftId,
+			});
+			return { staff, availability };
+		}),
+	);
+
+	for (const validationResult of validationResults) {
+		if (
+			validationResult.availability.error ||
+			!validationResult.availability.data
+		) {
+			return mapValidationError<{ candidates: Candidate[] }>(
+				validationResult.availability.error ??
+					'候補スタッフの取得に失敗しました',
+			);
+		}
+	}
+
+	const candidates: Candidate[] = validationResults.map(
+		({ staff, availability }) => ({
+			staffId: staff.id,
+			staffName: staff.name,
+			conflictingShifts: (availability.data?.conflictingShifts ?? []).map(
+				(shift) => ({
+					shiftId: shift.id,
+					clientName: shift.clientName,
+					date: formatJstDateString(shift.startTime),
+					startTime: {
+						hour: getJstHours(shift.startTime),
+						minute: getJstMinutes(shift.startTime),
+					},
+					endTime: {
+						hour: getJstHours(shift.endTime),
+						minute: getJstMinutes(shift.endTime),
+					},
+				}),
+			),
+		}),
+	);
+
+	return successResult({ candidates });
+};
+
 export const AdjustmentWizardDialog = ({
 	isOpen,
 	shiftId,
@@ -75,6 +181,79 @@ export const AdjustmentWizardDialog = ({
 		newStartTime: initialStartTime,
 		newEndTime: initialEndTime,
 	});
+
+	const requestHelperCandidates = useCallback<
+		NonNullable<StepHelperCandidatesProps['requestCandidates']>
+	>(
+		async ({ shiftId: targetShiftId }) =>
+			buildCandidates(targetShiftId, initialStartTime, initialEndTime),
+		[initialEndTime, initialStartTime],
+	);
+
+	const requestHelperAssign = useCallback<
+		NonNullable<StepHelperCandidatesProps['requestAssign']>
+	>(async ({ shiftId: targetShiftId, newStaffId }) => {
+		const result = await changeShiftStaffAction({
+			shiftId: targetShiftId,
+			newStaffId,
+			reason: '調整相談（ヘルパー変更）',
+		});
+
+		if (result.error || !result.data) {
+			return errorResult(
+				result.error ?? 'ヘルパー変更に失敗しました',
+				result.status,
+				result.details,
+			);
+		}
+
+		return successResult({
+			updatedShift: result.data,
+			cascadeUnassignedShiftIds: [],
+		});
+	}, []);
+
+	const requestDatetimeCandidates = useCallback<
+		NonNullable<StepDatetimeCandidatesProps['requestCandidates']>
+	>(
+		async ({ shiftId: targetShiftId, newStartTime, newEndTime }) =>
+			buildCandidates(targetShiftId, newStartTime, newEndTime),
+		[],
+	);
+
+	const requestDatetimeAssign = useCallback<
+		NonNullable<StepDatetimeCandidatesProps['requestAssign']>
+	>(
+		async ({
+			shiftId: targetShiftId,
+			newStaffId,
+			newStartTime,
+			newEndTime,
+		}) => {
+			const result = await updateShiftScheduleAction({
+				shiftId: targetShiftId,
+				staffId: newStaffId,
+				dateStr: formatJstDateString(newStartTime),
+				startTimeStr: toJstTimeStr(newStartTime),
+				endTimeStr: toJstTimeStr(newEndTime),
+				reason: '調整相談（日程変更）',
+			});
+
+			if (result.error || !result.data) {
+				return errorResult(
+					result.error ?? '日時変更に失敗しました',
+					result.status,
+					result.details,
+				);
+			}
+
+			return successResult({
+				updatedShift: result.data,
+				cascadeUnassignedShiftIds: [],
+			});
+		},
+		[],
+	);
 
 	useEffect(() => {
 		const dialog = dialogRef.current;
@@ -143,6 +322,8 @@ export const AdjustmentWizardDialog = ({
 						shiftId={shiftId}
 						onComplete={handleAssignedComplete}
 						onCascadeReopen={onCascadeReopen}
+						requestCandidates={requestHelperCandidates}
+						requestAssign={requestHelperAssign}
 					/>
 				);
 			case 'datetime-input':
@@ -164,6 +345,8 @@ export const AdjustmentWizardDialog = ({
 						newEndTime={candidateDatetime.newEndTime}
 						onComplete={handleAssignedComplete}
 						onCascadeReopen={onCascadeReopen}
+						requestCandidates={requestDatetimeCandidates}
+						requestAssign={requestDatetimeAssign}
 					/>
 				);
 			default:
