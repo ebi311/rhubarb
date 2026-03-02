@@ -1,18 +1,14 @@
 'use client';
 
 import {
-	changeShiftStaffAction,
-	updateShiftScheduleAction,
+	assignStaffWithCascadeUnassignAction,
+	suggestCandidateStaffForShiftAction,
+	suggestCandidateStaffForShiftWithNewDatetimeAction,
+	updateDatetimeAndAssignWithCascadeUnassignAction,
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
-import { listStaffsAction } from '@/app/actions/staffs';
 import { errorResult, successResult } from '@/app/actions/utils/actionResult';
-import {
-	formatJstDateString,
-	getJstHours,
-	getJstMinutes,
-	toJstTimeStr,
-} from '@/utils/date';
+import { formatJstDateString, getJstHours, getJstMinutes } from '@/utils/date';
 import {
 	type SyntheticEvent,
 	useCallback,
@@ -91,35 +87,43 @@ type Candidate =
 			: never
 		: never;
 
-const mapValidationError = <T,>(message: string) =>
-	errorResult<T>(message, 500);
+const mapActionError = <T,>(
+	error: string | null,
+	status: number,
+	details: unknown,
+	fallbackMessage: string,
+) => {
+	const message = error ?? fallbackMessage;
+	if (status >= 500) {
+		return errorResult<T>(message, status);
+	}
+	return errorResult<T>(message, status, details);
+};
 
 const buildCandidates = async (
 	shiftId: string,
 	startTime: Date,
 	endTime: Date,
 ) => {
-	const staffResult = await listStaffsAction();
-	if (staffResult.error || !staffResult.data) {
-		return errorResult<{ candidates: Candidate[] }>(
-			staffResult.error ?? '候補スタッフの取得に失敗しました',
-			staffResult.status,
-			staffResult.details,
+	const suggestResult = await suggestCandidateStaffForShiftAction({ shiftId });
+	if (suggestResult.error || !suggestResult.data) {
+		return mapActionError<{ candidates: Candidate[] }>(
+			suggestResult.error,
+			suggestResult.status,
+			suggestResult.details,
+			'候補スタッフの取得に失敗しました',
 		);
 	}
 
-	const helperStaffs = staffResult.data.filter(
-		(staff) => staff.role === 'helper',
-	);
 	const validationResults = await Promise.all(
-		helperStaffs.map(async (staff) => {
+		suggestResult.data.candidates.map(async (candidate) => {
 			const availability = await validateStaffAvailabilityAction({
-				staffId: staff.id,
+				staffId: candidate.staffId,
 				startTime: startTime.toISOString(),
 				endTime: endTime.toISOString(),
 				excludeShiftId: shiftId,
 			});
-			return { staff, availability };
+			return { candidate, availability };
 		}),
 	);
 
@@ -128,17 +132,19 @@ const buildCandidates = async (
 			validationResult.availability.error ||
 			!validationResult.availability.data
 		) {
-			return mapValidationError<{ candidates: Candidate[] }>(
-				validationResult.availability.error ??
-					'候補スタッフの取得に失敗しました',
+			return mapActionError<{ candidates: Candidate[] }>(
+				validationResult.availability.error,
+				validationResult.availability.status,
+				validationResult.availability.details,
+				'候補スタッフの取得に失敗しました',
 			);
 		}
 	}
 
 	const candidates: Candidate[] = validationResults.map(
-		({ staff, availability }) => ({
-			staffId: staff.id,
-			staffName: staff.name,
+		({ candidate, availability }) => ({
+			staffId: candidate.staffId,
+			staffName: candidate.staffName,
 			conflictingShifts: (availability.data?.conflictingShifts ?? []).map(
 				(shift) => ({
 					shiftId: shift.id,
@@ -192,66 +198,47 @@ export const AdjustmentWizardDialog = ({
 
 	const requestHelperAssign = useCallback<
 		NonNullable<StepHelperCandidatesProps['requestAssign']>
-	>(async ({ shiftId: targetShiftId, newStaffId }) => {
-		const result = await changeShiftStaffAction({
-			shiftId: targetShiftId,
-			newStaffId,
-			reason: '調整相談（ヘルパー変更）',
-		});
-
-		if (result.error || !result.data) {
-			return errorResult(
-				result.error ?? 'ヘルパー変更に失敗しました',
-				result.status,
-				result.details,
-			);
-		}
-
-		return successResult({
-			updatedShift: result.data,
-			cascadeUnassignedShiftIds: [],
-		});
-	}, []);
+	>(
+		async ({ shiftId: targetShiftId, newStaffId }) =>
+			assignStaffWithCascadeUnassignAction({
+				shiftId: targetShiftId,
+				newStaffId,
+			}),
+		[],
+	);
 
 	const requestDatetimeCandidates = useCallback<
 		NonNullable<StepDatetimeCandidatesProps['requestCandidates']>
-	>(
-		async ({ shiftId: targetShiftId, newStartTime, newEndTime }) =>
-			buildCandidates(targetShiftId, newStartTime, newEndTime),
-		[],
-	);
+	>(async ({ shiftId: targetShiftId, newStartTime, newEndTime }) => {
+		const suggestResult =
+			await suggestCandidateStaffForShiftWithNewDatetimeAction({
+				shiftId: targetShiftId,
+				newStartTime,
+				newEndTime,
+			});
+
+		if (suggestResult.error || !suggestResult.data) {
+			return mapActionError<{ candidates: Candidate[] }>(
+				suggestResult.error,
+				suggestResult.status,
+				suggestResult.details,
+				'候補スタッフの取得に失敗しました',
+			);
+		}
+
+		return successResult({ candidates: suggestResult.data.candidates });
+	}, []);
 
 	const requestDatetimeAssign = useCallback<
 		NonNullable<StepDatetimeCandidatesProps['requestAssign']>
 	>(
-		async ({
-			shiftId: targetShiftId,
-			newStaffId,
-			newStartTime,
-			newEndTime,
-		}) => {
-			const result = await updateShiftScheduleAction({
+		async ({ shiftId: targetShiftId, newStaffId, newStartTime, newEndTime }) =>
+			updateDatetimeAndAssignWithCascadeUnassignAction({
 				shiftId: targetShiftId,
-				staffId: newStaffId,
-				dateStr: formatJstDateString(newStartTime),
-				startTimeStr: toJstTimeStr(newStartTime),
-				endTimeStr: toJstTimeStr(newEndTime),
-				reason: '調整相談（日程変更）',
-			});
-
-			if (result.error || !result.data) {
-				return errorResult(
-					result.error ?? '日時変更に失敗しました',
-					result.status,
-					result.details,
-				);
-			}
-
-			return successResult({
-				updatedShift: result.data,
-				cascadeUnassignedShiftIds: [],
-			});
-		},
+				newStaffId,
+				newStartTime,
+				newEndTime,
+			}),
 		[],
 	);
 

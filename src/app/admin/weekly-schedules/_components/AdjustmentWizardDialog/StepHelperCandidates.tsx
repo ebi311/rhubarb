@@ -5,6 +5,7 @@ import {
 	suggestCandidateStaffForShiftAction,
 } from '@/app/actions/shifts';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type {
 	AssignStaffWithCascadeInput,
 	AssignStaffWithCascadeOutput,
@@ -12,7 +13,6 @@ import type {
 	SuggestCandidateStaffForShiftInput,
 	SuggestCandidateStaffForShiftOutput,
 } from '@/models/shiftActionSchemas';
-import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 
@@ -21,10 +21,10 @@ type StepHelperCandidatesProps = {
 	shiftId: string;
 	onComplete: () => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
-	requestCandidates: (
+	requestCandidates?: (
 		input: SuggestCandidateStaffForShiftInput,
 	) => Promise<ActionResult<SuggestCandidateStaffForShiftOutput>>;
-	requestAssign: (
+	requestAssign?: (
 		input: AssignStaffWithCascadeInput,
 	) => Promise<ActionResult<AssignStaffWithCascadeOutput>>;
 };

@@ -5,6 +5,7 @@ import {
 	updateDatetimeAndAssignWithCascadeUnassignAction,
 } from '@/app/actions/shifts';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type {
 	AssignStaffWithCascadeOutput,
 	CandidateStaff,
@@ -12,7 +13,6 @@ import type {
 	SuggestCandidateStaffForShiftWithNewDatetimeInput,
 	UpdateDatetimeAndAssignWithCascadeInput,
 } from '@/models/shiftActionSchemas';
-import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 
@@ -23,10 +23,10 @@ type StepDatetimeCandidatesProps = {
 	newEndTime: Date;
 	onComplete: () => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
-	requestCandidates: (
+	requestCandidates?: (
 		input: SuggestCandidateStaffForShiftWithNewDatetimeInput,
 	) => Promise<ActionResult<SuggestCandidateStaffForShiftOutput>>;
-	requestAssign: (
+	requestAssign?: (
 		input: UpdateDatetimeAndAssignWithCascadeInput,
 	) => Promise<ActionResult<AssignStaffWithCascadeOutput>>;
 };
