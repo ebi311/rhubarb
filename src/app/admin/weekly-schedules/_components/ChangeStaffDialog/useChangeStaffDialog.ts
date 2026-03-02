@@ -5,6 +5,7 @@ import {
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import {
 	formatJstDateString,
+	getJstDateOnly,
 	parseHHmm,
 	parseJstDateString,
 	setJstTime,
@@ -78,9 +79,15 @@ export const useChangeStaffDialog = (
 		return setJstTime(baseDate, parsedEnd.hour, parsedEnd.minute);
 	}, [baseDate, parsedEnd, shift.endTime]);
 
+	const isPastShift = useMemo(() => {
+		const shiftDateJst = getJstDateOnly(shift.date);
+		const todayJst = getJstDateOnly(new Date());
+		return shiftDateJst.getTime() < todayJst.getTime();
+	}, [shift.date]);
+
 	// スタッフが選択されたときに時間重複チェック
 	useEffect(() => {
-		if (!selectedStaffId || !isOpen) {
+		if (!selectedStaffId || !isOpen || isPastShift) {
 			setConflictingShifts([]);
 			return;
 		}
@@ -129,6 +136,7 @@ export const useChangeStaffDialog = (
 		editedEndTime,
 		parsedStart,
 		parsedEnd,
+		isPastShift,
 	]);
 
 	const handleStaffSelect = useCallback((staffId: string) => {
@@ -137,7 +145,7 @@ export const useChangeStaffDialog = (
 	}, []);
 
 	const handleSubmit = useCallback(async () => {
-		if (!selectedStaffId) return;
+		if (!selectedStaffId || isPastShift) return;
 
 		setIsSubmitting(true);
 		try {
@@ -165,6 +173,7 @@ export const useChangeStaffDialog = (
 		}
 	}, [
 		selectedStaffId,
+		isPastShift,
 		shift.id,
 		dateStr,
 		startTimeStr,
@@ -195,6 +204,7 @@ export const useChangeStaffDialog = (
 		conflictingShifts,
 		isChecking,
 		isSubmitting,
+		isPastShift,
 		handleStaffSelect,
 		handleSubmit,
 	};
