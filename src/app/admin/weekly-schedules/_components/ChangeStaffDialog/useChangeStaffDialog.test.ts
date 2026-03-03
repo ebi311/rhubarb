@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChangeStaffDialog } from './useChangeStaffDialog';
 
 vi.mock('@/app/actions/shifts', () => ({
@@ -28,14 +28,18 @@ const mockShift = {
 	id: 'shift-1',
 	clientName: '山田太郎',
 	serviceTypeName: '身体介護',
-	date: new Date('2024-01-15'),
-	startTime: new Date('2024-01-15T09:00:00+09:00'),
-	endTime: new Date('2024-01-15T10:00:00+09:00'),
+	date: new Date('2099-01-15'),
+	startTime: new Date('2099-01-15T09:00:00+09:00'),
+	endTime: new Date('2099-01-15T10:00:00+09:00'),
 	currentStaffName: '佐藤花子',
 	currentStaffId: 'staff-1',
 };
 
 describe('useChangeStaffDialog', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(validateStaffAvailabilityAction).mockResolvedValue({
@@ -122,8 +126,8 @@ describe('useChangeStaffDialog', () => {
 					{
 						id: 'shift-2',
 						clientName: '鈴木一郎',
-						startTime: '2024-01-15T09:30:00' as unknown as Date,
-						endTime: '2024-01-15T10:30:00' as unknown as Date,
+						startTime: '2099-01-15T09:30:00' as unknown as Date,
+						endTime: '2099-01-15T10:30:00' as unknown as Date,
 					},
 				],
 			},
@@ -167,7 +171,7 @@ describe('useChangeStaffDialog', () => {
 		expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 			shiftId: mockShift.id,
 			staffId: 'staff-2',
-			dateStr: '2024-01-15',
+			dateStr: '2099-01-15',
 			startTimeStr: '09:00',
 			endTimeStr: '10:00',
 			reason: '急遽変更',
@@ -214,10 +218,52 @@ describe('useChangeStaffDialog', () => {
 		expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 			shiftId: mockShift.id,
 			staffId: 'staff-2',
-			dateStr: '2024-01-15',
+			dateStr: '2099-01-15',
 			startTimeStr: '09:00',
 			endTimeStr: '10:00',
 			reason: undefined,
 		});
+	});
+
+	it('JST日付基準で過去シフトを判定できる', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2100-01-16T00:00:00+09:00'));
+
+		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true));
+
+		expect(result.current.isPastShift).toBe(true);
+	});
+
+	it('過去シフトの場合はhandleSubmitで更新アクションを呼ばない', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2100-01-16T00:00:00+09:00'));
+
+		const { result } = renderHook(() =>
+			useChangeStaffDialog(mockShift, true, vi.fn(), vi.fn()),
+		);
+
+		act(() => {
+			result.current.setSelectedStaffId('staff-2');
+		});
+
+		await act(async () => {
+			await result.current.handleSubmit();
+		});
+
+		expect(updateShiftScheduleAction).not.toHaveBeenCalled();
+	});
+
+	it('過去シフトの場合は可用性チェックアクションを呼ばない', async () => {
+		const pastShift = {
+			...mockShift,
+			date: new Date('2020-01-15'),
+			startTime: new Date('2020-01-15T09:00:00+09:00'),
+			endTime: new Date('2020-01-15T10:00:00+09:00'),
+		};
+
+		renderHook(() => useChangeStaffDialog(pastShift, true));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(validateStaffAvailabilityAction).not.toHaveBeenCalled();
 	});
 });
