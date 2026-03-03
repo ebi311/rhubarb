@@ -3,6 +3,7 @@ import {
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
 import { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -420,16 +421,20 @@ describe('ChangeStaffDialog', () => {
 	});
 
 	it('initialSuggestion がある場合はスタッフ・日時の初期値に反映される', () => {
+		const suggestionStaffOptions = mockStaffOptions.map((option) =>
+			option.id === 'staff-2' ? { ...option, id: TEST_IDS.STAFF_2 } : option,
+		);
+
 		render(
 			<ChangeStaffDialog
 				isOpen={true}
 				shift={mockShift}
-				staffOptions={mockStaffOptions}
+				staffOptions={suggestionStaffOptions}
 				onClose={vi.fn()}
 				onSuccess={vi.fn()}
 				initialSuggestion={{
-					shiftId: 'shift-1',
-					newStaffId: 'staff-2',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					newStaffId: TEST_IDS.STAFF_2,
 					newStartTime: new Date('2099-01-23T01:00:00.000Z'),
 					newEndTime: new Date('2099-01-23T04:00:00.000Z'),
 				}}

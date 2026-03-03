@@ -303,7 +303,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(
 			actionMocks.assignStaffWithCascadeUnassignAction,
 		).not.toHaveBeenCalled();
-		expect(result.data).toBeNull();
+		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
 	});
 
 	it('datetime割当は永続化せずに成功を返す', async () => {
@@ -348,7 +348,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(
 			actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction,
 		).not.toHaveBeenCalled();
-		expect(result.data).toBeNull();
+		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
 	});
 
 	it('Step3B候補取得は suggestCandidateStaffForShiftWithNewDatetimeAction を呼び出す', async () => {

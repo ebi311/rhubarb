@@ -173,8 +173,10 @@ const buildCandidates = async (
 	return successResult({ candidates });
 };
 
-const successNoPersist = <T,>(): ActionResult<T> => ({
-	data: null,
+const successNoPersist = (): ActionResult<AssignStaffWithCascadeOutput> => ({
+	data: {
+		cascadeUnassignedShiftIds: [],
+	} as unknown as AssignStaffWithCascadeOutput,
 	error: null,
 	status: 200,
 });
@@ -220,7 +222,7 @@ export const AdjustmentWizardDialog = ({
 				newStartTime: initialStartTime,
 				newEndTime: initialEndTime,
 			};
-			return successNoPersist<AssignStaffWithCascadeOutput>();
+			return successNoPersist();
 		},
 		[initialEndTime, initialStartTime],
 	);
@@ -262,7 +264,7 @@ export const AdjustmentWizardDialog = ({
 				newStartTime,
 				newEndTime,
 			};
-			return successNoPersist<AssignStaffWithCascadeOutput>();
+			return successNoPersist();
 		},
 		[],
 	);
@@ -282,7 +284,7 @@ export const AdjustmentWizardDialog = ({
 		if (!isOpen && dialog.open) {
 			dialog.close();
 		}
-	}, [isOpen]);
+	}, [isOpen, shiftId]);
 
 	const handleRequestClose = () => {
 		setStep('select');

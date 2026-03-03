@@ -69,6 +69,7 @@ export const useChangeStaffDialog = (
 	const initialSuggestionStartTimeMs =
 		initialSuggestion?.newStartTime.getTime();
 	const initialSuggestionEndTimeMs = initialSuggestion?.newEndTime.getTime();
+	const shiftId = shift.id;
 	const shiftStartTimeMs = shift.startTime.getTime();
 	const shiftEndTimeMs = shift.endTime.getTime();
 
@@ -92,6 +93,7 @@ export const useChangeStaffDialog = (
 		initialSuggestionStaffId,
 		initialSuggestionStartTimeMs,
 		isOpen,
+		shiftId,
 		shift.currentStaffId,
 		shiftEndTimeMs,
 		shiftStartTimeMs,

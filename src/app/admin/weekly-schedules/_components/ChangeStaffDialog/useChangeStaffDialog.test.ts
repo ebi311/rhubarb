@@ -1,3 +1,4 @@
+import { TEST_IDS } from '@/test/helpers/testIds';
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -96,6 +97,28 @@ describe('useChangeStaffDialog', () => {
 		expect(result.current.selectedStaffId).toBe('staff-1');
 		expect(result.current.reason).toBe('');
 		expect(result.current.conflictingShifts).toEqual([]);
+	});
+
+	it('ダイアログ表示中に shift.id が変わったら状態をリセットする', () => {
+		const { result, rerender } = renderHook(
+			({ shift }) => useChangeStaffDialog(shift, true),
+			{ initialProps: { shift: mockShift } },
+		);
+
+		act(() => {
+			result.current.setSelectedStaffId('staff-2');
+			result.current.setReason('引き継がない値');
+		});
+
+		rerender({
+			shift: {
+				...mockShift,
+				id: TEST_IDS.SCHEDULE_2,
+			},
+		});
+
+		expect(result.current.selectedStaffId).toBe('staff-1');
+		expect(result.current.reason).toBe('');
 	});
 
 	it('スタッフが選択されたときに時間重複チェックが実行される', async () => {
