@@ -61,9 +61,8 @@ interface ShiftServiceOptions {
 	serviceUserRepository?: ServiceUserRepository;
 }
 
-const SHIFT_DATETIME_CHANGE_MAX_RANGE_DAYS = 14;
-const SHIFT_DATETIME_CHANGE_MAX_OFFSET_DAYS =
-	SHIFT_DATETIME_CHANGE_MAX_RANGE_DAYS - 1;
+const DATETIME_INPUT_MAX_RANGE_DAYS = 14;
+const DATETIME_INPUT_MAX_OFFSET_DAYS = DATETIME_INPUT_MAX_RANGE_DAYS - 1;
 
 export class ShiftService {
 	private staffRepository: StaffRepository;
@@ -396,12 +395,12 @@ export class ShiftService {
 		newStartTime: Date,
 	): void {
 		const minDate = getJstDateOnly(shiftDate);
-		const maxDate = addJstDays(minDate, SHIFT_DATETIME_CHANGE_MAX_OFFSET_DAYS);
+		const maxDate = addJstDays(minDate, DATETIME_INPUT_MAX_OFFSET_DAYS);
 		const newStartDate = getJstDateOnly(newStartTime);
 		if (newStartDate < minDate || newStartDate > maxDate) {
 			throw new ServiceError(
 				400,
-				`newStartTime date must be within ${SHIFT_DATETIME_CHANGE_MAX_RANGE_DAYS} days from shift date`,
+				`newStartTime date must be within ${DATETIME_INPUT_MAX_RANGE_DAYS} days from shift date`,
 			);
 		}
 	}
