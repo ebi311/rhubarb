@@ -270,10 +270,27 @@ export const AdjustmentWizardDialog = ({
 	);
 
 	useEffect(() => {
-		if (isOpen) {
-			selectedSuggestionRef.current = null;
+		if (!isOpen) {
+			return;
 		}
 
+		// shiftId 変更直後の同期 setState は lint で警告されるため、
+		// 次のマクロタスクでリセットして状態遷移を安定させる
+		const timer = setTimeout(() => {
+			setStep('select');
+			setCandidateDatetime({
+				newStartTime: initialStartTime,
+				newEndTime: initialEndTime,
+			});
+			selectedSuggestionRef.current = null;
+		}, 0);
+
+		return () => {
+			clearTimeout(timer);
+		};
+	}, [initialEndTime, initialStartTime, isOpen, shiftId]);
+
+	useEffect(() => {
 		const dialog = dialogRef.current;
 		if (!dialog) return;
 
@@ -284,7 +301,7 @@ export const AdjustmentWizardDialog = ({
 		if (!isOpen && dialog.open) {
 			dialog.close();
 		}
-	}, [isOpen, shiftId]);
+	}, [isOpen]);
 
 	const handleRequestClose = () => {
 		setStep('select');

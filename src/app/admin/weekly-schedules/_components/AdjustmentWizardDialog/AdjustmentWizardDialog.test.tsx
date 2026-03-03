@@ -1,5 +1,5 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
 	afterAll,
@@ -719,8 +719,41 @@ describe('AdjustmentWizardDialog', () => {
 			/>,
 		);
 
-		expect(screen.getByText('処理を選択')).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getByText('処理を選択')).toBeInTheDocument();
+		});
 		expect(screen.queryByText('日時入力ステップ')).not.toBeInTheDocument();
+	});
+
+	it('表示中に shiftId が変わると step が select にリセットされる', async () => {
+		const user = userEvent.setup();
+		const { rerender } = render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '日時の変更' }));
+		expect(screen.getByText('日時入力ステップ')).toBeInTheDocument();
+
+		rerender(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_2}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText('処理を選択')).toBeInTheDocument();
+			expect(screen.queryByText('日時入力ステップ')).not.toBeInTheDocument();
+		});
 	});
 
 	it('Escキャンセル時にonCloseが呼ばれる', () => {

@@ -143,11 +143,13 @@ export const StepDatetimeCandidates = ({
 					if (!data) return;
 					const cascadedShiftIds = data.cascadeUnassignedShiftIds;
 					if (cascadedShiftIds.length === 0) {
-						toast.success(`${selectedStaffName}さんへの変更を反映しました。`);
+						toast.success(
+							`${selectedStaffName}さんを候補に確定しました（まだ保存されていません）。`,
+						);
 						return;
 					}
 					toast.warning(
-						`${selectedStaffName}さんに変更し、${cascadedShiftIds.length}件のシフトが未割当になりました（クリックで確認）`,
+						`${selectedStaffName}さんを候補に確定し、${cascadedShiftIds.length}件の未割当候補があります（クリックで確認）`,
 						{ onClick: () => onCascadeReopen?.(cascadedShiftIds) },
 					);
 				},
@@ -191,7 +193,7 @@ export const StepDatetimeCandidates = ({
 		<div className="space-y-3">
 			<h3 className="text-lg font-semibold">候補スタッフを選択</h3>
 			<p className="text-sm text-base-content/70">
-				担当したいヘルパーを選択すると、日時変更と再割当を実行します。
+				担当したいヘルパーを選択すると、候補として確定します（保存はまだ行いません）。
 			</p>
 			<ul className="space-y-2">
 				{pagedCandidates.map((candidate) => (

@@ -433,7 +433,7 @@ describe('ChangeStaffDialog', () => {
 				onClose={vi.fn()}
 				onSuccess={vi.fn()}
 				initialSuggestion={{
-					shiftId: TEST_IDS.SCHEDULE_1,
+					shiftId: mockShift.id,
 					newStaffId: TEST_IDS.STAFF_2,
 					newStartTime: new Date('2099-01-23T01:00:00.000Z'),
 					newEndTime: new Date('2099-01-23T04:00:00.000Z'),

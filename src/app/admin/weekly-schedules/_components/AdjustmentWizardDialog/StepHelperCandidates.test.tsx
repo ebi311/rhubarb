@@ -215,7 +215,7 @@ describe('StepHelperCandidates', () => {
 			});
 		});
 		expect(toast.success).toHaveBeenCalledWith(
-			'山田太郎さんをヘルパーに変更しました。',
+			'山田太郎さんを候補に確定しました（まだ保存されていません）。',
 		);
 		expect(onComplete).toHaveBeenCalledTimes(1);
 	});
@@ -274,7 +274,7 @@ describe('StepHelperCandidates', () => {
 			expect(toast.warning).toHaveBeenCalledTimes(1);
 		});
 		expect(toast.warning).toHaveBeenCalledWith(
-			'山田太郎さんに変更し、2件のシフトが未割当になりました（クリックで確認）',
+			'山田太郎さんを候補に確定し、2件の未割当候補があります（クリックで確認）',
 			expect.any(Object),
 		);
 

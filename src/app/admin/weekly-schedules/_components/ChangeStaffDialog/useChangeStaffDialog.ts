@@ -28,12 +28,14 @@ const createDialogInitialValues = (
 	shift: ChangeStaffDialogShift,
 	initialSuggestion?: AdjustmentWizardSuggestion,
 ): DialogInitialValues => {
-	const startTime = initialSuggestion?.newStartTime ?? shift.startTime;
-	const endTime = initialSuggestion?.newEndTime ?? shift.endTime;
+	const matchedSuggestion =
+		initialSuggestion?.shiftId === shift.id ? initialSuggestion : undefined;
+	const startTime = matchedSuggestion?.newStartTime ?? shift.startTime;
+	const endTime = matchedSuggestion?.newEndTime ?? shift.endTime;
 
 	return {
 		selectedStaffId:
-			initialSuggestion?.newStaffId ?? shift.currentStaffId ?? null,
+			matchedSuggestion?.newStaffId ?? shift.currentStaffId ?? null,
 		dateStr: formatJstDateString(startTime),
 		startTimeStr: toJstTimeStr(startTime),
 		endTimeStr: toJstTimeStr(endTime),
@@ -47,16 +49,20 @@ export const useChangeStaffDialog = (
 	onClose?: () => void,
 	initialSuggestion?: AdjustmentWizardSuggestion,
 ) => {
+	const {
+		selectedStaffId: resetSelectedStaffId,
+		dateStr: resetDateStr,
+		startTimeStr: resetStartTimeStr,
+		endTimeStr: resetEndTimeStr,
+	} = createDialogInitialValues(shift, initialSuggestion);
 	const [showStaffPicker, setShowStaffPicker] = useState(false);
 	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(
-		shift.currentStaffId ?? null,
+		resetSelectedStaffId,
 	);
 	const [reason, setReason] = useState('');
-	const [dateStr, setDateStr] = useState(formatJstDateString(shift.date));
-	const [startTimeStr, setStartTimeStr] = useState(
-		toJstTimeStr(shift.startTime),
-	);
-	const [endTimeStr, setEndTimeStr] = useState(toJstTimeStr(shift.endTime));
+	const [dateStr, setDateStr] = useState(resetDateStr);
+	const [startTimeStr, setStartTimeStr] = useState(resetStartTimeStr);
+	const [endTimeStr, setEndTimeStr] = useState(resetEndTimeStr);
 	const [conflictingShifts, setConflictingShifts] = useState<
 		ConflictingShift[]
 	>([]);
@@ -65,38 +71,26 @@ export const useChangeStaffDialog = (
 	const { handleActionResult } = useActionResultHandler();
 	const router = useRouter();
 
-	const initialSuggestionStaffId = initialSuggestion?.newStaffId;
-	const initialSuggestionStartTimeMs =
-		initialSuggestion?.newStartTime.getTime();
-	const initialSuggestionEndTimeMs = initialSuggestion?.newEndTime.getTime();
-	const shiftId = shift.id;
-	const shiftStartTimeMs = shift.startTime.getTime();
-	const shiftEndTimeMs = shift.endTime.getTime();
-
 	// ダイアログが開いたときにリセット
 	useEffect(() => {
 		if (!isOpen) {
 			return;
 		}
 
-		const initialValues = createDialogInitialValues(shift, initialSuggestion);
-
-		setSelectedStaffId(initialValues.selectedStaffId);
+		setSelectedStaffId(resetSelectedStaffId);
 		setReason('');
-		setDateStr(initialValues.dateStr);
-		setStartTimeStr(initialValues.startTimeStr);
-		setEndTimeStr(initialValues.endTimeStr);
+		setDateStr(resetDateStr);
+		setStartTimeStr(resetStartTimeStr);
+		setEndTimeStr(resetEndTimeStr);
 		setConflictingShifts([]);
 		setShowStaffPicker(false);
 	}, [
-		initialSuggestionEndTimeMs,
-		initialSuggestionStaffId,
-		initialSuggestionStartTimeMs,
 		isOpen,
-		shiftId,
-		shift.currentStaffId,
-		shiftEndTimeMs,
-		shiftStartTimeMs,
+		resetDateStr,
+		resetEndTimeStr,
+		resetSelectedStaffId,
+		resetStartTimeStr,
+		shift.id,
 	]);
 
 	const baseDate = useMemo(() => {

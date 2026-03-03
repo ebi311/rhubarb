@@ -2,6 +2,7 @@ import { TEST_IDS } from '@/test/helpers/testIds';
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ChangeStaffDialogShift } from './ChangeStaffDialog';
 import { useChangeStaffDialog } from './useChangeStaffDialog';
 
 vi.mock('@/app/actions/shifts', () => ({
@@ -25,15 +26,15 @@ vi.mock('@/hooks/useActionResultHandler', () => ({
 const { updateShiftScheduleAction, validateStaffAvailabilityAction } =
 	await import('@/app/actions/shifts');
 
-const mockShift = {
-	id: 'shift-1',
+const mockShift: ChangeStaffDialogShift = {
+	id: TEST_IDS.SCHEDULE_1,
 	clientName: '山田太郎',
 	serviceTypeName: '身体介護',
 	date: new Date('2099-01-15'),
 	startTime: new Date('2099-01-15T09:00:00+09:00'),
 	endTime: new Date('2099-01-15T10:00:00+09:00'),
 	currentStaffName: '佐藤花子',
-	currentStaffId: 'staff-1',
+	currentStaffId: TEST_IDS.STAFF_1,
 };
 
 describe('useChangeStaffDialog', () => {
@@ -49,7 +50,7 @@ describe('useChangeStaffDialog', () => {
 			status: 200,
 		});
 		vi.mocked(updateShiftScheduleAction).mockResolvedValue({
-			data: { shiftId: 'shift-1' },
+			data: { shiftId: TEST_IDS.SCHEDULE_1 },
 			error: null,
 			status: 200,
 		});
@@ -58,7 +59,7 @@ describe('useChangeStaffDialog', () => {
 	it('初期状態が正しく設定される', async () => {
 		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true));
 
-		expect(result.current.selectedStaffId).toBe('staff-1');
+		expect(result.current.selectedStaffId).toBe(TEST_IDS.STAFF_1);
 		expect(result.current.reason).toBe('');
 		expect(result.current.conflictingShifts).toEqual([]);
 		await waitFor(() => {
@@ -66,6 +67,50 @@ describe('useChangeStaffDialog', () => {
 		});
 		expect(result.current.isSubmitting).toBe(false);
 		expect(result.current.showStaffPicker).toBe(false);
+	});
+
+	it('一致する initialSuggestion がある場合は初期状態に提案値を反映する', () => {
+		const initialSuggestion = {
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_2,
+			newStartTime: new Date('2099-01-15T11:00:00+09:00'),
+			newEndTime: new Date('2099-01-15T12:00:00+09:00'),
+		};
+		const { result } = renderHook(() =>
+			useChangeStaffDialog(
+				mockShift,
+				true,
+				undefined,
+				undefined,
+				initialSuggestion,
+			),
+		);
+
+		expect(result.current.selectedStaffId).toBe(TEST_IDS.STAFF_2);
+		expect(result.current.startTimeStr).toBe('11:00');
+		expect(result.current.endTimeStr).toBe('12:00');
+	});
+
+	it('shiftId が不一致の initialSuggestion は初期値に適用しない', () => {
+		const initialSuggestion = {
+			shiftId: TEST_IDS.SCHEDULE_2,
+			newStaffId: TEST_IDS.STAFF_2,
+			newStartTime: new Date('2099-01-15T11:00:00+09:00'),
+			newEndTime: new Date('2099-01-15T12:00:00+09:00'),
+		};
+		const { result } = renderHook(() =>
+			useChangeStaffDialog(
+				mockShift,
+				true,
+				undefined,
+				undefined,
+				initialSuggestion,
+			),
+		);
+
+		expect(result.current.selectedStaffId).toBe(TEST_IDS.STAFF_1);
+		expect(result.current.startTimeStr).toBe('09:00');
+		expect(result.current.endTimeStr).toBe('10:00');
 	});
 
 	it('元シフトが未割当の場合、selectedStaffId は null のまま', () => {
@@ -86,7 +131,7 @@ describe('useChangeStaffDialog', () => {
 
 		// 状態を変更
 		act(() => {
-			result.current.setSelectedStaffId('staff-2');
+			result.current.setSelectedStaffId(TEST_IDS.STAFF_2);
 			result.current.setReason('理由');
 		});
 
@@ -94,7 +139,7 @@ describe('useChangeStaffDialog', () => {
 		rerender({ isOpen: true });
 
 		// リセットされる
-		expect(result.current.selectedStaffId).toBe('staff-1');
+		expect(result.current.selectedStaffId).toBe(TEST_IDS.STAFF_1);
 		expect(result.current.reason).toBe('');
 		expect(result.current.conflictingShifts).toEqual([]);
 	});
@@ -106,7 +151,7 @@ describe('useChangeStaffDialog', () => {
 		);
 
 		act(() => {
-			result.current.setSelectedStaffId('staff-2');
+			result.current.setSelectedStaffId(TEST_IDS.STAFF_2);
 			result.current.setReason('引き継がない値');
 		});
 
@@ -117,7 +162,7 @@ describe('useChangeStaffDialog', () => {
 			},
 		});
 
-		expect(result.current.selectedStaffId).toBe('staff-1');
+		expect(result.current.selectedStaffId).toBe(TEST_IDS.STAFF_1);
 		expect(result.current.reason).toBe('');
 	});
 
@@ -125,19 +170,19 @@ describe('useChangeStaffDialog', () => {
 		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true));
 
 		act(() => {
-			result.current.handleStaffSelect('staff-2');
+			result.current.handleStaffSelect(TEST_IDS.STAFF_2);
 		});
 
 		await waitFor(() => {
 			expect(validateStaffAvailabilityAction).toHaveBeenCalledWith({
-				staffId: 'staff-2',
+				staffId: TEST_IDS.STAFF_2,
 				startTime: mockShift.startTime.toISOString(),
 				endTime: mockShift.endTime.toISOString(),
 				excludeShiftId: mockShift.id,
 			});
 		});
 
-		expect(result.current.selectedStaffId).toBe('staff-2');
+		expect(result.current.selectedStaffId).toBe(TEST_IDS.STAFF_2);
 		expect(result.current.conflictingShifts).toEqual([]);
 	});
 
@@ -147,7 +192,7 @@ describe('useChangeStaffDialog', () => {
 				available: false,
 				conflictingShifts: [
 					{
-						id: 'shift-2',
+						id: TEST_IDS.SCHEDULE_2,
 						clientName: '鈴木一郎',
 						startTime: '2099-01-15T09:30:00' as unknown as Date,
 						endTime: '2099-01-15T10:30:00' as unknown as Date,
@@ -161,7 +206,7 @@ describe('useChangeStaffDialog', () => {
 		const { result } = renderHook(() => useChangeStaffDialog(mockShift, true));
 
 		act(() => {
-			result.current.handleStaffSelect('staff-2');
+			result.current.handleStaffSelect(TEST_IDS.STAFF_2);
 		});
 
 		await waitFor(() => {
@@ -182,7 +227,7 @@ describe('useChangeStaffDialog', () => {
 
 		// スタッフを選択
 		act(() => {
-			result.current.setSelectedStaffId('staff-2');
+			result.current.setSelectedStaffId(TEST_IDS.STAFF_2);
 			result.current.setReason('急遽変更');
 		});
 
@@ -193,7 +238,7 @@ describe('useChangeStaffDialog', () => {
 
 		expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 			shiftId: mockShift.id,
-			staffId: 'staff-2',
+			staffId: TEST_IDS.STAFF_2,
 			dateStr: '2099-01-15',
 			startTimeStr: '09:00',
 			endTimeStr: '10:00',
@@ -231,7 +276,7 @@ describe('useChangeStaffDialog', () => {
 		);
 
 		act(() => {
-			result.current.setSelectedStaffId('staff-2');
+			result.current.setSelectedStaffId(TEST_IDS.STAFF_2);
 		});
 
 		await act(async () => {
@@ -240,7 +285,7 @@ describe('useChangeStaffDialog', () => {
 
 		expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 			shiftId: mockShift.id,
-			staffId: 'staff-2',
+			staffId: TEST_IDS.STAFF_2,
 			dateStr: '2099-01-15',
 			startTimeStr: '09:00',
 			endTimeStr: '10:00',
@@ -266,7 +311,7 @@ describe('useChangeStaffDialog', () => {
 		);
 
 		act(() => {
-			result.current.setSelectedStaffId('staff-2');
+			result.current.setSelectedStaffId(TEST_IDS.STAFF_2);
 		});
 
 		await act(async () => {
