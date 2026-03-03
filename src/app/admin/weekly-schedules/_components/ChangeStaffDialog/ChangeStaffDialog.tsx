@@ -3,6 +3,7 @@
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { StaffPickerDialog } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { useId } from 'react';
+import type { AdjustmentWizardSuggestion } from '../AdjustmentWizardDialog';
 import { ShiftInfoCard } from '../ShiftInfoCard';
 import { StaffConflictWarning } from '../StaffConflictWarning';
 import { useChangeStaffDialog } from './useChangeStaffDialog';
@@ -25,6 +26,7 @@ type ChangeStaffDialogProps = {
 	onClose: () => void;
 	onSuccess?: () => void;
 	onStartAdjustment?: (shiftId: string) => void;
+	initialSuggestion?: AdjustmentWizardSuggestion;
 };
 
 export const ChangeStaffDialog = ({
@@ -34,6 +36,7 @@ export const ChangeStaffDialog = ({
 	onClose,
 	onSuccess,
 	onStartAdjustment,
+	initialSuggestion,
 }: ChangeStaffDialogProps) => {
 	const inputIdBase = useId();
 	const reasonTextareaId = `${inputIdBase}-reason`;
@@ -59,7 +62,13 @@ export const ChangeStaffDialog = ({
 		isPastShift,
 		handleStaffSelect,
 		handleSubmit,
-	} = useChangeStaffDialog(shift, isOpen, onSuccess, onClose);
+	} = useChangeStaffDialog(
+		shift,
+		isOpen,
+		onSuccess,
+		onClose,
+		initialSuggestion,
+	);
 
 	const selectedStaff = staffOptions.find((s) => s.id === selectedStaffId);
 	const isInteractionLocked = isSubmitting || isPastShift;

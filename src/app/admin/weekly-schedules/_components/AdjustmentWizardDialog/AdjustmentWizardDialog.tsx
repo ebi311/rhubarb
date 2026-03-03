@@ -1,13 +1,13 @@
 'use client';
 
 import {
-	assignStaffWithCascadeUnassignAction,
 	suggestCandidateStaffForShiftAction,
 	suggestCandidateStaffForShiftWithNewDatetimeAction,
-	updateDatetimeAndAssignWithCascadeUnassignAction,
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
+import type { ActionResult } from '@/app/actions/utils/actionResult';
 import { errorResult, successResult } from '@/app/actions/utils/actionResult';
+import type { AssignStaffWithCascadeOutput } from '@/models/shiftActionSchemas';
 import { formatJstDateString, getJstHours, getJstMinutes } from '@/utils/date';
 import {
 	type SyntheticEvent,
@@ -66,13 +66,20 @@ const SelectStep = ({
 	);
 };
 
+export type AdjustmentWizardSuggestion = {
+	shiftId: string;
+	newStaffId: string;
+	newStartTime: Date;
+	newEndTime: Date;
+};
+
 type AdjustmentWizardDialogProps = {
 	isOpen: boolean;
 	shiftId: string;
 	initialStartTime: Date;
 	initialEndTime: Date;
 	onClose: () => void;
-	onAssigned?: () => void;
+	onAssigned?: (suggestion: AdjustmentWizardSuggestion) => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
 };
 
@@ -166,6 +173,12 @@ const buildCandidates = async (
 	return successResult({ candidates });
 };
 
+const successNoPersist = <T,>(): ActionResult<T> => ({
+	data: null,
+	error: null,
+	status: 200,
+});
+
 export const AdjustmentWizardDialog = ({
 	isOpen,
 	shiftId,
@@ -187,6 +200,7 @@ export const AdjustmentWizardDialog = ({
 		newStartTime: initialStartTime,
 		newEndTime: initialEndTime,
 	});
+	const selectedSuggestionRef = useRef<AdjustmentWizardSuggestion | null>(null);
 
 	const requestHelperCandidates = useCallback<
 		NonNullable<StepHelperCandidatesProps['requestCandidates']>
@@ -199,12 +213,16 @@ export const AdjustmentWizardDialog = ({
 	const requestHelperAssign = useCallback<
 		NonNullable<StepHelperCandidatesProps['requestAssign']>
 	>(
-		async ({ shiftId: targetShiftId, newStaffId }) =>
-			assignStaffWithCascadeUnassignAction({
+		async ({ shiftId: targetShiftId, newStaffId }) => {
+			selectedSuggestionRef.current = {
 				shiftId: targetShiftId,
 				newStaffId,
-			}),
-		[],
+				newStartTime: initialStartTime,
+				newEndTime: initialEndTime,
+			};
+			return successNoPersist<AssignStaffWithCascadeOutput>();
+		},
+		[initialEndTime, initialStartTime],
 	);
 
 	const requestDatetimeCandidates = useCallback<
@@ -232,17 +250,28 @@ export const AdjustmentWizardDialog = ({
 	const requestDatetimeAssign = useCallback<
 		NonNullable<StepDatetimeCandidatesProps['requestAssign']>
 	>(
-		async ({ shiftId: targetShiftId, newStaffId, newStartTime, newEndTime }) =>
-			updateDatetimeAndAssignWithCascadeUnassignAction({
+		async ({
+			shiftId: targetShiftId,
+			newStaffId,
+			newStartTime,
+			newEndTime,
+		}) => {
+			selectedSuggestionRef.current = {
 				shiftId: targetShiftId,
 				newStaffId,
 				newStartTime,
 				newEndTime,
-			}),
+			};
+			return successNoPersist<AssignStaffWithCascadeOutput>();
+		},
 		[],
 	);
 
 	useEffect(() => {
+		if (isOpen) {
+			selectedSuggestionRef.current = null;
+		}
+
 		const dialog = dialogRef.current;
 		if (!dialog) return;
 
@@ -257,11 +286,13 @@ export const AdjustmentWizardDialog = ({
 
 	const handleRequestClose = () => {
 		setStep('select');
+		selectedSuggestionRef.current = null;
 		onClose();
 	};
 
 	const handleDialogClose = () => {
 		setStep('select');
+		selectedSuggestionRef.current = null;
 		if (isOpen) {
 			onClose();
 		}
@@ -270,11 +301,14 @@ export const AdjustmentWizardDialog = ({
 	const handleDialogCancel = (event: SyntheticEvent<HTMLDialogElement>) => {
 		event.preventDefault();
 		setStep('select');
+		selectedSuggestionRef.current = null;
 		onClose();
 	};
 
 	const handleAssignedComplete = () => {
-		onAssigned?.();
+		if (selectedSuggestionRef.current) {
+			onAssigned?.(selectedSuggestionRef.current);
+		}
 		handleRequestClose();
 	};
 

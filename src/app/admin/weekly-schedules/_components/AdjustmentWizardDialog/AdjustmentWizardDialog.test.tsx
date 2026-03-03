@@ -54,8 +54,22 @@ vi.mock('./StepHelperCandidates', () => ({
 		return (
 			<div>
 				<p>ヘルパー候補ステップ</p>
-				<button type="button" onClick={onComplete}>
-					完了
+				<button
+					type="button"
+					onClick={async () => {
+						await (
+							requestAssign as (input: {
+								shiftId: string;
+								newStaffId: string;
+							}) => Promise<unknown>
+						)({
+							shiftId: TEST_IDS.SCHEDULE_1,
+							newStaffId: TEST_IDS.STAFF_1,
+						});
+						onComplete();
+					}}
+				>
+					候補を確定
 				</button>
 			</div>
 		);
@@ -97,7 +111,31 @@ vi.mock('./StepDatetimeCandidates', () => ({
 		requestAssign: unknown;
 	}) => {
 		stepDatetimeCandidatesSpy({ requestCandidates, requestAssign });
-		return <p>日時候補ステップ</p>;
+		return (
+			<div>
+				<p>日時候補ステップ</p>
+				<button
+					type="button"
+					onClick={async () => {
+						await (
+							requestAssign as (input: {
+								shiftId: string;
+								newStaffId: string;
+								newStartTime: Date;
+								newEndTime: Date;
+							}) => Promise<unknown>
+						)({
+							shiftId: TEST_IDS.SCHEDULE_1,
+							newStaffId: TEST_IDS.STAFF_1,
+							newStartTime: new Date('2026-02-22T09:00:00+09:00'),
+							newEndTime: new Date('2026-02-22T10:00:00+09:00'),
+						});
+					}}
+				>
+					候補を確定
+				</button>
+			</div>
+		);
 	},
 }));
 
@@ -230,7 +268,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(datetimeProps.requestAssign).toBeTypeOf('function');
 	});
 
-	it('helper割当は assignStaffWithCascadeUnassignAction の結果をそのまま返す', async () => {
+	it('helper割当は永続化せずに成功を返す', async () => {
 		const user = userEvent.setup();
 		render(
 			<AdjustmentWizardDialog
@@ -264,14 +302,11 @@ describe('AdjustmentWizardDialog', () => {
 
 		expect(
 			actionMocks.assignStaffWithCascadeUnassignAction,
-		).toHaveBeenCalledWith({
-			shiftId: TEST_IDS.SCHEDULE_1,
-			newStaffId: TEST_IDS.STAFF_1,
-		});
-		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
+		).not.toHaveBeenCalled();
+		expect(result.data).toBeNull();
 	});
 
-	it('datetime割当は updateDatetimeAndAssignWithCascadeUnassignAction の結果を返す', async () => {
+	it('datetime割当は永続化せずに成功を返す', async () => {
 		const user = userEvent.setup();
 		render(
 			<AdjustmentWizardDialog
@@ -312,11 +347,8 @@ describe('AdjustmentWizardDialog', () => {
 
 		expect(
 			actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction,
-		).toHaveBeenCalledWith(payload);
-		expect(result.data?.updatedShift.id).toBe(TEST_IDS.SCHEDULE_1);
-		expect(result.data?.cascadeUnassignedShiftIds).toEqual([
-			TEST_IDS.SCHEDULE_2,
-		]);
+		).not.toHaveBeenCalled();
+		expect(result.data).toBeNull();
 	});
 
 	it('Step3B候補取得は suggestCandidateStaffForShiftWithNewDatetimeAction を呼び出す', async () => {
@@ -605,7 +637,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(screen.getByText('日時入力ステップ')).toBeInTheDocument();
 	});
 
-	it('ヘルパー候補完了時に onAssigned が呼ばれる', async () => {
+	it('ヘルパー候補確定時に onAssigned に提案データを渡す', async () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
 		const onAssigned = vi.fn();
@@ -622,9 +654,14 @@ describe('AdjustmentWizardDialog', () => {
 		);
 
 		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
-		await user.click(screen.getByRole('button', { name: '完了' }));
+		await user.click(screen.getByRole('button', { name: '候補を確定' }));
 
-		expect(onAssigned).toHaveBeenCalledTimes(1);
+		expect(onAssigned).toHaveBeenCalledWith({
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_1,
+			newStartTime: new Date('2026-02-22T00:00:00.000Z'),
+			newEndTime: new Date('2026-02-22T01:00:00.000Z'),
+		});
 	});
 
 	it('ヘルパー候補完了時に onClose が呼ばれる', async () => {
@@ -642,7 +679,7 @@ describe('AdjustmentWizardDialog', () => {
 		);
 
 		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
-		await user.click(screen.getByRole('button', { name: '完了' }));
+		await user.click(screen.getByRole('button', { name: '候補を確定' }));
 
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
