@@ -9,6 +9,9 @@ import {
 } from '@/utils/date';
 import { useState } from 'react';
 
+const DATETIME_INPUT_MAX_RANGE_DAYS = 14;
+const DATETIME_INPUT_MAX_OFFSET_DAYS = DATETIME_INPUT_MAX_RANGE_DAYS - 1;
+
 type StepDatetimeInputProps = {
 	initialStartTime: Date;
 	initialEndTime: Date;
@@ -35,7 +38,9 @@ export const StepDatetimeInput = ({
 	onShowCandidates,
 }: StepDatetimeInputProps) => {
 	const minDateStr = formatJstDateString(initialStartTime);
-	const maxDateStr = formatJstDateString(addJstDays(initialStartTime, 13));
+	const maxDateStr = formatJstDateString(
+		addJstDays(initialStartTime, DATETIME_INPUT_MAX_OFFSET_DAYS),
+	);
 	const [dateStr, setDateStr] = useState(formatJstDateString(initialStartTime));
 	const [startTimeStr, setStartTimeStr] = useState(
 		toJstTimeStr(initialStartTime),
