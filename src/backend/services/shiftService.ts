@@ -12,7 +12,12 @@ import {
 	UpdateDatetimeAndAssignWithCascadeInput,
 } from '@/models/shiftActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
-import { formatJstDateString, getJstDateOnly, setJstTime } from '@/utils/date';
+import {
+	addJstDays,
+	formatJstDateString,
+	getJstDateOnly,
+	setJstTime,
+} from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { v7 as randomUUID } from 'uuid';
 
@@ -55,6 +60,9 @@ interface ShiftServiceOptions {
 	shiftRepository?: ShiftRepository;
 	serviceUserRepository?: ServiceUserRepository;
 }
+
+const DATETIME_INPUT_MAX_RANGE_DAYS = 14;
+const DATETIME_INPUT_MAX_OFFSET_DAYS = DATETIME_INPUT_MAX_RANGE_DAYS - 1;
 
 export class ShiftService {
 	private staffRepository: StaffRepository;
@@ -382,6 +390,21 @@ export class ShiftService {
 		}
 	}
 
+	private ensureDateWithinShiftAdjustmentRange(
+		shiftDate: Date,
+		newStartTime: Date,
+	): void {
+		const minDate = getJstDateOnly(shiftDate);
+		const maxDate = addJstDays(minDate, DATETIME_INPUT_MAX_OFFSET_DAYS);
+		const newStartDate = getJstDateOnly(newStartTime);
+		if (newStartDate < minDate || newStartDate > maxDate) {
+			throw new ServiceError(
+				400,
+				`newStartTime date must be within ${DATETIME_INPUT_MAX_RANGE_DAYS} days from shift date`,
+			);
+		}
+	}
+
 	private async ensureNoClientConflicts(params: {
 		clientId: string;
 		startTime: Date;
@@ -690,6 +713,7 @@ export class ShiftService {
 		await this.ensureShiftInAdminOffice(adminStaff.office_id, shift);
 		this.ensureEndAfterStart(input.newStartTime, input.newEndTime);
 		this.ensureSameDayDatetimeRange(input.newStartTime, input.newEndTime);
+		this.ensureDateWithinShiftAdjustmentRange(shift.date, input.newStartTime);
 
 		return this.suggestCandidatesByDatetime({
 			adminOfficeId: adminStaff.office_id,

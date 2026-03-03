@@ -1,12 +1,16 @@
 'use client';
 
 import {
+	addJstDays,
 	formatJstDateString,
 	parseJstDateString,
 	setJstTime,
 	toJstTimeStr,
 } from '@/utils/date';
 import { useState } from 'react';
+
+const DATETIME_INPUT_MAX_RANGE_DAYS = 14;
+const DATETIME_INPUT_MAX_OFFSET_DAYS = DATETIME_INPUT_MAX_RANGE_DAYS - 1;
 
 type StepDatetimeInputProps = {
 	initialStartTime: Date;
@@ -33,6 +37,10 @@ export const StepDatetimeInput = ({
 	initialEndTime,
 	onShowCandidates,
 }: StepDatetimeInputProps) => {
+	const minDateStr = formatJstDateString(initialStartTime);
+	const maxDateStr = formatJstDateString(
+		addJstDays(initialStartTime, DATETIME_INPUT_MAX_OFFSET_DAYS),
+	);
 	const [dateStr, setDateStr] = useState(formatJstDateString(initialStartTime));
 	const [startTimeStr, setStartTimeStr] = useState(
 		toJstTimeStr(initialStartTime),
@@ -76,6 +84,8 @@ export const StepDatetimeInput = ({
 						type="date"
 						className="input-bordered input w-full"
 						value={dateStr}
+						min={minDateStr}
+						max={maxDateStr}
 						onChange={(event) => setDateStr(event.target.value)}
 					/>
 				</label>
