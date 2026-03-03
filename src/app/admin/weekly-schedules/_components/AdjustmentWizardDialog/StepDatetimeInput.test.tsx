@@ -80,4 +80,18 @@ describe('StepDatetimeInput', () => {
 		expect(screen.getByText('日付を入力してください。')).toBeInTheDocument();
 		expect(onShowCandidates).not.toHaveBeenCalled();
 	});
+
+	it('日付入力に14日以内の min/max が設定される', () => {
+		render(
+			<StepDatetimeInput
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onShowCandidates={vi.fn()}
+			/>,
+		);
+
+		const dateInput = screen.getByLabelText('日付');
+		expect(dateInput).toHaveAttribute('min', '2026-02-22');
+		expect(dateInput).toHaveAttribute('max', '2026-03-07');
+	});
 });

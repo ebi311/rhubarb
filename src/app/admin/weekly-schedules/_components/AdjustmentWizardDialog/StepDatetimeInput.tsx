@@ -1,6 +1,7 @@
 'use client';
 
 import {
+	addJstDays,
 	formatJstDateString,
 	parseJstDateString,
 	setJstTime,
@@ -33,6 +34,8 @@ export const StepDatetimeInput = ({
 	initialEndTime,
 	onShowCandidates,
 }: StepDatetimeInputProps) => {
+	const minDateStr = formatJstDateString(initialStartTime);
+	const maxDateStr = formatJstDateString(addJstDays(initialStartTime, 13));
 	const [dateStr, setDateStr] = useState(formatJstDateString(initialStartTime));
 	const [startTimeStr, setStartTimeStr] = useState(
 		toJstTimeStr(initialStartTime),
@@ -76,6 +79,8 @@ export const StepDatetimeInput = ({
 						type="date"
 						className="input-bordered input w-full"
 						value={dateStr}
+						min={minDateStr}
+						max={maxDateStr}
 						onChange={(event) => setDateStr(event.target.value)}
 					/>
 				</label>
