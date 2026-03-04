@@ -17,6 +17,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 
 const PAGE_SIZE = 5;
+type AssignStaffResult = Pick<
+	AssignStaffWithCascadeOutput,
+	'cascadeUnassignedShiftIds'
+>;
 type StepHelperCandidatesProps = {
 	shiftId: string;
 	onComplete: () => void;
@@ -26,7 +30,7 @@ type StepHelperCandidatesProps = {
 	) => Promise<ActionResult<SuggestCandidateStaffForShiftOutput>>;
 	requestAssign?: (
 		input: AssignStaffWithCascadeInput,
-	) => Promise<ActionResult<AssignStaffWithCascadeOutput>>;
+	) => Promise<ActionResult<AssignStaffResult>>;
 };
 
 const formatTimeValue = (value: { hour: number; minute: number }): string =>
@@ -130,11 +134,13 @@ export const StepHelperCandidates = ({
 					if (!data) return;
 					const cascadedShiftIds = data.cascadeUnassignedShiftIds;
 					if (cascadedShiftIds.length === 0) {
-						toast.success(`${selectedStaffName}さんをヘルパーに変更しました。`);
+						toast.success(
+							`${selectedStaffName}さんを候補に確定しました（まだ保存されていません）。`,
+						);
 						return;
 					}
 					toast.warning(
-						`${selectedStaffName}さんに変更し、${cascadedShiftIds.length}件のシフトが未割当になりました（クリックで確認）`,
+						`${selectedStaffName}さんを候補に確定し、${cascadedShiftIds.length}件の未割当候補があります（クリックで確認）`,
 						{
 							onClick: () => onCascadeReopen?.(cascadedShiftIds),
 						},
@@ -180,7 +186,7 @@ export const StepHelperCandidates = ({
 		<div className="space-y-3">
 			<h3 className="text-lg font-semibold">ヘルパー候補を選択</h3>
 			<p className="text-sm text-base-content/70">
-				担当したいヘルパーを選択すると、すぐに割り当てを実行します。
+				担当したいヘルパーを選択すると、候補として確定します（保存はまだ行いません）。
 			</p>
 
 			<ul className="space-y-2">

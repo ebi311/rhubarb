@@ -1,12 +1,11 @@
 'use client';
 
 import {
-	assignStaffWithCascadeUnassignAction,
 	suggestCandidateStaffForShiftAction,
 	suggestCandidateStaffForShiftWithNewDatetimeAction,
-	updateDatetimeAndAssignWithCascadeUnassignAction,
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
+import type { ActionResult } from '@/app/actions/utils/actionResult';
 import { errorResult, successResult } from '@/app/actions/utils/actionResult';
 import { formatJstDateString, getJstHours, getJstMinutes } from '@/utils/date';
 import {
@@ -66,13 +65,20 @@ const SelectStep = ({
 	);
 };
 
+export type AdjustmentWizardSuggestion = {
+	shiftId: string;
+	newStaffId: string;
+	newStartTime: Date;
+	newEndTime: Date;
+};
+
 type AdjustmentWizardDialogProps = {
 	isOpen: boolean;
 	shiftId: string;
 	initialStartTime: Date;
 	initialEndTime: Date;
 	onClose: () => void;
-	onAssigned?: () => void;
+	onAssigned?: (suggestion: AdjustmentWizardSuggestion) => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
 };
 
@@ -166,6 +172,16 @@ const buildCandidates = async (
 	return successResult({ candidates });
 };
 
+const successNoPersist = (): ActionResult<{
+	cascadeUnassignedShiftIds: string[];
+}> => ({
+	data: {
+		cascadeUnassignedShiftIds: [],
+	},
+	error: null,
+	status: 200,
+});
+
 export const AdjustmentWizardDialog = ({
 	isOpen,
 	shiftId,
@@ -187,6 +203,7 @@ export const AdjustmentWizardDialog = ({
 		newStartTime: initialStartTime,
 		newEndTime: initialEndTime,
 	});
+	const selectedSuggestionRef = useRef<AdjustmentWizardSuggestion | null>(null);
 
 	const requestHelperCandidates = useCallback<
 		NonNullable<StepHelperCandidatesProps['requestCandidates']>
@@ -199,12 +216,16 @@ export const AdjustmentWizardDialog = ({
 	const requestHelperAssign = useCallback<
 		NonNullable<StepHelperCandidatesProps['requestAssign']>
 	>(
-		async ({ shiftId: targetShiftId, newStaffId }) =>
-			assignStaffWithCascadeUnassignAction({
+		async ({ shiftId: targetShiftId, newStaffId }) => {
+			selectedSuggestionRef.current = {
 				shiftId: targetShiftId,
 				newStaffId,
-			}),
-		[],
+				newStartTime: initialStartTime,
+				newEndTime: initialEndTime,
+			};
+			return successNoPersist();
+		},
+		[initialEndTime, initialStartTime],
 	);
 
 	const requestDatetimeCandidates = useCallback<
@@ -232,15 +253,43 @@ export const AdjustmentWizardDialog = ({
 	const requestDatetimeAssign = useCallback<
 		NonNullable<StepDatetimeCandidatesProps['requestAssign']>
 	>(
-		async ({ shiftId: targetShiftId, newStaffId, newStartTime, newEndTime }) =>
-			updateDatetimeAndAssignWithCascadeUnassignAction({
+		async ({
+			shiftId: targetShiftId,
+			newStaffId,
+			newStartTime,
+			newEndTime,
+		}) => {
+			selectedSuggestionRef.current = {
 				shiftId: targetShiftId,
 				newStaffId,
 				newStartTime,
 				newEndTime,
-			}),
+			};
+			return successNoPersist();
+		},
 		[],
 	);
+
+	useEffect(() => {
+		if (!isOpen) {
+			return;
+		}
+
+		// shiftId 変更直後の同期 setState は lint で警告されるため、
+		// 次のマクロタスクでリセットして状態遷移を安定させる
+		const timer = setTimeout(() => {
+			setStep('select');
+			setCandidateDatetime({
+				newStartTime: initialStartTime,
+				newEndTime: initialEndTime,
+			});
+			selectedSuggestionRef.current = null;
+		}, 0);
+
+		return () => {
+			clearTimeout(timer);
+		};
+	}, [initialEndTime, initialStartTime, isOpen, shiftId]);
 
 	useEffect(() => {
 		const dialog = dialogRef.current;
@@ -257,11 +306,13 @@ export const AdjustmentWizardDialog = ({
 
 	const handleRequestClose = () => {
 		setStep('select');
+		selectedSuggestionRef.current = null;
 		onClose();
 	};
 
 	const handleDialogClose = () => {
 		setStep('select');
+		selectedSuggestionRef.current = null;
 		if (isOpen) {
 			onClose();
 		}
@@ -270,11 +321,14 @@ export const AdjustmentWizardDialog = ({
 	const handleDialogCancel = (event: SyntheticEvent<HTMLDialogElement>) => {
 		event.preventDefault();
 		setStep('select');
+		selectedSuggestionRef.current = null;
 		onClose();
 	};
 
 	const handleAssignedComplete = () => {
-		onAssigned?.();
+		if (selectedSuggestionRef.current) {
+			onAssigned?.(selectedSuggestionRef.current);
+		}
 		handleRequestClose();
 	};
 

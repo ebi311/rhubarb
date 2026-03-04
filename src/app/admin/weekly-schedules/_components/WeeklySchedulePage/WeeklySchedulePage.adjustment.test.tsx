@@ -1,7 +1,7 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
@@ -41,17 +41,37 @@ vi.mock('../ChangeStaffDialog', () => ({
 	ChangeStaffDialog: ({
 		isOpen,
 		shift,
+		onClose,
 		onStartAdjustment,
+		initialSuggestion,
 	}: {
 		isOpen: boolean;
 		shift: { id: string };
+		onClose?: () => void;
 		onStartAdjustment?: (shiftId: string) => void;
+		initialSuggestion?: {
+			newStaffId: string;
+			newStartTime: Date;
+			newEndTime: Date;
+		};
 	}) =>
 		isOpen ? (
 			<div>
+				<button type="button" onClick={() => onClose?.()}>
+					変更ダイアログを閉じる
+				</button>
 				<button type="button" onClick={() => onStartAdjustment?.(shift.id)}>
 					調整相談
 				</button>
+				{initialSuggestion && (
+					<div>
+						<p>Suggested staff: {initialSuggestion.newStaffId}</p>
+						<p>
+							Suggested start: {initialSuggestion.newStartTime.toISOString()}
+						</p>
+						<p>Suggested end: {initialSuggestion.newEndTime.toISOString()}</p>
+					</div>
+				)}
 			</div>
 		) : null,
 }));
@@ -63,13 +83,20 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		initialStartTime,
 		initialEndTime,
 		onAssigned,
+		onClose,
 		onCascadeReopen,
 	}: {
 		isOpen: boolean;
 		shiftId: string;
 		initialStartTime: Date;
 		initialEndTime: Date;
-		onAssigned?: () => void;
+		onClose?: () => void;
+		onAssigned?: (payload: {
+			shiftId: string;
+			newStaffId: string;
+			newStartTime: Date;
+			newEndTime: Date;
+		}) => void;
 		onCascadeReopen?: (shiftIds: string[]) => void;
 	}) =>
 		isOpen ? (
@@ -77,8 +104,22 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 				<p>Wizard Open: {shiftId}</p>
 				<p>Start: {initialStartTime.toISOString()}</p>
 				<p>End: {initialEndTime.toISOString()}</p>
-				<button type="button" onClick={() => onAssigned?.()}>
-					割当完了
+				<button type="button" onClick={() => onClose?.()}>
+					Wizardを閉じる
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onAssigned?.({
+							shiftId,
+							newStaffId: TEST_IDS.STAFF_2,
+							newStartTime: new Date('2026-01-19T02:00:00.000Z'),
+							newEndTime: new Date('2026-01-19T03:00:00.000Z'),
+						});
+						onClose?.();
+					}}
+				>
+					候補確定
 				</button>
 				<button
 					type="button"
@@ -97,6 +138,9 @@ import {
 } from './WeeklySchedulePage';
 
 describe('WeeklySchedulePage (Adjustment entry)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
 	const sampleShifts: ShiftDisplayRow[] = [
 		{
 			id: TEST_IDS.SCHEDULE_1,
@@ -139,15 +183,60 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		).toBeInTheDocument();
 	});
 
-	it('assign成功導線で一覧リフレッシュを呼ぶ', async () => {
+	it('候補確定後はChangeStaffDialogに初期提案を注入し、自動更新しない', async () => {
 		const user = userEvent.setup();
 		render(<WeeklySchedulePage {...defaultProps} />);
 
 		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
 		await user.click(screen.getByRole('button', { name: '調整相談' }));
-		await user.click(screen.getByRole('button', { name: '割当完了' }));
+		await user.click(screen.getByRole('button', { name: '候補確定' }));
 
-		expect(mockRefresh).toHaveBeenCalledTimes(1);
+		expect(mockRefresh).not.toHaveBeenCalled();
+		expect(
+			screen.getByText(`Suggested staff: ${TEST_IDS.STAFF_2}`),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Suggested start: 2026-01-19T02:00:00.000Z'),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Suggested end: 2026-01-19T03:00:00.000Z'),
+		).toBeInTheDocument();
+	});
+
+	it('候補を確定せずにWizardを閉じた場合、再オープン時にsuggestionは注入されない', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(screen.getByRole('button', { name: 'Wizardを閉じる' }));
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+
+		expect(screen.queryByText(/Suggested staff:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Suggested start:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Suggested end:/)).not.toBeInTheDocument();
+	});
+
+	it('候補確定後にChangeStaffDialogを閉じて再オープンするとsuggestionは残留しない', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(screen.getByRole('button', { name: '候補確定' }));
+
+		expect(
+			screen.getByText(`Suggested staff: ${TEST_IDS.STAFF_2}`),
+		).toBeInTheDocument();
+
+		await user.click(
+			screen.getByRole('button', { name: '変更ダイアログを閉じる' }),
+		);
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+
+		expect(screen.queryByText(/Suggested staff:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Suggested start:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Suggested end:/)).not.toBeInTheDocument();
 	});
 
 	it('onCascadeReopen が unknown shiftId を返したときは wizard を開かない', async () => {
