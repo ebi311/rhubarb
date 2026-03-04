@@ -17,6 +17,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 
 const PAGE_SIZE = 5;
+type AssignStaffResult = Pick<
+	AssignStaffWithCascadeOutput,
+	'cascadeUnassignedShiftIds'
+>;
 type StepHelperCandidatesProps = {
 	shiftId: string;
 	onComplete: () => void;
@@ -26,7 +30,7 @@ type StepHelperCandidatesProps = {
 	) => Promise<ActionResult<SuggestCandidateStaffForShiftOutput>>;
 	requestAssign?: (
 		input: AssignStaffWithCascadeInput,
-	) => Promise<ActionResult<AssignStaffWithCascadeOutput>>;
+	) => Promise<ActionResult<AssignStaffResult>>;
 };
 
 const formatTimeValue = (value: { hour: number; minute: number }): string =>

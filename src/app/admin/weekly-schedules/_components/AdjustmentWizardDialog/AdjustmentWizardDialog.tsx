@@ -7,7 +7,6 @@ import {
 } from '@/app/actions/shifts';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import { errorResult, successResult } from '@/app/actions/utils/actionResult';
-import type { AssignStaffWithCascadeOutput } from '@/models/shiftActionSchemas';
 import { formatJstDateString, getJstHours, getJstMinutes } from '@/utils/date';
 import {
 	type SyntheticEvent,
@@ -173,10 +172,12 @@ const buildCandidates = async (
 	return successResult({ candidates });
 };
 
-const successNoPersist = (): ActionResult<AssignStaffWithCascadeOutput> => ({
+const successNoPersist = (): ActionResult<{
+	cascadeUnassignedShiftIds: string[];
+}> => ({
 	data: {
 		cascadeUnassignedShiftIds: [],
-	} as unknown as AssignStaffWithCascadeOutput,
+	},
 	error: null,
 	status: 200,
 });
