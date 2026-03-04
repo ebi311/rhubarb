@@ -243,6 +243,33 @@ describe('SuggestShiftAdjustmentsOutputSchema', () => {
 	});
 });
 
+it('suggestions が 0 件は NG（1〜3案）', () => {
+	const result = SuggestShiftAdjustmentsOutputSchema.safeParse({
+		absence: {
+			staffId: TEST_IDS.STAFF_1,
+			startDate: '2026-02-01',
+			endDate: '2026-02-01',
+		},
+		affected: [
+			{
+				shift: {
+					id: TEST_IDS.SCHEDULE_1,
+					client_id: TEST_IDS.CLIENT_1,
+					service_type_id: 'life-support',
+					staff_id: TEST_IDS.STAFF_1,
+					date: '2026-02-01',
+					start_time: { hour: 9, minute: 0 },
+					end_time: { hour: 10, minute: 0 },
+					status: 'scheduled',
+				},
+				suggestions: [],
+			},
+		],
+	});
+
+	expect(result.success).toBe(false);
+});
+
 describe('SuggestClientDatetimeChangeAdjustmentsOutputSchema', () => {
 	it('meta が無くてもパースできる（後方互換）', () => {
 		const result = SuggestClientDatetimeChangeAdjustmentsOutputSchema.safeParse(
