@@ -6,11 +6,15 @@ import {
 } from '@/backend/services/shiftAdjustmentSuggestionService';
 import type {
 	ClientDatetimeChangeActionInput,
+	StaffAbsenceActionInput,
 	SuggestClientDatetimeChangeAdjustmentsOutput,
+	SuggestShiftAdjustmentsOutput,
 } from '@/models/shiftAdjustmentActionSchemas';
 import {
 	ClientDatetimeChangeInputSchema,
+	StaffAbsenceInputSchema,
 	SuggestClientDatetimeChangeAdjustmentsOutputSchema,
+	SuggestShiftAdjustmentsOutputSchema,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import {
@@ -52,6 +56,36 @@ const handleServiceError = <T>(error: unknown): ActionResult<T> => {
 	}
 	logServerError(error);
 	throw error;
+};
+
+/**
+ * スタッフ急休に対する「代替案（提案）」を取得する（MVP-1）
+ */
+export const suggestStaffAbsenceAdjustmentsAction = async (
+	input: StaffAbsenceActionInput,
+): Promise<ActionResult<SuggestShiftAdjustmentsOutput>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput = StaffAbsenceInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		const issues = toSanitizedIssues(parsedInput.error.issues);
+		console.error('suggestStaffAbsenceAdjustmentsAction validation failed', {
+			issues,
+		});
+		return errorResult('Validation failed', 400, issues);
+	}
+
+	const service = new ShiftAdjustmentSuggestionService(supabase);
+	try {
+		const result = await service.suggestStaffAbsenceAdjustments(
+			user.id,
+			parsedInput.data,
+		);
+		return successResult(SuggestShiftAdjustmentsOutputSchema.parse(result));
+	} catch (err) {
+		return handleServiceError<SuggestShiftAdjustmentsOutput>(err);
+	}
 };
 
 /**

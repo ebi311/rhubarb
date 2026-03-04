@@ -9,6 +9,10 @@ import {
 	ShiftAdjustmentRationaleItem,
 	ShiftAdjustmentSuggestion,
 	ShiftSnapshot,
+	StaffAbsenceInput,
+	StaffAbsenceInputSchema,
+	SuggestClientDatetimeChangeAdjustmentsOutput,
+	SuggestShiftAdjustmentsOutput,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { getJstDateOnly, setJstTime } from '@/utils/date';
@@ -32,17 +36,6 @@ interface ShiftAdjustmentSuggestionServiceOptions {
 	maxExecutionMs?: number;
 	now?: () => number;
 }
-
-export type SuggestClientDatetimeChangeAdjustmentsOutput = {
-	meta?: {
-		timedOut?: boolean;
-	};
-	change: ClientDatetimeChangeInput;
-	target: {
-		shift: ShiftSnapshot;
-		suggestions: ShiftAdjustmentSuggestion[];
-	};
-};
 
 const isOverlapping = (
 	a: { start: Date; end: Date },
@@ -576,6 +569,192 @@ export class ShiftAdjustmentSuggestionService {
 			if (params.suggestions.length >= 3) return;
 		}
 	};
+
+	private validateStaffAbsence = (
+		absence: StaffAbsenceInput,
+	): StaffAbsenceInput => {
+		const parsedAbsence = StaffAbsenceInputSchema.safeParse(absence);
+		if (!parsedAbsence.success) {
+			throw new ServiceError(
+				400,
+				'Validation error',
+				parsedAbsence.error.issues,
+			);
+		}
+
+		return parsedAbsence.data;
+	};
+
+	private normalizeMemoKeywords = (memo?: string): string[] => {
+		if (!memo) return [];
+		return memo
+			.split(/[\s、,。]+/)
+			.map((word) => word.trim().toLowerCase())
+			.filter((word) => word.length >= 2)
+			.slice(0, 5);
+	};
+
+	private countPastAssignmentsIn90DaysByStaff = async (params: {
+		officeId: string;
+		clientId: string;
+		baseDate: Date;
+	}): Promise<Map<string, number>> => {
+		const startDate = new Date(params.baseDate);
+		startDate.setDate(startDate.getDate() - 90);
+		const shifts = await this.shiftRepository.list({
+			officeId: params.officeId,
+			status: 'scheduled',
+			startDate,
+			endDate: params.baseDate,
+			clientId: params.clientId,
+		});
+
+		const countByStaff = new Map<string, number>();
+		for (const shift of shifts) {
+			if (!shift.staff_id) continue;
+			countByStaff.set(
+				shift.staff_id,
+				(countByStaff.get(shift.staff_id) ?? 0) + 1,
+			);
+		}
+
+		return countByStaff;
+	};
+
+	async suggestStaffAbsenceAdjustments(
+		userId: string,
+		absence: StaffAbsenceInput,
+	): Promise<SuggestShiftAdjustmentsOutput> {
+		const validatedAbsence = this.validateStaffAbsence(absence);
+		const adminStaff = await this.getAdminStaff(userId);
+		const officeId = adminStaff.office_id;
+		const [absentShifts, staffs] = await Promise.all([
+			this.shiftRepository.list({
+				officeId,
+				staffId: validatedAbsence.staffId,
+				status: 'scheduled',
+				startDate: validatedAbsence.startDate,
+				endDate: validatedAbsence.endDate,
+			}),
+			this.staffRepository.listByOffice(officeId),
+		]);
+		const candidates = this.buildCandidates({
+			staffs,
+			absentStaffId: validatedAbsence.staffId,
+		});
+		const memoKeywords = this.normalizeMemoKeywords(validatedAbsence.memo);
+		const shiftsOnDateCache = new Map<string, Promise<ScheduledShift[]>>();
+		const pastAssignmentsCache = new Map<
+			string,
+			Promise<Map<string, number>>
+		>();
+
+		const affected = await Promise.all(
+			absentShifts.map(async (shift) => {
+				const shiftDate = getJstDateOnly(shift.date);
+				const dateKey = shiftDate.toISOString();
+				const shiftsOnDatePromise =
+					shiftsOnDateCache.get(dateKey) ??
+					this.shiftRepository.list({
+						officeId,
+						status: 'scheduled',
+						startDate: shiftDate,
+						endDate: shiftDate,
+					});
+				shiftsOnDateCache.set(dateKey, shiftsOnDatePromise);
+				const shiftsOnDate = await shiftsOnDatePromise;
+				const shiftsByStaff = this.buildShiftsByStaff(
+					shiftsOnDate.filter((s) => s.id !== shift.id),
+				);
+				const targetRange = this.getShiftDateTimes(shift);
+
+				const pastAssignmentsKey = `${shift.client_id}|${dateKey}`;
+				const pastAssignmentsPromise =
+					pastAssignmentsCache.get(pastAssignmentsKey) ??
+					this.countPastAssignmentsIn90DaysByStaff({
+						officeId,
+						clientId: shift.client_id,
+						baseDate: shiftDate,
+					});
+				pastAssignmentsCache.set(pastAssignmentsKey, pastAssignmentsPromise);
+				const pastAssignmentsByStaff = await pastAssignmentsPromise;
+
+				const scored = candidates
+					.filter((candidate) =>
+						candidate.service_type_ids.includes(shift.service_type_id),
+					)
+					.map((candidate) => {
+						const available = !this.hasConflictForRange({
+							shiftsByStaff,
+							staffId: candidate.id,
+							range: targetRange,
+						});
+						const pastAssignments =
+							pastAssignmentsByStaff.get(candidate.id) ?? 0;
+						const note = candidate.note?.toLowerCase() ?? '';
+						const keywordMatched = memoKeywords.some((keyword) =>
+							note.includes(keyword),
+						);
+						return {
+							candidate,
+							available,
+							pastAssignments,
+							keywordMatched,
+						};
+					});
+
+				const suggestions = scored
+					.filter((item) => item.available)
+					.sort((a, b) => {
+						if (a.pastAssignments !== b.pastAssignments) {
+							return b.pastAssignments - a.pastAssignments;
+						}
+						if (a.keywordMatched !== b.keywordMatched) {
+							return a.keywordMatched ? -1 : 1;
+						}
+						return a.candidate.name.localeCompare(b.candidate.name, 'ja');
+					})
+					.slice(0, 3)
+					.map(({ candidate, pastAssignments, keywordMatched }) => {
+						const rationale: ShiftAdjustmentRationaleItem[] = [
+							{ code: 'available', message: '時間重複なし' },
+							{
+								code: 'past_assignment_90d',
+								message: `過去90日担当回数: ${pastAssignments}`,
+							},
+							{
+								code: keywordMatched
+									? 'memo_keyword_match'
+									: 'memo_keyword_unmatched',
+								message: keywordMatched
+									? '備考キーワード一致'
+									: '備考キーワード一致なし',
+							},
+						];
+						return this.buildSuggestion({
+							operations: [
+								this.buildChangeStaffOperation({
+									shiftId: shift.id,
+									fromStaffId: validatedAbsence.staffId,
+									toStaffId: candidate.id,
+								}),
+							],
+							rationale,
+						});
+					});
+
+				return {
+					shift: toShiftSnapshot(shift),
+					suggestions,
+				};
+			}),
+		);
+
+		return {
+			absence: validatedAbsence,
+			affected: affected.filter((item) => item.suggestions.length > 0),
+		};
+	}
 
 	async suggestClientDatetimeChangeAdjustments(
 		userId: string,

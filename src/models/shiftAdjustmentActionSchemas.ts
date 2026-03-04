@@ -182,7 +182,7 @@ export type ShiftAdjustmentSuggestion = z.infer<
 
 export const ShiftAdjustmentShiftSuggestionSchema = z.object({
 	shift: ShiftSnapshotSchema,
-	suggestions: z.array(ShiftAdjustmentSuggestionSchema).max(3),
+	suggestions: z.array(ShiftAdjustmentSuggestionSchema).min(1).max(3),
 });
 export type ShiftAdjustmentShiftSuggestion = z.infer<
 	typeof ShiftAdjustmentShiftSuggestionSchema
