@@ -724,6 +724,41 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			).rejects.toMatchObject({ status: 403, message: 'Forbidden' });
 		});
 
+		it('欠勤シフト取得とスタッフ一覧取得を並列で開始する', async () => {
+			const userId = createTestId();
+			let resolveAbsentShifts: ((value: Shift[]) => void) | undefined;
+			const absentShifts = new Promise<Shift[]>((resolve) => {
+				resolveAbsentShifts = resolve;
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+				createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+			);
+			mockShiftRepo.list.mockImplementationOnce(async () => absentShifts);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([]);
+
+			const resultPromise = service.suggestStaffAbsenceAdjustments(userId, {
+				staffId: TEST_IDS.STAFF_2,
+				startDate: new Date('2026-02-25T00:00:00+09:00'),
+				endDate: new Date('2026-02-25T00:00:00+09:00'),
+			});
+
+			for (let i = 0; i < 5; i += 1) {
+				await Promise.resolve();
+			}
+
+			expect(mockShiftRepo.list).toHaveBeenCalledTimes(1);
+			expect(mockStaffRepo.listByOffice).toHaveBeenCalledWith(
+				TEST_IDS.OFFICE_1,
+			);
+
+			resolveAbsentShifts?.([]);
+
+			await expect(resultPromise).resolves.toMatchObject({
+				affected: [],
+			});
+		});
+
 		it('対象スタッフのシフトに対して1〜3案を返す（優先順位反映）', async () => {
 			const userId = createTestId();
 			const absentStaffId = TEST_IDS.STAFF_2;

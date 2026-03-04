@@ -11,6 +11,8 @@ import {
 	ShiftSnapshot,
 	StaffAbsenceInput,
 	StaffAbsenceInputSchema,
+	SuggestClientDatetimeChangeAdjustmentsOutput,
+	SuggestShiftAdjustmentsOutput,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { getJstDateOnly, setJstTime } from '@/utils/date';
@@ -34,28 +36,6 @@ interface ShiftAdjustmentSuggestionServiceOptions {
 	maxExecutionMs?: number;
 	now?: () => number;
 }
-
-export type SuggestStaffAbsenceAdjustmentsOutput = {
-	meta?: {
-		timedOut?: boolean;
-	};
-	absence: StaffAbsenceInput;
-	affected: Array<{
-		shift: ShiftSnapshot;
-		suggestions: ShiftAdjustmentSuggestion[];
-	}>;
-};
-
-export type SuggestClientDatetimeChangeAdjustmentsOutput = {
-	meta?: {
-		timedOut?: boolean;
-	};
-	change: ClientDatetimeChangeInput;
-	target: {
-		shift: ShiftSnapshot;
-		suggestions: ShiftAdjustmentSuggestion[];
-	};
-};
 
 const isOverlapping = (
 	a: { start: Date; end: Date },
@@ -644,19 +624,20 @@ export class ShiftAdjustmentSuggestionService {
 	async suggestStaffAbsenceAdjustments(
 		userId: string,
 		absence: StaffAbsenceInput,
-	): Promise<SuggestStaffAbsenceAdjustmentsOutput> {
+	): Promise<SuggestShiftAdjustmentsOutput> {
 		const validatedAbsence = this.validateStaffAbsence(absence);
 		const adminStaff = await this.getAdminStaff(userId);
 		const officeId = adminStaff.office_id;
-		const absentShifts = await this.shiftRepository.list({
-			officeId,
-			staffId: validatedAbsence.staffId,
-			status: 'scheduled',
-			startDate: validatedAbsence.startDate,
-			endDate: validatedAbsence.endDate,
-		});
-
-		const staffs = await this.staffRepository.listByOffice(officeId);
+		const [absentShifts, staffs] = await Promise.all([
+			this.shiftRepository.list({
+				officeId,
+				staffId: validatedAbsence.staffId,
+				status: 'scheduled',
+				startDate: validatedAbsence.startDate,
+				endDate: validatedAbsence.endDate,
+			}),
+			this.staffRepository.listByOffice(officeId),
+		]);
 		const candidates = this.buildCandidates({
 			staffs,
 			absentStaffId: validatedAbsence.staffId,
