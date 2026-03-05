@@ -3,6 +3,7 @@
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { StaffPickerDialog } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { useId } from 'react';
+import type { AdjustmentWizardSuggestion } from '../AdjustmentWizardDialog';
 import { ShiftInfoCard } from '../ShiftInfoCard';
 import { StaffConflictWarning } from '../StaffConflictWarning';
 import { useChangeStaffDialog } from './useChangeStaffDialog';
@@ -25,6 +26,7 @@ type ChangeStaffDialogProps = {
 	onClose: () => void;
 	onSuccess?: () => void;
 	onStartAdjustment?: (shiftId: string) => void;
+	initialSuggestion?: AdjustmentWizardSuggestion;
 };
 
 export const ChangeStaffDialog = ({
@@ -34,6 +36,7 @@ export const ChangeStaffDialog = ({
 	onClose,
 	onSuccess,
 	onStartAdjustment,
+	initialSuggestion,
 }: ChangeStaffDialogProps) => {
 	const inputIdBase = useId();
 	const reasonTextareaId = `${inputIdBase}-reason`;
@@ -56,11 +59,19 @@ export const ChangeStaffDialog = ({
 		conflictingShifts,
 		isChecking,
 		isSubmitting,
+		isPastShift,
 		handleStaffSelect,
 		handleSubmit,
-	} = useChangeStaffDialog(shift, isOpen, onSuccess, onClose);
+	} = useChangeStaffDialog(
+		shift,
+		isOpen,
+		onSuccess,
+		onClose,
+		initialSuggestion,
+	);
 
 	const selectedStaff = staffOptions.find((s) => s.id === selectedStaffId);
+	const isInteractionLocked = isSubmitting || isPastShift;
 
 	if (!isOpen) return null;
 
@@ -112,7 +123,7 @@ export const ChangeStaffDialog = ({
 									className="input-bordered input w-full"
 									value={dateStr}
 									onChange={(e) => setDateStr(e.target.value)}
-									disabled={isSubmitting}
+									disabled={isInteractionLocked}
 								/>
 							</div>
 							<div>
@@ -125,7 +136,7 @@ export const ChangeStaffDialog = ({
 									className="input-bordered input w-full"
 									value={startTimeStr}
 									onChange={(e) => setStartTimeStr(e.target.value)}
-									disabled={isSubmitting}
+									disabled={isInteractionLocked}
 								/>
 							</div>
 							<div>
@@ -138,7 +149,7 @@ export const ChangeStaffDialog = ({
 									className="input-bordered input w-full"
 									value={endTimeStr}
 									onChange={(e) => setEndTimeStr(e.target.value)}
-									disabled={isSubmitting}
+									disabled={isInteractionLocked}
 								/>
 							</div>
 						</div>
@@ -157,17 +168,16 @@ export const ChangeStaffDialog = ({
 										: '新しい担当者'
 								}
 								onClick={() => setShowStaffPicker(true)}
-								disabled={isSubmitting}
+								disabled={isInteractionLocked}
 							>
 								{selectedStaff ? selectedStaff.name : 'スタッフを選択'}
 							</button>
 						</div>
 
 						{/* 時間重複警告 */}
-						{isChecking && (
+						{isChecking ? (
 							<div className="alert alert-info">可用性を確認中...</div>
-						)}
-						{!isChecking && conflictingShifts.length > 0 && (
+						) : (
 							<StaffConflictWarning conflictingShifts={conflictingShifts} />
 						)}
 
@@ -183,7 +193,7 @@ export const ChangeStaffDialog = ({
 								placeholder="変更理由を入力してください（任意）"
 								value={reason}
 								onChange={(e) => setReason(e.target.value)}
-								disabled={isSubmitting}
+								disabled={isInteractionLocked}
 							/>
 						</div>
 					</div>
@@ -197,7 +207,7 @@ export const ChangeStaffDialog = ({
 									onClose();
 									onStartAdjustment(shift.id);
 								}}
-								disabled={isSubmitting}
+								disabled={isInteractionLocked}
 							>
 								調整相談
 							</button>
@@ -214,7 +224,7 @@ export const ChangeStaffDialog = ({
 							type="button"
 							className="btn btn-primary"
 							onClick={handleSubmit}
-							disabled={!selectedStaffId || isSubmitting}
+							disabled={!selectedStaffId || isInteractionLocked}
 						>
 							{isSubmitting ? '変更中...' : '変更'}
 						</button>

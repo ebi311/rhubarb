@@ -5,6 +5,7 @@ import {
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import {
 	formatJstDateString,
+	getJstDateOnly,
 	parseHHmm,
 	parseJstDateString,
 	setJstTime,
@@ -12,25 +13,56 @@ import {
 } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { AdjustmentWizardSuggestion } from '../AdjustmentWizardDialog';
 import type { ConflictingShift } from '../StaffConflictWarning';
 import type { ChangeStaffDialogShift } from './ChangeStaffDialog';
+
+type DialogInitialValues = {
+	selectedStaffId: string | null;
+	dateStr: string;
+	startTimeStr: string;
+	endTimeStr: string;
+};
+
+const createDialogInitialValues = (
+	shift: ChangeStaffDialogShift,
+	initialSuggestion?: AdjustmentWizardSuggestion,
+): DialogInitialValues => {
+	const matchedSuggestion =
+		initialSuggestion?.shiftId === shift.id ? initialSuggestion : undefined;
+	const startTime = matchedSuggestion?.newStartTime ?? shift.startTime;
+	const endTime = matchedSuggestion?.newEndTime ?? shift.endTime;
+
+	return {
+		selectedStaffId:
+			matchedSuggestion?.newStaffId ?? shift.currentStaffId ?? null,
+		dateStr: formatJstDateString(startTime),
+		startTimeStr: toJstTimeStr(startTime),
+		endTimeStr: toJstTimeStr(endTime),
+	};
+};
 
 export const useChangeStaffDialog = (
 	shift: ChangeStaffDialogShift,
 	isOpen: boolean,
 	onSuccess?: () => void,
 	onClose?: () => void,
+	initialSuggestion?: AdjustmentWizardSuggestion,
 ) => {
+	const {
+		selectedStaffId: resetSelectedStaffId,
+		dateStr: resetDateStr,
+		startTimeStr: resetStartTimeStr,
+		endTimeStr: resetEndTimeStr,
+	} = createDialogInitialValues(shift, initialSuggestion);
 	const [showStaffPicker, setShowStaffPicker] = useState(false);
 	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(
-		shift.currentStaffId ?? null,
+		resetSelectedStaffId,
 	);
 	const [reason, setReason] = useState('');
-	const [dateStr, setDateStr] = useState(formatJstDateString(shift.date));
-	const [startTimeStr, setStartTimeStr] = useState(
-		toJstTimeStr(shift.startTime),
-	);
-	const [endTimeStr, setEndTimeStr] = useState(toJstTimeStr(shift.endTime));
+	const [dateStr, setDateStr] = useState(resetDateStr);
+	const [startTimeStr, setStartTimeStr] = useState(resetStartTimeStr);
+	const [endTimeStr, setEndTimeStr] = useState(resetEndTimeStr);
 	const [conflictingShifts, setConflictingShifts] = useState<
 		ConflictingShift[]
 	>([]);
@@ -41,22 +73,24 @@ export const useChangeStaffDialog = (
 
 	// ダイアログが開いたときにリセット
 	useEffect(() => {
-		if (isOpen) {
-			setSelectedStaffId(shift.currentStaffId ?? null);
-			setReason('');
-			setDateStr(formatJstDateString(shift.date));
-			setStartTimeStr(toJstTimeStr(shift.startTime));
-			setEndTimeStr(toJstTimeStr(shift.endTime));
-			setConflictingShifts([]);
-			setShowStaffPicker(false);
+		if (!isOpen) {
+			return;
 		}
+
+		setSelectedStaffId(resetSelectedStaffId);
+		setReason('');
+		setDateStr(resetDateStr);
+		setStartTimeStr(resetStartTimeStr);
+		setEndTimeStr(resetEndTimeStr);
+		setConflictingShifts([]);
+		setShowStaffPicker(false);
 	}, [
 		isOpen,
+		resetDateStr,
+		resetEndTimeStr,
+		resetSelectedStaffId,
+		resetStartTimeStr,
 		shift.id,
-		shift.currentStaffId,
-		shift.date,
-		shift.startTime,
-		shift.endTime,
 	]);
 
 	const baseDate = useMemo(() => {
@@ -78,9 +112,15 @@ export const useChangeStaffDialog = (
 		return setJstTime(baseDate, parsedEnd.hour, parsedEnd.minute);
 	}, [baseDate, parsedEnd, shift.endTime]);
 
+	const isPastShift = useMemo(() => {
+		const shiftDateJst = getJstDateOnly(shift.date);
+		const todayJst = getJstDateOnly(new Date());
+		return shiftDateJst.getTime() < todayJst.getTime();
+	}, [shift.date]);
+
 	// スタッフが選択されたときに時間重複チェック
 	useEffect(() => {
-		if (!selectedStaffId || !isOpen) {
+		if (!selectedStaffId || !isOpen || isPastShift) {
 			setConflictingShifts([]);
 			return;
 		}
@@ -129,6 +169,7 @@ export const useChangeStaffDialog = (
 		editedEndTime,
 		parsedStart,
 		parsedEnd,
+		isPastShift,
 	]);
 
 	const handleStaffSelect = useCallback((staffId: string) => {
@@ -137,7 +178,7 @@ export const useChangeStaffDialog = (
 	}, []);
 
 	const handleSubmit = useCallback(async () => {
-		if (!selectedStaffId) return;
+		if (!selectedStaffId || isPastShift) return;
 
 		setIsSubmitting(true);
 		try {
@@ -165,6 +206,7 @@ export const useChangeStaffDialog = (
 		}
 	}, [
 		selectedStaffId,
+		isPastShift,
 		shift.id,
 		dateStr,
 		startTimeStr,
@@ -195,6 +237,7 @@ export const useChangeStaffDialog = (
 		conflictingShifts,
 		isChecking,
 		isSubmitting,
+		isPastShift,
 		handleStaffSelect,
 		handleSubmit,
 	};

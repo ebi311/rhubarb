@@ -2,11 +2,16 @@
 
 import { generateWeeklyShiftsAction } from '@/app/actions/weeklySchedules';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import type { StaffAbsenceActionInput } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { AdjustmentWizardDialog } from '../AdjustmentWizardDialog';
+import {
+	AdjustmentWizardDialog,
+	type AdjustmentWizardStaffAbsenceSelection,
+	type AdjustmentWizardSuggestion,
+} from '../AdjustmentWizardDialog';
 import {
 	CancelShiftDialog,
 	type CancelShiftDialogShift,
@@ -88,6 +93,196 @@ const createRestoreShiftDialogShift = (
 	cancelCategory: shift.cancelCategory ?? undefined,
 });
 
+const findShiftById = (shifts: ShiftDisplayRow[], shiftId: string | null) => {
+	if (!shiftId) {
+		return null;
+	}
+
+	return shifts.find((shift) => shift.id === shiftId) ?? null;
+};
+
+const getReopenWizardShiftId = (
+	shifts: ShiftDisplayRow[],
+	shiftIds: string[],
+) => {
+	const reopenShiftId = shiftIds[0];
+	if (!reopenShiftId) {
+		return null;
+	}
+
+	return shifts.some((shift) => shift.id === reopenShiftId)
+		? reopenShiftId
+		: null;
+};
+
+const createStaffAbsenceRequest = (
+	shift: ShiftDisplayRow | null,
+): StaffAbsenceActionInput | undefined => {
+	if (!shift?.staffId) {
+		return undefined;
+	}
+
+	return {
+		staffId: shift.staffId,
+		startDate: shift.date,
+		endDate: shift.date,
+	};
+};
+
+type StaffAbsenceOperation =
+	AdjustmentWizardStaffAbsenceSelection['suggestion']['operations'][number];
+
+type ChangeStaffOperation = Extract<
+	StaffAbsenceOperation,
+	{ type: 'change_staff' }
+>;
+
+type UpdateShiftScheduleOperation = Extract<
+	StaffAbsenceOperation,
+	{ type: 'update_shift_schedule' }
+>;
+
+const isChangeStaffOperationForShift =
+	(shiftId: string) =>
+	(operation: StaffAbsenceOperation): operation is ChangeStaffOperation =>
+		operation.type === 'change_staff' && operation.shift_id === shiftId;
+
+const isUpdateShiftScheduleOperationForShift =
+	(shiftId: string) =>
+	(
+		operation: StaffAbsenceOperation,
+	): operation is UpdateShiftScheduleOperation =>
+		operation.type === 'update_shift_schedule' &&
+		operation.shift_id === shiftId;
+
+const findChangeStaffOperation = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+) =>
+	selection.suggestion.operations.find(
+		isChangeStaffOperationForShift(selection.shift.id),
+	);
+
+const findUpdateShiftScheduleOperation = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+) =>
+	selection.suggestion.operations.find(
+		isUpdateShiftScheduleOperationForShift(selection.shift.id),
+	);
+
+const resolveStaffAbsenceSuggestionStaffId = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+) => {
+	const changeStaffOperation = findChangeStaffOperation(selection);
+	return changeStaffOperation?.to_staff_id ?? selection.shift.staff_id ?? null;
+};
+
+const resolveStaffAbsenceSuggestionSchedule = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+) => {
+	const updateShiftScheduleOperation =
+		findUpdateShiftScheduleOperation(selection);
+	if (!updateShiftScheduleOperation) {
+		return {
+			date: selection.shift.date,
+			startTime: selection.shift.start_time,
+			endTime: selection.shift.end_time,
+		};
+	}
+
+	return {
+		date: updateShiftScheduleOperation.new_date,
+		startTime: updateShiftScheduleOperation.new_start_time,
+		endTime: updateShiftScheduleOperation.new_end_time,
+	};
+};
+
+const normalizeStaffAbsenceSelection = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+): AdjustmentWizardSuggestion | null => {
+	const newStaffId = resolveStaffAbsenceSuggestionStaffId(selection);
+	if (!newStaffId) {
+		return null;
+	}
+
+	const schedule = resolveStaffAbsenceSuggestionSchedule(selection);
+
+	return {
+		shiftId: selection.shift.id,
+		newStaffId,
+		newStartTime: shiftToDateTime(schedule.date, schedule.startTime),
+		newEndTime: shiftToDateTime(schedule.date, schedule.endTime),
+	};
+};
+
+const renderScheduleContent = ({
+	hasShifts,
+	viewMode,
+	shifts,
+	weekStartDate,
+	onChangeStaff,
+	onAssignStaff,
+	onCancelShift,
+	onRestoreShift,
+	onOpenCreateOneOffShiftDialog,
+	onGenerateFromEmpty,
+}: {
+	hasShifts: boolean;
+	viewMode: WeeklyViewMode;
+	shifts: ShiftDisplayRow[];
+	weekStartDate: Date;
+	onChangeStaff: (shift: ShiftDisplayRow) => void;
+	onAssignStaff: (shift: ShiftDisplayRow) => void;
+	onCancelShift: (shift: ShiftDisplayRow) => void;
+	onRestoreShift: (shift: ShiftDisplayRow) => void;
+	onOpenCreateOneOffShiftDialog: (dateStr: string, clientId?: string) => void;
+	onGenerateFromEmpty: () => Promise<void>;
+}) => {
+	if (!hasShifts) {
+		return (
+			<EmptyState
+				weekStartDate={weekStartDate}
+				onGenerate={onGenerateFromEmpty}
+			/>
+		);
+	}
+
+	if (viewMode === 'list') {
+		return (
+			<ShiftTable
+				shifts={shifts}
+				onChangeStaff={onChangeStaff}
+				onAssignStaff={onAssignStaff}
+				onCancelShift={onCancelShift}
+				onRestoreShift={onRestoreShift}
+			/>
+		);
+	}
+
+	if (viewMode === 'grid') {
+		return (
+			<WeeklyShiftGrid
+				shifts={shifts}
+				weekStartDate={weekStartDate}
+				onChangeStaff={onChangeStaff}
+				onAssignStaff={onAssignStaff}
+				onCancelShift={onCancelShift}
+				onRestoreShift={onRestoreShift}
+				onAddOneOffShift={onOpenCreateOneOffShiftDialog}
+			/>
+		);
+	}
+
+	return (
+		<StaffWeeklyShiftGrid
+			shifts={shifts}
+			weekStartDate={weekStartDate}
+			onChangeStaff={onChangeStaff}
+			onCancelShift={onCancelShift}
+			onRestoreShift={onRestoreShift}
+		/>
+	);
+};
+
 export const WeeklySchedulePage = ({
 	weekStartDate,
 	initialShifts,
@@ -105,15 +300,16 @@ export const WeeklySchedulePage = ({
 		useState<ShiftDisplayRow | null>(null);
 	const [isCreateOneOffOpen, setIsCreateOneOffOpen] = useState(false);
 	const [wizardShiftId, setWizardShiftId] = useState<string | null>(null);
+	const [wizardSuggestion, setWizardSuggestion] =
+		useState<AdjustmentWizardSuggestion | null>(null);
 	const [createOneOffDefaultDateStr, setCreateOneOffDefaultDateStr] = useState<
 		string | undefined
 	>();
 	const [createOneOffDefaultClientId, setCreateOneOffDefaultClientId] =
 		useState<string | undefined>();
 
-	const wizardShift = wizardShiftId
-		? (initialShifts.find((shift) => shift.id === wizardShiftId) ?? null)
-		: null;
+	const wizardShift = findShiftById(initialShifts, wizardShiftId);
+	const wizardStaffAbsenceRequest = createStaffAbsenceRequest(wizardShift);
 
 	const handleOpenCreateOneOffShiftDialog = (
 		defaultDateStr: string,
@@ -163,12 +359,41 @@ export const WeeklySchedulePage = ({
 		setChangeDialogShift(null);
 		setCancelDialogShift(null);
 		setRestoreDialogShift(null);
+		setWizardSuggestion(null);
 		router.refresh();
 	};
 
-	const handleWizardAssigned = () => {
+	const openChangeDialogWithSuggestion = (
+		suggestion: AdjustmentWizardSuggestion,
+	) => {
 		setWizardShiftId(null);
-		router.refresh();
+
+		const targetShift =
+			initialShifts.find((shift) => shift.id === suggestion.shiftId) ?? null;
+		if (!targetShift) {
+			setWizardSuggestion(null);
+			return;
+		}
+
+		setWizardSuggestion(suggestion);
+		setChangeDialogShift(targetShift);
+	};
+
+	const handleWizardAssigned = (suggestion: AdjustmentWizardSuggestion) => {
+		openChangeDialogWithSuggestion(suggestion);
+	};
+
+	const handleStaffAbsenceSuggestionSelected = (
+		selection: AdjustmentWizardStaffAbsenceSelection,
+	) => {
+		const normalizedSuggestion = normalizeStaffAbsenceSelection(selection);
+		if (!normalizedSuggestion) {
+			setWizardShiftId(null);
+			setWizardSuggestion(null);
+			return;
+		}
+
+		openChangeDialogWithSuggestion(normalizedSuggestion);
 	};
 
 	const hasShifts = initialShifts.length > 0;
@@ -196,42 +421,18 @@ export const WeeklySchedulePage = ({
 				</div>
 			</div>
 
-			{hasShifts ? (
-				viewMode === 'list' ? (
-					<ShiftTable
-						shifts={initialShifts}
-						onChangeStaff={handleChangeStaff}
-						onAssignStaff={handleAssignStaff}
-						onCancelShift={handleCancelShift}
-						onRestoreShift={handleRestoreShift}
-					/>
-				) : viewMode === 'grid' ? (
-					<WeeklyShiftGrid
-						shifts={initialShifts}
-						weekStartDate={weekStartDate}
-						onChangeStaff={handleChangeStaff}
-						onAssignStaff={handleAssignStaff}
-						onCancelShift={handleCancelShift}
-						onRestoreShift={handleRestoreShift}
-						onAddOneOffShift={(dateStr, clientId) =>
-							handleOpenCreateOneOffShiftDialog(dateStr, clientId)
-						}
-					/>
-				) : (
-					<StaffWeeklyShiftGrid
-						shifts={initialShifts}
-						weekStartDate={weekStartDate}
-						onChangeStaff={handleChangeStaff}
-						onCancelShift={handleCancelShift}
-						onRestoreShift={handleRestoreShift}
-					/>
-				)
-			) : (
-				<EmptyState
-					weekStartDate={weekStartDate}
-					onGenerate={handleGenerateFromEmpty}
-				/>
-			)}
+			{renderScheduleContent({
+				hasShifts,
+				viewMode,
+				shifts: initialShifts,
+				weekStartDate,
+				onChangeStaff: handleChangeStaff,
+				onAssignStaff: handleAssignStaff,
+				onCancelShift: handleCancelShift,
+				onRestoreShift: handleRestoreShift,
+				onOpenCreateOneOffShiftDialog: handleOpenCreateOneOffShiftDialog,
+				onGenerateFromEmpty: handleGenerateFromEmpty,
+			})}
 
 			<CreateOneOffShiftDialog
 				isOpen={isCreateOneOffOpen}
@@ -256,21 +457,17 @@ export const WeeklySchedulePage = ({
 						wizardShift.date,
 						wizardShift.endTime,
 					)}
-					onClose={() => setWizardShiftId(null)}
-					onAssigned={handleWizardAssigned}
-					onCascadeReopen={(shiftIds) => {
-						const reopenShiftId = shiftIds[0];
-						if (!reopenShiftId) {
-							setWizardShiftId(null);
-							return;
-						}
-
-						const hasTargetShift = initialShifts.some(
-							(shift) => shift.id === reopenShiftId,
-						);
-
-						setWizardShiftId(hasTargetShift ? reopenShiftId : null);
+					onClose={() => {
+						setWizardShiftId(null);
 					}}
+					onAssigned={handleWizardAssigned}
+					onStaffAbsenceSuggestionSelected={
+						handleStaffAbsenceSuggestionSelected
+					}
+					onCascadeReopen={(shiftIds) => {
+						setWizardShiftId(getReopenWizardShiftId(initialShifts, shiftIds));
+					}}
+					staffAbsenceRequest={wizardStaffAbsenceRequest}
 				/>
 			)}
 
@@ -279,10 +476,19 @@ export const WeeklySchedulePage = ({
 					isOpen={!!changeDialogShift}
 					shift={createChangeStaffDialogShift(changeDialogShift)}
 					staffOptions={staffOptions}
-					onClose={() => setChangeDialogShift(null)}
+					onClose={() => {
+						setChangeDialogShift(null);
+						setWizardSuggestion(null);
+					}}
 					onSuccess={handleDialogSuccess}
+					initialSuggestion={
+						wizardSuggestion?.shiftId === changeDialogShift.id
+							? wizardSuggestion
+							: undefined
+					}
 					onStartAdjustment={(shiftId) => {
 						setChangeDialogShift(null);
+						setWizardSuggestion(null);
 						setWizardShiftId(shiftId);
 					}}
 				/>

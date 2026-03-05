@@ -1775,6 +1775,43 @@ describe('ShiftService', () => {
 			);
 		});
 
+		it('should throw 400 when newStartTime date is outside the 14-day range from shift date', async () => {
+			const userId = createTestId();
+			const shiftId = TEST_IDS.SCHEDULE_1;
+			const adminStaff = createTestStaff({
+				auth_user_id: userId,
+				role: 'admin',
+				office_id: TEST_IDS.OFFICE_1,
+			});
+			const targetShift = createTestShift({
+				id: shiftId,
+				client_id: TEST_IDS.CLIENT_1,
+				date: new Date('2026-04-10'),
+			});
+
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(
+				createTestServiceUser({
+					id: TEST_IDS.CLIENT_1,
+					office_id: TEST_IDS.OFFICE_1,
+				}),
+			);
+
+			await expect(
+				service.suggestCandidateStaffForShiftWithNewDatetime(userId, {
+					shiftId,
+					newStartTime: new Date('2026-04-24T10:00:00+09:00'),
+					newEndTime: new Date('2026-04-24T11:00:00+09:00'),
+				}),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'newStartTime date must be within 14 days from shift date',
+				}),
+			);
+		});
+
 		it('should throw 404 for cross-office shift', async () => {
 			const userId = createTestId();
 			const shiftId = TEST_IDS.SCHEDULE_1;

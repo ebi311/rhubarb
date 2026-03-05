@@ -3,9 +3,10 @@ import {
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
 import { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChangeStaffDialog } from './ChangeStaffDialog';
 
 vi.mock('@/app/actions/shifts');
@@ -42,14 +43,18 @@ const mockShift = {
 	id: 'shift-1',
 	clientName: '田中太郎',
 	serviceTypeName: '生活援助',
-	date: new Date('2026-01-22'),
-	startTime: new Date('2026-01-22T09:00:00+09:00'),
-	endTime: new Date('2026-01-22T12:00:00+09:00'),
+	date: new Date('2099-01-22'),
+	startTime: new Date('2099-01-22T09:00:00+09:00'),
+	endTime: new Date('2099-01-22T12:00:00+09:00'),
 	currentStaffName: '佐藤次郎',
 	currentStaffId: 'staff-3',
 };
 
 describe('ChangeStaffDialog', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(validateStaffAvailabilityAction).mockResolvedValue({
@@ -155,7 +160,7 @@ describe('ChangeStaffDialog', () => {
 			expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 				shiftId: 'shift-1',
 				staffId: 'staff-1',
-				dateStr: '2026-01-22',
+				dateStr: '2099-01-22',
 				startTimeStr: '09:00',
 				endTimeStr: '12:00',
 				reason: undefined,
@@ -214,7 +219,7 @@ describe('ChangeStaffDialog', () => {
 			expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 				shiftId: 'shift-1',
 				staffId: 'staff-1',
-				dateStr: '2026-01-22',
+				dateStr: '2099-01-22',
 				startTimeStr: '09:00',
 				endTimeStr: '12:00',
 				reason: '緊急対応のため',
@@ -231,8 +236,8 @@ describe('ChangeStaffDialog', () => {
 					{
 						id: 'conflict-1',
 						clientName: '佐藤花子',
-						startTime: new Date('2026-01-22T10:00:00+09:00'),
-						endTime: new Date('2026-01-22T13:00:00+09:00'),
+						startTime: new Date('2099-01-22T10:00:00+09:00'),
+						endTime: new Date('2099-01-22T13:00:00+09:00'),
 					},
 				],
 			},
@@ -368,7 +373,7 @@ describe('ChangeStaffDialog', () => {
 		// 日時を編集
 		const dateInput = screen.getByLabelText('日付');
 		await user.clear(dateInput);
-		await user.type(dateInput, '2026-01-23');
+		await user.type(dateInput, '2099-01-23');
 
 		const startInput = screen.getByLabelText('開始');
 		await user.clear(startInput);
@@ -394,8 +399,8 @@ describe('ChangeStaffDialog', () => {
 		await waitFor(() => {
 			expect(validateStaffAvailabilityAction).toHaveBeenCalledWith({
 				staffId: 'staff-1',
-				startTime: new Date('2026-01-23T01:00:00.000Z').toISOString(),
-				endTime: new Date('2026-01-23T04:00:00.000Z').toISOString(),
+				startTime: new Date('2099-01-23T01:00:00.000Z').toISOString(),
+				endTime: new Date('2099-01-23T04:00:00.000Z').toISOString(),
 				excludeShiftId: 'shift-1',
 			});
 		});
@@ -407,11 +412,97 @@ describe('ChangeStaffDialog', () => {
 			expect(updateShiftScheduleAction).toHaveBeenCalledWith({
 				shiftId: 'shift-1',
 				staffId: 'staff-1',
-				dateStr: '2026-01-23',
+				dateStr: '2099-01-23',
 				startTimeStr: '10:00',
 				endTimeStr: '13:00',
 				reason: undefined,
 			});
 		});
+	});
+
+	it('initialSuggestion がある場合はスタッフ・日時の初期値に反映される', () => {
+		const suggestionStaffOptions = mockStaffOptions.map((option) =>
+			option.id === 'staff-2' ? { ...option, id: TEST_IDS.STAFF_2 } : option,
+		);
+
+		render(
+			<ChangeStaffDialog
+				isOpen={true}
+				shift={mockShift}
+				staffOptions={suggestionStaffOptions}
+				onClose={vi.fn()}
+				onSuccess={vi.fn()}
+				initialSuggestion={{
+					shiftId: mockShift.id,
+					newStaffId: TEST_IDS.STAFF_2,
+					newStartTime: new Date('2099-01-23T01:00:00.000Z'),
+					newEndTime: new Date('2099-01-23T04:00:00.000Z'),
+				}}
+			/>,
+		);
+
+		expect(
+			screen.getByRole('button', { name: '新しい担当者: 鈴木花子' }),
+		).toBeInTheDocument();
+		expect(screen.getByLabelText('日付')).toHaveValue('2099-01-23');
+		expect(screen.getByLabelText('開始')).toHaveValue('10:00');
+		expect(screen.getByLabelText('終了')).toHaveValue('13:00');
+	});
+
+	it('過去シフトの場合は編集操作と実行操作が無効化される', async () => {
+		const user = userEvent.setup();
+		const onStartAdjustment = vi.fn();
+		const pastShift = {
+			...mockShift,
+			date: new Date('2020-01-22'),
+			startTime: new Date('2020-01-22T09:00:00+09:00'),
+			endTime: new Date('2020-01-22T12:00:00+09:00'),
+		};
+
+		render(
+			<ChangeStaffDialog
+				isOpen={true}
+				shift={pastShift}
+				staffOptions={mockStaffOptions}
+				onClose={vi.fn()}
+				onSuccess={vi.fn()}
+				onStartAdjustment={onStartAdjustment}
+			/>,
+		);
+
+		expect(screen.getByLabelText('日付')).toBeDisabled();
+		expect(screen.getByLabelText('開始')).toBeDisabled();
+		expect(screen.getByLabelText('終了')).toBeDisabled();
+		expect(screen.getByRole('button', { name: /新しい担当者/ })).toBeDisabled();
+		expect(screen.getByLabelText('変更理由（任意）')).toBeDisabled();
+		expect(screen.getByRole('button', { name: '変更' })).toBeDisabled();
+		expect(screen.getByRole('button', { name: '調整相談' })).toBeDisabled();
+
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		expect(onStartAdjustment).not.toHaveBeenCalled();
+	});
+
+	it('過去シフトの場合は変更ボタン押下でも更新アクションを呼ばない', async () => {
+		const user = userEvent.setup();
+		const pastShift = {
+			...mockShift,
+			date: new Date('2020-01-22'),
+			startTime: new Date('2020-01-22T09:00:00+09:00'),
+			endTime: new Date('2020-01-22T12:00:00+09:00'),
+		};
+
+		render(
+			<ChangeStaffDialog
+				isOpen={true}
+				shift={pastShift}
+				staffOptions={mockStaffOptions}
+				onClose={vi.fn()}
+				onSuccess={vi.fn()}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '変更' }));
+
+		expect(updateShiftScheduleAction).not.toHaveBeenCalled();
 	});
 });
