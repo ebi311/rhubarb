@@ -1,5 +1,6 @@
 'use client';
 
+import { suggestStaffAbsenceAdjustmentsAction } from '@/app/actions/shiftAdjustments';
 import {
 	suggestCandidateStaffForShiftAction,
 	suggestCandidateStaffForShiftWithNewDatetimeAction,
@@ -7,6 +8,11 @@ import {
 } from '@/app/actions/shifts';
 import type { ActionResult } from '@/app/actions/utils/actionResult';
 import { errorResult, successResult } from '@/app/actions/utils/actionResult';
+import { useActionResultHandler } from '@/hooks/useActionResultHandler';
+import type {
+	StaffAbsenceActionInput,
+	SuggestShiftAdjustmentsOutput,
+} from '@/models/shiftAdjustmentActionSchemas';
 import { formatJstDateString, getJstHours, getJstMinutes } from '@/utils/date';
 import {
 	type SyntheticEvent,
@@ -30,14 +36,17 @@ type WizardStep =
 	| 'select'
 	| 'helper-candidates'
 	| 'datetime-input'
-	| 'datetime-candidates';
+	| 'datetime-candidates'
+	| 'staff-absence-suggestions';
 
 const SelectStep = ({
 	onSelectHelperCandidates,
 	onSelectDatetime,
+	onSelectStaffAbsence,
 }: {
 	onSelectHelperCandidates: () => void;
 	onSelectDatetime: () => void;
+	onSelectStaffAbsence?: () => void;
 }) => {
 	return (
 		<div className="space-y-3">
@@ -60,6 +69,15 @@ const SelectStep = ({
 				>
 					日時の変更
 				</button>
+				{onSelectStaffAbsence && (
+					<button
+						type="button"
+						className="btn btn-outline sm:col-span-2"
+						onClick={onSelectStaffAbsence}
+					>
+						スタッフ急休の提案を確認
+					</button>
+				)}
 			</div>
 		</div>
 	);
@@ -80,6 +98,7 @@ type AdjustmentWizardDialogProps = {
 	onClose: () => void;
 	onAssigned?: (suggestion: AdjustmentWizardSuggestion) => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
+	staffAbsenceRequest?: StaffAbsenceActionInput;
 };
 
 type Candidate =
@@ -182,6 +201,27 @@ const successNoPersist = (): ActionResult<{
 	status: 200,
 });
 
+type StaffAbsenceAffectedSuggestion =
+	SuggestShiftAdjustmentsOutput['affected'][number];
+
+const toTimeLabel = (time: { hour: number; minute: number }) =>
+	`${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
+
+const STAFF_ABSENCE_FETCH_ERROR_MESSAGE = '提案の取得に失敗しました';
+
+const toOperationLabel = (
+	operation: StaffAbsenceAffectedSuggestion['suggestions'][number]['operations'][number],
+) => {
+	switch (operation.type) {
+		case 'change_staff':
+			return `担当変更: ${operation.from_staff_id} → ${operation.to_staff_id}`;
+		case 'update_shift_schedule':
+			return `日時変更: ${formatJstDateString(operation.new_date)} ${toTimeLabel(operation.new_start_time)}-${toTimeLabel(operation.new_end_time)}`;
+		default:
+			return '';
+	}
+};
+
 export const AdjustmentWizardDialog = ({
 	isOpen,
 	shiftId,
@@ -190,6 +230,7 @@ export const AdjustmentWizardDialog = ({
 	onClose,
 	onAssigned,
 	onCascadeReopen,
+	staffAbsenceRequest,
 }: AdjustmentWizardDialogProps) => {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const inputIdBase = useId();
@@ -204,6 +245,17 @@ export const AdjustmentWizardDialog = ({
 		newEndTime: initialEndTime,
 	});
 	const selectedSuggestionRef = useRef<AdjustmentWizardSuggestion | null>(null);
+	const [staffAbsenceSuggestions, setStaffAbsenceSuggestions] = useState<
+		SuggestShiftAdjustmentsOutput['affected']
+	>([]);
+	const [staffAbsenceError, setStaffAbsenceError] = useState<string | null>(
+		null,
+	);
+	const [isStaffAbsenceLoading, setIsStaffAbsenceLoading] = useState(false);
+	const [selectedStaffAbsenceSuggestions, setSelectedStaffAbsenceSuggestions] =
+		useState<Record<string, number>>({});
+	const staffAbsenceRequestIdRef = useRef(0);
+	const { handleActionResult } = useActionResultHandler();
 
 	const requestHelperCandidates = useCallback<
 		NonNullable<StepHelperCandidatesProps['requestCandidates']>
@@ -270,6 +322,84 @@ export const AdjustmentWizardDialog = ({
 		[],
 	);
 
+	const resetStaffAbsenceState = useCallback((invalidateRequest = false) => {
+		if (invalidateRequest) {
+			staffAbsenceRequestIdRef.current += 1;
+		}
+		setStaffAbsenceSuggestions([]);
+		setSelectedStaffAbsenceSuggestions({});
+		setStaffAbsenceError(null);
+		setIsStaffAbsenceLoading(false);
+	}, []);
+
+	const handleSelectStaffAbsence = useCallback(async () => {
+		if (!staffAbsenceRequest) {
+			return;
+		}
+
+		const requestId = staffAbsenceRequestIdRef.current + 1;
+		staffAbsenceRequestIdRef.current = requestId;
+
+		setStep('staff-absence-suggestions');
+		setIsStaffAbsenceLoading(true);
+		setStaffAbsenceError(null);
+
+		try {
+			const result =
+				await suggestStaffAbsenceAdjustmentsAction(staffAbsenceRequest);
+			if (staffAbsenceRequestIdRef.current !== requestId) {
+				return;
+			}
+
+			const normalizedResult: ActionResult<SuggestShiftAdjustmentsOutput> =
+				result.error || !result.data
+					? mapActionError<SuggestShiftAdjustmentsOutput>(
+							result.error,
+							result.status,
+							result.details,
+							STAFF_ABSENCE_FETCH_ERROR_MESSAGE,
+						)
+					: result;
+
+			handleActionResult(normalizedResult, {
+				errorMessage:
+					normalizedResult.status >= 500
+						? STAFF_ABSENCE_FETCH_ERROR_MESSAGE
+						: undefined,
+				onSuccess: (data) => {
+					if (!data) {
+						return;
+					}
+					const initialSelections = Object.fromEntries(
+						data.affected.map((affected) => [affected.shift.id, 0]),
+					) as Record<string, number>;
+					setStaffAbsenceSuggestions(data.affected);
+					setSelectedStaffAbsenceSuggestions(initialSelections);
+				},
+				onError: (_error, actionResult) => {
+					setStaffAbsenceSuggestions([]);
+					setSelectedStaffAbsenceSuggestions({});
+					setStaffAbsenceError(
+						actionResult.status >= 500
+							? STAFF_ABSENCE_FETCH_ERROR_MESSAGE
+							: (actionResult.error ?? STAFF_ABSENCE_FETCH_ERROR_MESSAGE),
+					);
+				},
+			});
+		} catch {
+			if (staffAbsenceRequestIdRef.current !== requestId) {
+				return;
+			}
+			setStaffAbsenceSuggestions([]);
+			setSelectedStaffAbsenceSuggestions({});
+			setStaffAbsenceError(STAFF_ABSENCE_FETCH_ERROR_MESSAGE);
+		} finally {
+			if (staffAbsenceRequestIdRef.current === requestId) {
+				setIsStaffAbsenceLoading(false);
+			}
+		}
+	}, [handleActionResult, staffAbsenceRequest]);
+
 	useEffect(() => {
 		if (!isOpen) {
 			return;
@@ -283,13 +413,20 @@ export const AdjustmentWizardDialog = ({
 				newStartTime: initialStartTime,
 				newEndTime: initialEndTime,
 			});
+			resetStaffAbsenceState(true);
 			selectedSuggestionRef.current = null;
 		}, 0);
 
 		return () => {
 			clearTimeout(timer);
 		};
-	}, [initialEndTime, initialStartTime, isOpen, shiftId]);
+	}, [
+		initialEndTime,
+		initialStartTime,
+		isOpen,
+		resetStaffAbsenceState,
+		shiftId,
+	]);
 
 	useEffect(() => {
 		const dialog = dialogRef.current;
@@ -306,12 +443,14 @@ export const AdjustmentWizardDialog = ({
 
 	const handleRequestClose = () => {
 		setStep('select');
+		resetStaffAbsenceState(true);
 		selectedSuggestionRef.current = null;
 		onClose();
 	};
 
 	const handleDialogClose = () => {
 		setStep('select');
+		resetStaffAbsenceState(true);
 		selectedSuggestionRef.current = null;
 		if (isOpen) {
 			onClose();
@@ -321,6 +460,7 @@ export const AdjustmentWizardDialog = ({
 	const handleDialogCancel = (event: SyntheticEvent<HTMLDialogElement>) => {
 		event.preventDefault();
 		setStep('select');
+		resetStaffAbsenceState(true);
 		selectedSuggestionRef.current = null;
 		onClose();
 	};
@@ -343,6 +483,10 @@ export const AdjustmentWizardDialog = ({
 			case 'datetime-candidates':
 				setStep('datetime-input');
 				break;
+			case 'staff-absence-suggestions':
+				resetStaffAbsenceState(true);
+				setStep('select');
+				break;
 			default:
 				break;
 		}
@@ -355,6 +499,9 @@ export const AdjustmentWizardDialog = ({
 					<SelectStep
 						onSelectHelperCandidates={() => setStep('helper-candidates')}
 						onSelectDatetime={() => setStep('datetime-input')}
+						onSelectStaffAbsence={
+							staffAbsenceRequest ? handleSelectStaffAbsence : undefined
+						}
 					/>
 				);
 			case 'helper-candidates':
@@ -389,6 +536,102 @@ export const AdjustmentWizardDialog = ({
 						requestCandidates={requestDatetimeCandidates}
 						requestAssign={requestDatetimeAssign}
 					/>
+				);
+			case 'staff-absence-suggestions':
+				if (isStaffAbsenceLoading) {
+					return <div className="alert alert-info">提案を取得中...</div>;
+				}
+
+				if (staffAbsenceError) {
+					return <div className="alert alert-error">{staffAbsenceError}</div>;
+				}
+
+				if (staffAbsenceSuggestions.length === 0) {
+					return (
+						<div className="alert alert-warning">提案はありませんでした。</div>
+					);
+				}
+
+				return (
+					<div className="space-y-4">
+						{staffAbsenceSuggestions.map((affected) => (
+							<section
+								key={affected.shift.id}
+								className="rounded-lg border border-base-300 p-3"
+							>
+								<p className="text-sm font-semibold">影響シフト:</p>
+								<p className="text-xs text-base-content/70">
+									{formatJstDateString(affected.shift.date)}{' '}
+									{toTimeLabel(affected.shift.start_time)}-
+									{toTimeLabel(affected.shift.end_time)}
+								</p>
+								<div className="mt-3 space-y-3">
+									{affected.suggestions.map((suggestion, index) => {
+										const radioId = `${inputIdBase}-${affected.shift.id}-suggestion-${index}`;
+										return (
+											<label
+												key={radioId}
+												htmlFor={radioId}
+												className="block space-y-2 rounded border border-base-300 p-3"
+											>
+												<div className="flex items-center gap-2">
+													<input
+														id={radioId}
+														type="radio"
+														name={`staff-absence-${affected.shift.id}`}
+														className="radio radio-sm"
+														checked={
+															selectedStaffAbsenceSuggestions[
+																affected.shift.id
+															] === index
+														}
+														onChange={() => {
+															setSelectedStaffAbsenceSuggestions((prev) => ({
+																...prev,
+																[affected.shift.id]: index,
+															}));
+														}}
+													/>
+													<span className="font-medium">案{index + 1}</span>
+												</div>
+												<ul className="list-inside list-disc text-sm">
+													{suggestion.operations.map(
+														(operation, operationIndex) => (
+															<li
+																key={`${radioId}-operation-${operationIndex}`}
+															>
+																{toOperationLabel(operation)}
+															</li>
+														),
+													)}
+												</ul>
+												<ul className="list-inside list-disc text-xs text-base-content/80">
+													{suggestion.rationale.map(
+														(rationale, rationaleIndex) => (
+															<li
+																key={`${radioId}-rationale-${rationaleIndex}`}
+															>
+																{rationale.message}
+															</li>
+														),
+													)}
+												</ul>
+											</label>
+										);
+									})}
+								</div>
+							</section>
+						))}
+						<div className="flex justify-end">
+							<button
+								type="button"
+								className="btn btn-primary"
+								onClick={handleRequestClose}
+							>
+								確認して閉じる
+							</button>
+						</div>
+					</div>
 				);
 			default:
 				return null;

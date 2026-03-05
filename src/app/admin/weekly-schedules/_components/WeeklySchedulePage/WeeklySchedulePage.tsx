@@ -2,6 +2,7 @@
 
 import { generateWeeklyShiftsAction } from '@/app/actions/weeklySchedules';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import type { StaffAbsenceActionInput } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
@@ -113,6 +114,20 @@ const getReopenWizardShiftId = (
 		: null;
 };
 
+const createStaffAbsenceRequest = (
+	shift: ShiftDisplayRow | null,
+): StaffAbsenceActionInput | undefined => {
+	if (!shift?.staffId) {
+		return undefined;
+	}
+
+	return {
+		staffId: shift.staffId,
+		startDate: shift.date,
+		endDate: shift.date,
+	};
+};
+
 const renderScheduleContent = ({
 	hasShifts,
 	viewMode,
@@ -208,6 +223,7 @@ export const WeeklySchedulePage = ({
 		useState<string | undefined>();
 
 	const wizardShift = findShiftById(initialShifts, wizardShiftId);
+	const wizardStaffAbsenceRequest = createStaffAbsenceRequest(wizardShift);
 
 	const handleOpenCreateOneOffShiftDialog = (
 		defaultDateStr: string,
@@ -343,6 +359,7 @@ export const WeeklySchedulePage = ({
 					onCascadeReopen={(shiftIds) => {
 						setWizardShiftId(getReopenWizardShiftId(initialShifts, shiftIds));
 					}}
+					staffAbsenceRequest={wizardStaffAbsenceRequest}
 				/>
 			)}
 
