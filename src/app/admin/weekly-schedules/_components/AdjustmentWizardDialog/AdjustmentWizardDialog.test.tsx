@@ -18,6 +18,7 @@ const stepDatetimeCandidatesSpy = vi.fn();
 const actionMocks = vi.hoisted(() => ({
 	suggestCandidateStaffForShiftAction: vi.fn(),
 	suggestCandidateStaffForShiftWithNewDatetimeAction: vi.fn(),
+	suggestStaffAbsenceAdjustmentsAction: vi.fn(),
 	assignStaffWithCascadeUnassignAction: vi.fn(),
 	updateDatetimeAndAssignWithCascadeUnassignAction: vi.fn(),
 	validateStaffAvailabilityAction: vi.fn(),
@@ -38,6 +39,11 @@ vi.mock('@/app/actions/shifts', () => ({
 
 vi.mock('@/app/actions/staffs', () => ({
 	listStaffsAction: actionMocks.listStaffsAction,
+}));
+
+vi.mock('@/app/actions/shiftAdjustments', () => ({
+	suggestStaffAbsenceAdjustmentsAction:
+		actionMocks.suggestStaffAbsenceAdjustmentsAction,
 }));
 
 vi.mock('./StepHelperCandidates', () => ({
@@ -231,9 +237,40 @@ beforeEach(() => {
 		error: null,
 		status: 200,
 	});
+	actionMocks.suggestStaffAbsenceAdjustmentsAction.mockResolvedValue({
+		data: {
+			affected: [],
+			absence: {
+				staffId: TEST_IDS.STAFF_1,
+				startDate: new Date('2026-02-22T00:00:00+09:00'),
+				endDate: new Date('2026-02-22T00:00:00+09:00'),
+			},
+		},
+		error: null,
+		status: 200,
+	});
 });
 
 describe('AdjustmentWizardDialog', () => {
+	it('staffAbsenceRequest未指定時は急休提案ボタンを表示しない', () => {
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.queryByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		).not.toBeInTheDocument();
+		expect(
+			actionMocks.suggestStaffAbsenceAdjustmentsAction,
+		).not.toHaveBeenCalled();
+	});
+
 	it('各Stepに requestCandidates / requestAssign を注入する', async () => {
 		const user = userEvent.setup();
 		render(
@@ -779,5 +816,448 @@ describe('AdjustmentWizardDialog', () => {
 		);
 
 		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('staff_absence提案フロー: affected[].suggestions の operations と rationale を表示する', async () => {
+		const user = userEvent.setup();
+		actionMocks.suggestStaffAbsenceAdjustmentsAction.mockResolvedValue({
+			data: {
+				affected: [
+					{
+						shift: {
+							id: TEST_IDS.SCHEDULE_1,
+							client_id: TEST_IDS.CLIENT_1,
+							service_type_id: 'physical-care',
+							staff_id: TEST_IDS.STAFF_1,
+							date: new Date('2026-02-22T00:00:00+09:00'),
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							status: 'scheduled',
+						},
+						suggestions: [
+							{
+								operations: [
+									{
+										type: 'change_staff',
+										shift_id: TEST_IDS.SCHEDULE_1,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: TEST_IDS.STAFF_2,
+									},
+								],
+								rationale: [{ code: 'available', message: '時間重複なし' }],
+							},
+							{
+								operations: [
+									{
+										type: 'update_shift_schedule',
+										shift_id: TEST_IDS.SCHEDULE_1,
+										new_date: new Date('2026-02-22T00:00:00+09:00'),
+										new_start_time: { hour: 11, minute: 0 },
+										new_end_time: { hour: 12, minute: 0 },
+									},
+								],
+								rationale: [
+									{ code: 'reschedule', message: '同日内で調整可能' },
+								],
+							},
+						],
+					},
+				],
+				absence: {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: new Date('2026-02-22T00:00:00+09:00'),
+					endDate: new Date('2026-02-22T00:00:00+09:00'),
+				},
+			},
+			error: null,
+			status: 200,
+		});
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+				staffAbsenceRequest={{
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-22',
+					endDate: '2026-02-22',
+				}}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		);
+
+		expect(
+			actionMocks.suggestStaffAbsenceAdjustmentsAction,
+		).toHaveBeenCalledWith({
+			staffId: TEST_IDS.STAFF_1,
+			startDate: '2026-02-22',
+			endDate: '2026-02-22',
+		});
+		expect(screen.getByText('影響シフト:')).toBeInTheDocument();
+		expect(screen.getByText(/担当変更:/)).toBeInTheDocument();
+		expect(screen.getByText(/日時変更:/)).toBeInTheDocument();
+		expect(screen.getByText('時間重複なし')).toBeInTheDocument();
+		expect(screen.getByText('同日内で調整可能')).toBeInTheDocument();
+	});
+
+	it('staff_absence提案フロー: 案を選択して確認して閉じられ、更新系actionは呼ばれない', async () => {
+		const user = userEvent.setup();
+		const onClose = vi.fn();
+		actionMocks.suggestStaffAbsenceAdjustmentsAction.mockResolvedValue({
+			data: {
+				affected: [
+					{
+						shift: {
+							id: TEST_IDS.SCHEDULE_1,
+							client_id: TEST_IDS.CLIENT_1,
+							service_type_id: 'physical-care',
+							staff_id: TEST_IDS.STAFF_1,
+							date: new Date('2026-02-22T00:00:00+09:00'),
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							status: 'scheduled',
+						},
+						suggestions: [
+							{
+								operations: [
+									{
+										type: 'change_staff',
+										shift_id: TEST_IDS.SCHEDULE_1,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: TEST_IDS.STAFF_2,
+									},
+								],
+								rationale: [{ code: 'a', message: '案1' }],
+							},
+							{
+								operations: [
+									{
+										type: 'change_staff',
+										shift_id: TEST_IDS.SCHEDULE_1,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: TEST_IDS.STAFF_3,
+									},
+								],
+								rationale: [{ code: 'b', message: '案2' }],
+							},
+						],
+					},
+				],
+				absence: {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: new Date('2026-02-22T00:00:00+09:00'),
+					endDate: new Date('2026-02-22T00:00:00+09:00'),
+				},
+			},
+			error: null,
+			status: 200,
+		});
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={onClose}
+				staffAbsenceRequest={{
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-22',
+					endDate: '2026-02-22',
+				}}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		);
+		await user.click(screen.getByRole('radio', { name: /案2/ }));
+		await user.click(screen.getByRole('button', { name: '確認して閉じる' }));
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(
+			actionMocks.assignStaffWithCascadeUnassignAction,
+		).not.toHaveBeenCalled();
+		expect(
+			actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction,
+		).not.toHaveBeenCalled();
+	});
+
+	it('staff_absence提案取得でActionResultエラー(400)の場合はエラーメッセージを表示する', async () => {
+		const user = userEvent.setup();
+		actionMocks.suggestStaffAbsenceAdjustmentsAction.mockResolvedValue({
+			data: null,
+			error: '対象スタッフが見つかりません',
+			status: 400,
+			details: { reason: 'NOT_FOUND' },
+		});
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+				staffAbsenceRequest={{
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-22',
+					endDate: '2026-02-22',
+				}}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		);
+
+		expect(
+			await screen.findByText('対象スタッフが見つかりません'),
+		).toBeInTheDocument();
+	});
+
+	it('staff_absence提案取得で例外発生時はエラー表示にフォールバックする', async () => {
+		const user = userEvent.setup();
+		actionMocks.suggestStaffAbsenceAdjustmentsAction.mockRejectedValue(
+			new Error('network down'),
+		);
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+				staffAbsenceRequest={{
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-22',
+					endDate: '2026-02-22',
+				}}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		);
+
+		expect(
+			await screen.findByText('提案の取得に失敗しました'),
+		).toBeInTheDocument();
+		expect(screen.queryByText('提案を取得中...')).not.toBeInTheDocument();
+	});
+
+	it('staff_absence提案取得でActionResultエラー(500)の場合は定型エラーを表示する', async () => {
+		const user = userEvent.setup();
+		actionMocks.suggestStaffAbsenceAdjustmentsAction.mockResolvedValue({
+			data: null,
+			error: 'db connection failed: stacktrace...',
+			status: 500,
+			details: { stack: 'sensitive' },
+		});
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+				staffAbsenceRequest={{
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-22',
+					endDate: '2026-02-22',
+				}}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		);
+
+		expect(
+			await screen.findByText('提案の取得に失敗しました'),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByText('db connection failed: stacktrace...'),
+		).not.toBeInTheDocument();
+	});
+
+	it('staff_absence提案フロー: 複数affectedの各シフトを表示できる', async () => {
+		const user = userEvent.setup();
+		actionMocks.suggestStaffAbsenceAdjustmentsAction.mockResolvedValue({
+			data: {
+				affected: [
+					{
+						shift: {
+							id: TEST_IDS.SCHEDULE_1,
+							client_id: TEST_IDS.CLIENT_1,
+							service_type_id: 'physical-care',
+							staff_id: TEST_IDS.STAFF_1,
+							date: new Date('2026-02-22T00:00:00+09:00'),
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							status: 'scheduled',
+						},
+						suggestions: [
+							{
+								operations: [
+									{
+										type: 'change_staff',
+										shift_id: TEST_IDS.SCHEDULE_1,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: TEST_IDS.STAFF_2,
+									},
+								],
+								rationale: [{ code: 'a', message: 'S1案1' }],
+							},
+						],
+					},
+					{
+						shift: {
+							id: TEST_IDS.SCHEDULE_2,
+							client_id: TEST_IDS.CLIENT_2,
+							service_type_id: 'physical-care',
+							staff_id: TEST_IDS.STAFF_1,
+							date: new Date('2026-02-22T00:00:00+09:00'),
+							start_time: { hour: 11, minute: 0 },
+							end_time: { hour: 12, minute: 0 },
+							status: 'scheduled',
+						},
+						suggestions: [
+							{
+								operations: [
+									{
+										type: 'change_staff',
+										shift_id: TEST_IDS.SCHEDULE_2,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: TEST_IDS.STAFF_3,
+									},
+								],
+								rationale: [{ code: 'b', message: 'S2案1' }],
+							},
+						],
+					},
+				],
+				absence: {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: new Date('2026-02-22T00:00:00+09:00'),
+					endDate: new Date('2026-02-22T00:00:00+09:00'),
+				},
+			},
+			error: null,
+			status: 200,
+		});
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+				staffAbsenceRequest={{
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-22',
+					endDate: '2026-02-22',
+				}}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		);
+
+		expect(await screen.findByText('S1案1')).toBeInTheDocument();
+		expect(screen.getByText('S2案1')).toBeInTheDocument();
+		expect(screen.getAllByText('影響シフト:')).toHaveLength(2);
+	});
+
+	it('staff_absence提案フロー: 古いリクエストのレスポンスで最新表示を上書きしない', async () => {
+		const user = userEvent.setup();
+		const createAbsenceResponse = (message: string, toStaffId: string) => ({
+			data: {
+				affected: [
+					{
+						shift: {
+							id: TEST_IDS.SCHEDULE_1,
+							client_id: TEST_IDS.CLIENT_1,
+							service_type_id: 'physical-care',
+							staff_id: TEST_IDS.STAFF_1,
+							date: new Date('2026-02-22T00:00:00+09:00'),
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							status: 'scheduled' as const,
+						},
+						suggestions: [
+							{
+								operations: [
+									{
+										type: 'change_staff' as const,
+										shift_id: TEST_IDS.SCHEDULE_1,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: toStaffId,
+									},
+								],
+								rationale: [{ code: 'code', message }],
+							},
+						],
+					},
+				],
+				absence: {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: new Date('2026-02-22T00:00:00+09:00'),
+					endDate: new Date('2026-02-22T00:00:00+09:00'),
+				},
+			},
+			error: null,
+			status: 200 as const,
+		});
+
+		type AbsenceResponse = ReturnType<typeof createAbsenceResponse>;
+		let resolveFirst: ((value: AbsenceResponse) => void) | undefined;
+		const firstPromise = new Promise<AbsenceResponse>((resolve) => {
+			resolveFirst = resolve;
+		});
+
+		actionMocks.suggestStaffAbsenceAdjustmentsAction
+			.mockImplementationOnce(() => firstPromise)
+			.mockResolvedValueOnce(createAbsenceResponse('LATEST', TEST_IDS.STAFF_2));
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+				staffAbsenceRequest={{
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-22',
+					endDate: '2026-02-22',
+				}}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		);
+		await user.click(screen.getByRole('button', { name: '戻る' }));
+		await user.click(
+			screen.getByRole('button', { name: 'スタッフ急休の提案を確認' }),
+		);
+
+		expect(await screen.findByText('LATEST')).toBeInTheDocument();
+		resolveFirst?.(createAbsenceResponse('OLD', TEST_IDS.STAFF_3));
+
+		await waitFor(() => {
+			expect(screen.queryByText('OLD')).not.toBeInTheDocument();
+		});
 	});
 });

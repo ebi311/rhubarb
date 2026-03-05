@@ -82,6 +82,7 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		shiftId,
 		initialStartTime,
 		initialEndTime,
+		staffAbsenceRequest,
 		onAssigned,
 		onClose,
 		onCascadeReopen,
@@ -90,6 +91,11 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		shiftId: string;
 		initialStartTime: Date;
 		initialEndTime: Date;
+		staffAbsenceRequest?: {
+			staffId: string;
+			startDate: Date;
+			endDate: Date;
+		};
 		onClose?: () => void;
 		onAssigned?: (payload: {
 			shiftId: string;
@@ -104,6 +110,13 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 				<p>Wizard Open: {shiftId}</p>
 				<p>Start: {initialStartTime.toISOString()}</p>
 				<p>End: {initialEndTime.toISOString()}</p>
+				{staffAbsenceRequest && (
+					<>
+						<p>Staff absence request: {staffAbsenceRequest.staffId}</p>
+						<p>Absence start: {staffAbsenceRequest.startDate.toISOString()}</p>
+						<p>Absence end: {staffAbsenceRequest.endDate.toISOString()}</p>
+					</>
+				)}
 				<button type="button" onClick={() => onClose?.()}>
 					Wizardを閉じる
 				</button>
@@ -254,5 +267,50 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		expect(
 			screen.queryByText(`Wizard Open: ${TEST_IDS.SCHEDULE_1}`),
 		).not.toBeInTheDocument();
+	});
+
+	it('ChangeStaffDialog経由で開いたWizardに staffAbsenceRequest を渡す', async () => {
+		const user = userEvent.setup();
+
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+
+		expect(
+			screen.getByText(`Staff absence request: ${TEST_IDS.STAFF_1}`),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Absence start: 2026-01-19T00:00:00.000Z'),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Absence end: 2026-01-19T00:00:00.000Z'),
+		).toBeInTheDocument();
+	});
+
+	it('staffId が null のシフトでは staffAbsenceRequest を渡さない', async () => {
+		const user = userEvent.setup();
+		render(
+			<WeeklySchedulePage
+				{...defaultProps}
+				initialShifts={[
+					{
+						...sampleShifts[0],
+						staffId: null,
+						staffName: null,
+						isUnassigned: true,
+					},
+				]}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+
+		expect(
+			screen.queryByText(/Staff absence request:/),
+		).not.toBeInTheDocument();
+		expect(screen.queryByText(/Absence start:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Absence end:/)).not.toBeInTheDocument();
 	});
 });
