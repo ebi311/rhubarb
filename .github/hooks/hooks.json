@@ -1,0 +1,18 @@
+{
+	"version": 1,
+	"hooks": {
+		"sessionStart": [],
+		"sessionEnd": [
+			{
+				"type": "command",
+				"bash": "./scripts/copilot-hook-pushover.sh",
+				"cwd": ".",
+				"timeoutSec": 15
+			}
+		],
+		"userPromptSubmitted": [],
+		"preToolUse": [],
+		"postToolUse": [],
+		"errorOccurred": []
+	}
+}
