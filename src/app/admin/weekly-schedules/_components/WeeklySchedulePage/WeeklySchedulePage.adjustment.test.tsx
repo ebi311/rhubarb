@@ -84,6 +84,7 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		initialEndTime,
 		staffAbsenceRequest,
 		onAssigned,
+		onStaffAbsenceSuggestionSelected,
 		onClose,
 		onCascadeReopen,
 	}: {
@@ -102,6 +103,32 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 			newStaffId: string;
 			newStartTime: Date;
 			newEndTime: Date;
+		}) => void;
+		onStaffAbsenceSuggestionSelected?: (payload: {
+			shift: {
+				id: string;
+				date: Date;
+				start_time: { hour: number; minute: number };
+				end_time: { hour: number; minute: number };
+				staff_id: string | null;
+			};
+			suggestion: {
+				operations: Array<
+					| {
+							type: 'change_staff';
+							shift_id: string;
+							from_staff_id: string;
+							to_staff_id: string;
+					  }
+					| {
+							type: 'update_shift_schedule';
+							shift_id: string;
+							new_date: Date;
+							new_start_time: { hour: number; minute: number };
+							new_end_time: { hour: number; minute: number };
+					  }
+				>;
+			};
 		}) => void;
 		onCascadeReopen?: (shiftIds: string[]) => void;
 	}) =>
@@ -133,6 +160,130 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 					}}
 				>
 					候補確定
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onStaffAbsenceSuggestionSelected?.({
+							shift: {
+								id: shiftId,
+								date: new Date('2026-01-19T00:00:00.000Z'),
+								start_time: { hour: 9, minute: 0 },
+								end_time: { hour: 10, minute: 0 },
+								staff_id: TEST_IDS.STAFF_1,
+							},
+							suggestion: {
+								operations: [
+									{
+										type: 'change_staff',
+										shift_id: shiftId,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: TEST_IDS.STAFF_3,
+									},
+									{
+										type: 'update_shift_schedule',
+										shift_id: shiftId,
+										new_date: new Date('2026-01-19T00:00:00.000Z'),
+										new_start_time: { hour: 11, minute: 0 },
+										new_end_time: { hour: 12, minute: 0 },
+									},
+								],
+							},
+						});
+						onClose?.();
+					}}
+				>
+					急休提案を反映
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onStaffAbsenceSuggestionSelected?.({
+							shift: {
+								id: shiftId,
+								date: new Date('2026-01-19T00:00:00.000Z'),
+								start_time: { hour: 9, minute: 0 },
+								end_time: { hour: 10, minute: 0 },
+								staff_id: TEST_IDS.STAFF_1,
+							},
+							suggestion: {
+								operations: [
+									{
+										type: 'update_shift_schedule',
+										shift_id: shiftId,
+										new_date: new Date('2026-01-19T00:00:00.000Z'),
+										new_start_time: { hour: 11, minute: 0 },
+										new_end_time: { hour: 12, minute: 0 },
+									},
+								],
+							},
+						});
+						onClose?.();
+					}}
+				>
+					急休提案を反映(updateのみ)
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onStaffAbsenceSuggestionSelected?.({
+							shift: {
+								id: shiftId,
+								date: new Date('2026-01-19T00:00:00.000Z'),
+								start_time: { hour: 9, minute: 0 },
+								end_time: { hour: 10, minute: 0 },
+								staff_id: TEST_IDS.STAFF_1,
+							},
+							suggestion: {
+								operations: [
+									{
+										type: 'change_staff',
+										shift_id: TEST_IDS.SCHEDULE_2,
+										from_staff_id: TEST_IDS.STAFF_1,
+										to_staff_id: TEST_IDS.STAFF_3,
+									},
+									{
+										type: 'update_shift_schedule',
+										shift_id: TEST_IDS.SCHEDULE_2,
+										new_date: new Date('2026-01-19T00:00:00.000Z'),
+										new_start_time: { hour: 11, minute: 0 },
+										new_end_time: { hour: 12, minute: 0 },
+									},
+								],
+							},
+						});
+						onClose?.();
+					}}
+				>
+					急休提案を反映(shift_id不一致)
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onStaffAbsenceSuggestionSelected?.({
+							shift: {
+								id: shiftId,
+								date: new Date('2026-01-19T00:00:00.000Z'),
+								start_time: { hour: 9, minute: 0 },
+								end_time: { hour: 10, minute: 0 },
+								staff_id: null,
+							},
+							suggestion: {
+								operations: [
+									{
+										type: 'update_shift_schedule',
+										shift_id: shiftId,
+										new_date: new Date('2026-01-19T00:00:00.000Z'),
+										new_start_time: { hour: 11, minute: 0 },
+										new_end_time: { hour: 12, minute: 0 },
+									},
+								],
+							},
+						});
+						onClose?.();
+					}}
+				>
+					急休提案を反映(newStaffId欠落)
 				</button>
 				<button
 					type="button"
@@ -247,6 +398,86 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		);
 		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
 
+		expect(screen.queryByText(/Suggested staff:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Suggested start:/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/Suggested end:/)).not.toBeInTheDocument();
+	});
+
+	it('staff_absence 選択結果を ChangeStaffDialog の initialSuggestion に正規化して注入する', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(screen.getByRole('button', { name: '急休提案を反映' }));
+
+		expect(mockRefresh).not.toHaveBeenCalled();
+		expect(
+			screen.getByText(`Suggested staff: ${TEST_IDS.STAFF_3}`),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Suggested start: 2026-01-19T02:00:00.000Z'),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Suggested end: 2026-01-19T03:00:00.000Z'),
+		).toBeInTheDocument();
+	});
+
+	it('staff_absence の update のみ提案は shift.staff_id を使って注入する', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(
+			screen.getByRole('button', { name: '急休提案を反映(updateのみ)' }),
+		);
+
+		expect(mockRefresh).not.toHaveBeenCalled();
+		expect(
+			screen.getByText(`Suggested staff: ${TEST_IDS.STAFF_1}`),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Suggested start: 2026-01-19T02:00:00.000Z'),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Suggested end: 2026-01-19T03:00:00.000Z'),
+		).toBeInTheDocument();
+	});
+
+	it('staff_absence の operation.shift_id が不一致なら対象shiftの値へフォールバックする', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(
+			screen.getByRole('button', { name: '急休提案を反映(shift_id不一致)' }),
+		);
+
+		expect(mockRefresh).not.toHaveBeenCalled();
+		expect(
+			screen.getByText(`Suggested staff: ${TEST_IDS.STAFF_1}`),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Suggested start: 2026-01-19T00:00:00.000Z'),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText('Suggested end: 2026-01-19T01:00:00.000Z'),
+		).toBeInTheDocument();
+	});
+
+	it('staff_absence 正規化後に newStaffId を解決できない場合は提案を注入しない', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(
+			screen.getByRole('button', { name: '急休提案を反映(newStaffId欠落)' }),
+		);
+
+		expect(mockRefresh).not.toHaveBeenCalled();
 		expect(screen.queryByText(/Suggested staff:/)).not.toBeInTheDocument();
 		expect(screen.queryByText(/Suggested start:/)).not.toBeInTheDocument();
 		expect(screen.queryByText(/Suggested end:/)).not.toBeInTheDocument();

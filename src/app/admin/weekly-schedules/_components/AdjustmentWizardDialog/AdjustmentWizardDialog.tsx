@@ -90,6 +90,11 @@ export type AdjustmentWizardSuggestion = {
 	newEndTime: Date;
 };
 
+export type AdjustmentWizardStaffAbsenceSelection = {
+	shift: SuggestShiftAdjustmentsOutput['affected'][number]['shift'];
+	suggestion: SuggestShiftAdjustmentsOutput['affected'][number]['suggestions'][number];
+};
+
 type AdjustmentWizardDialogProps = {
 	isOpen: boolean;
 	shiftId: string;
@@ -97,6 +102,9 @@ type AdjustmentWizardDialogProps = {
 	initialEndTime: Date;
 	onClose: () => void;
 	onAssigned?: (suggestion: AdjustmentWizardSuggestion) => void;
+	onStaffAbsenceSuggestionSelected?: (
+		selection: AdjustmentWizardStaffAbsenceSelection,
+	) => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
 	staffAbsenceRequest?: StaffAbsenceActionInput;
 };
@@ -229,6 +237,7 @@ export const AdjustmentWizardDialog = ({
 	initialEndTime,
 	onClose,
 	onAssigned,
+	onStaffAbsenceSuggestionSelected,
 	onCascadeReopen,
 	staffAbsenceRequest,
 }: AdjustmentWizardDialogProps) => {
@@ -472,6 +481,27 @@ export const AdjustmentWizardDialog = ({
 		handleRequestClose();
 	};
 
+	const handleStaffAbsenceComplete = () => {
+		const selectedAffectedShift = staffAbsenceSuggestions.find(
+			(affected) => affected.shift.id === shiftId,
+		);
+
+		if (selectedAffectedShift) {
+			const selectedIndex =
+				selectedStaffAbsenceSuggestions[selectedAffectedShift.shift.id] ?? 0;
+			const selectedSuggestion =
+				selectedAffectedShift.suggestions[selectedIndex];
+			if (selectedSuggestion) {
+				onStaffAbsenceSuggestionSelected?.({
+					shift: selectedAffectedShift.shift,
+					suggestion: selectedSuggestion,
+				});
+			}
+		}
+
+		handleRequestClose();
+	};
+
 	const handleBack = () => {
 		switch (step) {
 			case 'helper-candidates':
@@ -626,7 +656,7 @@ export const AdjustmentWizardDialog = ({
 							<button
 								type="button"
 								className="btn btn-primary"
-								onClick={handleRequestClose}
+								onClick={handleStaffAbsenceComplete}
 							>
 								確認して閉じる
 							</button>
