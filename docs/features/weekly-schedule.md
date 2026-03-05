@@ -21,8 +21,8 @@
 | end_time          | TIME        | ✓    | 終了時刻                      |
 | status            | ENUM        | ✓    | ステータス                    |
 | is_unassigned     | BOOLEAN     | ✓    | 未割当フラグ                  |
-| cancel_category   | ENUM        |      | キャンセル理由カテゴリ        |
-| cancel_reason     | TEXT        |      | キャンセル理由詳細            |
+| canceled_category | ENUM        |      | キャンセル理由カテゴリ        |
+| canceled_reason   | TEXT        |      | キャンセル理由詳細            |
 | canceled_at       | TIMESTAMPTZ |      | キャンセル日時                |
 | note              | TEXT        |      | 備考                          |
 | created_at        | TIMESTAMPTZ | ✓    | 作成日時                      |
@@ -39,11 +39,11 @@
 
 ### キャンセル理由カテゴリ
 
-| 値            | 説明         |
-| ------------- | ------------ |
-| client_reason | 利用者都合   |
-| staff_reason  | スタッフ都合 |
-| other         | その他       |
+| 値     | 説明         |
+| ------ | ------------ |
+| client | 利用者都合   |
+| staff  | スタッフ都合 |
+| other  | その他       |
 
 ## ビジネスルール
 
@@ -52,6 +52,7 @@
 3. **担当者変更**: 同時間帯に他のシフトがないことをチェック
 4. **キャンセル制約**: `completed` 状態のシフトはキャンセル不可
 5. **復元制約**: `canceled` 状態のシフトのみ復元可能
+6. **調整相談**: 提案生成のみ（非永続化）。最終更新は `ChangeStaffDialog` の「変更」操作時のみ
 
 ## API / Server Actions
 
@@ -72,20 +73,29 @@
 
 ### 変更操作
 
-#### `assignStaffToShiftAction(shiftId, staffId, reason?)`
+#### `updateShiftScheduleAction(input)`
 
-- 担当者を変更または割り当て
+- シフトの日付/時刻と担当者を更新
 - 変更理由を記録
 
-#### `cancelShiftAction(shiftId, category, reason)`
+#### `cancelShiftAction(input)`
 
 - シフトをキャンセル
 - キャンセル理由カテゴリと詳細を必須入力
 
-#### `restoreShiftAction(shiftId)`
+#### `restoreShiftAction(input)`
 
 - キャンセルしたシフトを復元
 - ステータスを `scheduled` に戻す
+
+### 調整相談（提案生成）
+
+#### `suggestStaffAbsenceAdjustmentsAction(input)`
+
+- `staff_absence` 向けに、代替の担当変更案（操作列 + 理由）を 1〜3 案生成する
+- 役割は「説明生成」であり、DB 永続化は行わない
+- UI では `AdjustmentWizardDialog` から呼び出し、選択結果を `ChangeStaffDialog.initialSuggestion` に渡す
+- 実際の更新は管理者が `ChangeStaffDialog` で「変更」を押したときにのみ実行される
 
 ## UI アクションロジック
 
@@ -93,8 +103,14 @@
 | ---------- | ------------- | ------------------------- |
 | scheduled  | true          | [割り当て] [キャンセル]   |
 | scheduled  | false         | [担当者変更] [キャンセル] |
+| confirmed  | -             | （操作なし）              |
 | canceled   | -             | [復元]                    |
-| completed  | -             | （操作不可）              |
+| completed  | -             | （操作なし）              |
+
+補足:
+
+- 調整相談導線はシフト行の直接ボタンではなく、`ChangeStaffDialog` 内の「調整相談」から起動する
+- `staff_absence` は理由付き 1〜3 案、その他事象は候補提示中心で案内する
 
 ## エラーケース
 
@@ -107,11 +123,16 @@
 
 ## 関連ファイル
 
-- `src/app/actions/shiftActions.ts`
+- `src/app/actions/weeklySchedules.ts`
+- `src/app/actions/shifts.ts`
+- `src/app/actions/shiftAdjustments.ts`
+- `src/backend/services/weeklyScheduleService.ts`
 - `src/backend/services/shiftService.ts`
+- `src/backend/services/shiftAdjustmentSuggestionService.ts`
 - `src/backend/repositories/shiftRepository.ts`
 - `src/models/shift.ts`
 - `src/models/shiftActionSchemas.ts`
+- `src/models/shiftAdjustmentActionSchemas.ts`
 
 ## 関連ユースケース
 
