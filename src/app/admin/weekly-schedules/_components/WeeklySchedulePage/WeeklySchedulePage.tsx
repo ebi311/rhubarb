@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
 	AdjustmentWizardDialog,
+	type AdjustmentWizardStaffAbsenceSelection,
 	type AdjustmentWizardSuggestion,
 } from '../AdjustmentWizardDialog';
 import {
@@ -125,6 +126,91 @@ const createStaffAbsenceRequest = (
 		staffId: shift.staffId,
 		startDate: shift.date,
 		endDate: shift.date,
+	};
+};
+
+type StaffAbsenceOperation =
+	AdjustmentWizardStaffAbsenceSelection['suggestion']['operations'][number];
+
+type ChangeStaffOperation = Extract<
+	StaffAbsenceOperation,
+	{ type: 'change_staff' }
+>;
+
+type UpdateShiftScheduleOperation = Extract<
+	StaffAbsenceOperation,
+	{ type: 'update_shift_schedule' }
+>;
+
+const isChangeStaffOperationForShift =
+	(shiftId: string) =>
+	(operation: StaffAbsenceOperation): operation is ChangeStaffOperation =>
+		operation.type === 'change_staff' && operation.shift_id === shiftId;
+
+const isUpdateShiftScheduleOperationForShift =
+	(shiftId: string) =>
+	(
+		operation: StaffAbsenceOperation,
+	): operation is UpdateShiftScheduleOperation =>
+		operation.type === 'update_shift_schedule' &&
+		operation.shift_id === shiftId;
+
+const findChangeStaffOperation = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+) =>
+	selection.suggestion.operations.find(
+		isChangeStaffOperationForShift(selection.shift.id),
+	);
+
+const findUpdateShiftScheduleOperation = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+) =>
+	selection.suggestion.operations.find(
+		isUpdateShiftScheduleOperationForShift(selection.shift.id),
+	);
+
+const resolveStaffAbsenceSuggestionStaffId = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+) => {
+	const changeStaffOperation = findChangeStaffOperation(selection);
+	return changeStaffOperation?.to_staff_id ?? selection.shift.staff_id ?? null;
+};
+
+const resolveStaffAbsenceSuggestionSchedule = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+) => {
+	const updateShiftScheduleOperation =
+		findUpdateShiftScheduleOperation(selection);
+	if (!updateShiftScheduleOperation) {
+		return {
+			date: selection.shift.date,
+			startTime: selection.shift.start_time,
+			endTime: selection.shift.end_time,
+		};
+	}
+
+	return {
+		date: updateShiftScheduleOperation.new_date,
+		startTime: updateShiftScheduleOperation.new_start_time,
+		endTime: updateShiftScheduleOperation.new_end_time,
+	};
+};
+
+const normalizeStaffAbsenceSelection = (
+	selection: AdjustmentWizardStaffAbsenceSelection,
+): AdjustmentWizardSuggestion | null => {
+	const newStaffId = resolveStaffAbsenceSuggestionStaffId(selection);
+	if (!newStaffId) {
+		return null;
+	}
+
+	const schedule = resolveStaffAbsenceSuggestionSchedule(selection);
+
+	return {
+		shiftId: selection.shift.id,
+		newStaffId,
+		newStartTime: shiftToDateTime(schedule.date, schedule.startTime),
+		newEndTime: shiftToDateTime(schedule.date, schedule.endTime),
 	};
 };
 
@@ -277,7 +363,9 @@ export const WeeklySchedulePage = ({
 		router.refresh();
 	};
 
-	const handleWizardAssigned = (suggestion: AdjustmentWizardSuggestion) => {
+	const openChangeDialogWithSuggestion = (
+		suggestion: AdjustmentWizardSuggestion,
+	) => {
 		setWizardShiftId(null);
 
 		const targetShift =
@@ -289,6 +377,23 @@ export const WeeklySchedulePage = ({
 
 		setWizardSuggestion(suggestion);
 		setChangeDialogShift(targetShift);
+	};
+
+	const handleWizardAssigned = (suggestion: AdjustmentWizardSuggestion) => {
+		openChangeDialogWithSuggestion(suggestion);
+	};
+
+	const handleStaffAbsenceSuggestionSelected = (
+		selection: AdjustmentWizardStaffAbsenceSelection,
+	) => {
+		const normalizedSuggestion = normalizeStaffAbsenceSelection(selection);
+		if (!normalizedSuggestion) {
+			setWizardShiftId(null);
+			setWizardSuggestion(null);
+			return;
+		}
+
+		openChangeDialogWithSuggestion(normalizedSuggestion);
 	};
 
 	const hasShifts = initialShifts.length > 0;
@@ -356,6 +461,9 @@ export const WeeklySchedulePage = ({
 						setWizardShiftId(null);
 					}}
 					onAssigned={handleWizardAssigned}
+					onStaffAbsenceSuggestionSelected={
+						handleStaffAbsenceSuggestionSelected
+					}
 					onCascadeReopen={(shiftIds) => {
 						setWizardShiftId(getReopenWizardShiftId(initialShifts, shiftIds));
 					}}

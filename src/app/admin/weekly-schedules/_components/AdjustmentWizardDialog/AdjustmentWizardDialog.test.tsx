@@ -909,6 +909,7 @@ describe('AdjustmentWizardDialog', () => {
 	it('staff_absence提案フロー: 案を選択して確認して閉じられ、更新系actionは呼ばれない', async () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
+		const onStaffAbsenceSuggestionSelected = vi.fn();
 		actionMocks.suggestStaffAbsenceAdjustmentsAction.mockResolvedValue({
 			data: {
 				affected: [
@@ -966,6 +967,7 @@ describe('AdjustmentWizardDialog', () => {
 				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
 				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={onClose}
+				onStaffAbsenceSuggestionSelected={onStaffAbsenceSuggestionSelected}
 				staffAbsenceRequest={{
 					staffId: TEST_IDS.STAFF_1,
 					startDate: '2026-02-22',
@@ -981,6 +983,19 @@ describe('AdjustmentWizardDialog', () => {
 		await user.click(screen.getByRole('button', { name: '確認して閉じる' }));
 
 		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(onStaffAbsenceSuggestionSelected).toHaveBeenCalledWith(
+			expect.objectContaining({
+				shift: expect.objectContaining({ id: TEST_IDS.SCHEDULE_1 }),
+				suggestion: expect.objectContaining({
+					operations: [
+						expect.objectContaining({
+							type: 'change_staff',
+							to_staff_id: TEST_IDS.STAFF_3,
+						}),
+					],
+				}),
+			}),
+		);
 		expect(
 			actionMocks.assignStaffWithCascadeUnassignAction,
 		).not.toHaveBeenCalled();
