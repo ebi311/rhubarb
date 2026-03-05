@@ -4,10 +4,8 @@ import {
 	ShiftAdjustmentOperationSchema,
 	ShiftAdjustmentRequestSchema,
 	StaffAbsenceInputSchema,
-	SuggestClientDatetimeChangeAdjustmentsOutputSchema,
 	SuggestShiftAdjustmentsOutputSchema,
 } from './shiftAdjustmentActionSchemas';
-import { TimeRangeSchema } from './valueObjects/timeRange';
 
 describe('StaffAbsenceInputSchema', () => {
 	it('start=1日目, end=14日目 は OK（最大14日）', () => {
@@ -78,62 +76,18 @@ describe('ShiftAdjustmentRequestSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('type=client_datetime_change を受け付ける', () => {
+	it('未定義の type を受け付けない', () => {
 		const result = ShiftAdjustmentRequestSchema.safeParse({
-			type: 'client_datetime_change',
+			type: 'unsupported_type',
 			payload: {
 				shiftId: TEST_IDS.SCHEDULE_1,
 				newDate: '2026-02-03',
 				newStartTime: { hour: 9, minute: 0 },
 				newEndTime: { hour: 10, minute: 0 },
-				memo: '利用者都合',
-			},
-		});
-
-		expect(result.success).toBe(true);
-	});
-
-	it('type=client_datetime_change で newStartTime > newEndTime の場合に TimeRangeSchema のエラーが payload.newEndTime に伝播する', () => {
-		const timeRangeParse = TimeRangeSchema.safeParse({
-			start: { hour: 10, minute: 0 },
-			end: { hour: 9, minute: 0 },
-		});
-		expect(timeRangeParse.success).toBe(false);
-
-		if (timeRangeParse.success) {
-			throw new Error(
-				'テストセットアップエラー: TimeRangeSchema がエラーになりませんでした',
-			);
-		}
-
-		const expectedMessage = timeRangeParse.error.issues.find(
-			(issue) => issue.path.join('.') === 'end',
-		)?.message;
-
-		const result = ShiftAdjustmentRequestSchema.safeParse({
-			type: 'client_datetime_change',
-			payload: {
-				shiftId: TEST_IDS.SCHEDULE_1,
-				newDate: '2026-02-03',
-				newStartTime: { hour: 10, minute: 0 },
-				newEndTime: { hour: 9, minute: 0 },
 			},
 		});
 
 		expect(result.success).toBe(false);
-
-		if (result.success) {
-			throw new Error(
-				'テストセットアップエラー: client_datetime_change がバリデーションエラーになりませんでした',
-			);
-		}
-
-		const issue = result.error.issues.find(
-			(item) => item.path.join('.') === 'payload.newEndTime',
-		);
-
-		expect(issue).toBeDefined();
-		expect(issue?.message).toBe(expectedMessage);
 	});
 });
 
@@ -161,32 +115,7 @@ describe('ShiftAdjustmentOperationSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
-	it('type=update_shift_schedule で new_start_time > new_end_time の場合に TimeRangeSchema のエラーが new_end_time に伝播する', () => {
-		const invalidClientDatetimeChange = ShiftAdjustmentRequestSchema.safeParse({
-			type: 'client_datetime_change',
-			payload: {
-				shiftId: TEST_IDS.SCHEDULE_1,
-				newDate: '2026-02-03',
-				newStartTime: { hour: 10, minute: 0 },
-				newEndTime: { hour: 9, minute: 0 },
-			},
-		});
-
-		expect(invalidClientDatetimeChange.success).toBe(false);
-
-		if (invalidClientDatetimeChange.success) {
-			throw new Error(
-				'テストセットアップエラー: client_datetime_change がバリデーションエラーになりませんでした',
-			);
-		}
-
-		const clientEndTimeIssue = invalidClientDatetimeChange.error.issues.find(
-			(issue) => issue.path.join('.') === 'payload.newEndTime',
-		);
-
-		expect(clientEndTimeIssue).toBeDefined();
-		const timeRangeErrorMessage = clientEndTimeIssue?.message;
-
+	it('type=update_shift_schedule で new_start_time > new_end_time は NG', () => {
 		const invalidUpdateShiftSchedule = ShiftAdjustmentOperationSchema.safeParse(
 			{
 				type: 'update_shift_schedule',
@@ -210,7 +139,8 @@ describe('ShiftAdjustmentOperationSchema', () => {
 		);
 
 		expect(newEndTimeIssue).toBeDefined();
-		expect(newEndTimeIssue?.message).toBe(timeRangeErrorMessage);
+		expect(newEndTimeIssue?.code).toBe('custom');
+		expect(newEndTimeIssue?.path).toEqual(['new_end_time']);
 	});
 });
 
@@ -267,64 +197,5 @@ describe('SuggestShiftAdjustmentsOutputSchema', () => {
 		});
 
 		expect(result.success).toBe(false);
-	});
-});
-
-describe('SuggestClientDatetimeChangeAdjustmentsOutputSchema', () => {
-	it('meta が無くてもパースできる（後方互換）', () => {
-		const result = SuggestClientDatetimeChangeAdjustmentsOutputSchema.safeParse(
-			{
-				change: {
-					shiftId: TEST_IDS.SCHEDULE_1,
-					newDate: '2026-02-03',
-					newStartTime: { hour: 9, minute: 0 },
-					newEndTime: { hour: 10, minute: 0 },
-				},
-				target: {
-					shift: {
-						id: TEST_IDS.SCHEDULE_1,
-						client_id: TEST_IDS.CLIENT_1,
-						service_type_id: 'life-support',
-						staff_id: TEST_IDS.STAFF_1,
-						date: '2026-02-03',
-						start_time: { hour: 9, minute: 0 },
-						end_time: { hour: 10, minute: 0 },
-						status: 'scheduled',
-					},
-					suggestions: [],
-				},
-			},
-		);
-
-		expect(result.success).toBe(true);
-	});
-
-	it('meta.timedOut を受け付ける', () => {
-		const result = SuggestClientDatetimeChangeAdjustmentsOutputSchema.safeParse(
-			{
-				meta: { timedOut: true },
-				change: {
-					shiftId: TEST_IDS.SCHEDULE_1,
-					newDate: '2026-02-03',
-					newStartTime: { hour: 9, minute: 0 },
-					newEndTime: { hour: 10, minute: 0 },
-				},
-				target: {
-					shift: {
-						id: TEST_IDS.SCHEDULE_1,
-						client_id: TEST_IDS.CLIENT_1,
-						service_type_id: 'life-support',
-						staff_id: TEST_IDS.STAFF_1,
-						date: '2026-02-03',
-						start_time: { hour: 9, minute: 0 },
-						end_time: { hour: 10, minute: 0 },
-						status: 'scheduled',
-					},
-					suggestions: [],
-				},
-			},
-		);
-
-		expect(result.success).toBe(true);
 	});
 });
