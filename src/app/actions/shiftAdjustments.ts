@@ -5,15 +5,11 @@ import {
 	ShiftAdjustmentSuggestionService,
 } from '@/backend/services/shiftAdjustmentSuggestionService';
 import type {
-	ClientDatetimeChangeActionInput,
 	StaffAbsenceActionInput,
-	SuggestClientDatetimeChangeAdjustmentsOutput,
 	SuggestShiftAdjustmentsOutput,
 } from '@/models/shiftAdjustmentActionSchemas';
 import {
-	ClientDatetimeChangeInputSchema,
 	StaffAbsenceInputSchema,
-	SuggestClientDatetimeChangeAdjustmentsOutputSchema,
 	SuggestShiftAdjustmentsOutputSchema,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { createSupabaseClient } from '@/utils/supabase/server';
@@ -85,40 +81,5 @@ export const suggestStaffAbsenceAdjustmentsAction = async (
 		return successResult(SuggestShiftAdjustmentsOutputSchema.parse(result));
 	} catch (err) {
 		return handleServiceError<SuggestShiftAdjustmentsOutput>(err);
-	}
-};
-
-/**
- * 利用者都合の日時変更に対する「代替案（提案）」を取得する（Phase 2）
- */
-export const suggestClientDatetimeChangeAdjustmentsAction = async (
-	input: ClientDatetimeChangeActionInput,
-): Promise<ActionResult<SuggestClientDatetimeChangeAdjustmentsOutput>> => {
-	const { supabase, user, error } = await getAuthUser();
-	if (error || !user) return errorResult('Unauthorized', 401);
-
-	const parsedInput = ClientDatetimeChangeInputSchema.safeParse(input);
-	if (!parsedInput.success) {
-		const issues = toSanitizedIssues(parsedInput.error.issues);
-		console.error(
-			'suggestClientDatetimeChangeAdjustmentsAction validation failed',
-			{ issues },
-		);
-		return errorResult('Validation failed', 400, issues);
-	}
-
-	const service = new ShiftAdjustmentSuggestionService(supabase);
-	try {
-		const result = await service.suggestClientDatetimeChangeAdjustments(
-			user.id,
-			parsedInput.data,
-		);
-		return successResult(
-			SuggestClientDatetimeChangeAdjustmentsOutputSchema.parse(result),
-		);
-	} catch (err) {
-		return handleServiceError<SuggestClientDatetimeChangeAdjustmentsOutput>(
-			err,
-		);
 	}
 };

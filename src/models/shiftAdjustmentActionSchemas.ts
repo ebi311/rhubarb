@@ -58,44 +58,12 @@ export type StaffAbsenceInput = z.output<typeof StaffAbsenceInputSchema>;
 export type StaffAbsenceActionInput = z.input<typeof StaffAbsenceInputSchema>;
 
 /**
- * client_datetime_change（利用者都合の日時変更）入力（Phase 1: 提案のみ）
- */
-export const ClientDatetimeChangeInputSchema = z
-	.object({
-		shiftId: z.uuid(),
-		newDate: JstDateInputSchema,
-		newStartTime: TimeValueSchema,
-		newEndTime: TimeValueSchema,
-		memo: z.string().max(500).optional(),
-	})
-	.superRefine((val, ctx) => {
-		addTimeRangeValidationIssues(
-			ctx,
-			val.newStartTime,
-			val.newEndTime,
-			'newStartTime',
-			'newEndTime',
-		);
-	});
-
-export type ClientDatetimeChangeInput = z.output<
-	typeof ClientDatetimeChangeInputSchema
->;
-export type ClientDatetimeChangeActionInput = z.input<
-	typeof ClientDatetimeChangeInputSchema
->;
-
-/**
  * request（変更リクエスト）
  */
 export const ShiftAdjustmentRequestSchema = z.discriminatedUnion('type', [
 	z.object({
 		type: z.literal('staff_absence'),
 		payload: StaffAbsenceInputSchema,
-	}),
-	z.object({
-		type: z.literal('client_datetime_change'),
-		payload: ClientDatetimeChangeInputSchema,
 	}),
 ]);
 
@@ -200,20 +168,4 @@ export const SuggestShiftAdjustmentsOutputSchema = z.object({
 });
 export type SuggestShiftAdjustmentsOutput = z.infer<
 	typeof SuggestShiftAdjustmentsOutputSchema
->;
-
-export const SuggestClientDatetimeChangeAdjustmentsOutputSchema = z.object({
-	meta: z
-		.object({
-			timedOut: z.boolean().optional(),
-		})
-		.optional(),
-	change: ClientDatetimeChangeInputSchema,
-	target: z.object({
-		shift: ShiftSnapshotSchema,
-		suggestions: z.array(ShiftAdjustmentSuggestionSchema),
-	}),
-});
-export type SuggestClientDatetimeChangeAdjustmentsOutput = z.infer<
-	typeof SuggestClientDatetimeChangeAdjustmentsOutputSchema
 >;
