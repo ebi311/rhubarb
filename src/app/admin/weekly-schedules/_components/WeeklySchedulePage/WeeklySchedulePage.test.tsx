@@ -125,4 +125,50 @@ describe('WeeklySchedulePage', () => {
 			expect(mockRefresh).toHaveBeenCalled();
 		});
 	});
+
+	describe('AdjustmentChatDialog 統合', () => {
+		it('AIに相談ボタンをクリックするとAdjustmentChatDialogが開く', async () => {
+			const user = userEvent.setup();
+			render(
+				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+			);
+
+			await user.click(screen.getByRole('button', { name: 'AIに相談' }));
+
+			expect(
+				screen.getByRole('dialog', { name: /シフト調整チャット/ }),
+			).toBeInTheDocument();
+		});
+
+		it('AdjustmentChatDialogにシフトコンテキストが渡される', async () => {
+			const user = userEvent.setup();
+			render(
+				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+			);
+
+			await user.click(screen.getByRole('button', { name: 'AIに相談' }));
+
+			// ダイアログ内にシフトコンテキスト情報が表示される
+			const dialog = screen.getByRole('dialog');
+			expect(dialog).toHaveTextContent('田中太郎');
+			expect(dialog).toHaveTextContent('山田花子');
+			expect(dialog).toHaveTextContent('2026-01-19');
+		});
+
+		it('AdjustmentChatDialogの閉じるボタンでダイアログが閉じる', async () => {
+			const user = userEvent.setup();
+			render(
+				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+			);
+
+			// ダイアログを開く
+			await user.click(screen.getByRole('button', { name: 'AIに相談' }));
+			expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+			// 閉じるボタンをクリック
+			await user.click(screen.getByRole('button', { name: '閉じる' }));
+
+			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		});
+	});
 });

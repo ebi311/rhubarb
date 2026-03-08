@@ -32,6 +32,7 @@ export interface ShiftTableProps {
 	onAssignStaff?: (shift: ShiftDisplayRow) => void;
 	onCancelShift?: (shift: ShiftDisplayRow) => void;
 	onRestoreShift?: (shift: ShiftDisplayRow) => void;
+	onAskAI?: (shift: ShiftDisplayRow) => void;
 }
 
 const formatTime = (time: { hour: number; minute: number }): string => {
@@ -81,6 +82,7 @@ export const ShiftTable = ({
 	onAssignStaff,
 	onCancelShift,
 	onRestoreShift,
+	onAskAI,
 }: ShiftTableProps) => {
 	if (loading) {
 		return (
@@ -151,28 +153,48 @@ export const ShiftTable = ({
 								<>
 									<span>{shift.staffName}</span>
 									{shift.status === 'scheduled' && (
-										<button
-											type="button"
-											className="btn btn-circle btn-ghost btn-xs"
-											onClick={() => onChangeStaff?.(shift)}
-											aria-label="担当者を変更"
-										>
-											<Icon name="edit" className="text-base" />
-										</button>
+										<>
+											<button
+												type="button"
+												className="btn btn-circle btn-ghost btn-xs"
+												onClick={() => onChangeStaff?.(shift)}
+												aria-label="担当者を変更"
+											>
+												<Icon name="edit" className="text-base" />
+											</button>
+											<button
+												type="button"
+												className="btn btn-circle text-secondary btn-ghost btn-xs"
+												onClick={() => onAskAI?.(shift)}
+												aria-label="AIに相談"
+											>
+												<Icon name="chat" className="text-base" />
+											</button>
+										</>
 									)}
 								</>
 							) : (
 								<>
 									<span className="badge badge-warning">未割当</span>
 									{shift.status === 'scheduled' && (
-										<button
-											type="button"
-											className="btn btn-circle text-primary btn-ghost btn-xs"
-											onClick={() => onAssignStaff?.(shift)}
-											aria-label="担当者を割り当て"
-										>
-											<Icon name="person_add" className="text-base" />
-										</button>
+										<>
+											<button
+												type="button"
+												className="btn btn-circle text-primary btn-ghost btn-xs"
+												onClick={() => onAssignStaff?.(shift)}
+												aria-label="担当者を割り当て"
+											>
+												<Icon name="person_add" className="text-base" />
+											</button>
+											<button
+												type="button"
+												className="btn btn-circle text-secondary btn-ghost btn-xs"
+												onClick={() => onAskAI?.(shift)}
+												aria-label="AIに相談"
+											>
+												<Icon name="chat" className="text-base" />
+											</button>
+										</>
 									)}
 								</>
 							)}

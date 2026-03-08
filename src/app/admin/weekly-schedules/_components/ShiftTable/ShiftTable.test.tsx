@@ -182,4 +182,44 @@ describe('ShiftTable', () => {
 
 		expect(onAssignStaff).toHaveBeenCalledWith(shift);
 	});
+
+	describe('AIに相談ボタン', () => {
+		it('scheduledステータスの行にAIに相談ボタンが表示される', () => {
+			const shifts = [createShift({ status: 'scheduled' })];
+			render(<ShiftTable shifts={shifts} />);
+
+			expect(
+				screen.getByRole('button', { name: 'AIに相談' }),
+			).toBeInTheDocument();
+		});
+
+		it('AIに相談ボタンクリック時にonAskAIが呼ばれる', async () => {
+			const user = userEvent.setup();
+			const onAskAI = vi.fn();
+			const shift = createShift({ status: 'scheduled' });
+			render(<ShiftTable shifts={[shift]} onAskAI={onAskAI} />);
+
+			await user.click(screen.getByRole('button', { name: 'AIに相談' }));
+
+			expect(onAskAI).toHaveBeenCalledWith(shift);
+		});
+
+		it('canceled ステータスの行にはAIに相談ボタンが表示されない', () => {
+			const shifts = [createShift({ status: 'canceled' })];
+			render(<ShiftTable shifts={shifts} />);
+
+			expect(
+				screen.queryByRole('button', { name: 'AIに相談' }),
+			).not.toBeInTheDocument();
+		});
+
+		it('confirmed ステータスの行にはAIに相談ボタンが表示されない', () => {
+			const shifts = [createShift({ status: 'confirmed' })];
+			render(<ShiftTable shifts={shifts} />);
+
+			expect(
+				screen.queryByRole('button', { name: 'AIに相談' }),
+			).not.toBeInTheDocument();
+		});
+	});
 });

@@ -27,12 +27,18 @@ export const AdjustmentChatDialog = ({
 			role="dialog"
 			className="modal-open modal modal-bottom sm:modal-middle"
 			aria-modal="true"
+			aria-labelledby="adjustment-chat-dialog-title"
 		>
 			<div className="modal-box flex h-[80vh] max-w-2xl flex-col">
 				{/* ヘッダー */}
 				<div className="flex items-start justify-between gap-2 border-b border-base-300 pb-3">
 					<div>
-						<h2 className="text-xl font-semibold">シフト調整チャット</h2>
+						<h2
+							id="adjustment-chat-dialog-title"
+							className="text-xl font-semibold"
+						>
+							シフト調整チャット
+						</h2>
 						<p className="text-sm text-base-content/70">
 							AIアシスタントがシフト調整をサポートします
 						</p>
