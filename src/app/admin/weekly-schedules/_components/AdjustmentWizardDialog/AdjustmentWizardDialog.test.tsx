@@ -57,8 +57,11 @@ vi.mock('./StepHelperCandidates', () => ({
 				<button
 					type="button"
 					onClick={async () => {
+						// requestAssign が undefined の場合は実APIモックを使用
+						const assignFn =
+							requestAssign ?? actionMocks.assignStaffWithCascadeUnassignAction;
 						await (
-							requestAssign as (input: {
+							assignFn as (input: {
 								shiftId: string;
 								newStaffId: string;
 							}) => Promise<unknown>
@@ -117,8 +120,12 @@ vi.mock('./StepDatetimeCandidates', () => ({
 				<button
 					type="button"
 					onClick={async () => {
+						// requestAssign が undefined の場合は実APIモックを使用
+						const assignFn =
+							requestAssign ??
+							actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction;
 						await (
-							requestAssign as (input: {
+							assignFn as (input: {
 								shiftId: string;
 								newStaffId: string;
 								newStartTime: Date;
@@ -234,8 +241,18 @@ beforeEach(() => {
 });
 
 describe('AdjustmentWizardDialog', () => {
-	it('各Stepに requestCandidates / requestAssign を注入する', async () => {
+	it('mockApi 指定時は各Stepに requestCandidates / requestAssign を注入する', async () => {
 		const user = userEvent.setup();
+		const mockHelperAssign = vi.fn().mockResolvedValue({
+			data: { cascadeUnassignedShiftIds: [] },
+			error: null,
+			status: 200,
+		});
+		const mockDatetimeAssign = vi.fn().mockResolvedValue({
+			data: { cascadeUnassignedShiftIds: [] },
+			error: null,
+			status: 200,
+		});
 		render(
 			<AdjustmentWizardDialog
 				isOpen={true}
@@ -243,6 +260,10 @@ describe('AdjustmentWizardDialog', () => {
 				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
 				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={vi.fn()}
+				mockApi={{
+					assignStaffWithCascadeUnassign: mockHelperAssign,
+					updateDatetimeAndAssignWithCascadeUnassign: mockDatetimeAssign,
+				}}
 			/>,
 		);
 
@@ -268,7 +289,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(datetimeProps.requestAssign).toBeTypeOf('function');
 	});
 
-	it('helper割当は永続化せずに成功を返す', async () => {
+	it('mockApi 未指定時は requestAssign が undefined となり子のデフォルト実API が使用される', async () => {
 		const user = userEvent.setup();
 		render(
 			<AdjustmentWizardDialog
@@ -283,27 +304,13 @@ describe('AdjustmentWizardDialog', () => {
 		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
 
 		const helperProps = stepHelperCandidatesSpy.mock.lastCall?.[0] as {
-			requestAssign: (input: {
-				shiftId: string;
-				newStaffId: string;
-			}) => Promise<{
-				data: {
-					cascadeUnassignedShiftIds: string[];
-				} | null;
-				error: string | null;
-				status: number;
-			}>;
+			requestCandidates: unknown;
+			requestAssign: unknown;
 		};
 
-		const result = await helperProps.requestAssign({
-			shiftId: TEST_IDS.SCHEDULE_1,
-			newStaffId: TEST_IDS.STAFF_1,
-		});
-
-		expect(
-			actionMocks.assignStaffWithCascadeUnassignAction,
-		).not.toHaveBeenCalled();
-		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
+		// mockApi がない場合は requestAssign が undefined になる（子のデフォルト実API を使用）
+		expect(helperProps.requestCandidates).toBeTypeOf('function');
+		expect(helperProps.requestAssign).toBeUndefined();
 	});
 
 	it('mockApi.assignStaffWithCascadeUnassign が指定されていると helper割当で透過的に呼び出す', async () => {
@@ -353,7 +360,7 @@ describe('AdjustmentWizardDialog', () => {
 		]);
 	});
 
-	it('mockApi.assign 未指定時は helper割当で non-persistent の既定成功を返す', async () => {
+	it('mockApi オブジェクトはあるが assign メソッドが未指定の場合は requestAssign が undefined になる', async () => {
 		const user = userEvent.setup();
 		render(
 			<AdjustmentWizardDialog
@@ -369,24 +376,11 @@ describe('AdjustmentWizardDialog', () => {
 		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
 
 		const helperProps = stepHelperCandidatesSpy.mock.lastCall?.[0] as {
-			requestAssign: (input: {
-				shiftId: string;
-				newStaffId: string;
-			}) => Promise<{
-				data: {
-					cascadeUnassignedShiftIds: string[];
-				} | null;
-				error: string | null;
-				status: number;
-			}>;
+			requestAssign: unknown;
 		};
 
-		const result = await helperProps.requestAssign({
-			shiftId: TEST_IDS.SCHEDULE_1,
-			newStaffId: TEST_IDS.STAFF_1,
-		});
-
-		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
+		// mockApi オブジェクトはあるが assign メソッドが未指定の場合も undefined
+		expect(helperProps.requestAssign).toBeUndefined();
 	});
 
 	it('mockApi.updateDatetimeAndAssignWithCascadeUnassign が指定されていると datetime割当で透過的に呼び出す', async () => {
@@ -451,7 +445,7 @@ describe('AdjustmentWizardDialog', () => {
 		]);
 	});
 
-	it('datetime割当は永続化せずに成功を返す', async () => {
+	it('mockApi 未指定時は datetime の requestAssign も undefined となり子のデフォルト実API が使用される', async () => {
 		const user = userEvent.setup();
 		render(
 			<AdjustmentWizardDialog
@@ -467,33 +461,13 @@ describe('AdjustmentWizardDialog', () => {
 		await user.click(screen.getByRole('button', { name: '候補を表示' }));
 
 		const datetimeProps = stepDatetimeCandidatesSpy.mock.lastCall?.[0] as {
-			requestAssign: (input: {
-				shiftId: string;
-				newStaffId: string;
-				newStartTime: Date;
-				newEndTime: Date;
-			}) => Promise<{
-				data: {
-					updatedShift: { id: string };
-					cascadeUnassignedShiftIds: string[];
-				} | null;
-				error: string | null;
-				status: number;
-			}>;
+			requestCandidates: unknown;
+			requestAssign: unknown;
 		};
 
-		const payload = {
-			shiftId: TEST_IDS.SCHEDULE_1,
-			newStaffId: TEST_IDS.STAFF_1,
-			newStartTime: new Date('2026-02-22T09:00:00+09:00'),
-			newEndTime: new Date('2026-02-22T10:00:00+09:00'),
-		};
-		const result = await datetimeProps.requestAssign(payload);
-
-		expect(
-			actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction,
-		).not.toHaveBeenCalled();
-		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
+		// mockApi がない場合は requestAssign が undefined になる（子のデフォルト実API を使用）
+		expect(datetimeProps.requestCandidates).toBeTypeOf('function');
+		expect(datetimeProps.requestAssign).toBeUndefined();
 	});
 
 	it('Step3B候補取得は suggestCandidateStaffForShiftWithNewDatetimeAction を呼び出す', async () => {
@@ -786,6 +760,11 @@ describe('AdjustmentWizardDialog', () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
 		const onAssigned = vi.fn();
+		const mockAssign = vi.fn().mockResolvedValue({
+			data: { cascadeUnassignedShiftIds: [] },
+			error: null,
+			status: 200,
+		});
 
 		render(
 			<AdjustmentWizardDialog
@@ -795,6 +774,7 @@ describe('AdjustmentWizardDialog', () => {
 				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={onClose}
 				onAssigned={onAssigned}
+				mockApi={{ assignStaffWithCascadeUnassign: mockAssign }}
 			/>,
 		);
 
@@ -812,6 +792,11 @@ describe('AdjustmentWizardDialog', () => {
 	it('ヘルパー候補完了時に onClose が呼ばれる', async () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
+		const mockAssign = vi.fn().mockResolvedValue({
+			data: { cascadeUnassignedShiftIds: [] },
+			error: null,
+			status: 200,
+		});
 
 		render(
 			<AdjustmentWizardDialog
@@ -820,6 +805,7 @@ describe('AdjustmentWizardDialog', () => {
 				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
 				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
 				onClose={onClose}
+				mockApi={{ assignStaffWithCascadeUnassign: mockAssign }}
 			/>,
 		);
 

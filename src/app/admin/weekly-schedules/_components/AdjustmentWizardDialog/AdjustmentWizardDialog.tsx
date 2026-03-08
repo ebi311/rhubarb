@@ -5,7 +5,6 @@ import {
 	suggestCandidateStaffForShiftWithNewDatetimeAction,
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
-import type { ActionResult } from '@/app/actions/utils/actionResult';
 import { errorResult, successResult } from '@/app/actions/utils/actionResult';
 import { formatJstDateString, getJstHours, getJstMinutes } from '@/utils/date';
 import {
@@ -13,6 +12,7 @@ import {
 	useCallback,
 	useEffect,
 	useId,
+	useMemo,
 	useRef,
 	useState,
 } from 'react';
@@ -182,16 +182,6 @@ const buildCandidates = async (
 	return successResult({ candidates });
 };
 
-const successNoPersist = (): ActionResult<{
-	cascadeUnassignedShiftIds: string[];
-}> => ({
-	data: {
-		cascadeUnassignedShiftIds: [],
-	},
-	error: null,
-	status: 200,
-});
-
 export const AdjustmentWizardDialog = ({
 	isOpen,
 	shiftId,
@@ -224,26 +214,25 @@ export const AdjustmentWizardDialog = ({
 		[initialEndTime, initialStartTime],
 	);
 
-	const requestHelperAssign = useCallback<
-		NonNullable<StepHelperCandidatesProps['requestAssign']>
-	>(
-		async ({ shiftId: targetShiftId, newStaffId }) => {
+	// mockApi がある場合のみラッパーを作成し、selectedSuggestionRef を更新
+	// mockApi がない場合は undefined を渡し、子コンポーネントのデフォルト（実API）を使用
+	const requestHelperAssign = useMemo<
+		StepHelperCandidatesProps['requestAssign']
+	>(() => {
+		if (!mockApi?.assignStaffWithCascadeUnassign) {
+			return undefined;
+		}
+		const mockAssign = mockApi.assignStaffWithCascadeUnassign;
+		return async ({ shiftId: targetShiftId, newStaffId }) => {
 			selectedSuggestionRef.current = {
 				shiftId: targetShiftId,
 				newStaffId,
 				newStartTime: initialStartTime,
 				newEndTime: initialEndTime,
 			};
-			if (mockApi?.assignStaffWithCascadeUnassign) {
-				return mockApi.assignStaffWithCascadeUnassign({
-					shiftId: targetShiftId,
-					newStaffId,
-				});
-			}
-			return successNoPersist();
-		},
-		[initialEndTime, initialStartTime, mockApi],
-	);
+			return mockAssign({ shiftId: targetShiftId, newStaffId });
+		};
+	}, [initialEndTime, initialStartTime, mockApi]);
 
 	const requestDatetimeCandidates = useCallback<
 		NonNullable<StepDatetimeCandidatesProps['requestCandidates']>
@@ -267,10 +256,16 @@ export const AdjustmentWizardDialog = ({
 		return successResult({ candidates: suggestResult.data.candidates });
 	}, []);
 
-	const requestDatetimeAssign = useCallback<
-		NonNullable<StepDatetimeCandidatesProps['requestAssign']>
-	>(
-		async ({
+	// mockApi がある場合のみラッパーを作成し、selectedSuggestionRef を更新
+	// mockApi がない場合は undefined を渡し、子コンポーネントのデフォルト（実API）を使用
+	const requestDatetimeAssign = useMemo<
+		StepDatetimeCandidatesProps['requestAssign']
+	>(() => {
+		if (!mockApi?.updateDatetimeAndAssignWithCascadeUnassign) {
+			return undefined;
+		}
+		const mockAssign = mockApi.updateDatetimeAndAssignWithCascadeUnassign;
+		return async ({
 			shiftId: targetShiftId,
 			newStaffId,
 			newStartTime,
@@ -282,18 +277,14 @@ export const AdjustmentWizardDialog = ({
 				newStartTime,
 				newEndTime,
 			};
-			if (mockApi?.updateDatetimeAndAssignWithCascadeUnassign) {
-				return mockApi.updateDatetimeAndAssignWithCascadeUnassign({
-					shiftId: targetShiftId,
-					newStaffId,
-					newStartTime,
-					newEndTime,
-				});
-			}
-			return successNoPersist();
-		},
-		[mockApi],
-	);
+			return mockAssign({
+				shiftId: targetShiftId,
+				newStaffId,
+				newStartTime,
+				newEndTime,
+			});
+		};
+	}, [mockApi]);
 
 	useEffect(() => {
 		if (!isOpen) {
