@@ -306,7 +306,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
 	});
 
-	it('mockApi.assign が指定されていると helper割当で透過的に呼び出す', async () => {
+	it('mockApi.assignStaffWithCascadeUnassign が指定されていると helper割当で透過的に呼び出す', async () => {
 		const user = userEvent.setup();
 		const mockAssign = vi.fn().mockResolvedValue({
 			data: {
@@ -389,7 +389,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
 	});
 
-	it('mockApi.updateDatetimeAssign が指定されていると datetime割当で透過的に呼び出す', async () => {
+	it('mockApi.updateDatetimeAndAssignWithCascadeUnassign が指定されていると datetime割当で透過的に呼び出す', async () => {
 		const user = userEvent.setup();
 		const mockUpdateDatetimeAssign = vi.fn().mockResolvedValue({
 			data: {

@@ -266,7 +266,7 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		expect(screen.queryByText(/Suggested end:/)).not.toBeInTheDocument();
 	});
 
-	it('adjustmentWizardMockApi.updateDatetimeAssign を透過し、実呼び出しできる', async () => {
+	it('adjustmentWizardMockApi.updateDatetimeAndAssignWithCascadeUnassign を透過し、実呼び出しできる', async () => {
 		const user = userEvent.setup();
 		const updateDatetimeAssignMock = vi.fn().mockResolvedValue({
 			data: {
