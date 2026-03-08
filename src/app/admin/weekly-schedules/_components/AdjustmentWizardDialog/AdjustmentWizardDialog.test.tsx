@@ -287,8 +287,14 @@ describe('AdjustmentWizardDialog', () => {
 		expect(datetimeProps.requestAssign).toBeTypeOf('function');
 	});
 
-	it('mockApi 未指定時でも requestAssign に実APIをラップした関数が渡される', async () => {
+	it('mockApi 未指定時でも requestAssign に実APIをラップした関数が渡され、実行すると assignStaffWithCascadeUnassignAction が呼ばれる', async () => {
 		const user = userEvent.setup();
+		actionMocks.assignStaffWithCascadeUnassignAction.mockResolvedValue({
+			data: { cascadeUnassignedShiftIds: [] },
+			error: null,
+			status: 200,
+		});
+
 		render(
 			<AdjustmentWizardDialog
 				isOpen={true}
@@ -303,12 +309,26 @@ describe('AdjustmentWizardDialog', () => {
 
 		const helperProps = stepHelperCandidatesSpy.mock.lastCall?.[0] as {
 			requestCandidates: unknown;
-			requestAssign: unknown;
+			requestAssign: (input: {
+				shiftId: string;
+				newStaffId: string;
+			}) => Promise<unknown>;
 		};
 
 		// mockApi がない場合でも実APIをラップした関数が渡される
 		expect(helperProps.requestCandidates).toBeTypeOf('function');
 		expect(helperProps.requestAssign).toBeTypeOf('function');
+
+		// requestAssign を呼び出すと実際の Action が呼ばれる
+		const payload = {
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_1,
+		};
+		await helperProps.requestAssign(payload);
+
+		expect(
+			actionMocks.assignStaffWithCascadeUnassignAction,
+		).toHaveBeenCalledWith(payload);
 	});
 
 	it('mockApi.assignStaffWithCascadeUnassign が指定されていると helper割当で透過的に呼び出す', async () => {
@@ -443,8 +463,19 @@ describe('AdjustmentWizardDialog', () => {
 		]);
 	});
 
-	it('mockApi 未指定時でも datetime の requestAssign に実APIをラップした関数が渡される', async () => {
+	it('mockApi 未指定時でも datetime の requestAssign に実APIをラップした関数が渡され、実行すると updateDatetimeAndAssignWithCascadeUnassignAction が呼ばれる', async () => {
 		const user = userEvent.setup();
+		actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction.mockResolvedValue(
+			{
+				data: {
+					updatedShift: { id: TEST_IDS.SCHEDULE_1 },
+					cascadeUnassignedShiftIds: [],
+				},
+				error: null,
+				status: 200,
+			},
+		);
+
 		render(
 			<AdjustmentWizardDialog
 				isOpen={true}
@@ -460,12 +491,30 @@ describe('AdjustmentWizardDialog', () => {
 
 		const datetimeProps = stepDatetimeCandidatesSpy.mock.lastCall?.[0] as {
 			requestCandidates: unknown;
-			requestAssign: unknown;
+			requestAssign: (input: {
+				shiftId: string;
+				newStaffId: string;
+				newStartTime: Date;
+				newEndTime: Date;
+			}) => Promise<unknown>;
 		};
 
 		// mockApi がない場合でも実APIをラップした関数が渡される
 		expect(datetimeProps.requestCandidates).toBeTypeOf('function');
 		expect(datetimeProps.requestAssign).toBeTypeOf('function');
+
+		// requestAssign を呼び出すと実際の Action が呼ばれる
+		const payload = {
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_1,
+			newStartTime: new Date('2026-02-22T09:00:00+09:00'),
+			newEndTime: new Date('2026-02-22T10:00:00+09:00'),
+		};
+		await datetimeProps.requestAssign(payload);
+
+		expect(
+			actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction,
+		).toHaveBeenCalledWith(payload);
 	});
 
 	it('Step3B候補取得は suggestCandidateStaffForShiftWithNewDatetimeAction を呼び出す', async () => {
