@@ -72,6 +72,15 @@ export type AdjustmentWizardSuggestion = {
 	newEndTime: Date;
 };
 
+export type AdjustmentWizardMockApi = {
+	assignStaffWithCascadeUnassign: NonNullable<
+		StepHelperCandidatesProps['requestAssign']
+	>;
+	updateDatetimeAndAssignWithCascadeUnassign: NonNullable<
+		StepDatetimeCandidatesProps['requestAssign']
+	>;
+};
+
 type AdjustmentWizardDialogProps = {
 	isOpen: boolean;
 	shiftId: string;
@@ -80,6 +89,7 @@ type AdjustmentWizardDialogProps = {
 	onClose: () => void;
 	onAssigned?: (suggestion: AdjustmentWizardSuggestion) => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
+	mockApi?: Partial<AdjustmentWizardMockApi>;
 };
 
 type Candidate =
@@ -190,6 +200,7 @@ export const AdjustmentWizardDialog = ({
 	onClose,
 	onAssigned,
 	onCascadeReopen,
+	mockApi,
 }: AdjustmentWizardDialogProps) => {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const inputIdBase = useId();
@@ -223,9 +234,15 @@ export const AdjustmentWizardDialog = ({
 				newStartTime: initialStartTime,
 				newEndTime: initialEndTime,
 			};
+			if (mockApi?.assignStaffWithCascadeUnassign) {
+				return mockApi.assignStaffWithCascadeUnassign({
+					shiftId: targetShiftId,
+					newStaffId,
+				});
+			}
 			return successNoPersist();
 		},
-		[initialEndTime, initialStartTime],
+		[initialEndTime, initialStartTime, mockApi],
 	);
 
 	const requestDatetimeCandidates = useCallback<
@@ -265,9 +282,17 @@ export const AdjustmentWizardDialog = ({
 				newStartTime,
 				newEndTime,
 			};
+			if (mockApi?.updateDatetimeAndAssignWithCascadeUnassign) {
+				return mockApi.updateDatetimeAndAssignWithCascadeUnassign({
+					shiftId: targetShiftId,
+					newStaffId,
+					newStartTime,
+					newEndTime,
+				});
+			}
 			return successNoPersist();
 		},
-		[],
+		[mockApi],
 	);
 
 	useEffect(() => {

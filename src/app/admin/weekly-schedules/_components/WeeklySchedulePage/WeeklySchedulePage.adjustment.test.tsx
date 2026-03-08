@@ -85,6 +85,7 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		onAssigned,
 		onClose,
 		onCascadeReopen,
+		mockApi,
 	}: {
 		isOpen: boolean;
 		shiftId: string;
@@ -98,6 +99,7 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 			newEndTime: Date;
 		}) => void;
 		onCascadeReopen?: (shiftIds: string[]) => void;
+		mockApi?: Partial<AdjustmentWizardMockApi>;
 	}) =>
 		isOpen ? (
 			<div>
@@ -127,10 +129,35 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 				>
 					連鎖再オープン
 				</button>
+				<button
+					type="button"
+					onClick={async () => {
+						await mockApi?.assignStaffWithCascadeUnassign?.({
+							shiftId,
+							newStaffId: TEST_IDS.STAFF_2,
+						});
+					}}
+				>
+					mockApi assign
+				</button>
+				<button
+					type="button"
+					onClick={async () => {
+						await mockApi?.updateDatetimeAndAssignWithCascadeUnassign?.({
+							shiftId,
+							newStaffId: TEST_IDS.STAFF_2,
+							newStartTime: new Date('2026-01-19T02:00:00.000Z'),
+							newEndTime: new Date('2026-01-19T03:00:00.000Z'),
+						});
+					}}
+				>
+					mockApi datetime assign
+				</button>
 			</div>
 		) : null,
 }));
 
+import type { AdjustmentWizardMockApi } from '../AdjustmentWizardDialog';
 import type { ShiftDisplayRow } from '../ShiftTable';
 import {
 	WeeklySchedulePage,
@@ -237,6 +264,69 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		expect(screen.queryByText(/Suggested staff:/)).not.toBeInTheDocument();
 		expect(screen.queryByText(/Suggested start:/)).not.toBeInTheDocument();
 		expect(screen.queryByText(/Suggested end:/)).not.toBeInTheDocument();
+	});
+
+	it('adjustmentWizardMockApi.updateDatetimeAssign を透過し、実呼び出しできる', async () => {
+		const user = userEvent.setup();
+		const updateDatetimeAssignMock = vi.fn().mockResolvedValue({
+			data: {
+				updatedShift: { id: TEST_IDS.SCHEDULE_1 },
+				cascadeUnassignedShiftIds: [TEST_IDS.SCHEDULE_2],
+			},
+			error: null,
+			status: 200,
+		});
+		const mockApi: Partial<AdjustmentWizardMockApi> = {
+			updateDatetimeAndAssignWithCascadeUnassign: updateDatetimeAssignMock,
+		};
+
+		render(
+			<WeeklySchedulePage
+				{...defaultProps}
+				adjustmentWizardMockApi={mockApi}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(
+			screen.getByRole('button', { name: 'mockApi datetime assign' }),
+		);
+
+		expect(updateDatetimeAssignMock).toHaveBeenCalledWith({
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_2,
+			newStartTime: new Date('2026-01-19T02:00:00.000Z'),
+			newEndTime: new Date('2026-01-19T03:00:00.000Z'),
+		});
+	});
+
+	it('adjustmentWizardMockApi を AdjustmentWizardDialog に透過し、実呼び出しできる', async () => {
+		const user = userEvent.setup();
+		const assignMock = vi.fn().mockResolvedValue({
+			data: { cascadeUnassignedShiftIds: [] },
+			error: null,
+			status: 200,
+		});
+		const mockApi: Partial<AdjustmentWizardMockApi> = {
+			assignStaffWithCascadeUnassign: assignMock,
+		};
+
+		render(
+			<WeeklySchedulePage
+				{...defaultProps}
+				adjustmentWizardMockApi={mockApi}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+		await user.click(screen.getByRole('button', { name: 'mockApi assign' }));
+
+		expect(assignMock).toHaveBeenCalledWith({
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_2,
+		});
 	});
 
 	it('onCascadeReopen が unknown shiftId を返したときは wizard を開かない', async () => {
