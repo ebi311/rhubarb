@@ -306,6 +306,64 @@ describe('AdjustmentWizardDialog', () => {
 		expect(result.data?.cascadeUnassignedShiftIds).toEqual([]);
 	});
 
+	it('Partial mock: helper candidatesのみ差し替え時、assignはnon-persistentフォールバックを使う', async () => {
+		const user = userEvent.setup();
+		const requestHelperCandidates = vi.fn().mockResolvedValue({
+			data: {
+				candidates: [
+					{
+						staffId: TEST_IDS.STAFF_1,
+						staffName: 'モック候補',
+						conflictingShifts: [],
+					},
+				],
+			},
+			error: null,
+			status: 200,
+		});
+
+		render(
+			<AdjustmentWizardDialog
+				isOpen={true}
+				shiftId={TEST_IDS.SCHEDULE_1}
+				initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+				initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+				onClose={vi.fn()}
+				mockApi={{ requestHelperCandidates }}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
+
+		const helperProps = stepHelperCandidatesSpy.mock.lastCall?.[0] as {
+			requestCandidates: (input: { shiftId: string }) => Promise<unknown>;
+			requestAssign: (input: {
+				shiftId: string;
+				newStaffId: string;
+			}) => Promise<{
+				data: {
+					cascadeUnassignedShiftIds: string[];
+				} | null;
+				error: string | null;
+				status: number;
+			}>;
+		};
+
+		await helperProps.requestCandidates({ shiftId: TEST_IDS.SCHEDULE_1 });
+		const assignResult = await helperProps.requestAssign({
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_1,
+		});
+
+		expect(requestHelperCandidates).toHaveBeenCalledWith({
+			shiftId: TEST_IDS.SCHEDULE_1,
+		});
+		expect(
+			actionMocks.assignStaffWithCascadeUnassignAction,
+		).not.toHaveBeenCalled();
+		expect(assignResult.data?.cascadeUnassignedShiftIds).toEqual([]);
+	});
+
 	it('datetime割当は永続化せずに成功を返す', async () => {
 		const user = userEvent.setup();
 		render(

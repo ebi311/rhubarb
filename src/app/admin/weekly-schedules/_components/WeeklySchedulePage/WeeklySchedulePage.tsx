@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
 	AdjustmentWizardDialog,
+	type AdjustmentWizardMockApi,
 	type AdjustmentWizardSuggestion,
 } from '../AdjustmentWizardDialog';
 import {
@@ -39,6 +40,7 @@ export interface WeeklySchedulePageProps {
 	initialShifts: ShiftDisplayRow[];
 	staffOptions: StaffPickerOption[];
 	clientOptions: { id: string; name: string }[];
+	adjustmentWizardMockApi?: AdjustmentWizardMockApi;
 }
 
 const shiftToDateTime = (
@@ -187,6 +189,7 @@ export const WeeklySchedulePage = ({
 	initialShifts,
 	staffOptions,
 	clientOptions,
+	adjustmentWizardMockApi,
 }: WeeklySchedulePageProps) => {
 	const router = useRouter();
 	const weekStartDateStr = formatJstDateString(weekStartDate);
@@ -343,6 +346,7 @@ export const WeeklySchedulePage = ({
 					onCascadeReopen={(shiftIds) => {
 						setWizardShiftId(getReopenWizardShiftId(initialShifts, shiftIds));
 					}}
+					mockApi={adjustmentWizardMockApi}
 				/>
 			)}
 

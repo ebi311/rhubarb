@@ -3,6 +3,7 @@ import { TEST_IDS } from '@/test/helpers/testIds';
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { fn } from 'storybook/test';
 import type { ShiftDisplayRow } from '../ShiftTable';
+import type { WeeklySchedulePageProps } from './WeeklySchedulePage';
 import { WeeklySchedulePage } from './WeeklySchedulePage';
 
 const meta: Meta<typeof WeeklySchedulePage> = {
@@ -180,5 +181,125 @@ export const ManyShifts: Story = {
 		],
 		staffOptions: sampleStaffOptions,
 		clientOptions: sampleClientOptions,
+	},
+};
+
+const helperCandidate = {
+	staffId: TEST_IDS.STAFF_2,
+	staffName: '佐々木健太',
+	conflictingShifts: [],
+};
+
+const mockApiWithCandidates: NonNullable<
+	WeeklySchedulePageProps['adjustmentWizardMockApi']
+> = {
+	requestHelperCandidates: async () => ({
+		data: { candidates: [helperCandidate] },
+		error: null,
+		status: 200,
+	}),
+	requestHelperAssign: async () => ({
+		data: { cascadeUnassignedShiftIds: [] },
+		error: null,
+		status: 200,
+	}),
+	requestDatetimeCandidates: async () => ({
+		data: { candidates: [helperCandidate] },
+		error: null,
+		status: 200,
+	}),
+	requestDatetimeAssign: async () => ({
+		data: { cascadeUnassignedShiftIds: [] },
+		error: null,
+		status: 200,
+	}),
+};
+
+const mockApiWithoutCandidates: NonNullable<
+	WeeklySchedulePageProps['adjustmentWizardMockApi']
+> = {
+	...mockApiWithCandidates,
+	requestHelperCandidates: async () => ({
+		data: { candidates: [] },
+		error: null,
+		status: 200,
+	}),
+	requestDatetimeCandidates: async () => ({
+		data: { candidates: [] },
+		error: null,
+		status: 200,
+	}),
+};
+
+const mockApiWithError: NonNullable<
+	WeeklySchedulePageProps['adjustmentWizardMockApi']
+> = {
+	...mockApiWithCandidates,
+	requestHelperCandidates: async () => ({
+		data: null,
+		error: 'Mock: 候補取得でエラー',
+		status: 500,
+	}),
+	requestDatetimeCandidates: async () => ({
+		data: null,
+		error: 'Mock: 候補取得でエラー',
+		status: 500,
+	}),
+};
+
+export const AdjustmentMockCandidates: Story = {
+	name: 'Adjustment Mock / 候補あり',
+	args: {
+		weekStartDate,
+		initialShifts: sampleShifts,
+		staffOptions: sampleStaffOptions,
+		clientOptions: sampleClientOptions,
+		adjustmentWizardMockApi: mockApiWithCandidates,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					'「担当者変更 → 調整相談 → ヘルパーの変更」でモック候補（佐々木健太）が表示されます。',
+			},
+		},
+	},
+};
+
+export const AdjustmentMockNoCandidates: Story = {
+	name: 'Adjustment Mock / 候補なし',
+	args: {
+		weekStartDate,
+		initialShifts: sampleShifts,
+		staffOptions: sampleStaffOptions,
+		clientOptions: sampleClientOptions,
+		adjustmentWizardMockApi: mockApiWithoutCandidates,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					'同じ導線で「候補ヘルパーが見つかりませんでした。」を確認できます。',
+			},
+		},
+	},
+};
+
+export const AdjustmentMockError: Story = {
+	name: 'Adjustment Mock / エラー',
+	args: {
+		weekStartDate,
+		initialShifts: sampleShifts,
+		staffOptions: sampleStaffOptions,
+		clientOptions: sampleClientOptions,
+		adjustmentWizardMockApi: mockApiWithError,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					'同じ導線でエラー時挙動（候補が空表示になり、保存は行わない）を確認できます。',
+			},
+		},
 	},
 };

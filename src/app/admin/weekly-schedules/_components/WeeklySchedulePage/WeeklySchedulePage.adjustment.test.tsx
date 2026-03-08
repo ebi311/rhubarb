@@ -5,6 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
+let capturedWizardMockApi:
+	| {
+			requestHelperAssign?: (input: {
+				shiftId: string;
+				newStaffId: string;
+			}) => Promise<unknown>;
+	  }
+	| undefined;
 
 vi.mock('next/navigation', () => ({
 	useRouter: () => ({
@@ -82,6 +90,7 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		shiftId,
 		initialStartTime,
 		initialEndTime,
+		mockApi,
 		onAssigned,
 		onClose,
 		onCascadeReopen,
@@ -90,6 +99,12 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		shiftId: string;
 		initialStartTime: Date;
 		initialEndTime: Date;
+		mockApi?: {
+			requestHelperAssign?: (input: {
+				shiftId: string;
+				newStaffId: string;
+			}) => Promise<unknown>;
+		};
 		onClose?: () => void;
 		onAssigned?: (payload: {
 			shiftId: string;
@@ -101,6 +116,10 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 	}) =>
 		isOpen ? (
 			<div>
+				{(() => {
+					capturedWizardMockApi = mockApi;
+					return null;
+				})()}
 				<p>Wizard Open: {shiftId}</p>
 				<p>Start: {initialStartTime.toISOString()}</p>
 				<p>End: {initialEndTime.toISOString()}</p>
@@ -140,6 +159,7 @@ import {
 describe('WeeklySchedulePage (Adjustment entry)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		capturedWizardMockApi = undefined;
 	});
 	const sampleShifts: ShiftDisplayRow[] = [
 		{
@@ -254,5 +274,37 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		expect(
 			screen.queryByText(`Wizard Open: ${TEST_IDS.SCHEDULE_1}`),
 		).not.toBeInTheDocument();
+	});
+
+	it('UIモック経路では adjustmentWizardMockApi を Wizard に引き渡す', async () => {
+		const user = userEvent.setup();
+		const requestHelperAssign = vi.fn().mockResolvedValue({
+			data: { cascadeUnassignedShiftIds: [] },
+			error: null,
+			status: 200,
+		});
+
+		render(
+			<WeeklySchedulePage
+				{...defaultProps}
+				adjustmentWizardMockApi={{
+					requestHelperAssign,
+				}}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+		await user.click(screen.getByRole('button', { name: '調整相談' }));
+
+		expect(capturedWizardMockApi).toBeDefined();
+		await capturedWizardMockApi?.requestHelperAssign?.({
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_2,
+		});
+
+		expect(requestHelperAssign).toHaveBeenCalledWith({
+			shiftId: TEST_IDS.SCHEDULE_1,
+			newStaffId: TEST_IDS.STAFF_2,
+		});
 	});
 });

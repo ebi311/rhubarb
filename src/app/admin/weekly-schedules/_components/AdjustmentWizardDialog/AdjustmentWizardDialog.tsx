@@ -80,6 +80,7 @@ type AdjustmentWizardDialogProps = {
 	onClose: () => void;
 	onAssigned?: (suggestion: AdjustmentWizardSuggestion) => void;
 	onCascadeReopen?: (shiftIds: string[]) => void;
+	mockApi?: AdjustmentWizardMockApi;
 };
 
 type Candidate =
@@ -92,6 +93,26 @@ type Candidate =
 				: never
 			: never
 		: never;
+
+/**
+ * UIモック用途の差し替え口。
+ *
+ * NOTE: 各 assign 系は永続化を伴わない契約です。
+ * 未指定のAPIは既定実装へフォールバックし、assign未指定時は
+ * `cascadeUnassignedShiftIds: []` を返す non-persistent 成功として扱います。
+ */
+export type AdjustmentWizardMockApi = Partial<{
+	requestHelperCandidates: NonNullable<
+		StepHelperCandidatesProps['requestCandidates']
+	>;
+	requestHelperAssign: NonNullable<StepHelperCandidatesProps['requestAssign']>;
+	requestDatetimeCandidates: NonNullable<
+		StepDatetimeCandidatesProps['requestCandidates']
+	>;
+	requestDatetimeAssign: NonNullable<
+		StepDatetimeCandidatesProps['requestAssign']
+	>;
+}>;
 
 const mapActionError = <T,>(
 	error: string | null,
@@ -172,6 +193,10 @@ const buildCandidates = async (
 	return successResult({ candidates });
 };
 
+/**
+ * assignment処理の既定戻り値。
+ * DB更新は行わず、UI遷移のための成功レスポンスのみ返却する。
+ */
 const successNoPersist = (): ActionResult<{
 	cascadeUnassignedShiftIds: string[];
 }> => ({
@@ -190,6 +215,7 @@ export const AdjustmentWizardDialog = ({
 	onClose,
 	onAssigned,
 	onCascadeReopen,
+	mockApi,
 }: AdjustmentWizardDialogProps) => {
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const inputIdBase = useId();
@@ -208,9 +234,14 @@ export const AdjustmentWizardDialog = ({
 	const requestHelperCandidates = useCallback<
 		NonNullable<StepHelperCandidatesProps['requestCandidates']>
 	>(
-		async ({ shiftId: targetShiftId }) =>
-			buildCandidates(targetShiftId, initialStartTime, initialEndTime),
-		[initialEndTime, initialStartTime],
+		async ({ shiftId: targetShiftId }) => {
+			if (mockApi?.requestHelperCandidates) {
+				return mockApi.requestHelperCandidates({ shiftId: targetShiftId });
+			}
+
+			return buildCandidates(targetShiftId, initialStartTime, initialEndTime);
+		},
+		[initialEndTime, initialStartTime, mockApi],
 	);
 
 	const requestHelperAssign = useCallback<
@@ -223,32 +254,51 @@ export const AdjustmentWizardDialog = ({
 				newStartTime: initialStartTime,
 				newEndTime: initialEndTime,
 			};
+
+			if (mockApi?.requestHelperAssign) {
+				return mockApi.requestHelperAssign({
+					shiftId: targetShiftId,
+					newStaffId,
+				});
+			}
+
 			return successNoPersist();
 		},
-		[initialEndTime, initialStartTime],
+		[initialEndTime, initialStartTime, mockApi],
 	);
 
 	const requestDatetimeCandidates = useCallback<
 		NonNullable<StepDatetimeCandidatesProps['requestCandidates']>
-	>(async ({ shiftId: targetShiftId, newStartTime, newEndTime }) => {
-		const suggestResult =
-			await suggestCandidateStaffForShiftWithNewDatetimeAction({
-				shiftId: targetShiftId,
-				newStartTime,
-				newEndTime,
-			});
+	>(
+		async ({ shiftId: targetShiftId, newStartTime, newEndTime }) => {
+			if (mockApi?.requestDatetimeCandidates) {
+				return mockApi.requestDatetimeCandidates({
+					shiftId: targetShiftId,
+					newStartTime,
+					newEndTime,
+				});
+			}
 
-		if (suggestResult.error || !suggestResult.data) {
-			return mapActionError<{ candidates: Candidate[] }>(
-				suggestResult.error,
-				suggestResult.status,
-				suggestResult.details,
-				'候補スタッフの取得に失敗しました',
-			);
-		}
+			const suggestResult =
+				await suggestCandidateStaffForShiftWithNewDatetimeAction({
+					shiftId: targetShiftId,
+					newStartTime,
+					newEndTime,
+				});
 
-		return successResult({ candidates: suggestResult.data.candidates });
-	}, []);
+			if (suggestResult.error || !suggestResult.data) {
+				return mapActionError<{ candidates: Candidate[] }>(
+					suggestResult.error,
+					suggestResult.status,
+					suggestResult.details,
+					'候補スタッフの取得に失敗しました',
+				);
+			}
+
+			return successResult({ candidates: suggestResult.data.candidates });
+		},
+		[mockApi],
+	);
 
 	const requestDatetimeAssign = useCallback<
 		NonNullable<StepDatetimeCandidatesProps['requestAssign']>
@@ -265,9 +315,19 @@ export const AdjustmentWizardDialog = ({
 				newStartTime,
 				newEndTime,
 			};
+
+			if (mockApi?.requestDatetimeAssign) {
+				return mockApi.requestDatetimeAssign({
+					shiftId: targetShiftId,
+					newStaffId,
+					newStartTime,
+					newEndTime,
+				});
+			}
+
 			return successNoPersist();
 		},
-		[],
+		[mockApi],
 	);
 
 	useEffect(() => {
