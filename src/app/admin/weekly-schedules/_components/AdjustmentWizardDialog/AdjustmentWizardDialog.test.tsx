@@ -57,11 +57,9 @@ vi.mock('./StepHelperCandidates', () => ({
 				<button
 					type="button"
 					onClick={async () => {
-						// requestAssign が undefined の場合は実APIモックを使用
-						const assignFn =
-							requestAssign ?? actionMocks.assignStaffWithCascadeUnassignAction;
+						// requestAssign は常に関数が渡される（実APIをラップしたもの）
 						await (
-							assignFn as (input: {
+							requestAssign as (input: {
 								shiftId: string;
 								newStaffId: string;
 							}) => Promise<unknown>
@@ -107,9 +105,11 @@ vi.mock('./StepDatetimeInput', () => ({
 
 vi.mock('./StepDatetimeCandidates', () => ({
 	StepDatetimeCandidates: ({
+		onComplete,
 		requestCandidates,
 		requestAssign,
 	}: {
+		onComplete: () => void;
 		requestCandidates: unknown;
 		requestAssign: unknown;
 	}) => {
@@ -120,12 +120,9 @@ vi.mock('./StepDatetimeCandidates', () => ({
 				<button
 					type="button"
 					onClick={async () => {
-						// requestAssign が undefined の場合は実APIモックを使用
-						const assignFn =
-							requestAssign ??
-							actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction;
+						// requestAssign は常に関数が渡される（実APIをラップしたもの）
 						await (
-							assignFn as (input: {
+							requestAssign as (input: {
 								shiftId: string;
 								newStaffId: string;
 								newStartTime: Date;
@@ -137,6 +134,7 @@ vi.mock('./StepDatetimeCandidates', () => ({
 							newStartTime: new Date('2026-02-22T09:00:00+09:00'),
 							newEndTime: new Date('2026-02-22T10:00:00+09:00'),
 						});
+						onComplete();
 					}}
 				>
 					候補を確定
@@ -289,7 +287,7 @@ describe('AdjustmentWizardDialog', () => {
 		expect(datetimeProps.requestAssign).toBeTypeOf('function');
 	});
 
-	it('mockApi 未指定時は requestAssign が undefined となり子のデフォルト実API が使用される', async () => {
+	it('mockApi 未指定時でも requestAssign に実APIをラップした関数が渡される', async () => {
 		const user = userEvent.setup();
 		render(
 			<AdjustmentWizardDialog
@@ -308,9 +306,9 @@ describe('AdjustmentWizardDialog', () => {
 			requestAssign: unknown;
 		};
 
-		// mockApi がない場合は requestAssign が undefined になる（子のデフォルト実API を使用）
+		// mockApi がない場合でも実APIをラップした関数が渡される
 		expect(helperProps.requestCandidates).toBeTypeOf('function');
-		expect(helperProps.requestAssign).toBeUndefined();
+		expect(helperProps.requestAssign).toBeTypeOf('function');
 	});
 
 	it('mockApi.assignStaffWithCascadeUnassign が指定されていると helper割当で透過的に呼び出す', async () => {
@@ -360,7 +358,7 @@ describe('AdjustmentWizardDialog', () => {
 		]);
 	});
 
-	it('mockApi オブジェクトはあるが assign メソッドが未指定の場合は requestAssign が undefined になる', async () => {
+	it('mockApi オブジェクトはあるが assign メソッドが未指定の場合も実APIをラップした関数が渡される', async () => {
 		const user = userEvent.setup();
 		render(
 			<AdjustmentWizardDialog
@@ -379,8 +377,8 @@ describe('AdjustmentWizardDialog', () => {
 			requestAssign: unknown;
 		};
 
-		// mockApi オブジェクトはあるが assign メソッドが未指定の場合も undefined
-		expect(helperProps.requestAssign).toBeUndefined();
+		// mockApi オブジェクトはあるが assign メソッドが未指定の場合も実APIをラップした関数が渡される
+		expect(helperProps.requestAssign).toBeTypeOf('function');
 	});
 
 	it('mockApi.updateDatetimeAndAssignWithCascadeUnassign が指定されていると datetime割当で透過的に呼び出す', async () => {
@@ -445,7 +443,7 @@ describe('AdjustmentWizardDialog', () => {
 		]);
 	});
 
-	it('mockApi 未指定時は datetime の requestAssign も undefined となり子のデフォルト実API が使用される', async () => {
+	it('mockApi 未指定時でも datetime の requestAssign に実APIをラップした関数が渡される', async () => {
 		const user = userEvent.setup();
 		render(
 			<AdjustmentWizardDialog
@@ -465,9 +463,9 @@ describe('AdjustmentWizardDialog', () => {
 			requestAssign: unknown;
 		};
 
-		// mockApi がない場合は requestAssign が undefined になる（子のデフォルト実API を使用）
+		// mockApi がない場合でも実APIをラップした関数が渡される
 		expect(datetimeProps.requestCandidates).toBeTypeOf('function');
-		expect(datetimeProps.requestAssign).toBeUndefined();
+		expect(datetimeProps.requestAssign).toBeTypeOf('function');
 	});
 
 	it('Step3B候補取得は suggestCandidateStaffForShiftWithNewDatetimeAction を呼び出す', async () => {
@@ -910,5 +908,82 @@ describe('AdjustmentWizardDialog', () => {
 		);
 
 		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	describe('mockApi なし（本番相当）での onAssigned 動作', () => {
+		it('ヘルパー候補確定時に実API経由で onAssigned に提案データを渡す', async () => {
+			const user = userEvent.setup();
+			const onClose = vi.fn();
+			const onAssigned = vi.fn();
+
+			// 実APIモックを設定
+			actionMocks.assignStaffWithCascadeUnassignAction.mockResolvedValue({
+				data: { cascadeUnassignedShiftIds: [] },
+				error: null,
+				status: 200,
+			});
+
+			render(
+				<AdjustmentWizardDialog
+					isOpen={true}
+					shiftId={TEST_IDS.SCHEDULE_1}
+					initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+					initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+					onClose={onClose}
+					onAssigned={onAssigned}
+					// mockApi なし（本番相当）
+				/>,
+			);
+
+			await user.click(screen.getByRole('button', { name: 'ヘルパーの変更' }));
+			await user.click(screen.getByRole('button', { name: '候補を確定' }));
+
+			// mockApi なしでも onAssigned が正しいデータで呼ばれること
+			expect(onAssigned).toHaveBeenCalledWith({
+				shiftId: TEST_IDS.SCHEDULE_1,
+				newStaffId: TEST_IDS.STAFF_1,
+				newStartTime: new Date('2026-02-22T00:00:00.000Z'),
+				newEndTime: new Date('2026-02-22T01:00:00.000Z'),
+			});
+		});
+
+		it('日時候補確定時に実API経由で onAssigned に提案データを渡す', async () => {
+			const user = userEvent.setup();
+			const onClose = vi.fn();
+			const onAssigned = vi.fn();
+
+			// 実APIモックを設定
+			actionMocks.updateDatetimeAndAssignWithCascadeUnassignAction.mockResolvedValue(
+				{
+					data: { cascadeUnassignedShiftIds: [] },
+					error: null,
+					status: 200,
+				},
+			);
+
+			render(
+				<AdjustmentWizardDialog
+					isOpen={true}
+					shiftId={TEST_IDS.SCHEDULE_1}
+					initialStartTime={new Date('2026-02-22T09:00:00+09:00')}
+					initialEndTime={new Date('2026-02-22T10:00:00+09:00')}
+					onClose={onClose}
+					onAssigned={onAssigned}
+					// mockApi なし（本番相当）
+				/>,
+			);
+
+			await user.click(screen.getByRole('button', { name: '日時の変更' }));
+			await user.click(screen.getByRole('button', { name: '候補を表示' }));
+			await user.click(screen.getByRole('button', { name: '候補を確定' }));
+
+			// mockApi なしでも onAssigned が正しいデータで呼ばれること
+			expect(onAssigned).toHaveBeenCalledWith({
+				shiftId: TEST_IDS.SCHEDULE_1,
+				newStaffId: TEST_IDS.STAFF_1,
+				newStartTime: new Date('2026-02-22T00:00:00.000Z'),
+				newEndTime: new Date('2026-02-22T01:00:00.000Z'),
+			});
+		});
 	});
 });

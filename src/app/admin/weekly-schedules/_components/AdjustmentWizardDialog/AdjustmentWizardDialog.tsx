@@ -1,8 +1,10 @@
 'use client';
 
 import {
+	assignStaffWithCascadeUnassignAction,
 	suggestCandidateStaffForShiftAction,
 	suggestCandidateStaffForShiftWithNewDatetimeAction,
+	updateDatetimeAndAssignWithCascadeUnassignAction,
 	validateStaffAvailabilityAction,
 } from '@/app/actions/shifts';
 import { errorResult, successResult } from '@/app/actions/utils/actionResult';
@@ -214,15 +216,14 @@ export const AdjustmentWizardDialog = ({
 		[initialEndTime, initialStartTime],
 	);
 
-	// mockApi がある場合のみラッパーを作成し、selectedSuggestionRef を更新
-	// mockApi がない場合は undefined を渡し、子コンポーネントのデフォルト（実API）を使用
+	// mockApi の有無にかかわらずラッパーを作成し、selectedSuggestionRef を更新
+	// これにより onAssigned コールバックに正しいデータが渡される
 	const requestHelperAssign = useMemo<
 		StepHelperCandidatesProps['requestAssign']
 	>(() => {
-		if (!mockApi?.assignStaffWithCascadeUnassign) {
-			return undefined;
-		}
-		const mockAssign = mockApi.assignStaffWithCascadeUnassign;
+		const assignFn =
+			mockApi?.assignStaffWithCascadeUnassign ??
+			assignStaffWithCascadeUnassignAction;
 		return async ({ shiftId: targetShiftId, newStaffId }) => {
 			selectedSuggestionRef.current = {
 				shiftId: targetShiftId,
@@ -230,9 +231,13 @@ export const AdjustmentWizardDialog = ({
 				newStartTime: initialStartTime,
 				newEndTime: initialEndTime,
 			};
-			return mockAssign({ shiftId: targetShiftId, newStaffId });
+			return assignFn({ shiftId: targetShiftId, newStaffId });
 		};
-	}, [initialEndTime, initialStartTime, mockApi]);
+	}, [
+		initialEndTime,
+		initialStartTime,
+		mockApi?.assignStaffWithCascadeUnassign,
+	]);
 
 	const requestDatetimeCandidates = useCallback<
 		NonNullable<StepDatetimeCandidatesProps['requestCandidates']>
@@ -256,15 +261,14 @@ export const AdjustmentWizardDialog = ({
 		return successResult({ candidates: suggestResult.data.candidates });
 	}, []);
 
-	// mockApi がある場合のみラッパーを作成し、selectedSuggestionRef を更新
-	// mockApi がない場合は undefined を渡し、子コンポーネントのデフォルト（実API）を使用
+	// mockApi の有無にかかわらずラッパーを作成し、selectedSuggestionRef を更新
+	// これにより onAssigned コールバックに正しいデータが渡される
 	const requestDatetimeAssign = useMemo<
 		StepDatetimeCandidatesProps['requestAssign']
 	>(() => {
-		if (!mockApi?.updateDatetimeAndAssignWithCascadeUnassign) {
-			return undefined;
-		}
-		const mockAssign = mockApi.updateDatetimeAndAssignWithCascadeUnassign;
+		const assignFn =
+			mockApi?.updateDatetimeAndAssignWithCascadeUnassign ??
+			updateDatetimeAndAssignWithCascadeUnassignAction;
 		return async ({
 			shiftId: targetShiftId,
 			newStaffId,
@@ -277,14 +281,14 @@ export const AdjustmentWizardDialog = ({
 				newStartTime,
 				newEndTime,
 			};
-			return mockAssign({
+			return assignFn({
 				shiftId: targetShiftId,
 				newStaffId,
 				newStartTime,
 				newEndTime,
 			});
 		};
-	}, [mockApi]);
+	}, [mockApi?.updateDatetimeAndAssignWithCascadeUnassign]);
 
 	useEffect(() => {
 		if (!isOpen) {
