@@ -1,11 +1,13 @@
 import { createSupabaseClient } from '@/utils/supabase/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { google } from '@ai-sdk/google';
+import { streamText } from 'ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+// Vercel AI SDK は user/assistant のみ許可（system はサーバー側で設定）
 const ChatMessageSchema = z.object({
-	role: z.enum(['user', 'assistant', 'system']),
-	content: z.string().min(1),
+	role: z.enum(['user', 'assistant']),
+	content: z.string().min(1).max(10000),
 });
 
 const ShiftContextItemSchema = z.object({
@@ -18,10 +20,10 @@ const ShiftContextItemSchema = z.object({
 });
 
 const ChatRequestSchema = z.object({
-	messages: z.array(ChatMessageSchema).min(1),
+	messages: z.array(ChatMessageSchema).min(1).max(50),
 	context: z
 		.object({
-			shifts: z.array(ShiftContextItemSchema).optional(),
+			shifts: z.array(ShiftContextItemSchema).max(10).optional(),
 		})
 		.optional(),
 });
@@ -60,15 +62,6 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 	);
 
 	return `\n\n## 現在のシフト情報\n${shiftLines.join('\n')}`;
-};
-
-const convertToGeminiHistory = (
-	messages: ChatMessage[],
-): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> => {
-	return messages.map((msg) => ({
-		role: msg.role === 'assistant' ? 'model' : 'user',
-		parts: [{ text: msg.content }],
-	}));
 };
 
 export const POST = async (request: Request): Promise<Response> => {
@@ -113,51 +106,21 @@ export const POST = async (request: Request): Promise<Response> => {
 			);
 		}
 
-		const genAI = new GoogleGenerativeAI(apiKey);
-		const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+		const systemPrompt = SYSTEM_PROMPT + buildContextPrompt(context);
 
-		const systemInstruction = SYSTEM_PROMPT + buildContextPrompt(context);
-		const history = convertToGeminiHistory(messages.slice(0, -1));
-		const lastMessage = messages[messages.length - 1];
-
-		const chat = model.startChat({
-			history,
-			systemInstruction,
+		// Vercel AI SDK の streamText を使用
+		// messages の型は streamText が受け入れる形式に変換
+		const result = streamText({
+			model: google('gemini-1.5-flash'),
+			system: systemPrompt,
+			messages: messages.map((m) => ({
+				role: m.role as 'user' | 'assistant',
+				content: m.content,
+			})),
 		});
 
-		const result = await chat.sendMessageStream(lastMessage.content);
-
-		// ストリーミングレスポンスを作成
-		const encoder = new TextEncoder();
-		const stream = new ReadableStream({
-			async start(controller) {
-				try {
-					for await (const chunk of result.stream) {
-						const text = chunk.text();
-						if (text) {
-							controller.enqueue(
-								encoder.encode(
-									`data: ${JSON.stringify({ content: text })}\n\n`,
-								),
-							);
-						}
-					}
-					controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-					controller.close();
-				} catch (error) {
-					console.error('Stream error:', error);
-					controller.error(error);
-				}
-			},
-		});
-
-		return new Response(stream, {
-			headers: {
-				'Content-Type': 'text/event-stream; charset=utf-8',
-				'Cache-Control': 'no-cache, no-transform',
-				Connection: 'keep-alive',
-			},
-		});
+		// テキストストリームレスポンスを返す（TextStreamChatTransport 用）
+		return result.toTextStreamResponse();
 	} catch (error) {
 		console.error('Chat API error:', error);
 		// 内部エラーの詳細はクライアントに露出しない

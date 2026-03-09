@@ -35,11 +35,13 @@
 		]
 	},
 	"dependencies": {
+		"@ai-sdk/google": "^3.0.43",
+		"@ai-sdk/react": "^3.0.118",
 		"@emotion/react": "^11.14.0",
-		"@google/generative-ai": "^0.24.1",
 		"@hookform/resolvers": "^5.2.2",
 		"@supabase/ssr": "^0.8.0",
 		"@supabase/supabase-js": "^2.87.1",
+		"ai": "^6.0.116",
 		"classnames": "^2.5.1",
 		"dayjs": "^1.11.19",
 		"material-symbols": "^0.40.2",

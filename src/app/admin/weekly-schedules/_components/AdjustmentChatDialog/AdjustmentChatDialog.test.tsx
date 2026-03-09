@@ -1,34 +1,15 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { AdjustmentChatDialog } from './AdjustmentChatDialog';
 
-// global.fetch をモック
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Vercel AI SDK useChat のモック
+const mockUseChat = vi.fn();
 
-const createMockSSEResponse = (chunks: string[]) => {
-	const encoder = new TextEncoder();
-	const data = chunks
-		.map((chunk) =>
-			chunk === '[DONE]'
-				? 'data: [DONE]\n\n'
-				: `data: {"content":"${chunk}"}\n\n`,
-		)
-		.join('');
-
-	const stream = new ReadableStream({
-		start(controller) {
-			controller.enqueue(encoder.encode(data));
-			controller.close();
-		},
-	});
-
-	return new Response(stream, {
-		headers: { 'Content-Type': 'text/event-stream' },
-	});
-};
+vi.mock('@ai-sdk/react', () => ({
+	useChat: () => mockUseChat(),
+}));
 
 const shiftContext = {
 	id: TEST_IDS.SCHEDULE_1,
@@ -39,11 +20,33 @@ const shiftContext = {
 	endTime: '11:00',
 };
 
+// デフォルトのモック状態を生成（AI SDK v6 API）
+const createMockUseChatReturn = (overrides: Record<string, unknown> = {}) => ({
+	messages: [],
+	status: 'ready', // v6: 'ready' | 'streaming' | 'submitted' | 'error'
+	error: null,
+	sendMessage: vi.fn(),
+	setMessages: vi.fn(),
+	stop: vi.fn(),
+	...overrides,
+});
+
 describe('AdjustmentChatDialog', () => {
+	let mockSendMessage: Mock;
+	let mockStop: Mock;
+	let mockSetMessages: Mock;
+
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockFetch.mockResolvedValue(
-			createMockSSEResponse(['こん', 'にちは', '[DONE]']),
+		mockSendMessage = vi.fn();
+		mockStop = vi.fn();
+		mockSetMessages = vi.fn();
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
 		);
 	});
 
@@ -85,8 +88,39 @@ describe('AdjustmentChatDialog', () => {
 	});
 
 	it('メッセージを送信してAI応答を受け取る', async () => {
+		// メッセージ送信後のレスポンス状態をシミュレート
+		// AI SDK v6: messages は parts 配列を持つ UIMessage 形式
+		mockUseChat
+			.mockReturnValueOnce(
+				createMockUseChatReturn({
+					messages: [],
+					sendMessage: mockSendMessage,
+					stop: mockStop,
+					setMessages: mockSetMessages,
+				}),
+			)
+			.mockReturnValueOnce(
+				createMockUseChatReturn({
+					messages: [
+						{
+							id: '1',
+							role: 'user',
+							parts: [{ type: 'text', text: 'このシフトの担当を変更したい' }],
+						},
+						{
+							id: '2',
+							role: 'assistant',
+							parts: [{ type: 'text', text: 'こんにちは' }],
+						},
+					],
+					sendMessage: mockSendMessage,
+					stop: mockStop,
+					setMessages: mockSetMessages,
+				}),
+			);
+
 		const user = userEvent.setup();
-		render(
+		const { rerender } = render(
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
@@ -98,20 +132,23 @@ describe('AdjustmentChatDialog', () => {
 		await user.type(input, 'このシフトの担当を変更したい');
 		await user.click(screen.getByRole('button', { name: '送信' }));
 
+		// sendMessage が呼ばれることを確認（v6: text フィールドを使用）
 		await waitFor(() => {
-			expect(mockFetch).toHaveBeenCalledWith(
-				'/api/chat/shift-adjustment',
-				expect.objectContaining({
-					method: 'POST',
-					body: expect.stringContaining('このシフトの担当を変更したい'),
-				}),
-			);
+			expect(mockSendMessage).toHaveBeenCalledWith({
+				text: 'このシフトの担当を変更したい',
+			});
 		});
 
-		// ストリーミング応答が表示される
-		await waitFor(() => {
-			expect(screen.getByText('こんにちは')).toBeInTheDocument();
-		});
+		// リレンダリング後に応答が表示される
+		rerender(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText('こんにちは')).toBeInTheDocument();
 	});
 
 	it('Enter キーでメッセージを送信する', async () => {
@@ -128,7 +165,7 @@ describe('AdjustmentChatDialog', () => {
 		await user.type(input, 'テストメッセージ{enter}');
 
 		await waitFor(() => {
-			expect(mockFetch).toHaveBeenCalled();
+			expect(mockSendMessage).toHaveBeenCalled();
 		});
 	});
 
@@ -146,7 +183,7 @@ describe('AdjustmentChatDialog', () => {
 		await user.type(input, '1行目{Shift>}{enter}{/Shift}2行目');
 
 		// 送信されていないことを確認
-		expect(mockFetch).not.toHaveBeenCalled();
+		expect(mockSendMessage).not.toHaveBeenCalled();
 		expect(input).toHaveValue('1行目\n2行目');
 	});
 
@@ -168,7 +205,7 @@ describe('AdjustmentChatDialog', () => {
 		expect(submitButton).toBeDisabled();
 	});
 
-	it('閉じるボタンで onClose が呼ばれる', async () => {
+	it('閉じるボタンで onClose が呼ばれ、stop() も呼ばれる', async () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
 		render(
@@ -180,52 +217,17 @@ describe('AdjustmentChatDialog', () => {
 		);
 
 		await user.click(screen.getByRole('button', { name: '閉じる' }));
+		expect(mockStop).toHaveBeenCalled();
 		expect(onClose).toHaveBeenCalled();
 	});
 
-	it('ストリーミング中は入力が無効化される', async () => {
-		const user = userEvent.setup();
-		// 長時間待機するストリームをモック
-		let resolveStream: (() => void) | undefined;
-		mockFetch.mockImplementation(
-			() =>
-				new Promise<Response>((resolve) => {
-					resolveStream = () =>
-						resolve(createMockSSEResponse(['応答', '[DONE]']));
-				}),
-		);
-
-		render(
-			<AdjustmentChatDialog
-				isOpen={true}
-				shiftContext={shiftContext}
-				onClose={vi.fn()}
-			/>,
-		);
-
-		const input = screen.getByPlaceholderText('メッセージを入力...');
-		await user.type(input, 'テスト');
-		await user.click(screen.getByRole('button', { name: '送信' }));
-
-		// ストリーミング中は入力が無効
-		await waitFor(() => {
-			expect(screen.getByPlaceholderText('メッセージを入力...')).toBeDisabled();
-		});
-
-		// ストリームを完了
-		resolveStream?.();
-
-		// ストリーミング完了後は入力が有効
-		await waitFor(() => {
-			expect(screen.getByPlaceholderText('メッセージを入力...')).toBeEnabled();
-		});
-	});
-
-	it('エラー時はエラーメッセージを表示する', async () => {
-		const user = userEvent.setup();
-		mockFetch.mockResolvedValueOnce(
-			new Response(JSON.stringify({ error: 'AI service is not configured' }), {
-				status: 500,
+	it('ストリーミング中は入力が無効化される', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				status: 'streaming', // v6: isLoading → status
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
 			}),
 		);
 
@@ -237,12 +239,30 @@ describe('AdjustmentChatDialog', () => {
 			/>,
 		);
 
-		const input = screen.getByPlaceholderText('メッセージを入力...');
-		await user.type(input, 'テスト');
-		await user.click(screen.getByRole('button', { name: '送信' }));
+		// ストリーミング中は入力が無効
+		expect(screen.getByPlaceholderText('メッセージを入力...')).toBeDisabled();
+	});
 
-		await waitFor(() => {
-			expect(screen.getByText(/エラーが発生しました/)).toBeInTheDocument();
-		});
+	it('エラー時はエラーメッセージを表示する', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				error: new Error('AI service is not configured'),
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.getByText(/AI service is not configured/),
+		).toBeInTheDocument();
 	});
 });

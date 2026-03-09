@@ -16,9 +16,16 @@ export const AdjustmentChatDialog = ({
 	shiftContext,
 	onClose,
 }: AdjustmentChatDialogProps) => {
-	const { messages, isStreaming, error, sendMessage } = useAdjustmentChat({
-		shiftContext,
-	});
+	const { messages, isStreaming, error, sendMessage, stop } = useAdjustmentChat(
+		{
+			shiftContext,
+		},
+	);
+
+	const handleClose = () => {
+		stop(); // ストリーミング中止
+		onClose();
+	};
 
 	if (!isOpen) return null;
 
@@ -47,7 +54,7 @@ export const AdjustmentChatDialog = ({
 						type="button"
 						className="btn btn-ghost btn-sm"
 						aria-label="閉じる"
-						onClick={onClose}
+						onClick={handleClose}
 					>
 						✕
 					</button>
