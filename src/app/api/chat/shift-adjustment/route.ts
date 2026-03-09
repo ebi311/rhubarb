@@ -4,11 +4,32 @@ import { streamText } from 'ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-// Vercel AI SDK は user/assistant のみ許可（system はサーバー側で設定）
+// AI SDK v6 の UIMessage 形式（parts 配列）をサポート
+const TextPartSchema = z.object({
+	type: z.literal('text'),
+	text: z.string(),
+});
+
+// Vercel AI SDK v6 は parts 配列形式でメッセージを送信
 const ChatMessageSchema = z.object({
 	role: z.enum(['user', 'assistant']),
-	content: z.string().min(1).max(10000),
+	// v6: parts 配列形式（content は後方互換性のため optional）
+	parts: z.array(TextPartSchema).optional(),
+	content: z.string().max(10000).optional(),
 });
+
+// メッセージからテキストコンテンツを抽出
+const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
+	// parts 配列がある場合はそこからテキストを抽出
+	if (msg.parts && msg.parts.length > 0) {
+		return msg.parts
+			.filter((p) => p.type === 'text')
+			.map((p) => p.text)
+			.join('');
+	}
+	// fallback: content フィールド
+	return msg.content ?? '';
+};
 
 const ShiftContextItemSchema = z.object({
 	id: z.string().uuid(),
@@ -110,12 +131,13 @@ export const POST = async (request: Request): Promise<Response> => {
 
 		// Vercel AI SDK の streamText を使用
 		// messages の型は streamText が受け入れる形式に変換
+		// v6: parts 配列または content から文字列を抽出
 		const result = streamText({
 			model: google('gemini-1.5-flash'),
 			system: systemPrompt,
 			messages: messages.map((m) => ({
 				role: m.role as 'user' | 'assistant',
-				content: m.content,
+				content: extractContent(m),
 			})),
 		});
 
