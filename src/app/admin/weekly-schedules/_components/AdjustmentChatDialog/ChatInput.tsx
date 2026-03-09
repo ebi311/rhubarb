@@ -9,6 +9,7 @@ type ChatInputProps = {
 
 export const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
 	const [value, setValue] = useState('');
+	const [isComposing, setIsComposing] = useState(false);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 	const handleSubmit = useCallback(() => {
@@ -21,12 +22,13 @@ export const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-			if (e.key === 'Enter' && !e.shiftKey) {
+			// IME 入力中（漢字変換中など）は Enter で送信しない
+			if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
 				e.preventDefault();
 				handleSubmit();
 			}
 		},
-		[handleSubmit],
+		[handleSubmit, isComposing],
 	);
 
 	const isSubmitDisabled = disabled || !value.trim();
@@ -41,6 +43,8 @@ export const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
 				value={value}
 				onChange={(e) => setValue(e.target.value)}
 				onKeyDown={handleKeyDown}
+				onCompositionStart={() => setIsComposing(true)}
+				onCompositionEnd={() => setIsComposing(false)}
 				disabled={disabled}
 			/>
 			<button
