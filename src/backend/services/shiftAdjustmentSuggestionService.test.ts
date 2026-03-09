@@ -875,5 +875,177 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			expect(result[1]!.name).toBe('斎藤');
 			expect(result[2]!.name).toBe('山田');
 		});
+
+		it('シフト間インターバル（30分）を考慮して重複判定する', async () => {
+			const helperAId = createTestId();
+			const helperBId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperBId,
+					name: 'ヘルパーB',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			// ヘルパーAは 9:00-9:30 にシフトあり
+			// 要求時間帯: 9:30-10:30
+			// インターバル30分を考慮すると 10:00 まで空きなし → ヘルパーAは対象外
+			mockShiftRepo.list.mockResolvedValueOnce([
+				createShift({
+					id: createTestId(),
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: helperAId,
+					date: new Date('2026-02-25T00:00:00+09:00'),
+					time: {
+						start: { hour: 9, minute: 0 },
+						end: { hour: 9, minute: 30 },
+					},
+					status: 'scheduled',
+				}),
+			]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 9, minute: 30 },
+				endTime: { hour: 10, minute: 30 },
+			});
+
+			// ヘルパーAはインターバル内（9:30 開始だが、既存シフト終了 9:30 + 30分 = 10:00 まで不可）
+			expect(result).toHaveLength(1);
+			expect(result[0]!.name).toBe('ヘルパーB');
+		});
+
+		it('インターバル後なら空きと判定する', async () => {
+			const helperAId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			// ヘルパーAは 9:00-9:30 にシフトあり
+			// 要求時間帯: 10:00-11:00
+			// インターバル30分を考慮しても 10:00 開始なら OK
+			mockShiftRepo.list.mockResolvedValueOnce([
+				createShift({
+					id: createTestId(),
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: helperAId,
+					date: new Date('2026-02-25T00:00:00+09:00'),
+					time: {
+						start: { hour: 9, minute: 0 },
+						end: { hour: 9, minute: 30 },
+					},
+					status: 'scheduled',
+				}),
+			]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			});
+
+			// 9:30 + 30分 = 10:00 なのでギリギリOK
+			expect(result).toHaveLength(1);
+			expect(result[0]!.name).toBe('ヘルパーA');
+		});
+
+		it('要求終了時刻がインターバルを考慮して既存シフト開始前なら空きと判定する', async () => {
+			const helperAId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			// ヘルパーAは 11:00-12:00 にシフトあり
+			// 要求時間帯: 10:00-10:30
+			// 要求終了 10:30 + 30分 = 11:00 で既存シフト開始なのでOK
+			mockShiftRepo.list.mockResolvedValueOnce([
+				createShift({
+					id: createTestId(),
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: helperAId,
+					date: new Date('2026-02-25T00:00:00+09:00'),
+					time: {
+						start: { hour: 11, minute: 0 },
+						end: { hour: 12, minute: 0 },
+					},
+					status: 'scheduled',
+				}),
+			]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 10, minute: 30 },
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]!.name).toBe('ヘルパーA');
+		});
+
+		it('要求終了時刻 + インターバルが既存シフト開始を超えていたら対象外', async () => {
+			const helperAId = createTestId();
+			const helperBId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperBId,
+					name: 'ヘルパーB',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			// ヘルパーAは 11:00-12:00 にシフトあり
+			// 要求時間帯: 10:00-10:45
+			// 要求終了 10:45 + 30分 = 11:15 で既存シフト開始 11:00 を超えるのでNG
+			mockShiftRepo.list.mockResolvedValueOnce([
+				createShift({
+					id: createTestId(),
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: helperAId,
+					date: new Date('2026-02-25T00:00:00+09:00'),
+					time: {
+						start: { hour: 11, minute: 0 },
+						end: { hour: 12, minute: 0 },
+					},
+					status: 'scheduled',
+				}),
+			]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 10, minute: 45 },
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]!.name).toBe('ヘルパーB');
+		});
 	});
 });

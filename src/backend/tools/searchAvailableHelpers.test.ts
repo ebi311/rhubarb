@@ -94,5 +94,51 @@ describe('searchAvailableHelpers tool', () => {
 				SearchAvailableHelpersParametersSchema.safeParse(invalidParams);
 			expect(result.success).toBe(false);
 		});
+
+		it('startTime が endTime より後の場合を拒否する', () => {
+			const invalidParams = {
+				date: '2026-02-25',
+				startTime: { hour: 11, minute: 0 },
+				endTime: { hour: 10, minute: 0 },
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(invalidParams);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.issues[0]?.message).toContain(
+					'開始時刻は終了時刻より前',
+				);
+			}
+		});
+
+		it('startTime と endTime が同じ場合を拒否する', () => {
+			const invalidParams = {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 30 },
+				endTime: { hour: 10, minute: 30 },
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(invalidParams);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.issues[0]?.message).toContain(
+					'開始時刻は終了時刻より前',
+				);
+			}
+		});
+
+		it('分が異なるケースで startTime < endTime が正しく判定される', () => {
+			const validParams = {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 10, minute: 30 },
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(validParams);
+			expect(result.success).toBe(true);
+		});
 	});
 });

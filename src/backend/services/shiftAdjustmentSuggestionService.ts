@@ -1,3 +1,4 @@
+import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { ClientStaffAssignmentRepository } from '@/backend/repositories/clientStaffAssignmentRepository';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
@@ -62,6 +63,34 @@ const isOverlapping = (
 ): boolean => {
 	// [start, end) の重なり
 	return a.start < b.end && b.start < a.end;
+};
+
+/**
+ * インターバル（移動時間）を考慮した重なり判定
+ * @param request 要求された時間帯
+ * @param existing 既存のシフト時間帯
+ * @param intervalMinutes インターバル（分）
+ * @returns 重なりがあるかどうか
+ *
+ * 判定ロジック:
+ * - 要求開始時刻 < 既存終了時刻 + インターバル（既存シフト後にインターバルが必要）
+ * - 既存開始時刻 < 要求終了時刻 + インターバル（要求シフト後に移動してから既存シフトに入る）
+ */
+const isOverlappingWithInterval = (
+	request: { start: Date; end: Date },
+	existing: { start: Date; end: Date },
+	intervalMinutes: number,
+): boolean => {
+	const intervalMs = intervalMinutes * 60 * 1000;
+	// 既存シフト終了後 + インターバル時間の間に要求が開始するか
+	const existingEndWithInterval = new Date(existing.end.getTime() + intervalMs);
+	// 要求シフト終了後 + インターバル時間の間に既存が開始するか
+	const requestEndWithInterval = new Date(request.end.getTime() + intervalMs);
+
+	return (
+		request.start < existingEndWithInterval &&
+		existing.start < requestEndWithInterval
+	);
 };
 
 const toShiftSnapshot = (shift: {
@@ -383,6 +412,26 @@ export class ShiftAdjustmentSuggestionService {
 		const staffShifts = params.shiftsByStaff.get(params.staffId) ?? [];
 		return staffShifts.some((s) =>
 			isOverlapping(params.range, { start: s.start, end: s.end }),
+		);
+	};
+
+	/**
+	 * インターバル（移動時間）を考慮した重複チェック
+	 * findAvailableHelpers 専用
+	 */
+	private hasConflictForRangeWithInterval = (params: {
+		shiftsByStaff: StaffShiftsByStaff;
+		staffId: string;
+		range: { start: Date; end: Date };
+		intervalMinutes: number;
+	}): boolean => {
+		const staffShifts = params.shiftsByStaff.get(params.staffId) ?? [];
+		return staffShifts.some((s) =>
+			isOverlappingWithInterval(
+				params.range,
+				{ start: s.start, end: s.end },
+				params.intervalMinutes,
+			),
 		);
 	};
 
@@ -751,11 +800,12 @@ export class ShiftAdjustmentSuggestionService {
 				continue;
 			}
 
-			// 時間重複がないかチェック
-			const hasConflict = this.hasConflictForRange({
+			// 時間重複がないかチェック（インターバル考慮）
+			const hasConflict = this.hasConflictForRangeWithInterval({
 				shiftsByStaff,
 				staffId: helper.id,
 				range,
+				intervalMinutes: STAFF_SHIFT_INTERVAL_MINUTES,
 			});
 			if (hasConflict) {
 				continue;

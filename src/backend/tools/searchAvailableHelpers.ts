@@ -12,18 +12,29 @@ const TimeSchema = z.object({
 	minute: z.number().int().min(0).max(59),
 });
 
-export const SearchAvailableHelpersParametersSchema = z.object({
-	date: z
-		.string()
-		.regex(/^\d{4}-\d{2}-\d{2}$/, '日付はYYYY-MM-DD形式で指定してください'),
-	startTime: TimeSchema.describe('開始時刻'),
-	endTime: TimeSchema.describe('終了時刻'),
-	clientId: z
-		.string()
-		.uuid()
-		.optional()
-		.describe('利用者ID（指定時はその利用者に割当可能なスタッフに絞る）'),
-});
+const timeToMinutes = (time: { hour: number; minute: number }): number =>
+	time.hour * 60 + time.minute;
+
+export const SearchAvailableHelpersParametersSchema = z
+	.object({
+		date: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}$/, '日付はYYYY-MM-DD形式で指定してください'),
+		startTime: TimeSchema.describe('開始時刻'),
+		endTime: TimeSchema.describe('終了時刻'),
+		clientId: z
+			.string()
+			.uuid()
+			.optional()
+			.describe('利用者ID（指定時はその利用者に割当可能なスタッフに絞る）'),
+	})
+	.refine(
+		(data) => timeToMinutes(data.startTime) < timeToMinutes(data.endTime),
+		{
+			message: '開始時刻は終了時刻より前に設定してください',
+			path: ['startTime'],
+		},
+	);
 
 export type SearchAvailableHelpersParameters = z.infer<
 	typeof SearchAvailableHelpersParametersSchema
