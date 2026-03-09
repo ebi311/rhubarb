@@ -1,5 +1,5 @@
 import { createSupabaseClient } from '@/utils/supabase/server';
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText } from 'ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -128,6 +128,9 @@ export const POST = async (request: Request): Promise<Response> => {
 		}
 
 		const systemPrompt = SYSTEM_PROMPT + buildContextPrompt(context);
+
+		// GEMINI_API_KEY を使用して Google AI プロバイダーを初期化
+		const google = createGoogleGenerativeAI({ apiKey });
 
 		// Vercel AI SDK の streamText を使用
 		// messages の型は streamText が受け入れる形式に変換
