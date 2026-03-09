@@ -11,7 +11,7 @@ import {
 	ShiftSnapshot,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
-import { getJstDateOnly, setJstTime } from '@/utils/date';
+import { getJstDateOnly, parseJstDateString, setJstTime } from '@/utils/date';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export class ServiceError extends Error {
@@ -42,6 +42,18 @@ export type SuggestClientDatetimeChangeAdjustmentsOutput = {
 		shift: ShiftSnapshot;
 		suggestions: ShiftAdjustmentSuggestion[];
 	};
+};
+
+export type FindAvailableHelpersInput = {
+	date: string; // YYYY-MM-DD
+	startTime: { hour: number; minute: number };
+	endTime: { hour: number; minute: number };
+	clientId?: string; // オプション。指定時はその利用者に割当可能なスタッフに絞る
+};
+
+export type AvailableHelper = {
+	id: string;
+	name: string;
 };
 
 const isOverlapping = (
@@ -676,5 +688,90 @@ export class ShiftAdjustmentSuggestionService {
 				suggestions,
 			},
 		};
+	}
+
+	/**
+	 * 指定した時間帯に空きのあるヘルパーを検索する
+	 * @param officeId 事業所ID
+	 * @param input 検索条件
+	 * @returns 空きヘルパー一覧（最大5人、名前順）
+	 */
+	async findAvailableHelpers(
+		officeId: string,
+		input: FindAvailableHelpersInput,
+	): Promise<AvailableHelper[]> {
+		const MAX_RESULTS = 5;
+
+		// 事業所のスタッフ一覧を取得
+		const staffs = await this.staffRepository.listByOffice(officeId);
+
+		// ヘルパーのみ抽出（admin は除外）
+		const helpers = staffs
+			.filter((staff) => staff.role === 'helper')
+			.slice()
+			.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+		// 日付をパース
+		const targetDate = parseJstDateString(input.date);
+
+		// 指定日のシフトを取得
+		const shiftsOnDate = await this.shiftRepository.list({
+			officeId,
+			startDate: targetDate,
+			endDate: targetDate,
+			status: 'scheduled',
+		});
+
+		// スタッフごとのシフトをマップ化
+		const shiftsByStaff = this.buildShiftsByStaff(shiftsOnDate);
+
+		// 指定時間帯の範囲を計算
+		const range = this.buildRangeOnDate({
+			date: targetDate,
+			startTime: input.startTime,
+			endTime: input.endTime,
+		});
+
+		// clientId が指定されている場合、割当可能なスタッフを取得
+		let assignableStaffIds: Set<string> | null = null;
+		if (input.clientId) {
+			const assignmentLinks =
+				await this.clientStaffAssignmentRepository.listLinksByOfficeAndClientIds(
+					officeId,
+					[input.clientId],
+				);
+			assignableStaffIds = new Set(assignmentLinks.map((l) => l.staff_id));
+		}
+
+		// 空きヘルパーをフィルタリング
+		const availableHelpers: AvailableHelper[] = [];
+		for (const helper of helpers) {
+			// clientId 指定時は割当可能かチェック
+			if (assignableStaffIds && !assignableStaffIds.has(helper.id)) {
+				continue;
+			}
+
+			// 時間重複がないかチェック
+			const hasConflict = this.hasConflictForRange({
+				shiftsByStaff,
+				staffId: helper.id,
+				range,
+			});
+			if (hasConflict) {
+				continue;
+			}
+
+			availableHelpers.push({
+				id: helper.id,
+				name: helper.name,
+			});
+
+			// 最大5人まで
+			if (availableHelpers.length >= MAX_RESULTS) {
+				break;
+			}
+		}
+
+		return availableHelpers;
 	}
 }

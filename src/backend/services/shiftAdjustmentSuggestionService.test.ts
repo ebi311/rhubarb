@@ -685,4 +685,195 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			expect(result.meta?.timedOut).toBe(true);
 		});
 	});
+
+	describe('findAvailableHelpers', () => {
+		it('指定時間帯に空きのあるヘルパーを返す', async () => {
+			const helperAId = createTestId();
+			const helperBId = createTestId();
+			const helperCId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperBId,
+					name: 'ヘルパーB',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperCId,
+					name: 'ヘルパーC',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			// helperB には 10:00-11:00 にシフトあり（重複）
+			mockShiftRepo.list.mockResolvedValueOnce([
+				createShift({
+					id: createTestId(),
+					client_id: TEST_IDS.CLIENT_1,
+					staff_id: helperBId,
+					date: new Date('2026-02-25T00:00:00+09:00'),
+					time: {
+						start: { hour: 10, minute: 0 },
+						end: { hour: 11, minute: 0 },
+					},
+					status: 'scheduled',
+				}),
+			]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			});
+
+			// ヘルパーAとCが空き。Bは重複あり
+			expect(result).toHaveLength(2);
+			expect(result.map((h) => h.name)).toContain('ヘルパーA');
+			expect(result.map((h) => h.name)).toContain('ヘルパーC');
+			expect(result.map((h) => h.name)).not.toContain('ヘルパーB');
+		});
+
+		it('最大5人まで返す', async () => {
+			const helpers = Array.from({ length: 10 }).map((_, i) =>
+				createStaffWithServiceTypes({
+					id: createTestId(),
+					name: `ヘルパー${i}`,
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce(helpers);
+			mockShiftRepo.list.mockResolvedValueOnce([]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			});
+
+			expect(result).toHaveLength(5);
+		});
+
+		it('clientId 指定時はその利用者に割当可能なスタッフに絞る', async () => {
+			const helperAId = createTestId();
+			const helperBId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperBId,
+					name: 'ヘルパーB',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			mockShiftRepo.list.mockResolvedValueOnce([]);
+
+			// helperA のみ CLIENT_1 に割当可能
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: helperAId,
+						service_type_id: 'life-support',
+					},
+				],
+			);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]!.name).toBe('ヘルパーA');
+		});
+
+		it('admin スタッフは結果に含まれない', async () => {
+			const adminId = createTestId();
+			const helperId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: adminId,
+					name: '管理者',
+					role: 'admin',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperId,
+					name: 'ヘルパー',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			mockShiftRepo.list.mockResolvedValueOnce([]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]!.name).toBe('ヘルパー');
+		});
+
+		it('名前順（日本語ロケール）でソートされる', async () => {
+			const helperAId = createTestId();
+			const helperBId = createTestId();
+			const helperCId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperCId,
+					name: '山田',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: '伊藤',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperBId,
+					name: '斎藤',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+
+			mockShiftRepo.list.mockResolvedValueOnce([]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			});
+
+			// 日本語ロケールソート: 伊藤 < 斎藤 < 山田
+			expect(result[0]!.name).toBe('伊藤');
+			expect(result[1]!.name).toBe('斎藤');
+			expect(result[2]!.name).toBe('山田');
+		});
+	});
 });
