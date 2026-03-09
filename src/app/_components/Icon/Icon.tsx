@@ -9,6 +9,7 @@ export const ICON_NAMES = [
 	'calendar_today',
 	'calendar_view_week',
 	'cancel',
+	'chat',
 	'check_circle',
 	'check',
 	'close',
