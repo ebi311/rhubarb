@@ -136,7 +136,7 @@ export const POST = async (request: Request): Promise<Response> => {
 		// messages の型は streamText が受け入れる形式に変換
 		// v6: parts 配列または content から文字列を抽出
 		const result = streamText({
-			model: google('gemini-1.5-flash'),
+			model: google('gemini-3-flash'),
 			system: systemPrompt,
 			messages: messages.map((m) => ({
 				role: m.role as 'user' | 'assistant',
