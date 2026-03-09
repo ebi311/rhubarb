@@ -29,7 +29,7 @@ type UseAdjustmentChatReturn = {
 };
 
 const generateId = (): string => {
-	return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+	return crypto.randomUUID();
 };
 
 type StreamChunkHandler = (content: string) => void;
@@ -53,19 +53,31 @@ const processStream = async (
 	onChunk: StreamChunkHandler,
 ): Promise<void> => {
 	const decoder = new TextDecoder();
+	let buffer = '';
 
 	while (true) {
 		const { done, value } = await reader.read();
 		if (done) break;
 
-		const chunk = decoder.decode(value, { stream: true });
-		const lines = chunk.split('\n');
+		buffer += decoder.decode(value, { stream: true });
+		const lines = buffer.split('\n');
+
+		// 最後の要素はまだ完結していない可能性があるのでバッファに残す
+		buffer = lines.pop() ?? '';
 
 		for (const line of lines) {
 			const content = parseSSELine(line);
 			if (content !== null) {
 				onChunk(content);
 			}
+		}
+	}
+
+	// 残ったバッファを処理
+	if (buffer) {
+		const content = parseSSELine(buffer);
+		if (content !== null) {
+			onChunk(content);
 		}
 	}
 };

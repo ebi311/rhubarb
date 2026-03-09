@@ -21,12 +21,28 @@ vi.mock('@google/generative-ai', () => {
 	};
 });
 
+// Supabase認証のモック
+const mockGetUser = vi.fn();
+
+vi.mock('@/utils/supabase/server', () => ({
+	createSupabaseClient: vi.fn().mockImplementation(() => ({
+		auth: {
+			getUser: mockGetUser,
+		},
+	})),
+}));
+
 // 環境変数のモック
 vi.stubEnv('GEMINI_API_KEY', 'test-api-key');
 
 describe('POST /api/chat/shift-adjustment', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		// デフォルトで認証済みユーザーを返す
+		mockGetUser.mockResolvedValue({
+			data: { user: { id: 'test-user-id', email: 'test@example.com' } },
+			error: null,
+		});
 	});
 
 	it('正常なリクエストに対してストリーミングレスポンスを返す', async () => {
@@ -186,5 +202,71 @@ describe('POST /api/chat/shift-adjustment', () => {
 
 		// 環境変数を復元
 		process.env.GEMINI_API_KEY = originalKey;
+	});
+
+	it('未認証の場合は 401 エラーを返す', async () => {
+		mockGetUser.mockResolvedValue({
+			data: { user: null },
+			error: null,
+		});
+
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: 'テストメッセージ' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(401);
+		const body = await response.json();
+		expect(body.error).toBe('Unauthorized');
+	});
+
+	it('認証エラーの場合は 401 エラーを返す', async () => {
+		mockGetUser.mockResolvedValue({
+			data: { user: null },
+			error: { message: 'Auth error' },
+		});
+
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: 'テストメッセージ' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(401);
+	});
+
+	it('無効なUUIDの場合は 400 エラーを返す', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '調整してください' }],
+				context: {
+					shifts: [
+						{
+							id: 'invalid-uuid',
+							staffName: 'スタッフA',
+							clientName: '利用者B',
+							date: '2025-01-20',
+							startTime: '09:00',
+							endTime: '11:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(400);
 	});
 });

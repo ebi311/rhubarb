@@ -1,3 +1,4 @@
+import { createSupabaseClient } from '@/utils/supabase/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -8,7 +9,7 @@ const ChatMessageSchema = z.object({
 });
 
 const ShiftContextItemSchema = z.object({
-	id: z.string(),
+	id: z.string().uuid(),
 	staffName: z.string().optional(),
 	clientName: z.string().optional(),
 	date: z.string(),
@@ -72,6 +73,17 @@ const convertToGeminiHistory = (
 
 export const POST = async (request: Request): Promise<Response> => {
 	try {
+		// 認証チェック
+		const supabase = await createSupabaseClient();
+		const {
+			data: { user },
+			error: authError,
+		} = await supabase.auth.getUser();
+
+		if (authError || !user) {
+			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+		}
+
 		const body = await request.json().catch(() => null);
 
 		if (!body) {
