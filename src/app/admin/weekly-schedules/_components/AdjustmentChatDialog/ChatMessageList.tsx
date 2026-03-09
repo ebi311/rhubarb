@@ -40,7 +40,7 @@ export const ChatMessageList = ({
 						{message.role === 'user' ? 'あなた' : 'AIアシスタント'}
 					</div>
 					<div
-						className={`chat-bubble ${
+						className={`chat-bubble whitespace-pre-wrap ${
 							message.role === 'user'
 								? 'chat-bubble-primary'
 								: 'chat-bubble-neutral'
