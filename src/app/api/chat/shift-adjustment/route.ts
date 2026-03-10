@@ -134,12 +134,12 @@ export const POST = async (request: Request): Promise<Response> => {
 			);
 		}
 
-		// スタッフの office_id を取得（Tool で必要）
+		// スタッフの office_id と role を取得（Tool と認可で必要）
 		const { data: staffData, error: staffError } = await supabase
 			.from('staffs')
-			.select('office_id')
+			.select('office_id, role')
 			.eq('auth_user_id', user.id)
-			.maybeSingle();
+			.maybeSingle<{ office_id: string; role: 'admin' | 'helper' }>();
 
 		if (staffError) {
 			console.error('Failed to fetch staff:', staffError);
@@ -151,6 +151,11 @@ export const POST = async (request: Request): Promise<Response> => {
 
 		if (!staffData) {
 			return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+		}
+
+		// 認可チェック: admin ロールのみ許可
+		if (staffData.role !== 'admin') {
+			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 		}
 
 		const systemPrompt = SYSTEM_PROMPT + buildContextPrompt(context);

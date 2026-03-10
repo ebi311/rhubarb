@@ -59,9 +59,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 			error: null,
 		});
 
-		// スタッフ情報取得のモック（office_id 取得用）
+		// スタッフ情報取得のモック（office_id, role 取得用）
 		mockStaffMaybeSingle.mockResolvedValue({
-			data: { office_id: TEST_IDS.OFFICE_1 },
+			data: { office_id: TEST_IDS.OFFICE_1, role: 'admin' },
 			error: null,
 		});
 		mockStaffEq.mockImplementation((column: string, value: string) => {
@@ -421,6 +421,32 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect(response.status).toBe(500);
 			const body = await response.json();
 			expect(body.error).toBe('Failed to resolve staff context');
+		});
+
+		it('admin 権限がない場合は 403 エラーを返す', async () => {
+			mockStaffMaybeSingle.mockResolvedValue({
+				data: { office_id: TEST_IDS.OFFICE_1, role: 'helper' },
+				error: null,
+			});
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: 'テスト' }],
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(403);
+			const body = await response.json();
+			expect(body.error).toBe('Forbidden');
+			// AI ツールが呼ばれないことを確認
+			expect(mockStreamText).not.toHaveBeenCalled();
 		});
 
 		it('システムプロンプトに Tool の使用方法が含まれる', async () => {
