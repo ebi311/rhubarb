@@ -64,7 +64,12 @@ describe('POST /api/chat/shift-adjustment', () => {
 			data: { office_id: TEST_IDS.OFFICE_1 },
 			error: null,
 		});
-		mockStaffEq.mockReturnValue({ maybeSingle: mockStaffMaybeSingle });
+		mockStaffEq.mockImplementation((column: string, value: string) => {
+			// auth_user_id カラムで検索されることを検証
+			expect(column).toBe('auth_user_id');
+			expect(value).toBe('test-user-id');
+			return { maybeSingle: mockStaffMaybeSingle };
+		});
 		mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
 		mockSupabaseFrom.mockReturnValue({ select: mockStaffSelect });
 

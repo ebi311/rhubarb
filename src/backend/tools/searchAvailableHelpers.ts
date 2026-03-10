@@ -6,7 +6,11 @@ import { Database } from '@/backend/types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { tool, Tool } from 'ai';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
+
+// UTC プラグインを有効化
+dayjs.extend(utc);
 
 const TimeSchema = z.object({
 	hour: z.number().int().min(0).max(23),
@@ -18,10 +22,12 @@ const timeToMinutes = (time: { hour: number; minute: number }): number =>
 
 /**
  * 日付文字列が実在する日付かどうかを検証する
+ * UTC 固定で解析することで、環境のタイムゾーンに依存しない判定を行う
  * 正規表現で形式は確認済みの前提で、dayjs の strict parsing で実在性をチェック
  */
 const isValidDate = (dateStr: string): boolean => {
-	const parsed = dayjs(dateStr, 'YYYY-MM-DD', true);
+	// UTC 固定でパースし、タイムゾーンの影響を排除
+	const parsed = dayjs.utc(dateStr, 'YYYY-MM-DD', true);
 	// strict parsing で isValid() かつ、parse した結果が元の文字列と一致することを確認
 	return parsed.isValid() && parsed.format('YYYY-MM-DD') === dateStr;
 };
@@ -39,6 +45,13 @@ export const SearchAvailableHelpersParametersSchema = z
 			.uuid()
 			.optional()
 			.describe('利用者ID（指定時はその利用者に割当可能なスタッフに絞る）'),
+		serviceTypeId: z
+			.string()
+			.uuid()
+			.optional()
+			.describe(
+				'サービス種別ID（clientId指定時に必須。そのサービス種別で割当可能なスタッフに絞る）',
+			),
 	})
 	.refine(
 		(data) => timeToMinutes(data.startTime) < timeToMinutes(data.endTime),
@@ -46,7 +59,11 @@ export const SearchAvailableHelpersParametersSchema = z
 			message: '開始時刻は終了時刻より前に設定してください',
 			path: ['startTime'],
 		},
-	);
+	)
+	.refine((data) => !data.clientId || data.serviceTypeId, {
+		message: 'clientId を指定する場合は serviceTypeId も指定してください',
+		path: ['serviceTypeId'],
+	});
 
 export type SearchAvailableHelpersParameters = z.infer<
 	typeof SearchAvailableHelpersParametersSchema
@@ -68,7 +85,7 @@ export const createSearchAvailableHelpersTool = (
 
 	return tool({
 		description:
-			'指定した日時に空きのあるヘルパーを検索します。最大5人まで返却されます。利用者IDを指定すると、その利用者に割当可能なスタッフに絞り込まれます。',
+			'指定した日時に空きのあるヘルパーを検索します。最大5人まで返却されます。利用者IDとサービス種別IDを指定すると、その利用者・サービス種別に割当可能なスタッフに絞り込まれます。',
 		inputSchema: SearchAvailableHelpersParametersSchema,
 		execute: async (
 			params: SearchAvailableHelpersParameters,
@@ -79,6 +96,7 @@ export const createSearchAvailableHelpersTool = (
 				startTime: params.startTime,
 				endTime: params.endTime,
 				clientId: params.clientId,
+				serviceTypeId: params.serviceTypeId,
 			});
 		},
 	});

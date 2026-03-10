@@ -50,6 +50,7 @@ export type FindAvailableHelpersInput = {
 	startTime: { hour: number; minute: number };
 	endTime: { hour: number; minute: number };
 	clientId?: string; // オプション。指定時はその利用者に割当可能なスタッフに絞る
+	serviceTypeId?: string; // オプション。clientId 指定時はこちらも必須
 };
 
 export type AvailableHelper = {
@@ -786,7 +787,13 @@ export class ShiftAdjustmentSuggestionService {
 					officeId,
 					[input.clientId],
 				);
-			assignableStaffIds = new Set(assignmentLinks.map((l) => l.staff_id));
+			// serviceTypeId でフィルタして、その (client_id, service_type_id) に割当可能なスタッフに絞る
+			const filteredLinks = input.serviceTypeId
+				? assignmentLinks.filter(
+						(l) => l.service_type_id === input.serviceTypeId,
+					)
+				: assignmentLinks;
+			assignableStaffIds = new Set(filteredLinks.map((l) => l.staff_id));
 		}
 
 		// 空きヘルパーをフィルタリング

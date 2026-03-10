@@ -108,17 +108,35 @@ describe('searchAvailableHelpers tool', () => {
 			expect(result.success).toBe(false);
 		});
 
-		it('clientId（オプション）を受け付ける', () => {
+		it('clientId と serviceTypeId を一緒に受け付ける', () => {
 			const paramsWithClientId = {
 				date: '2026-02-25',
 				startTime: { hour: 10, minute: 0 },
 				endTime: { hour: 11, minute: 0 },
 				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
 			};
 
 			const result =
 				SearchAvailableHelpersParametersSchema.safeParse(paramsWithClientId);
 			expect(result.success).toBe(true);
+		});
+
+		it('clientId を指定して serviceTypeId を省略すると拒否する', () => {
+			const invalidParams = {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				// serviceTypeId が未指定
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(invalidParams);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.issues[0]?.message).toContain('serviceTypeId');
+			}
 		});
 
 		it('不正な時刻を拒否する', () => {

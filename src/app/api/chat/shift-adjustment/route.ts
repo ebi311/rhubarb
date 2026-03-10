@@ -138,7 +138,7 @@ export const POST = async (request: Request): Promise<Response> => {
 		const { data: staffData, error: staffError } = await supabase
 			.from('staffs')
 			.select('office_id')
-			.eq('user_id', user.id)
+			.eq('auth_user_id', user.id)
 			.maybeSingle();
 
 		if (staffError) {
