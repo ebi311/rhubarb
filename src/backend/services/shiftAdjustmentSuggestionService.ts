@@ -12,7 +12,12 @@ import {
 	ShiftSnapshot,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
-import { getJstDateOnly, parseJstDateString, setJstTime } from '@/utils/date';
+import {
+	addJstDays,
+	getJstDateOnly,
+	parseJstDateString,
+	setJstTime,
+} from '@/utils/date';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export class ServiceError extends Error {
@@ -50,7 +55,7 @@ export type FindAvailableHelpersInput = {
 	startTime: { hour: number; minute: number };
 	endTime: { hour: number; minute: number };
 	clientId?: string; // オプション。指定時はその利用者に割当可能なスタッフに絞る
-	serviceTypeId?: string; // オプション。clientId 指定時はこちらも必須
+	serviceTypeId?: ServiceTypeId; // オプション。clientId 指定時はこちらも必須
 };
 
 export type AvailableHelper = {
@@ -268,11 +273,16 @@ export class ShiftAdjustmentSuggestionService {
 			shift.time.start.hour,
 			shift.time.start.minute,
 		);
-		const end = setJstTime(
+		let end = setJstTime(
 			shift.date,
 			shift.time.end.hour,
 			shift.time.end.minute,
 		);
+
+		// 終了時刻が開始時刻以前の場合は翌日扱い（日をまたぐシフト）
+		if (end <= start) {
+			end = addJstDays(end, 1);
+		}
 
 		return { start, end };
 	};
@@ -766,11 +776,12 @@ export class ShiftAdjustmentSuggestionService {
 		// 日付をパース
 		const targetDate = parseJstDateString(input.date);
 
-		// 指定日のシフトを取得
+		// 指定日とその前後1日のシフトを取得
+		// 日付境界付近（23:30のシフトと翌日0:00のシフト）の衝突を正しく検出するため
 		const shiftsOnDate = await this.shiftRepository.list({
 			officeId,
-			startDate: targetDate,
-			endDate: targetDate,
+			startDate: addJstDays(targetDate, -1),
+			endDate: addJstDays(targetDate, 1),
 			status: 'scheduled',
 		});
 
@@ -784,40 +795,24 @@ export class ShiftAdjustmentSuggestionService {
 			endTime: input.endTime,
 		});
 
-		// clientId が指定されている場合、割当可能なスタッフを取得
-		let assignableStaffIds: Set<string> | null = null;
-		if (input.clientId) {
-			const assignmentLinks =
-				await this.clientStaffAssignmentRepository.listLinksByOfficeAndClientIds(
-					officeId,
-					[input.clientId],
-				);
-			// serviceTypeId でフィルタして、その (client_id, service_type_id) に割当可能なスタッフに絞る
-			const filteredLinks = input.serviceTypeId
-				? assignmentLinks.filter(
-						(l) => l.service_type_id === input.serviceTypeId,
-					)
-				: assignmentLinks;
-			assignableStaffIds = new Set(filteredLinks.map((l) => l.staff_id));
-		}
+		// clientId が指定されている場合、割当可能なスタッフIDを取得
+		const assignableStaffIds = await this.getAssignableStaffIds(
+			officeId,
+			input.clientId,
+			input.serviceTypeId,
+		);
 
 		// 空きヘルパーをフィルタリング
 		const availableHelpers: AvailableHelper[] = [];
 		for (const helper of helpers) {
-			// clientId 指定時は割当可能かチェック
-			if (assignableStaffIds && !assignableStaffIds.has(helper.id)) {
-				continue;
-			}
-
-			// 時間重複がないかチェック（インターバル考慮）
-			const hasConflict = this.hasConflictForRangeWithInterval({
+			const isEligible = this.isHelperEligibleForRange({
+				helper,
+				assignableStaffIds,
+				serviceTypeId: input.serviceTypeId,
 				shiftsByStaff,
-				staffId: helper.id,
 				range,
 			});
-			if (hasConflict) {
-				continue;
-			}
+			if (!isEligible) continue;
 
 			availableHelpers.push({
 				id: helper.id,
@@ -832,4 +827,58 @@ export class ShiftAdjustmentSuggestionService {
 
 		return availableHelpers;
 	}
+
+	/**
+	 * クライアントに割当可能なスタッフIDのセットを取得する
+	 */
+	private getAssignableStaffIds = async (
+		officeId: string,
+		clientId: string | undefined,
+		serviceTypeId: ServiceTypeId | undefined,
+	): Promise<Set<string> | null> => {
+		if (!clientId) return null;
+
+		const assignmentLinks =
+			await this.clientStaffAssignmentRepository.listLinksByOfficeAndClientIds(
+				officeId,
+				[clientId],
+			);
+		// serviceTypeId でフィルタして、その (client_id, service_type_id) に割当可能なスタッフに絞る
+		const filteredLinks = serviceTypeId
+			? assignmentLinks.filter((l) => l.service_type_id === serviceTypeId)
+			: assignmentLinks;
+		return new Set(filteredLinks.map((l) => l.staff_id));
+	};
+
+	/**
+	 * ヘルパーが指定された条件で対応可能かどうかをチェックする
+	 */
+	private isHelperEligibleForRange = (params: {
+		helper: OfficeStaff;
+		assignableStaffIds: Set<string> | null;
+		serviceTypeId: ServiceTypeId | undefined;
+		shiftsByStaff: StaffShiftsByStaff;
+		range: { start: Date; end: Date };
+	}): boolean => {
+		const { helper, assignableStaffIds, serviceTypeId, shiftsByStaff, range } =
+			params;
+
+		// clientId 指定時は割当可能かチェック
+		if (assignableStaffIds && !assignableStaffIds.has(helper.id)) {
+			return false;
+		}
+
+		// serviceTypeId 指定時はスタッフの対応可能サービス種別をチェック
+		if (serviceTypeId && !helper.service_type_ids.includes(serviceTypeId)) {
+			return false;
+		}
+
+		// 時間重複がないかチェック（インターバル考慮）
+		const hasConflict = this.hasConflictForRangeWithInterval({
+			shiftsByStaff,
+			staffId: helper.id,
+			range,
+		});
+		return !hasConflict;
+	};
 }

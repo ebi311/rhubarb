@@ -5,11 +5,15 @@ import {
 import { Database } from '@/backend/types/supabase';
 import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { tool, Tool } from 'ai';
+import type { Tool } from 'ai';
+import { tool } from 'ai';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
 
+// customParseFormat プラグインを有効化（strict parsing に必要）
+dayjs.extend(customParseFormat);
 // UTC プラグインを有効化
 dayjs.extend(utc);
 
