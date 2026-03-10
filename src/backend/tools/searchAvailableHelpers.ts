@@ -3,6 +3,7 @@ import {
 	ShiftAdjustmentSuggestionService,
 } from '@/backend/services/shiftAdjustmentSuggestionService';
 import { Database } from '@/backend/types/supabase';
+import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { tool, Tool } from 'ai';
 import dayjs from 'dayjs';
@@ -45,13 +46,9 @@ export const SearchAvailableHelpersParametersSchema = z
 			.uuid()
 			.optional()
 			.describe('利用者ID（指定時はその利用者に割当可能なスタッフに絞る）'),
-		serviceTypeId: z
-			.string()
-			.uuid()
-			.optional()
-			.describe(
-				'サービス種別ID（clientId指定時に必須。そのサービス種別で割当可能なスタッフに絞る）',
-			),
+		serviceTypeId: ServiceTypeIdSchema.optional().describe(
+			'サービス種別ID（clientId指定時に必須。そのサービス種別で割当可能なスタッフに絞る）',
+		),
 	})
 	.refine(
 		(data) => timeToMinutes(data.startTime) < timeToMinutes(data.endTime),

@@ -164,6 +164,48 @@ describe('searchAvailableHelpers tool', () => {
 			expect(result.success).toBe(false);
 		});
 
+		it('不正な serviceTypeId（許可されていない値）を拒否する', () => {
+			const invalidParams = {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: 'invalid-service-type', // 許可されていない値
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(invalidParams);
+			expect(result.success).toBe(false);
+		});
+
+		it('有効な serviceTypeId（life-support）を受け付ける', () => {
+			const validParams = {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: 'life-support',
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(validParams);
+			expect(result.success).toBe(true);
+		});
+
+		it('有効な serviceTypeId（physical-care）を受け付ける', () => {
+			const validParams = {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: 'physical-care',
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(validParams);
+			expect(result.success).toBe(true);
+		});
+
 		it('startTime が endTime より後の場合を拒否する', () => {
 			const invalidParams = {
 				date: '2026-02-25',
