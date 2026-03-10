@@ -1,6 +1,7 @@
+import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { streamText } from 'ai';
+import { stepCountIs, streamText } from 'ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -65,6 +66,12 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
 3. 実行可能な調整案を提示する
 4. 各案のメリット・デメリットを説明する
 
+## 利用可能なツール
+- searchAvailableHelpers: 指定した日時に空きのあるヘルパーを検索できます
+  - 代替スタッフを探す際に使用してください
+  - 日付(YYYY-MM-DD)、開始時刻、終了時刻を指定します
+  - 利用者IDを指定すると、その利用者に割当可能なスタッフに絞り込めます
+
 ## 制約
 - 提案は具体的かつ実行可能なものにする
 - 不明な点があれば確認を求める
@@ -127,10 +134,40 @@ export const POST = async (request: Request): Promise<Response> => {
 			);
 		}
 
+		// スタッフの office_id と role を取得（Tool と認可で必要）
+		const { data: staffData, error: staffError } = await supabase
+			.from('staffs')
+			.select('office_id, role')
+			.eq('auth_user_id', user.id)
+			.maybeSingle<{ office_id: string; role: 'admin' | 'helper' }>();
+
+		if (staffError) {
+			console.error('Failed to fetch staff:', staffError);
+			return NextResponse.json(
+				{ error: 'Failed to resolve staff context' },
+				{ status: 500 },
+			);
+		}
+
+		if (!staffData) {
+			return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+		}
+
+		// 認可チェック: admin ロールのみ許可
+		if (staffData.role !== 'admin') {
+			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+		}
+
 		const systemPrompt = SYSTEM_PROMPT + buildContextPrompt(context);
 
 		// GEMINI_API_KEY を使用して Google AI プロバイダーを初期化
 		const google = createGoogleGenerativeAI({ apiKey });
+
+		// Tool を作成
+		const searchAvailableHelpersTool = createSearchAvailableHelpersTool({
+			supabase,
+			officeId: staffData.office_id,
+		});
 
 		// Vercel AI SDK の streamText を使用
 		// messages の型は streamText が受け入れる形式に変換
@@ -142,6 +179,10 @@ export const POST = async (request: Request): Promise<Response> => {
 				role: m.role as 'user' | 'assistant',
 				content: extractContent(m),
 			})),
+			tools: {
+				searchAvailableHelpers: searchAvailableHelpersTool,
+			},
+			stopWhen: stepCountIs(3),
 		});
 
 		// テキストストリームレスポンスを返す（TextStreamChatTransport 用）

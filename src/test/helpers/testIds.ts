@@ -32,6 +32,8 @@ export const createTestId = (): string => {
  *
  * 新しいテストファイルでは、ここから選ぶか createTestId() で生成すること。
  * `aaaaaaaa-bbbb-cccc-...` のような非準拠 UUID は z.uuid() で弾かれる。
+ *
+ * SERVICE_TYPE は UUID ではなく enum 値（ServiceTypeIdSchema 参照）
  */
 export const TEST_IDS = {
 	CLIENT_1: '550e8400-e29b-41d4-a716-446655440001',
@@ -45,4 +47,8 @@ export const TEST_IDS = {
 	SCHEDULE_2: '550e8400-e29b-41d4-a716-446655440022',
 	OFFICE_1: '550e8400-e29b-41d4-a716-446655440031',
 	OFFICE_2: '550e8400-e29b-41d4-a716-446655440032',
+	/** サービス種別: 生活支援（enum 値） */
+	SERVICE_TYPE_1: 'life-support',
+	/** サービス種別: 身体介護（enum 値） */
+	SERVICE_TYPE_2: 'physical-care',
 } as const;

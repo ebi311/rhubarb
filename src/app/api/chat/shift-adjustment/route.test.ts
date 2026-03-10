@@ -1,16 +1,26 @@
+import { TEST_IDS } from '@/test/helpers/testIds';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // vi.hoisted でモック関数を定義（ホイスティング対応）
-const { mockStreamText, mockToTextStreamResponse, mockGetUser } = vi.hoisted(
-	() => ({
-		mockStreamText: vi.fn(),
-		mockToTextStreamResponse: vi.fn(),
-		mockGetUser: vi.fn(),
-	}),
-);
+const {
+	mockStreamText,
+	mockToTextStreamResponse,
+	mockGetUser,
+	mockSupabaseFrom,
+	mockCreateSearchAvailableHelpersTool,
+	mockStepCountIs,
+} = vi.hoisted(() => ({
+	mockStreamText: vi.fn(),
+	mockToTextStreamResponse: vi.fn(),
+	mockGetUser: vi.fn(),
+	mockSupabaseFrom: vi.fn(),
+	mockCreateSearchAvailableHelpersTool: vi.fn(),
+	mockStepCountIs: vi.fn((n: number) => ({ type: 'stepCountIs', count: n })),
+}));
 
 vi.mock('ai', () => ({
 	streamText: mockStreamText,
+	stepCountIs: mockStepCountIs,
 }));
 
 vi.mock('@ai-sdk/google', () => ({
@@ -22,7 +32,12 @@ vi.mock('@/utils/supabase/server', () => ({
 		auth: {
 			getUser: mockGetUser,
 		},
+		from: mockSupabaseFrom,
 	})),
+}));
+
+vi.mock('@/backend/tools/searchAvailableHelpers', () => ({
+	createSearchAvailableHelpersTool: mockCreateSearchAvailableHelpersTool,
 }));
 
 // 環境変数のモック
@@ -32,6 +47,10 @@ vi.stubEnv('GEMINI_API_KEY', 'test-api-key');
 const { POST } = await import('./route');
 
 describe('POST /api/chat/shift-adjustment', () => {
+	const mockStaffSelect = vi.fn();
+	const mockStaffEq = vi.fn();
+	const mockStaffMaybeSingle = vi.fn();
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// デフォルトで認証済みユーザーを返す
@@ -39,6 +58,26 @@ describe('POST /api/chat/shift-adjustment', () => {
 			data: { user: { id: 'test-user-id', email: 'test@example.com' } },
 			error: null,
 		});
+
+		// スタッフ情報取得のモック（office_id, role 取得用）
+		mockStaffMaybeSingle.mockResolvedValue({
+			data: { office_id: TEST_IDS.OFFICE_1, role: 'admin' },
+			error: null,
+		});
+		mockStaffEq.mockImplementation((column: string, value: string) => {
+			// auth_user_id カラムで検索されることを検証
+			expect(column).toBe('auth_user_id');
+			expect(value).toBe('test-user-id');
+			return { maybeSingle: mockStaffMaybeSingle };
+		});
+		mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+		mockSupabaseFrom.mockReturnValue({ select: mockStaffSelect });
+
+		// Tool モックを返す
+		mockCreateSearchAvailableHelpersTool.mockReturnValue({
+			description: 'mock tool',
+		});
+
 		// デフォルトのstreamTextモック
 		mockToTextStreamResponse.mockReturnValue(
 			new Response('テストレスポンス', {
@@ -285,5 +324,150 @@ describe('POST /api/chat/shift-adjustment', () => {
 		const response = await POST(request);
 
 		expect(response.status).toBe(400);
+	});
+
+	describe('Tool integration', () => {
+		it('streamText に tools と stopWhen が渡される', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [
+							{ role: 'user', content: '明日9時に空いているヘルパーを探して' },
+						],
+					}),
+				},
+			);
+
+			await POST(request);
+
+			// streamText が tools と stopWhen を含んで呼ばれたことを確認
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tools: expect.objectContaining({
+						searchAvailableHelpers: expect.anything(),
+					}),
+					stopWhen: expect.anything(),
+				}),
+			);
+		});
+
+		it('createSearchAvailableHelpersTool が正しい引数で呼ばれる', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: 'ヘルパー検索' }],
+					}),
+				},
+			);
+
+			await POST(request);
+
+			// Tool が正しい引数で作成されたことを確認
+			expect(mockCreateSearchAvailableHelpersTool).toHaveBeenCalledWith({
+				supabase: expect.anything(),
+				officeId: TEST_IDS.OFFICE_1,
+			});
+		});
+
+		it('スタッフが見つからない場合は 404 エラーを返す', async () => {
+			mockStaffMaybeSingle.mockResolvedValue({
+				data: null,
+				error: null,
+			});
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: 'テスト' }],
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(404);
+			const body = await response.json();
+			expect(body.error).toBe('Staff not found');
+		});
+
+		it('スタッフ取得エラー時は 500 エラーを返す', async () => {
+			mockStaffMaybeSingle.mockResolvedValue({
+				data: null,
+				error: { message: 'Database error' },
+			});
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: 'テスト' }],
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(500);
+			const body = await response.json();
+			expect(body.error).toBe('Failed to resolve staff context');
+		});
+
+		it('admin 権限がない場合は 403 エラーを返す', async () => {
+			mockStaffMaybeSingle.mockResolvedValue({
+				data: { office_id: TEST_IDS.OFFICE_1, role: 'helper' },
+				error: null,
+			});
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: 'テスト' }],
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(403);
+			const body = await response.json();
+			expect(body.error).toBe('Forbidden');
+			// AI ツールが呼ばれないことを確認
+			expect(mockStreamText).not.toHaveBeenCalled();
+		});
+
+		it('システムプロンプトに Tool の使用方法が含まれる', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: 'テスト' }],
+					}),
+				},
+			);
+
+			await POST(request);
+
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining('searchAvailableHelpers'),
+				}),
+			);
+		});
 	});
 });
