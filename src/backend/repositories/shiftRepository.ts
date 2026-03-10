@@ -23,6 +23,8 @@ export interface ShiftFilters {
 	staffId?: string;
 	clientId?: string;
 	status?: Shift['status'];
+	/** 指定したステータスを除外する */
+	excludeStatus?: Shift['status'];
 }
 
 export class ShiftRepository {
@@ -116,6 +118,7 @@ export class ShiftRepository {
 		query = applyIf(query, filters.staffId, (q, v) => q.eq('staff_id', v));
 		query = applyIf(query, filters.clientId, (q, v) => q.eq('client_id', v));
 		query = applyIf(query, filters.status, (q, v) => q.eq('status', v));
+		query = applyIf(query, filters.excludeStatus, (q, v) => q.neq('status', v));
 
 		const { data, error } = await query.order('start_time');
 		if (error) throw error;

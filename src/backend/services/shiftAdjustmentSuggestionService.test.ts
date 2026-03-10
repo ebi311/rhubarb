@@ -1060,7 +1060,7 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			expect(result[0]!.name).toBe('ヘルパーB');
 		});
 
-		it('日付境界付近: 23:30のシフトと翌日0:00のシフトの衝突を検出する', async () => {
+		it('日付境界付近: 前日23:00終了のシフトがインターバルで翌日0:00開始に衝突する', async () => {
 			const helperAId = createTestId();
 			const helperBId = createTestId();
 
@@ -1079,9 +1079,10 @@ describe('ShiftAdjustmentSuggestionService', () => {
 				}),
 			]);
 
-			// ヘルパーAは 2026-02-25 23:30-0:30 にシフトあり（翌日にまたがる）
+			// ヘルパーAは 2026-02-25 22:30-23:45 にシフトあり
 			// 要求時間帯: 2026-02-26 0:00-1:00
-			// インターバル30分を考慮すると、ヘルパーAは既存シフト終了 0:30 + 30分 = 1:00 まで不可
+			// インターバル30分を考慮すると、ヘルパーAは既存シフト終了 23:45 + 30分 = 翌日 0:15 まで不可
+			// → 翌日 0:00-1:00 と衝突する（0:00 < 0:15 なので）
 			mockShiftRepo.list.mockResolvedValueOnce([
 				createShift({
 					id: createTestId(),
@@ -1089,8 +1090,8 @@ describe('ShiftAdjustmentSuggestionService', () => {
 					staff_id: helperAId,
 					date: new Date('2026-02-25T00:00:00+09:00'),
 					time: {
-						start: { hour: 23, minute: 30 },
-						end: { hour: 0, minute: 30 },
+						start: { hour: 22, minute: 30 },
+						end: { hour: 23, minute: 45 },
 					},
 					status: 'scheduled',
 				}),

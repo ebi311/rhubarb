@@ -273,16 +273,11 @@ export class ShiftAdjustmentSuggestionService {
 			shift.time.start.hour,
 			shift.time.start.minute,
 		);
-		let end = setJstTime(
+		const end = setJstTime(
 			shift.date,
 			shift.time.end.hour,
 			shift.time.end.minute,
 		);
-
-		// 終了時刻が開始時刻以前の場合は翌日扱い（日をまたぐシフト）
-		if (end <= start) {
-			end = addJstDays(end, 1);
-		}
 
 		return { start, end };
 	};
@@ -782,7 +777,7 @@ export class ShiftAdjustmentSuggestionService {
 			officeId,
 			startDate: addJstDays(targetDate, -1),
 			endDate: addJstDays(targetDate, 1),
-			status: 'scheduled',
+			excludeStatus: 'canceled',
 		});
 
 		// スタッフごとのシフトをマップ化
