@@ -67,21 +67,23 @@ const isOverlapping = (
 
 /**
  * インターバル（移動時間）を考慮した重なり判定
+ *
+ * 【重要】このロジックは以下と同一条件で判定しています：
+ * - ShiftService.hasTimeOverlap
+ * - ShiftRepository.findConflictingShifts
+ *
+ * 数学的に同値: A の終了 + interval > B の開始 && B の終了 + interval > A の開始
+ * ⇔ A.start < B.end + interval && B.start < A.end + interval
+ *
  * @param request 要求された時間帯
  * @param existing 既存のシフト時間帯
- * @param intervalMinutes インターバル（分）
  * @returns 重なりがあるかどうか
- *
- * 判定ロジック:
- * - 要求開始時刻 < 既存終了時刻 + インターバル（既存シフト後にインターバルが必要）
- * - 既存開始時刻 < 要求終了時刻 + インターバル（要求シフト後に移動してから既存シフトに入る）
  */
 const isOverlappingWithInterval = (
 	request: { start: Date; end: Date },
 	existing: { start: Date; end: Date },
-	intervalMinutes: number,
 ): boolean => {
-	const intervalMs = intervalMinutes * 60 * 1000;
+	const intervalMs = STAFF_SHIFT_INTERVAL_MINUTES * 60 * 1000;
 	// 既存シフト終了後 + インターバル時間の間に要求が開始するか
 	const existingEndWithInterval = new Date(existing.end.getTime() + intervalMs);
 	// 要求シフト終了後 + インターバル時間の間に既存が開始するか
@@ -417,21 +419,16 @@ export class ShiftAdjustmentSuggestionService {
 
 	/**
 	 * インターバル（移動時間）を考慮した重複チェック
-	 * findAvailableHelpers 専用
+	 * STAFF_SHIFT_INTERVAL_MINUTES を使用し、ShiftRepository.findConflictingShifts と同一条件
 	 */
 	private hasConflictForRangeWithInterval = (params: {
 		shiftsByStaff: StaffShiftsByStaff;
 		staffId: string;
 		range: { start: Date; end: Date };
-		intervalMinutes: number;
 	}): boolean => {
 		const staffShifts = params.shiftsByStaff.get(params.staffId) ?? [];
 		return staffShifts.some((s) =>
-			isOverlappingWithInterval(
-				params.range,
-				{ start: s.start, end: s.end },
-				params.intervalMinutes,
-			),
+			isOverlappingWithInterval(params.range, { start: s.start, end: s.end }),
 		);
 	};
 
@@ -805,7 +802,6 @@ export class ShiftAdjustmentSuggestionService {
 				shiftsByStaff,
 				staffId: helper.id,
 				range,
-				intervalMinutes: STAFF_SHIFT_INTERVAL_MINUTES,
 			});
 			if (hasConflict) {
 				continue;

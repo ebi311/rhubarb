@@ -57,6 +57,57 @@ describe('searchAvailableHelpers tool', () => {
 			expect(result.success).toBe(false);
 		});
 
+		it('存在しない日付を拒否する（2月31日）', () => {
+			const invalidParams = {
+				date: '2026-02-31', // 存在しない日付
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(invalidParams);
+			expect(result.success).toBe(false);
+			if (!result.success) {
+				expect(result.error.issues[0]?.message).toContain('存在する日付');
+			}
+		});
+
+		it('存在しない日付を拒否する（4月31日）', () => {
+			const invalidParams = {
+				date: '2026-04-31', // 存在しない日付
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(invalidParams);
+			expect(result.success).toBe(false);
+		});
+
+		it('閏年の2月29日は有効', () => {
+			const validParams = {
+				date: '2024-02-29', // 閏年
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(validParams);
+			expect(result.success).toBe(true);
+		});
+
+		it('閏年でない年の2月29日は無効', () => {
+			const invalidParams = {
+				date: '2025-02-29', // 閏年ではない
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+			};
+
+			const result =
+				SearchAvailableHelpersParametersSchema.safeParse(invalidParams);
+			expect(result.success).toBe(false);
+		});
+
 		it('clientId（オプション）を受け付ける', () => {
 			const paramsWithClientId = {
 				date: '2026-02-25',

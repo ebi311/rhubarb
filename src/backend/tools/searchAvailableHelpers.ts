@@ -5,6 +5,7 @@ import {
 import { Database } from '@/backend/types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { tool, Tool } from 'ai';
+import dayjs from 'dayjs';
 import { z } from 'zod';
 
 const TimeSchema = z.object({
@@ -15,11 +16,22 @@ const TimeSchema = z.object({
 const timeToMinutes = (time: { hour: number; minute: number }): number =>
 	time.hour * 60 + time.minute;
 
+/**
+ * 日付文字列が実在する日付かどうかを検証する
+ * 正規表現で形式は確認済みの前提で、dayjs の strict parsing で実在性をチェック
+ */
+const isValidDate = (dateStr: string): boolean => {
+	const parsed = dayjs(dateStr, 'YYYY-MM-DD', true);
+	// strict parsing で isValid() かつ、parse した結果が元の文字列と一致することを確認
+	return parsed.isValid() && parsed.format('YYYY-MM-DD') === dateStr;
+};
+
 export const SearchAvailableHelpersParametersSchema = z
 	.object({
 		date: z
 			.string()
-			.regex(/^\d{4}-\d{2}-\d{2}$/, '日付はYYYY-MM-DD形式で指定してください'),
+			.regex(/^\d{4}-\d{2}-\d{2}$/, '日付はYYYY-MM-DD形式で指定してください')
+			.refine(isValidDate, '存在する日付を指定してください'),
 		startTime: TimeSchema.describe('開始時刻'),
 		endTime: TimeSchema.describe('終了時刻'),
 		clientId: z
