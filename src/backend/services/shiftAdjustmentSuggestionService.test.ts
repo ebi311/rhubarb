@@ -762,6 +762,17 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			expect(result).toHaveLength(5);
 		});
 
+		it('clientId 指定時に serviceTypeId がないとエラー', async () => {
+			await expect(
+				service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+					date: '2026-02-25',
+					startTime: { hour: 10, minute: 0 },
+					endTime: { hour: 11, minute: 0 },
+					clientId: TEST_IDS.CLIENT_1,
+				}),
+			).rejects.toThrow('clientId 指定時は serviceTypeId も必須です');
+		});
+
 		it('clientId 指定時はその利用者に割当可能なスタッフに絞る', async () => {
 			const helperAId = createTestId();
 			const helperBId = createTestId();
@@ -799,6 +810,7 @@ describe('ShiftAdjustmentSuggestionService', () => {
 				startTime: { hour: 10, minute: 0 },
 				endTime: { hour: 11, minute: 0 },
 				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
 			});
 
 			expect(result).toHaveLength(1);

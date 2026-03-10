@@ -749,6 +749,11 @@ export class ShiftAdjustmentSuggestionService {
 	): Promise<AvailableHelper[]> {
 		const MAX_RESULTS = 5;
 
+		// clientId 指定時は serviceTypeId も必須
+		if (input.clientId && !input.serviceTypeId) {
+			throw new ServiceError(400, 'clientId 指定時は serviceTypeId も必須です');
+		}
+
 		// 事業所のスタッフ一覧を取得
 		const staffs = await this.staffRepository.listByOffice(officeId);
 

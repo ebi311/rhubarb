@@ -82,7 +82,7 @@ export const createSearchAvailableHelpersTool = (
 
 	return tool({
 		description:
-			'指定した日時に空きのあるヘルパーを検索します。最大5人まで返却されます。利用者IDとサービス種別IDを指定すると、その利用者・サービス種別に割当可能なスタッフに絞り込まれます。',
+			'指定した日時に空きのあるヘルパーを検索します。最大5人まで返却されます。利用者IDを指定する場合はサービス種別IDも必須で、その利用者・サービス種別に割当可能なスタッフに絞り込まれます。',
 		inputSchema: SearchAvailableHelpersParametersSchema,
 		execute: async (
 			params: SearchAvailableHelpersParameters,
