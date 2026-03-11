@@ -161,10 +161,12 @@ gh api graphql -f query='{ repository(owner: "{owner}", name: "{repo}") { pullRe
 - `resolved` の thread は課題一覧に含めない。
 - review thread の `resolved` 操作は、この agent 単独では行わない。修正 push 済み、または却下/後続 Issue 化の説明が PR 上で明示された場合に限り、別フェーズで実行する。
 
-### 推奨フロー
+### 必須フロー（推奨ではなく運用ルール）
 
-1. **PR作成時**: `gh pr create` → Copilot レビュアー追加 → 未解決 thread のみを対象にポーリング開始
-2. **修正 Push 時**: `git push` → re-review リクエスト → 未解決 thread のみを対象にポーリング開始
+PR 作成後または Push 後は、**必ず**以下のフローを実行する。任意・省略は不可。
+
+1. **PR作成時**: `gh pr create` → Copilot レビュアー追加 → **即座に** 未解決 thread のみを対象にポーリング開始（30秒間隔・最大10分）
+2. **修正 Push 時**: `git push` → re-review リクエスト → **即座に** 未解決 thread のみを対象にポーリング開始（30秒間隔・最大10分）
 3. **コメント検出時**: 指摘内容を評価 → 修正実施 → テスト実行 → Push → 2に戻る
 4. **未解決 0件**: マージ準備完了
 

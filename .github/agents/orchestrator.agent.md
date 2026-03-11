@@ -26,7 +26,7 @@ model: GPT-5.2 (copilot)
 5. 必要に応じてステップ 3 と 4 を繰り返す
 6. #tool:agent/runSubagent で pr agent を呼び出し、プルリクエストを作成する
 7. 実装内容とプルリクエストのリンクをユーザーに通知する
-8. PR 作成後は、PR 番号/URL を保持し、必要に応じて review agent に「未解決の review thread のみ」を取得・評価させる
+8. **PR 作成後は必ずポーリングを開始する**。PR 番号/URL を保持したら、待機せず即座に review agent に「未解決の review thread のみ」を30秒間隔・最大10分でポーリング取得・評価させる（`必要に応じて` の条件なしに実行する）
 9. review agent の結果をもとに、implement agent で修正し、pr agent に re-review リクエストとポーリング手順を実行/提示させる
 10. ユーザーがマージを行ったら、チャットで通知するので、作業完了を issue agent に通知する。
 
