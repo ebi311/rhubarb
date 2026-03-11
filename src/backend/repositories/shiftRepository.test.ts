@@ -18,6 +18,7 @@ const createMockSupabaseClient = () => {
 		lt: vi.fn().mockReturnThis(),
 		gt: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
+		limit: vi.fn().mockReturnThis(),
 		maybeSingle: vi.fn(),
 		single: vi.fn(),
 	};
@@ -549,6 +550,55 @@ describe('ShiftRepository', () => {
 			);
 		});
 
+		it('should only include scheduled or confirmed status shifts', async () => {
+			const staffId = '12345678-1234-1234-8234-123456789001';
+			const startDate = new Date('2026-01-20');
+			const endDate = new Date('2026-01-22');
+			const officeId = '12345678-1234-1234-8234-123456789031';
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findAffectedShiftsByAbsence(
+				staffId,
+				startDate,
+				endDate,
+				officeId,
+			);
+
+			// scheduled または confirmed のみを対象にするフィルタ
+			expect(mockSupabase._mockQuery.or).toHaveBeenCalledWith(
+				'status.eq.scheduled,status.eq.confirmed',
+			);
+		});
+
+		it('should only include shifts from startDate onwards (not past shifts)', async () => {
+			const staffId = '12345678-1234-1234-8234-123456789001';
+			const startDate = new Date('2026-01-20');
+			const endDate = new Date('2026-01-22');
+			const officeId = '12345678-1234-1234-8234-123456789031';
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findAffectedShiftsByAbsence(
+				staffId,
+				startDate,
+				endDate,
+				officeId,
+			);
+
+			// startDate以降のシフトのみ（当日以降）
+			expect(mockSupabase._mockQuery.gte).toHaveBeenCalledWith(
+				'start_time',
+				expect.stringContaining('2026-01-19T15:00:00'), // JST 2026-01-20 00:00 = UTC 2026-01-19 15:00
+			);
+		});
+
 		it('should return empty array if no shifts found', async () => {
 			const staffId = '12345678-1234-1234-8234-123456789001';
 			const startDate = new Date('2026-01-20');
@@ -589,19 +639,20 @@ describe('ShiftRepository', () => {
 	});
 
 	describe('findPastAssignedStaffIdsByClient', () => {
-		it('should return unique staff IDs from past shifts for a client', async () => {
+		it('should return unique staff IDs from completed shifts for a client with serviceTypeId filter', async () => {
 			const clientId = '12345678-1234-1234-8234-123456789002';
 			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
 			const limit = 3;
 
+			// SQL DISTINCT + ORDER BY で取得済み（直近順）、重複なしのデータ
 			const mockData = [
 				{ staff_id: '12345678-1234-1234-8234-123456789011' },
 				{ staff_id: '12345678-1234-1234-8234-123456789012' },
-				{ staff_id: '12345678-1234-1234-8234-123456789011' }, // duplicate
 				{ staff_id: '12345678-1234-1234-8234-123456789013' },
 			];
 
-			mockSupabase._mockQuery.lte.mockResolvedValueOnce({
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
 				data: mockData,
 				error: null,
 			});
@@ -609,10 +660,12 @@ describe('ShiftRepository', () => {
 			const result = await repository.findPastAssignedStaffIdsByClient(
 				clientId,
 				officeId,
+				serviceTypeId,
 				limit,
 			);
 
 			expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
+			// DISTINCT staff_id を使用
 			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith(
 				'staff_id, clients!inner(office_id)',
 			);
@@ -624,15 +677,26 @@ describe('ShiftRepository', () => {
 				'client_id',
 				clientId,
 			);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'service_type_id',
+				serviceTypeId,
+			);
+			// status='completed' 限定
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'status',
+				'completed',
+			);
 			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
 				'staff_id',
 				null,
 			);
-			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
-				'status',
-				'canceled',
-			);
-			// Unique staff IDs, limited to 3
+			// start_time 降順（直近優先）
+			expect(mockSupabase._mockQuery.order).toHaveBeenCalledWith('start_time', {
+				ascending: false,
+			});
+			// limit パラメータを使用
+			expect(mockSupabase._mockQuery.limit).toHaveBeenCalled();
+			// 直近順で返却
 			expect(result).toHaveLength(3);
 			expect(result).toEqual([
 				'12345678-1234-1234-8234-123456789011',
@@ -641,11 +705,59 @@ describe('ShiftRepository', () => {
 			]);
 		});
 
+		it('should filter by completed status only', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
+
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				serviceTypeId,
+				10,
+			);
+
+			// status='completed' に限定
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'status',
+				'completed',
+			);
+		});
+
+		it('should order by start_time descending (recent first)', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
+
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				serviceTypeId,
+				10,
+			);
+
+			// 直近担当優先（start_time 降順）
+			expect(mockSupabase._mockQuery.order).toHaveBeenCalledWith('start_time', {
+				ascending: false,
+			});
+		});
+
 		it('should return empty array if no shifts found', async () => {
 			const clientId = '12345678-1234-1234-8234-123456789002';
 			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
 
-			mockSupabase._mockQuery.lte.mockResolvedValueOnce({
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
 				data: [],
 				error: null,
 			});
@@ -653,6 +765,7 @@ describe('ShiftRepository', () => {
 			const result = await repository.findPastAssignedStaffIdsByClient(
 				clientId,
 				officeId,
+				serviceTypeId,
 				3,
 			);
 
@@ -661,14 +774,39 @@ describe('ShiftRepository', () => {
 
 		it('should throw error if query fails', async () => {
 			const error = new Error('Query failed');
-			mockSupabase._mockQuery.lte.mockResolvedValueOnce({
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
 				data: null,
 				error,
 			});
 
 			await expect(
-				repository.findPastAssignedStaffIdsByClient('client-1', 'office-1', 3),
+				repository.findPastAssignedStaffIdsByClient(
+					'client-1',
+					'office-1',
+					'life-support',
+					3,
+				),
 			).rejects.toThrow('Query failed');
+		});
+
+		it('should use default limit of 10 when not specified', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
+
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				serviceTypeId,
+			);
+
+			// デフォルト limit = 10
+			expect(mockSupabase._mockQuery.limit).toHaveBeenCalled();
 		});
 	});
 });

@@ -440,46 +440,68 @@ export class ShiftRepository {
 		endDate: Date,
 		officeId: string,
 	): Promise<Shift[]> {
-		return this.list({
-			officeId,
-			staffId,
-			startDate,
-			endDate,
-			excludeStatus: 'canceled',
-		});
+		// scheduled または confirmed のステータスのみを対象
+		// startDate 以降（当日以降）のシフトのみを取得
+		const query = this.supabase
+			.from('shifts')
+			.select('*, clients!inner(office_id)')
+			.eq('clients.office_id', officeId)
+			.eq('staff_id', staffId)
+			.gte('start_time', setJstTime(startDate, 0, 0).toISOString())
+			.lte('start_time', setJstTime(endDate, 23, 59).toISOString())
+			.neq('status', 'canceled')
+			.or('status.eq.scheduled,status.eq.confirmed');
+
+		const { data, error } = await query.order('start_time');
+		if (error) throw error;
+		return (data ?? []).map((row) => this.toDomain(row));
 	}
 
 	/**
-	 * 過去に指定クライアントを担当したスタッフIDを取得する（重複排除）
-	 * shifts テーブルから実績ベースで取得
+	 * 過去に指定クライアント・サービス種別で完了したシフトの担当スタッフIDを取得する
+	 * 直近担当優先順（重複排除済み）
 	 *
 	 * @param clientId クライアントID
 	 * @param officeId 事業所ID
-	 * @param limit 最大取得数（デフォルト3）
-	 * @returns スタッフIDの配列（重複排除済み、limit まで）
+	 * @param serviceTypeId サービス種別ID
+	 * @param limit 最大取得数（デフォルト10）
+	 * @returns スタッフIDの配列（重複排除済み、直近担当優先順、limit まで）
 	 */
 	async findPastAssignedStaffIdsByClient(
 		clientId: string,
 		officeId: string,
-		limit: number = 3,
+		serviceTypeId: string,
+		limit: number = 10,
 	): Promise<string[]> {
-		const now = new Date();
+		// status='completed' の実績のみ
+		// start_time 降順（直近優先）で取得し、アプリ側で重複排除
+		// Supabase は DISTINCT ON をサポートしないため、多めに取得して重複排除
+		const fetchLimit = limit * 5; // 重複を考慮して多めに取得
 
 		const { data, error } = await this.supabase
 			.from('shifts')
 			.select('staff_id, clients!inner(office_id)')
 			.eq('clients.office_id', officeId)
 			.eq('client_id', clientId)
+			.eq('service_type_id', serviceTypeId)
+			.eq('status', 'completed')
 			.neq('staff_id', null)
-			.neq('status', 'canceled')
-			.lte('start_time', now.toISOString());
+			.order('start_time', { ascending: false })
+			.limit(fetchLimit);
 
 		if (error) throw error;
 
-		// 重複排除して limit まで
-		const uniqueStaffIds = [
-			...new Set((data ?? []).map((row) => row.staff_id as string)),
-		];
-		return uniqueStaffIds.slice(0, limit);
+		// 順序を保持しながら重複排除（直近優先）
+		const seen = new Set<string>();
+		const uniqueStaffIds: string[] = [];
+		for (const row of data ?? []) {
+			const staffId = row.staff_id as string;
+			if (!seen.has(staffId)) {
+				seen.add(staffId);
+				uniqueStaffIds.push(staffId);
+				if (uniqueStaffIds.length >= limit) break;
+			}
+		}
+		return uniqueStaffIds;
 	}
 }
