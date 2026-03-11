@@ -1,4 +1,5 @@
 import { Database } from '@/backend/types/supabase';
+import { TEST_IDS } from '@/test/helpers/testIds';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShiftRepository } from './shiftRepository';
@@ -454,15 +455,15 @@ describe('ShiftRepository', () => {
 
 	describe('findAffectedShiftsByAbsence', () => {
 		it('should call list with correct filters for affected shifts', async () => {
-			const staffId = '12345678-1234-1234-8234-123456789001';
+			const staffId = TEST_IDS.STAFF_1;
 			const startDate = new Date('2026-01-20');
 			const endDate = new Date('2026-01-22');
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const officeId = TEST_IDS.OFFICE_1;
 
 			const mockData = [
 				{
-					id: '12345678-1234-1234-8234-123456789011',
-					client_id: '12345678-1234-1234-8234-123456789002',
+					id: TEST_IDS.SCHEDULE_1,
+					client_id: TEST_IDS.CLIENT_1,
 					service_type_id: 'physical-care',
 					staff_id: staffId,
 					start_time: '2026-01-20T10:00:00+09:00',
@@ -477,8 +478,8 @@ describe('ShiftRepository', () => {
 					clients: { office_id: officeId },
 				},
 				{
-					id: '12345678-1234-1234-8234-123456789012',
-					client_id: '12345678-1234-1234-8234-123456789003',
+					id: TEST_IDS.SCHEDULE_2,
+					client_id: TEST_IDS.CLIENT_2,
 					service_type_id: 'life-support',
 					staff_id: staffId,
 					start_time: '2026-01-21T09:00:00+09:00',
@@ -525,15 +526,15 @@ describe('ShiftRepository', () => {
 				'confirmed',
 			]);
 			expect(result).toHaveLength(2);
-			expect(result[0].id).toBe('12345678-1234-1234-8234-123456789011');
-			expect(result[1].id).toBe('12345678-1234-1234-8234-123456789012');
+			expect(result[0].id).toBe(TEST_IDS.SCHEDULE_1);
+			expect(result[1].id).toBe(TEST_IDS.SCHEDULE_2);
 		});
 
 		it('should exclude canceled shifts', async () => {
-			const staffId = '12345678-1234-1234-8234-123456789001';
+			const staffId = TEST_IDS.STAFF_1;
 			const startDate = new Date('2026-01-20');
 			const endDate = new Date('2026-01-22');
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const officeId = TEST_IDS.OFFICE_1;
 
 			mockSupabase._mockQuery.order.mockResolvedValueOnce({
 				data: [],
@@ -555,10 +556,10 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should only include scheduled or confirmed status shifts', async () => {
-			const staffId = '12345678-1234-1234-8234-123456789001';
+			const staffId = TEST_IDS.STAFF_1;
 			const startDate = new Date('2026-01-20');
 			const endDate = new Date('2026-01-22');
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const officeId = TEST_IDS.OFFICE_1;
 
 			mockSupabase._mockQuery.order.mockResolvedValueOnce({
 				data: [],
@@ -580,11 +581,11 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should only include shifts from startDate onwards (not past shifts)', async () => {
-			const staffId = '12345678-1234-1234-8234-123456789001';
+			const staffId = TEST_IDS.STAFF_1;
 			// 未来の日付を指定（今日より後なので、startDate がそのまま使われる）
 			const startDate = new Date('2030-01-20');
 			const endDate = new Date('2030-01-22');
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const officeId = TEST_IDS.OFFICE_1;
 
 			mockSupabase._mockQuery.order.mockResolvedValueOnce({
 				data: [],
@@ -611,11 +612,11 @@ describe('ShiftRepository', () => {
 			vi.setSystemTime(new Date('2025-06-15T10:00:00+09:00')); // JST 2025-06-15 10:00
 
 			try {
-				const staffId = '12345678-1234-1234-8234-123456789001';
+				const staffId = TEST_IDS.STAFF_1;
 				// 過去の日付を指定
 				const pastStartDate = new Date('2020-01-01');
 				const endDate = new Date('2030-01-22');
-				const officeId = '12345678-1234-1234-8234-123456789031';
+				const officeId = TEST_IDS.OFFICE_1;
 
 				mockSupabase._mockQuery.order.mockResolvedValueOnce({
 					data: [],
@@ -648,10 +649,10 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should return empty array if no shifts found', async () => {
-			const staffId = '12345678-1234-1234-8234-123456789001';
+			const staffId = TEST_IDS.STAFF_1;
 			const startDate = new Date('2026-01-20');
 			const endDate = new Date('2026-01-22');
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const officeId = TEST_IDS.OFFICE_1;
 
 			mockSupabase._mockQuery.order.mockResolvedValueOnce({
 				data: [],
@@ -688,16 +689,16 @@ describe('ShiftRepository', () => {
 
 	describe('findPastAssignedStaffIdsByClient', () => {
 		it('should return unique staff IDs from completed shifts for a client with serviceTypeId filter', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 			const limit = 3;
 
 			// start_time 降順で取得後、JavaScript の Set で重複排除（直近優先）
 			const mockData = [
-				{ staff_id: '12345678-1234-1234-8234-123456789011' },
-				{ staff_id: '12345678-1234-1234-8234-123456789012' },
-				{ staff_id: '12345678-1234-1234-8234-123456789013' },
+				{ staff_id: TEST_IDS.STAFF_1 },
+				{ staff_id: TEST_IDS.STAFF_2 },
+				{ staff_id: TEST_IDS.STAFF_3 },
 			];
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
@@ -749,15 +750,15 @@ describe('ShiftRepository', () => {
 			// 直近順で返却
 			expect(result).toHaveLength(3);
 			expect(result).toEqual([
-				'12345678-1234-1234-8234-123456789011',
-				'12345678-1234-1234-8234-123456789012',
-				'12345678-1234-1234-8234-123456789013',
+				TEST_IDS.STAFF_1,
+				TEST_IDS.STAFF_2,
+				TEST_IDS.STAFF_3,
 			]);
 		});
 
 		it('should filter by completed status only', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
@@ -780,8 +781,8 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should order by start_time descending (recent first)', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
@@ -803,8 +804,8 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should return empty array if no shifts found', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
@@ -840,8 +841,8 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should use default limit of 10 when not specified', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
@@ -860,8 +861,8 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should use .not() for staff_id null check instead of .neq()', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
@@ -890,20 +891,20 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should deduplicate staff IDs and maintain recent-first order when same staff assigned multiple times', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 			const limit = 3;
 
 			// 同じスタッフが複数回担当した場合のモックデータ（直近順）
 			// staff-01 が2回、staff-02 が1回、staff-03 が2回、staff-04 が1回
 			const mockData = [
-				{ staff_id: '12345678-1234-1234-8234-123456789011' }, // staff-01 (最新)
-				{ staff_id: '12345678-1234-1234-8234-123456789012' }, // staff-02
-				{ staff_id: '12345678-1234-1234-8234-123456789011' }, // staff-01 (重複)
-				{ staff_id: '12345678-1234-1234-8234-123456789013' }, // staff-03
-				{ staff_id: '12345678-1234-1234-8234-123456789013' }, // staff-03 (重複)
-				{ staff_id: '12345678-1234-1234-8234-123456789014' }, // staff-04
+				{ staff_id: TEST_IDS.STAFF_1 }, // staff-01 (最新)
+				{ staff_id: TEST_IDS.STAFF_2 }, // staff-02
+				{ staff_id: TEST_IDS.STAFF_1 }, // staff-01 (重複)
+				{ staff_id: TEST_IDS.STAFF_3 }, // staff-03
+				{ staff_id: TEST_IDS.STAFF_3 }, // staff-03 (重複)
+				{ staff_id: TEST_IDS.CLIENT_4 }, // staff-04（CLIENT_4を代用）
 			];
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
@@ -921,21 +922,21 @@ describe('ShiftRepository', () => {
 			// 重複排除済み、直近優先順、limit=3 で返却
 			expect(result).toHaveLength(3);
 			expect(result).toEqual([
-				'12345678-1234-1234-8234-123456789011', // staff-01 (最新)
-				'12345678-1234-1234-8234-123456789012', // staff-02
-				'12345678-1234-1234-8234-123456789013', // staff-03
+				TEST_IDS.STAFF_1, // staff-01 (最新)
+				TEST_IDS.STAFF_2, // staff-02
+				TEST_IDS.STAFF_3, // staff-03
 			]);
 			// staff-04 は limit 超過のため含まれない
-			expect(result).not.toContain('12345678-1234-1234-8234-123456789014');
+			expect(result).not.toContain(TEST_IDS.CLIENT_4);
 		});
 
 		it('should treat limit <= 0 as 1 (defensive)', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
-				data: [{ staff_id: '12345678-1234-1234-8234-123456789011' }],
+				data: [{ staff_id: TEST_IDS.STAFF_1 }],
 				error: null,
 			});
 
@@ -953,8 +954,8 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should cap fetchLimit at MAX_FETCH_LIMIT (100)', async () => {
-			const clientId = '12345678-1234-1234-8234-123456789002';
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			const clientId = TEST_IDS.CLIENT_1;
+			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({

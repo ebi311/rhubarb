@@ -494,8 +494,11 @@ export class ShiftRepository {
 		// status='completed' の実績のみ
 		// start_time 降順（直近優先）で取得し、アプリ側で重複排除
 		// Supabase は DISTINCT ON をサポートしないため、多めに取得して重複排除
-		// limit が 0 以下の場合は 1 として扱う
-		const effectiveLimit = Math.max(1, limit);
+		// limit が不正な値（NaN, Infinity, 0以下）の場合は 1 として扱う
+		const effectiveLimit =
+			Number.isFinite(limit) && Number.isInteger(limit)
+				? Math.max(1, limit)
+				: 1;
 		const fetchLimit = Math.min(
 			effectiveLimit * FETCH_LIMIT_MULTIPLIER,
 			MAX_FETCH_LIMIT,
@@ -522,7 +525,7 @@ export class ShiftRepository {
 			if (!seen.has(staffId)) {
 				seen.add(staffId);
 				uniqueStaffIds.push(staffId);
-				if (uniqueStaffIds.length >= limit) break;
+				if (uniqueStaffIds.length >= effectiveLimit) break;
 			}
 		}
 		return uniqueStaffIds;
