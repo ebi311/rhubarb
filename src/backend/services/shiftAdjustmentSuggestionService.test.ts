@@ -1161,3 +1161,513 @@ describe('ShiftAdjustmentSuggestionService', () => {
 		});
 	});
 });
+
+describe('processStaffAbsence', () => {
+	let service: ShiftAdjustmentSuggestionService;
+	let mockStaffRepo: Mocked<StaffRepository>;
+	let mockShiftRepo: Mocked<ShiftRepository>;
+	let mockClientStaffAssignmentRepo: Mocked<ClientStaffAssignmentRepository>;
+	let mockSupabase: SupabaseClient<Database>;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-02-22T00:00:00+09:00'));
+
+		mockStaffRepo = createMockStaffRepository();
+		mockShiftRepo = createMockShiftRepository();
+		mockClientStaffAssignmentRepo = createMockClientStaffAssignmentRepository();
+		mockSupabase = {} as SupabaseClient<Database>;
+		service = new ShiftAdjustmentSuggestionService(mockSupabase, {
+			staffRepository: mockStaffRepo,
+			shiftRepository: mockShiftRepo,
+			clientStaffAssignmentRepository: mockClientStaffAssignmentRepo,
+		});
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('非adminは403を返す', async () => {
+		const userId = createTestId();
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({
+				id: createTestId(),
+				auth_user_id: userId,
+				role: 'helper',
+			}),
+		);
+
+		await expect(
+			service.processStaffAbsence(userId, {
+				staffId: TEST_IDS.STAFF_2,
+				startDate: new Date('2026-02-25T00:00:00+09:00'),
+				endDate: new Date('2026-02-26T00:00:00+09:00'),
+			}),
+		).rejects.toMatchObject({ status: 403, message: 'Forbidden' });
+	});
+
+	it('欠勤スタッフが存在しない場合は404を返す', async () => {
+		const userId = createTestId();
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi.fn().mockResolvedValueOnce(null);
+
+		await expect(
+			service.processStaffAbsence(userId, {
+				staffId: TEST_IDS.STAFF_2,
+				startDate: new Date('2026-02-25T00:00:00+09:00'),
+				endDate: new Date('2026-02-26T00:00:00+09:00'),
+			}),
+		).rejects.toMatchObject({
+			status: 404,
+			message: 'Absence staff not found',
+		});
+	});
+
+	it('欠勤スタッフがadminと異なるofficeの場合は404を返す', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({
+				id: createTestId(),
+				auth_user_id: userId,
+				office_id: TEST_IDS.OFFICE_1,
+			}),
+		);
+		mockStaffRepo.findById = vi.fn().mockResolvedValueOnce(
+			createAdminStaff({
+				id: absenceStaffId,
+				office_id: TEST_IDS.OFFICE_2, // 別の事業所
+			}),
+		);
+
+		await expect(
+			service.processStaffAbsence(userId, {
+				staffId: absenceStaffId,
+				startDate: new Date('2026-02-25T00:00:00+09:00'),
+				endDate: new Date('2026-02-26T00:00:00+09:00'),
+			}),
+		).rejects.toMatchObject({
+			status: 404,
+			message: 'Absence staff not found',
+		});
+	});
+
+	it('影響シフトがない場合は空配列を返す', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi
+			.fn()
+			.mockResolvedValueOnce(
+				createAdminStaff({ id: absenceStaffId, name: '欠勤者A' }),
+			);
+		mockShiftRepo.findAffectedShiftsByAbsence = vi
+			.fn()
+			.mockResolvedValueOnce([]);
+
+		const result = await service.processStaffAbsence(userId, {
+			staffId: absenceStaffId,
+			startDate: new Date('2026-02-25T00:00:00+09:00'),
+			endDate: new Date('2026-02-26T00:00:00+09:00'),
+		});
+
+		expect(result.absenceStaffId).toBe(absenceStaffId);
+		expect(result.absenceStaffName).toBe('欠勤者A');
+		expect(result.startDate).toBe('2026-02-25');
+		expect(result.endDate).toBe('2026-02-26');
+		expect(result.affectedShifts).toHaveLength(0);
+		expect(result.summary).toContain('影響シフト: 0件');
+	});
+
+	it('影響シフトに対して過去担当者が候補として優先される', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+		const pastStaffId = TEST_IDS.STAFF_3;
+		const clientId = TEST_IDS.CLIENT_1;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi
+			.fn()
+			.mockResolvedValueOnce(
+				createAdminStaff({ id: absenceStaffId, name: '欠勤者A' }),
+			);
+		// 事業所のスタッフ一覧
+		mockStaffRepo.listByOffice.mockResolvedValueOnce([
+			createStaffWithServiceTypes({
+				id: pastStaffId,
+				name: '過去担当者B',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+		]);
+
+		// 影響シフト
+		const affectedShift = createShift({
+			id: TEST_IDS.SCHEDULE_1,
+			client_id: clientId,
+			staff_id: absenceStaffId,
+			date: new Date('2026-02-25T00:00:00+09:00'),
+			time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+			status: 'scheduled',
+			service_type_id: 'life-support',
+		});
+		mockShiftRepo.findAffectedShiftsByAbsence = vi
+			.fn()
+			.mockResolvedValueOnce([affectedShift]);
+
+		// 過去担当者（shifts completed）
+		mockShiftRepo.findPastAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([pastStaffId]);
+		// client_staff_assignments
+		mockClientStaffAssignmentRepo.findAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([pastStaffId]);
+
+		// 空きヘルパー検索用のシフト一覧（重複チェック）
+		mockShiftRepo.list.mockResolvedValueOnce([]);
+
+		const result = await service.processStaffAbsence(userId, {
+			staffId: absenceStaffId,
+			startDate: new Date('2026-02-25T00:00:00+09:00'),
+			endDate: new Date('2026-02-26T00:00:00+09:00'),
+		});
+
+		expect(result.affectedShifts).toHaveLength(1);
+		const affected = result.affectedShifts[0]!;
+		expect(affected.shift.id).toBe(TEST_IDS.SCHEDULE_1);
+		expect(affected.candidates).toHaveLength(1);
+		expect(affected.candidates[0]).toMatchObject({
+			staffId: pastStaffId,
+			staffName: '過去担当者B',
+			priority: 'past_assigned',
+		});
+	});
+
+	it('過去担当者に空きがなければavailable優先度の候補が追加される', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+		const pastStaffId = TEST_IDS.STAFF_3;
+		const availableStaffId = TEST_IDS.STAFF_4;
+		const clientId = TEST_IDS.CLIENT_1;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi
+			.fn()
+			.mockResolvedValueOnce(
+				createAdminStaff({ id: absenceStaffId, name: '欠勤者A' }),
+			);
+		mockStaffRepo.listByOffice.mockResolvedValue([
+			createStaffWithServiceTypes({
+				id: pastStaffId,
+				name: '過去担当者B',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+			createStaffWithServiceTypes({
+				id: availableStaffId,
+				name: '空きスタッフC',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+		]);
+
+		const affectedShift = createShift({
+			id: TEST_IDS.SCHEDULE_1,
+			client_id: clientId,
+			staff_id: absenceStaffId,
+			date: new Date('2026-02-25T00:00:00+09:00'),
+			time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+			status: 'scheduled',
+			service_type_id: 'life-support',
+		});
+		mockShiftRepo.findAffectedShiftsByAbsence = vi
+			.fn()
+			.mockResolvedValueOnce([affectedShift]);
+
+		// 過去担当者
+		mockShiftRepo.findPastAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([pastStaffId]);
+		mockClientStaffAssignmentRepo.findAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([pastStaffId]);
+
+		// 過去担当者は同時間帯に別のシフトあり（空きなし）
+		// 空きスタッフCは空き
+		const shiftListCallIndex = { count: 0 };
+		mockShiftRepo.list.mockImplementation(async () => {
+			shiftListCallIndex.count++;
+			if (shiftListCallIndex.count === 1) {
+				// 最初の呼び出し: 過去担当者の空きチェック（重複あり）
+				return [
+					createShift({
+						id: createTestId(),
+						client_id: TEST_IDS.CLIENT_2,
+						staff_id: pastStaffId,
+						date: new Date('2026-02-25T00:00:00+09:00'),
+						time: {
+							start: { hour: 10, minute: 0 },
+							end: { hour: 11, minute: 0 },
+						},
+						status: 'scheduled',
+					}),
+				];
+			}
+			// 2回目以降: 空きスタッフ検索用（重複なし）
+			return [];
+		});
+
+		const result = await service.processStaffAbsence(userId, {
+			staffId: absenceStaffId,
+			startDate: new Date('2026-02-25T00:00:00+09:00'),
+			endDate: new Date('2026-02-26T00:00:00+09:00'),
+		});
+
+		expect(result.affectedShifts).toHaveLength(1);
+		const affected = result.affectedShifts[0]!;
+		expect(affected.candidates.length).toBeGreaterThanOrEqual(1);
+		// 空きスタッフCが候補に含まれる（available優先度）
+		const availableCandidate = affected.candidates.find(
+			(c) => c.staffId === availableStaffId,
+		);
+		expect(availableCandidate).toBeDefined();
+		expect(availableCandidate!.priority).toBe('available');
+	});
+
+	it('候補は最大3名まで', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+		const clientId = TEST_IDS.CLIENT_1;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi
+			.fn()
+			.mockResolvedValueOnce(
+				createAdminStaff({ id: absenceStaffId, name: '欠勤者A' }),
+			);
+
+		// 5人のスタッフ（すべて空き）
+		const staffIds = Array.from({ length: 5 }, () => createTestId());
+		mockStaffRepo.listByOffice.mockResolvedValue(
+			staffIds.map((id, i) =>
+				createStaffWithServiceTypes({
+					id,
+					name: `スタッフ${i + 1}`,
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			),
+		);
+
+		const affectedShift = createShift({
+			id: TEST_IDS.SCHEDULE_1,
+			client_id: clientId,
+			staff_id: absenceStaffId,
+			date: new Date('2026-02-25T00:00:00+09:00'),
+			time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+			status: 'scheduled',
+			service_type_id: 'life-support',
+		});
+		mockShiftRepo.findAffectedShiftsByAbsence = vi
+			.fn()
+			.mockResolvedValueOnce([affectedShift]);
+		mockShiftRepo.findPastAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([]);
+		mockClientStaffAssignmentRepo.findAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([]);
+		mockShiftRepo.list.mockResolvedValue([]);
+
+		const result = await service.processStaffAbsence(userId, {
+			staffId: absenceStaffId,
+			startDate: new Date('2026-02-25T00:00:00+09:00'),
+			endDate: new Date('2026-02-26T00:00:00+09:00'),
+		});
+
+		expect(result.affectedShifts).toHaveLength(1);
+		// 候補は最大3名
+		expect(result.affectedShifts[0]!.candidates.length).toBeLessThanOrEqual(3);
+	});
+
+	it('summaryに影響シフト数と候補がない件数が含まれる', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+		const clientId = TEST_IDS.CLIENT_1;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi
+			.fn()
+			.mockResolvedValueOnce(
+				createAdminStaff({ id: absenceStaffId, name: '欠勤者A' }),
+			);
+		mockStaffRepo.listByOffice.mockResolvedValue([]);
+
+		// 2件の影響シフト（候補なし）
+		const affectedShifts = [
+			createShift({
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: clientId,
+				staff_id: absenceStaffId,
+				date: new Date('2026-02-25T00:00:00+09:00'),
+				status: 'scheduled',
+			}),
+			createShift({
+				id: TEST_IDS.SCHEDULE_2,
+				client_id: clientId,
+				staff_id: absenceStaffId,
+				date: new Date('2026-02-26T00:00:00+09:00'),
+				status: 'scheduled',
+			}),
+		];
+		mockShiftRepo.findAffectedShiftsByAbsence = vi
+			.fn()
+			.mockResolvedValueOnce(affectedShifts);
+		mockShiftRepo.findPastAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValue([]);
+		mockClientStaffAssignmentRepo.findAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValue([]);
+		mockShiftRepo.list.mockResolvedValue([]);
+
+		const result = await service.processStaffAbsence(userId, {
+			staffId: absenceStaffId,
+			startDate: new Date('2026-02-25T00:00:00+09:00'),
+			endDate: new Date('2026-02-26T00:00:00+09:00'),
+		});
+
+		expect(result.summary).toContain('影響シフト: 2件');
+		expect(result.summary).toContain('候補なし: 2件');
+	});
+
+	it('過去担当と割当可能スタッフが重複しても重複排除される', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+		const overlappingStaffId = TEST_IDS.STAFF_3;
+		const clientId = TEST_IDS.CLIENT_1;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi
+			.fn()
+			.mockResolvedValueOnce(
+				createAdminStaff({ id: absenceStaffId, name: '欠勤者A' }),
+			);
+		mockStaffRepo.listByOffice.mockResolvedValue([
+			createStaffWithServiceTypes({
+				id: overlappingStaffId,
+				name: '担当者B',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+		]);
+
+		const affectedShift = createShift({
+			id: TEST_IDS.SCHEDULE_1,
+			client_id: clientId,
+			staff_id: absenceStaffId,
+			date: new Date('2026-02-25T00:00:00+09:00'),
+			time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+			status: 'scheduled',
+			service_type_id: 'life-support',
+		});
+		mockShiftRepo.findAffectedShiftsByAbsence = vi
+			.fn()
+			.mockResolvedValueOnce([affectedShift]);
+
+		// 同じスタッフが過去担当とclient_staff_assignmentsの両方に存在
+		mockShiftRepo.findPastAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([overlappingStaffId]);
+		mockClientStaffAssignmentRepo.findAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([overlappingStaffId]);
+		mockShiftRepo.list.mockResolvedValue([]);
+
+		const result = await service.processStaffAbsence(userId, {
+			staffId: absenceStaffId,
+			startDate: new Date('2026-02-25T00:00:00+09:00'),
+			endDate: new Date('2026-02-26T00:00:00+09:00'),
+		});
+
+		expect(result.affectedShifts).toHaveLength(1);
+		// 重複排除されて1人だけ
+		expect(result.affectedShifts[0]!.candidates).toHaveLength(1);
+		expect(result.affectedShifts[0]!.candidates[0]!.staffId).toBe(
+			overlappingStaffId,
+		);
+	});
+
+	it('欠勤者自身は候補から除外される', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+		const clientId = TEST_IDS.CLIENT_1;
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi
+			.fn()
+			.mockResolvedValueOnce(
+				createAdminStaff({ id: absenceStaffId, name: '欠勤者A' }),
+			);
+		mockStaffRepo.listByOffice.mockResolvedValue([
+			createStaffWithServiceTypes({
+				id: absenceStaffId,
+				name: '欠勤者A',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+		]);
+
+		const affectedShift = createShift({
+			id: TEST_IDS.SCHEDULE_1,
+			client_id: clientId,
+			staff_id: absenceStaffId,
+			date: new Date('2026-02-25T00:00:00+09:00'),
+			status: 'scheduled',
+			service_type_id: 'life-support',
+		});
+		mockShiftRepo.findAffectedShiftsByAbsence = vi
+			.fn()
+			.mockResolvedValueOnce([affectedShift]);
+		// 欠勤者が過去担当としても出てくるケース
+		mockShiftRepo.findPastAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([absenceStaffId]);
+		mockClientStaffAssignmentRepo.findAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValueOnce([]);
+		mockShiftRepo.list.mockResolvedValue([]);
+
+		const result = await service.processStaffAbsence(userId, {
+			staffId: absenceStaffId,
+			startDate: new Date('2026-02-25T00:00:00+09:00'),
+			endDate: new Date('2026-02-26T00:00:00+09:00'),
+		});
+
+		expect(result.affectedShifts).toHaveLength(1);
+		// 欠勤者自身は除外
+		expect(result.affectedShifts[0]!.candidates).toHaveLength(0);
+	});
+});

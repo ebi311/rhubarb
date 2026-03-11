@@ -10,10 +10,12 @@ import {
 	ShiftAdjustmentRationaleItem,
 	ShiftAdjustmentSuggestion,
 	ShiftSnapshot,
+	StaffAbsenceInput,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
 	addJstDays,
+	formatJstDateString,
 	getJstDateOnly,
 	parseJstDateString,
 	setJstTime,
@@ -61,6 +63,41 @@ export type FindAvailableHelpersInput = {
 export type AvailableHelper = {
 	id: string;
 	name: string;
+};
+
+// ======================================
+// processStaffAbsence 関連の型定義
+// ======================================
+
+/**
+ * 代替候補スタッフ
+ */
+export type StaffCandidate = {
+	staffId: string;
+	staffName: string;
+	/** 優先順位の理由: past_assigned = 過去に担当, available = 空き時間あり */
+	priority: 'past_assigned' | 'available';
+};
+
+/**
+ * 影響シフトとその代替候補
+ */
+export type AffectedShiftWithCandidates = {
+	shift: ShiftSnapshot;
+	candidates: StaffCandidate[];
+};
+
+/**
+ * processStaffAbsence の戻り値
+ */
+export type StaffAbsenceProcessResult = {
+	absenceStaffId: string;
+	absenceStaffName: string;
+	startDate: string; // YYYY-MM-DD
+	endDate: string; // YYYY-MM-DD
+	affectedShifts: AffectedShiftWithCandidates[];
+	/** AI が読む用のサマリー */
+	summary: string;
 };
 
 const isOverlapping = (
@@ -875,5 +912,206 @@ export class ShiftAdjustmentSuggestionService {
 			range,
 		});
 		return !hasConflict;
+	};
+
+	/**
+	 * スタッフ急休の処理
+	 * 影響シフトを特定し、各シフトに対する代替候補を取得する
+	 */
+	async processStaffAbsence(
+		userId: string,
+		input: StaffAbsenceInput,
+	): Promise<StaffAbsenceProcessResult> {
+		const MAX_CANDIDATES = 3;
+
+		// 管理者権限チェック
+		const admin = await this.getAdminStaff(userId);
+
+		// 欠勤スタッフの存在と同一事業所チェック
+		const absenceStaff = await this.staffRepository.findById(input.staffId);
+		if (!absenceStaff || absenceStaff.office_id !== admin.office_id) {
+			throw new ServiceError(404, 'Absence staff not found');
+		}
+
+		const officeId = admin.office_id;
+		const startDate = input.startDate;
+		const endDate = input.endDate;
+
+		// 影響シフトを取得
+		const affectedShifts =
+			await this.shiftRepository.findAffectedShiftsByAbsence(
+				input.staffId,
+				startDate,
+				endDate,
+				officeId,
+			);
+
+		// 影響シフトがない場合は早期リターン
+		if (affectedShifts.length === 0) {
+			return {
+				absenceStaffId: input.staffId,
+				absenceStaffName: absenceStaff.name,
+				startDate: formatJstDateString(startDate),
+				endDate: formatJstDateString(endDate),
+				affectedShifts: [],
+				summary: `影響シフト: 0件`,
+			};
+		}
+
+		// 事業所のスタッフ一覧を取得（候補検索用）
+		const officeStaffs = await this.staffRepository.listByOffice(officeId);
+		const staffMap = new Map(officeStaffs.map((s) => [s.id, s]));
+
+		// 各影響シフトに対して代替候補を検索
+		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] = [];
+
+		for (const shift of affectedShifts) {
+			const candidates = await this.findCandidatesForShift({
+				shift,
+				absenceStaffId: input.staffId,
+				officeId,
+				staffMap,
+				maxCandidates: MAX_CANDIDATES,
+			});
+
+			affectedShiftsWithCandidates.push({
+				shift: toShiftSnapshot(shift),
+				candidates,
+			});
+		}
+
+		// 候補なしの件数をカウント
+		const noCandidatesCount = affectedShiftsWithCandidates.filter(
+			(a) => a.candidates.length === 0,
+		).length;
+
+		return {
+			absenceStaffId: input.staffId,
+			absenceStaffName: absenceStaff.name,
+			startDate: formatJstDateString(startDate),
+			endDate: formatJstDateString(endDate),
+			affectedShifts: affectedShiftsWithCandidates,
+			summary:
+				`影響シフト: ${affectedShifts.length}件` +
+				(noCandidatesCount > 0 ? `, 候補なし: ${noCandidatesCount}件` : ''),
+		};
+	}
+
+	/**
+	 * 単一シフトに対する代替候補を検索
+	 */
+	private findCandidatesForShift = async (params: {
+		shift: ScheduledShift;
+		absenceStaffId: string;
+		officeId: string;
+		staffMap: Map<string, OfficeStaff>;
+		maxCandidates: number;
+	}): Promise<StaffCandidate[]> => {
+		const { shift, absenceStaffId, officeId, staffMap, maxCandidates } = params;
+
+		// 1. 過去担当者を取得（shifts completed + client_staff_assignments）
+		const [pastStaffIds, assignedStaffIds] = await Promise.all([
+			this.shiftRepository.findPastAssignedStaffIdsByClient(
+				shift.client_id,
+				officeId,
+				shift.service_type_id,
+				maxCandidates,
+			),
+			this.clientStaffAssignmentRepository.findAssignedStaffIdsByClient(
+				officeId,
+				shift.client_id,
+				shift.service_type_id,
+			),
+		]);
+
+		// 重複排除して結合（過去担当優先）
+		const pastAssignedStaffIds = [
+			...new Set([...pastStaffIds, ...assignedStaffIds]),
+		].filter((id) => id !== absenceStaffId); // 欠勤者自身を除外
+
+		// 2. シフトの時間帯を計算
+		const targetDate = shift.date;
+		const range = this.buildRangeOnDate({
+			date: targetDate,
+			startTime: shift.time.start,
+			endTime: shift.time.end,
+		});
+
+		// 3. 空き状況チェック用のシフトを取得（前後1日）
+		const shiftsNearDate = await this.shiftRepository.list({
+			officeId,
+			startDate: addJstDays(targetDate, -1),
+			endDate: addJstDays(targetDate, 1),
+			excludeStatus: 'canceled',
+		});
+		const shiftsByStaff = this.buildShiftsByStaff(shiftsNearDate);
+
+		const candidates: StaffCandidate[] = [];
+
+		// 4. 過去担当者の空き状況をチェック（past_assigned 優先）
+		for (const staffId of pastAssignedStaffIds) {
+			if (candidates.length >= maxCandidates) break;
+
+			const staff = staffMap.get(staffId);
+			if (!staff || staff.role !== 'helper') continue;
+
+			// サービス種別対応可能かチェック
+			if (!staff.service_type_ids.includes(shift.service_type_id)) continue;
+
+			// 空き時間チェック
+			const hasConflict = this.hasConflictForRangeWithInterval({
+				shiftsByStaff,
+				staffId,
+				range,
+			});
+			if (hasConflict) continue;
+
+			candidates.push({
+				staffId,
+				staffName: staff.name,
+				priority: 'past_assigned',
+			});
+		}
+
+		// 5. 候補が足りなければ追加候補を検索（available 優先）
+		if (candidates.length < maxCandidates) {
+			const candidateIds = new Set(candidates.map((c) => c.staffId));
+			const excludeIds = new Set([
+				absenceStaffId,
+				...pastAssignedStaffIds,
+				...candidateIds,
+			]);
+
+			// 全ヘルパーから空きスタッフを検索
+			const availableHelpers = Array.from(staffMap.values())
+				.filter((staff) => {
+					// 除外対象は除く
+					if (excludeIds.has(staff.id)) return false;
+					// ヘルパーのみ
+					if (staff.role !== 'helper') return false;
+					// サービス種別対応可能か
+					if (!staff.service_type_ids.includes(shift.service_type_id))
+						return false;
+					// 空き時間チェック
+					const hasConflict = this.hasConflictForRangeWithInterval({
+						shiftsByStaff,
+						staffId: staff.id,
+						range,
+					});
+					return !hasConflict;
+				})
+				.sort((a, b) => a.name.localeCompare(b.name, 'ja')); // 名前順
+
+			for (const staff of availableHelpers) {
+				if (candidates.length >= maxCandidates) break;
+				candidates.push({
+					staffId: staff.id,
+					staffName: staff.name,
+					priority: 'available',
+				});
+			}
+		}
+
+		return candidates;
 	};
 }
