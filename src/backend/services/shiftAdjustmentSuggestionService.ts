@@ -962,23 +962,32 @@ export class ShiftAdjustmentSuggestionService {
 		const officeStaffs = await this.staffRepository.listByOffice(officeId);
 		const staffMap = new Map(officeStaffs.map((s) => [s.id, s]));
 
-		// 各影響シフトに対して代替候補を検索
-		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] = [];
+		// 欠勤期間のシフトを一度だけ取得（N+1対策：前後1日のバッファを含む）
+		const allShiftsInPeriod = await this.shiftRepository.list({
+			officeId,
+			startDate: addJstDays(startDate, -1),
+			endDate: addJstDays(endDate, 1),
+			excludeStatus: 'canceled',
+		});
 
-		for (const shift of affectedShifts) {
-			const candidates = await this.findCandidatesForShift({
-				shift,
-				absenceStaffId: input.staffId,
-				officeId,
-				staffMap,
-				maxCandidates: MAX_CANDIDATES,
-			});
+		// 各影響シフトに対して代替候補を検索（並列化）
+		const affectedShiftsWithCandidates = await Promise.all(
+			affectedShifts.map(async (shift) => {
+				const candidates = await this.findCandidatesForShift({
+					shift,
+					absenceStaffId: input.staffId,
+					officeId,
+					staffMap,
+					maxCandidates: MAX_CANDIDATES,
+					allShiftsInPeriod,
+				});
 
-			affectedShiftsWithCandidates.push({
-				shift: toShiftSnapshot(shift),
-				candidates,
-			});
-		}
+				return {
+					shift: toShiftSnapshot(shift),
+					candidates,
+				};
+			}),
+		);
 
 		// 候補なしの件数をカウント
 		const noCandidatesCount = affectedShiftsWithCandidates.filter(
@@ -1006,8 +1015,16 @@ export class ShiftAdjustmentSuggestionService {
 		officeId: string;
 		staffMap: Map<string, OfficeStaff>;
 		maxCandidates: number;
+		allShiftsInPeriod: ScheduledShift[];
 	}): Promise<StaffCandidate[]> => {
-		const { shift, absenceStaffId, officeId, staffMap, maxCandidates } = params;
+		const {
+			shift,
+			absenceStaffId,
+			officeId,
+			staffMap,
+			maxCandidates,
+			allShiftsInPeriod,
+		} = params;
 
 		// 1. 過去担当者を取得（shifts completed + client_staff_assignments）
 		const [pastStaffIds, assignedStaffIds] = await Promise.all([
@@ -1037,12 +1054,12 @@ export class ShiftAdjustmentSuggestionService {
 			endTime: shift.time.end,
 		});
 
-		// 3. 空き状況チェック用のシフトを取得（前後1日）
-		const shiftsNearDate = await this.shiftRepository.list({
-			officeId,
-			startDate: addJstDays(targetDate, -1),
-			endDate: addJstDays(targetDate, 1),
-			excludeStatus: 'canceled',
+		// 3. 空き状況チェック用のシフトをフィルタリング（前後1日）
+		// 既に取得済みのallShiftsInPeriodから該当日付範囲を抽出
+		const targetStart = addJstDays(targetDate, -1);
+		const targetEnd = addJstDays(targetDate, 1);
+		const shiftsNearDate = allShiftsInPeriod.filter((s) => {
+			return s.date >= targetStart && s.date <= targetEnd;
 		});
 		const shiftsByStaff = this.buildShiftsByStaff(shiftsNearDate);
 
