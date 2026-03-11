@@ -10,10 +10,12 @@ import {
 	ShiftAdjustmentRationaleItem,
 	ShiftAdjustmentSuggestion,
 	ShiftSnapshot,
+	StaffAbsenceInput,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
 	addJstDays,
+	formatJstDateString,
 	getJstDateOnly,
 	parseJstDateString,
 	setJstTime,
@@ -61,6 +63,46 @@ export type FindAvailableHelpersInput = {
 export type AvailableHelper = {
 	id: string;
 	name: string;
+};
+
+// ======================================
+// processStaffAbsence 関連の型定義
+// ======================================
+
+/**
+ * 代替候補スタッフ
+ */
+export type StaffCandidate = {
+	staffId: string;
+	staffName: string;
+	/**
+	 * 優先順位の理由（いずれも時間帯の重複チェック済みで「空き時間あり」のスタッフ）:
+	 * - past_assigned = 過去にその利用者を担当したことがある
+	 * - assigned = 現在その利用者に割当済みだが、担当経験はない
+	 * - available = 現在その利用者には割当されておらず、今回の時間帯が空いている
+	 */
+	priority: 'past_assigned' | 'assigned' | 'available';
+};
+
+/**
+ * 影響シフトとその代替候補
+ */
+export type AffectedShiftWithCandidates = {
+	shift: ShiftSnapshot;
+	candidates: StaffCandidate[];
+};
+
+/**
+ * processStaffAbsence の戻り値
+ */
+export type StaffAbsenceProcessResult = {
+	absenceStaffId: string;
+	absenceStaffName: string;
+	startDate: string; // YYYY-MM-DD
+	endDate: string; // YYYY-MM-DD
+	affectedShifts: AffectedShiftWithCandidates[];
+	/** AI が読む用のサマリー */
+	summary: string;
 };
 
 const isOverlapping = (
@@ -297,6 +339,26 @@ export class ShiftAdjustmentSuggestionService {
 		}
 
 		return shiftsByStaff;
+	};
+
+	/**
+	 * 日付ごとにグループ化されたMapから、指定日付の前後1日のシフトを取得
+	 * O(1)でアクセスし、O(n)のfilterを回避
+	 */
+	private getShiftsForDateRange = (
+		shiftsByDate: Map<string, ScheduledShift[]>,
+		targetDate: Date,
+	): ScheduledShift[] => {
+		const result: ScheduledShift[] = [];
+		for (let delta = -1; delta <= 1; delta++) {
+			const date = addJstDays(targetDate, delta);
+			const dateKey = formatJstDateString(date);
+			const shifts = shiftsByDate.get(dateKey);
+			if (shifts) {
+				result.push(...shifts);
+			}
+		}
+		return result;
 	};
 
 	private buildAssignableStaffMap = async (params: {
@@ -875,5 +937,318 @@ export class ShiftAdjustmentSuggestionService {
 			range,
 		});
 		return !hasConflict;
+	};
+
+	/**
+	 * スタッフ急休の処理
+	 * 影響シフトを特定し、各シフトに対する代替候補を取得する
+	 */
+	async processStaffAbsence(
+		userId: string,
+		input: StaffAbsenceInput,
+	): Promise<StaffAbsenceProcessResult> {
+		const MAX_CANDIDATES = 3;
+		// 時間衝突で候補外になる可能性を考慮し、多めに取得してからフィルタする
+		const FETCH_CANDIDATES_BUFFER = 10;
+
+		// 管理者権限チェック
+		const admin = await this.getAdminStaff(userId);
+
+		// 欠勤スタッフの存在と同一事業所チェック
+		const absenceStaff = await this.staffRepository.findById(input.staffId);
+		if (!absenceStaff || absenceStaff.office_id !== admin.office_id) {
+			throw new ServiceError(404, 'Absence staff not found');
+		}
+
+		const officeId = admin.office_id;
+		const startDate = input.startDate;
+		const endDate = input.endDate;
+
+		// 影響シフトを取得
+		const affectedShifts =
+			await this.shiftRepository.findAffectedShiftsByAbsence(
+				input.staffId,
+				startDate,
+				endDate,
+				officeId,
+			);
+
+		// 影響シフトがない場合は早期リターン
+		if (affectedShifts.length === 0) {
+			return {
+				absenceStaffId: input.staffId,
+				absenceStaffName: absenceStaff.name,
+				startDate: formatJstDateString(startDate),
+				endDate: formatJstDateString(endDate),
+				affectedShifts: [],
+				summary: `影響シフト: 0件`,
+			};
+		}
+
+		// 事業所のスタッフ一覧を取得（候補検索用）
+		const officeStaffs = await this.staffRepository.listByOffice(officeId);
+		const staffMap = new Map(officeStaffs.map((s) => [s.id, s]));
+
+		// 欠勤期間のシフトを一度だけ取得（N+1対策：前後1日のバッファを含む）
+		const allShiftsInPeriod = await this.shiftRepository.list({
+			officeId,
+			startDate: addJstDays(startDate, -1),
+			endDate: addJstDays(endDate, 1),
+			excludeStatus: 'canceled',
+		});
+
+		// 日付ごとにシフトをグループ化（findCandidatesForShift での O(n) フィルタリングを回避）
+		const shiftsByDate = new Map<string, ScheduledShift[]>();
+		for (const s of allShiftsInPeriod) {
+			const dateKey = formatJstDateString(s.date);
+			const existing = shiftsByDate.get(dateKey) ?? [];
+			existing.push(s);
+			shiftsByDate.set(dateKey, existing);
+		}
+
+		// (client_id, service_type_id) ペアの重複を排除して過去担当/割当スタッフを一括取得（N+1対策）
+		const uniqueClientServicePairs = [
+			...new Map(
+				affectedShifts.map((s) => [
+					this.assignmentKey({
+						clientId: s.client_id,
+						serviceTypeId: s.service_type_id,
+					}),
+					{ clientId: s.client_id, serviceTypeId: s.service_type_id },
+				]),
+			).values(),
+		];
+
+		// 過去担当者と割当スタッフを並列で取得してキャッシュ
+		const [pastStaffResults, assignedStaffResults] = await Promise.all([
+			Promise.all(
+				uniqueClientServicePairs.map(async ({ clientId, serviceTypeId }) => ({
+					key: this.assignmentKey({ clientId, serviceTypeId }),
+					staffIds: await this.shiftRepository.findPastAssignedStaffIdsByClient(
+						clientId,
+						officeId,
+						serviceTypeId,
+						FETCH_CANDIDATES_BUFFER,
+					),
+				})),
+			),
+			Promise.all(
+				uniqueClientServicePairs.map(async ({ clientId, serviceTypeId }) => ({
+					key: this.assignmentKey({ clientId, serviceTypeId }),
+					staffIds:
+						await this.clientStaffAssignmentRepository.findAssignedStaffIdsByClient(
+							officeId,
+							clientId,
+							serviceTypeId,
+						),
+				})),
+			),
+		]);
+
+		// キャッシュ Map を作成
+		const pastStaffCache = new Map(
+			pastStaffResults.map((r) => [r.key, r.staffIds]),
+		);
+		const assignedStaffCache = new Map(
+			assignedStaffResults.map((r) => [r.key, r.staffIds]),
+		);
+
+		// 各影響シフトに対して代替候補を検索（同期処理）
+		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] =
+			affectedShifts.map((shift) => {
+				const candidates = this.findCandidatesForShift({
+					shift,
+					absenceStaffId: input.staffId,
+					staffMap,
+					maxCandidates: MAX_CANDIDATES,
+					shiftsByDate,
+					pastStaffCache,
+					assignedStaffCache,
+				});
+
+				return {
+					shift: toShiftSnapshot(shift),
+					candidates,
+				};
+			});
+
+		// 候補なしの件数をカウント
+		const noCandidatesCount = affectedShiftsWithCandidates.filter(
+			(a) => a.candidates.length === 0,
+		).length;
+
+		return {
+			absenceStaffId: input.staffId,
+			absenceStaffName: absenceStaff.name,
+			startDate: formatJstDateString(startDate),
+			endDate: formatJstDateString(endDate),
+			affectedShifts: affectedShiftsWithCandidates,
+			summary:
+				`影響シフト: ${affectedShifts.length}件` +
+				(noCandidatesCount > 0 ? `, 候補なし: ${noCandidatesCount}件` : ''),
+		};
+	}
+
+	/**
+	 * スタッフリストから候補を抽出（空き状況チェック付き）
+	 */
+	private extractCandidatesFromStaffIds = (params: {
+		staffIds: string[];
+		staffMap: Map<string, OfficeStaff>;
+		shiftsByStaff: StaffShiftsByStaff;
+		range: { start: Date; end: Date };
+		serviceTypeId: ServiceTypeId;
+		maxCandidates: number;
+		currentCount: number;
+		priority: StaffCandidate['priority'];
+	}): StaffCandidate[] => {
+		const {
+			staffIds,
+			staffMap,
+			shiftsByStaff,
+			range,
+			serviceTypeId,
+			maxCandidates,
+			currentCount,
+			priority,
+		} = params;
+		const candidates: StaffCandidate[] = [];
+		let count = currentCount;
+
+		for (const staffId of staffIds) {
+			if (count >= maxCandidates) break;
+
+			const staff = staffMap.get(staffId);
+			if (!staff || staff.role !== 'helper') continue;
+			if (!staff.service_type_ids.includes(serviceTypeId)) continue;
+
+			const hasConflict = this.hasConflictForRangeWithInterval({
+				shiftsByStaff,
+				staffId,
+				range,
+			});
+			if (hasConflict) continue;
+
+			candidates.push({ staffId, staffName: staff.name, priority });
+			count++;
+		}
+		return candidates;
+	};
+
+	/**
+	 * 単一シフトに対する代替候補を検索（キャッシュ使用、同期処理）
+	 */
+	private findCandidatesForShift = (params: {
+		shift: ScheduledShift;
+		absenceStaffId: string;
+		staffMap: Map<string, OfficeStaff>;
+		maxCandidates: number;
+		shiftsByDate: Map<string, ScheduledShift[]>;
+		pastStaffCache: Map<string, string[]>;
+		assignedStaffCache: Map<string, string[]>;
+	}): StaffCandidate[] => {
+		const {
+			shift,
+			absenceStaffId,
+			staffMap,
+			maxCandidates,
+			shiftsByDate,
+			pastStaffCache,
+			assignedStaffCache,
+		} = params;
+
+		// キャッシュから過去担当者と割当スタッフを取得
+		const cacheKey = this.assignmentKey({
+			clientId: shift.client_id,
+			serviceTypeId: shift.service_type_id,
+		});
+		const pastStaffIds = pastStaffCache.get(cacheKey) ?? [];
+		const assignedStaffIds = assignedStaffCache.get(cacheKey) ?? [];
+
+		// Set でO(1)ルックアップを実現
+		const pastStaffIdSet = new Set(pastStaffIds);
+
+		// 過去担当者（欠勤者除外）
+		const pastAssignedStaffIds = pastStaffIds.filter(
+			(id) => id !== absenceStaffId,
+		);
+		// 割当可能だが担当経験なし（欠勤者除外）
+		const assignedOnlyStaffIds = assignedStaffIds.filter(
+			(id) => id !== absenceStaffId && !pastStaffIdSet.has(id),
+		);
+
+		// 時間帯と空き状況チェック用のデータを準備
+		const range = this.buildRangeOnDate({
+			date: shift.date,
+			startTime: shift.time.start,
+			endTime: shift.time.end,
+		});
+		const shiftsNearDate = this.getShiftsForDateRange(shiftsByDate, shift.date);
+		const shiftsByStaff = this.buildShiftsByStaff(shiftsNearDate);
+
+		const candidates: StaffCandidate[] = [];
+
+		// 1. 過去担当者から候補抽出（past_assigned 優先）
+		candidates.push(
+			...this.extractCandidatesFromStaffIds({
+				staffIds: pastAssignedStaffIds,
+				staffMap,
+				shiftsByStaff,
+				range,
+				serviceTypeId: shift.service_type_id,
+				maxCandidates,
+				currentCount: candidates.length,
+				priority: 'past_assigned',
+			}),
+		);
+
+		// 2. 割当可能スタッフから候補抽出（assigned 優先）
+		candidates.push(
+			...this.extractCandidatesFromStaffIds({
+				staffIds: assignedOnlyStaffIds,
+				staffMap,
+				shiftsByStaff,
+				range,
+				serviceTypeId: shift.service_type_id,
+				maxCandidates,
+				currentCount: candidates.length,
+				priority: 'assigned',
+			}),
+		);
+
+		// 3. 候補が足りなければ全ヘルパーから検索（available）
+		if (candidates.length < maxCandidates) {
+			const excludeIds = new Set([
+				absenceStaffId,
+				...pastAssignedStaffIds,
+				...assignedOnlyStaffIds,
+				...candidates.map((c) => c.staffId),
+			]);
+
+			const availableHelpers = Array.from(staffMap.values())
+				.filter((staff) => {
+					if (excludeIds.has(staff.id)) return false;
+					if (staff.role !== 'helper') return false;
+					if (!staff.service_type_ids.includes(shift.service_type_id))
+						return false;
+					return !this.hasConflictForRangeWithInterval({
+						shiftsByStaff,
+						staffId: staff.id,
+						range,
+					});
+				})
+				.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+			for (const staff of availableHelpers) {
+				if (candidates.length >= maxCandidates) break;
+				candidates.push({
+					staffId: staff.id,
+					staffName: staff.name,
+					priority: 'available',
+				});
+			}
+		}
+
+		return candidates;
 	};
 }
