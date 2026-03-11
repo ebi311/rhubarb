@@ -1,5 +1,6 @@
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
+import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { stepCountIs, streamText } from 'ai';
@@ -80,6 +81,10 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
   - 最大14日間まで指定可能です
   - 任意項目 memo には、可能な限り欠勤理由や補足情報を日本語で簡潔に記載してください
     - 例: { staffId: "<スタッフID>", startDate: "2024-04-01", endDate: "2024-04-03", memo: "体調不良のため" }
+- searchStaffs: スタッフを名前で検索します
+  - スタッフIDがわからない場合に使用してください
+  - query には検索したいスタッフ名（部分一致）を指定します
+    - 例: { query: "田中" }
 
 ## 制約
 - 提案は具体的かつ実行可能なものにする
@@ -181,6 +186,10 @@ export const POST = async (request: Request): Promise<Response> => {
 			supabase,
 			userId: user.id,
 		});
+		const searchStaffsTool = createSearchStaffsTool({
+			supabase,
+			officeId: staffData.office_id,
+		});
 
 		// Vercel AI SDK の streamText を使用
 		// messages の型は streamText が受け入れる形式に変換
@@ -195,6 +204,7 @@ export const POST = async (request: Request): Promise<Response> => {
 			tools: {
 				searchAvailableHelpers: searchAvailableHelpersTool,
 				processStaffAbsence: processStaffAbsenceTool,
+				searchStaffs: searchStaffsTool,
 			},
 			stopWhen: stepCountIs(3),
 		});

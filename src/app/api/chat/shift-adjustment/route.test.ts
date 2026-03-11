@@ -9,6 +9,7 @@ const {
 	mockSupabaseFrom,
 	mockCreateSearchAvailableHelpersTool,
 	mockCreateProcessStaffAbsenceTool,
+	mockCreateSearchStaffsTool,
 	mockStepCountIs,
 } = vi.hoisted(() => ({
 	mockStreamText: vi.fn(),
@@ -17,6 +18,7 @@ const {
 	mockSupabaseFrom: vi.fn(),
 	mockCreateSearchAvailableHelpersTool: vi.fn(),
 	mockCreateProcessStaffAbsenceTool: vi.fn(),
+	mockCreateSearchStaffsTool: vi.fn(),
 	mockStepCountIs: vi.fn((n: number) => ({ type: 'stepCountIs', count: n })),
 }));
 
@@ -44,6 +46,10 @@ vi.mock('@/backend/tools/searchAvailableHelpers', () => ({
 
 vi.mock('@/backend/tools/processStaffAbsence', () => ({
 	createProcessStaffAbsenceTool: mockCreateProcessStaffAbsenceTool,
+}));
+
+vi.mock('@/backend/tools/searchStaffs', () => ({
+	createSearchStaffsTool: mockCreateSearchStaffsTool,
 }));
 
 // 環境変数のモック
@@ -85,6 +91,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 		});
 		mockCreateProcessStaffAbsenceTool.mockReturnValue({
 			description: 'mock process absence tool',
+		});
+		mockCreateSearchStaffsTool.mockReturnValue({
+			description: 'mock search staffs tool',
 		});
 
 		// デフォルトのstreamTextモック
@@ -358,6 +367,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 					tools: expect.objectContaining({
 						searchAvailableHelpers: expect.anything(),
 						processStaffAbsence: expect.anything(),
+						searchStaffs: expect.anything(),
 					}),
 					stopWhen: expect.anything(),
 				}),
@@ -506,6 +516,32 @@ describe('POST /api/chat/shift-adjustment', () => {
 					system: expect.stringContaining('processStaffAbsence'),
 				}),
 			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining('searchStaffs'),
+				}),
+			);
+		});
+
+		it('createSearchStaffsTool が正しい引数で呼ばれる', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '田中さんを検索して' }],
+					}),
+				},
+			);
+
+			await POST(request);
+
+			// Tool が正しい引数で作成されたことを確認
+			expect(mockCreateSearchStaffsTool).toHaveBeenCalledWith({
+				supabase: expect.anything(),
+				officeId: TEST_IDS.OFFICE_1,
+			});
 		});
 	});
 });
