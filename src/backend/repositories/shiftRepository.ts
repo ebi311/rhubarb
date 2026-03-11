@@ -1,7 +1,7 @@
 import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import { Shift, ShiftSchema } from '@/models/shift';
-import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
 	getJstDateOnly,
 	getJstHours,
@@ -9,6 +9,18 @@ import {
 	setJstTime,
 } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
+
+/**
+ * findPastAssignedStaffIdsByClient で使用する取得上限の係数
+ * Supabase が DISTINCT ON をサポートしないため、多めに取得して重複排除する
+ */
+const FETCH_LIMIT_MULTIPLIER = 5;
+
+/**
+ * findPastAssignedStaffIdsByClient での最大取得件数
+ * 過剰なデータ取得を防ぐための上限
+ */
+const MAX_FETCH_LIMIT = 100;
 
 type ShiftRow = Database['public']['Tables']['shifts']['Row'];
 type ShiftInsert = Database['public']['Tables']['shifts']['Insert'];
@@ -448,6 +460,7 @@ export class ShiftRepository {
 		const effectiveStartDate =
 			startDate.getTime() > today.getTime() ? startDate : today;
 
+		// scheduled と confirmed のみを対象（.in() で絞り込み）
 		const query = this.supabase
 			.from('shifts')
 			.select('*, clients!inner(office_id)')
@@ -455,8 +468,7 @@ export class ShiftRepository {
 			.eq('staff_id', staffId)
 			.gte('start_time', setJstTime(effectiveStartDate, 0, 0).toISOString())
 			.lte('start_time', setJstTime(endDate, 23, 59).toISOString())
-			.neq('status', 'canceled')
-			.or('status.eq.scheduled,status.eq.confirmed');
+			.in('status', ['scheduled', 'confirmed']);
 
 		const { data, error } = await query.order('start_time');
 		if (error) throw error;
@@ -482,7 +494,12 @@ export class ShiftRepository {
 		// status='completed' の実績のみ
 		// start_time 降順（直近優先）で取得し、アプリ側で重複排除
 		// Supabase は DISTINCT ON をサポートしないため、多めに取得して重複排除
-		const fetchLimit = limit * 5; // 重複を考慮して多めに取得
+		// limit が 0 以下の場合は 1 として扱う
+		const effectiveLimit = Math.max(1, limit);
+		const fetchLimit = Math.min(
+			effectiveLimit * FETCH_LIMIT_MULTIPLIER,
+			MAX_FETCH_LIMIT,
+		);
 
 		const { data, error } = await this.supabase
 			.from('shifts')

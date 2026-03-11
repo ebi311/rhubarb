@@ -14,6 +14,7 @@ const createMockSupabaseClient = () => {
 		neq: vi.fn().mockReturnThis(),
 		not: vi.fn().mockReturnThis(),
 		or: vi.fn().mockReturnThis(),
+		in: vi.fn().mockReturnThis(),
 		gte: vi.fn().mockReturnThis(),
 		lte: vi.fn().mockReturnThis(),
 		lt: vi.fn().mockReturnThis(),
@@ -518,10 +519,11 @@ describe('ShiftRepository', () => {
 				'staff_id',
 				staffId,
 			);
-			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
-				'status',
-				'canceled',
-			);
+			// .in() で scheduled と confirmed のみを対象
+			expect(mockSupabase._mockQuery.in).toHaveBeenCalledWith('status', [
+				'scheduled',
+				'confirmed',
+			]);
 			expect(result).toHaveLength(2);
 			expect(result[0].id).toBe('12345678-1234-1234-8234-123456789011');
 			expect(result[1].id).toBe('12345678-1234-1234-8234-123456789012');
@@ -545,10 +547,11 @@ describe('ShiftRepository', () => {
 				officeId,
 			);
 
-			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
-				'status',
-				'canceled',
-			);
+			// .in() で scheduled と confirmed のみを対象にする（canceled は自動的に除外される）
+			expect(mockSupabase._mockQuery.in).toHaveBeenCalledWith('status', [
+				'scheduled',
+				'confirmed',
+			]);
 		});
 
 		it('should only include scheduled or confirmed status shifts', async () => {
@@ -569,10 +572,11 @@ describe('ShiftRepository', () => {
 				officeId,
 			);
 
-			// scheduled または confirmed のみを対象にするフィルタ
-			expect(mockSupabase._mockQuery.or).toHaveBeenCalledWith(
-				'status.eq.scheduled,status.eq.confirmed',
-			);
+			// .in() で scheduled または confirmed のみを対象にするフィルタ
+			expect(mockSupabase._mockQuery.in).toHaveBeenCalledWith('status', [
+				'scheduled',
+				'confirmed',
+			]);
 		});
 
 		it('should only include shifts from startDate onwards (not past shifts)', async () => {
@@ -923,6 +927,50 @@ describe('ShiftRepository', () => {
 			]);
 			// staff-04 は limit 超過のため含まれない
 			expect(result).not.toContain('12345678-1234-1234-8234-123456789014');
+		});
+
+		it('should treat limit <= 0 as 1 (defensive)', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
+
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
+				data: [{ staff_id: '12345678-1234-1234-8234-123456789011' }],
+				error: null,
+			});
+
+			// limit = 0 を渡す
+			const result = await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				serviceTypeId,
+				0,
+			);
+
+			// limit が 0 以下の場合、1 として扱い fetchLimit = 5 となる
+			expect(mockSupabase._mockQuery.limit).toHaveBeenCalledWith(5);
+			expect(result).toHaveLength(1);
+		});
+
+		it('should cap fetchLimit at MAX_FETCH_LIMIT (100)', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
+
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			// limit = 50 を渡す → fetchLimit = 50 * 5 = 250 → MAX_FETCH_LIMIT で 100 に制限
+			await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				serviceTypeId,
+				50,
+			);
+
+			expect(mockSupabase._mockQuery.limit).toHaveBeenCalledWith(100);
 		});
 	});
 });
