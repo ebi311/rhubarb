@@ -235,11 +235,14 @@ export class StaffRepository {
 		query: string,
 		limit: number,
 	): Promise<StaffWithServiceTypes[]> {
+		// PostgREST 構文インジェクション対策: 特殊文字を除去
+		const safeQuery = query.replace(/[(),]/g, '');
 		const { data, error } = await this.supabase
 			.from('staffs')
 			.select('*')
 			.eq('office_id', officeId)
-			.or(`name.ilike.%${query}%,kana.ilike.%${query}%`)
+			.or(`name.ilike.%${safeQuery}%,kana.ilike.%${safeQuery}%`)
+			.order('name', { ascending: true })
 			.limit(limit);
 		if (error) throw error;
 		const rows = data ?? [];

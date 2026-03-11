@@ -322,6 +322,7 @@ describe('StaffRepository', () => {
 			const mockStaffSelect = vi.fn().mockReturnThis();
 			const mockStaffEq = vi.fn().mockReturnThis();
 			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
 			const mockStaffLimit = vi
 				.fn()
 				.mockResolvedValue({ data: staffRows, error: null });
@@ -343,7 +344,8 @@ describe('StaffRepository', () => {
 
 			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
 			mockStaffEq.mockReturnValue({ or: mockStaffOr });
-			mockStaffOr.mockReturnValue({ limit: mockStaffLimit });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
 
 			mockAbilitySelect.mockReturnValue({ in: mockAbilityIn });
 
@@ -373,6 +375,7 @@ describe('StaffRepository', () => {
 			const mockStaffSelect = vi.fn().mockReturnThis();
 			const mockStaffEq = vi.fn().mockReturnThis();
 			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
 			const mockStaffLimit = vi
 				.fn()
 				.mockResolvedValue({ data: staffRows, error: null });
@@ -394,7 +397,8 @@ describe('StaffRepository', () => {
 
 			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
 			mockStaffEq.mockReturnValue({ or: mockStaffOr });
-			mockStaffOr.mockReturnValue({ limit: mockStaffLimit });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
 
 			mockAbilitySelect.mockReturnValue({ in: mockAbilityIn });
 
@@ -415,6 +419,7 @@ describe('StaffRepository', () => {
 			const mockStaffSelect = vi.fn().mockReturnThis();
 			const mockStaffEq = vi.fn().mockReturnThis();
 			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
 			const mockStaffLimit = vi
 				.fn()
 				.mockResolvedValue({ data: [], error: null });
@@ -435,7 +440,8 @@ describe('StaffRepository', () => {
 
 			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
 			mockStaffEq.mockReturnValue({ or: mockStaffOr });
-			mockStaffOr.mockReturnValue({ limit: mockStaffLimit });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
 
 			await repository.searchByNameOrKana(officeId, 'test', 5);
 

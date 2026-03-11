@@ -1,4 +1,4 @@
--- staffs テーブルに kana カラムを追加（VARCHAR, nullable）
+-- staffs テーブルに kana カラムを追加（text, nullable）
 -- かな（ふりがな）検索を可能にするため
 
 alter table public.staffs

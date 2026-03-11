@@ -83,7 +83,9 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
     - 例: { staffId: "<スタッフID>", startDate: "2024-04-01", endDate: "2024-04-03", memo: "体調不良のため" }
 - searchStaffs: スタッフを名前で検索します
   - スタッフIDがわからない場合に使用してください
-  - query には検索したいスタッフ名（部分一致）を指定します
+  - 入力: { query: "検索文字列" }
+  - 出力: { staffs: [{ staffId, name, kana }] }
+  - processStaffAbsence と連携する場合、検索結果の staffId を使用してください
     - 例: { query: "田中" }
 
 ## 制約

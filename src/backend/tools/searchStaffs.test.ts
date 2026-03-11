@@ -3,10 +3,10 @@ import { TEST_IDS } from '@/test/helpers/testIds';
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { ToolExecutionOptions } from 'ai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SearchStaffsResult } from './searchStaffs';
 import {
 	createSearchStaffsTool,
 	SearchStaffsParametersSchema,
-	SearchStaffsResult,
 } from './searchStaffs';
 
 describe('searchStaffs tool', () => {
