@@ -678,10 +678,10 @@ describe('ShiftRepository', () => {
 
 			await expect(
 				repository.findAffectedShiftsByAbsence(
-					'staff-1',
+					TEST_IDS.STAFF_1,
 					new Date('2026-01-20'),
 					new Date('2026-01-22'),
-					'office-1',
+					TEST_IDS.OFFICE_1,
 				),
 			).rejects.toThrow('Query failed');
 		});
@@ -832,8 +832,8 @@ describe('ShiftRepository', () => {
 
 			await expect(
 				repository.findPastAssignedStaffIdsByClient(
-					'client-1',
-					'office-1',
+					TEST_IDS.CLIENT_1,
+					TEST_IDS.OFFICE_1,
 					'life-support',
 					3,
 				),
