@@ -14,20 +14,21 @@ import { z } from 'zod';
 import type { ServiceTypeOption } from '../../_types';
 import { ServiceTypeSelector } from '../ServiceTypeSelector';
 
+const normalizeStringToNull = (
+	value: string | null | undefined,
+): string | null =>
+	typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+
 const StaffFormSchema = StaffInputSchema.extend({
+	kana: StaffInputSchema.shape.kana.or(z.literal('')),
 	email: StaffInputSchema.shape.email.or(z.literal('')),
 	note: StaffInputSchema.shape.note.or(z.literal('')),
 	service_type_ids: z.array(ServiceTypeIdSchema).default([]),
 }).transform((value) => ({
 	...value,
-	email:
-		typeof value.email === 'string' && value.email.trim() === ''
-			? null
-			: (value.email ?? null),
-	note:
-		typeof value.note === 'string' && value.note.trim().length === 0
-			? null
-			: (value.note?.trim() ?? null),
+	kana: normalizeStringToNull(value.kana),
+	email: normalizeStringToNull(value.email),
+	note: normalizeStringToNull(value.note),
 	service_type_ids: value.service_type_ids ?? [],
 }));
 
@@ -56,6 +57,7 @@ const buildDefaultValues = (props: StaffFormModalProps): StaffFormValues => {
 	if (props.mode === 'edit') {
 		return {
 			name: props.staff.name,
+			kana: props.staff.kana ?? '',
 			email: props.staff.email ?? '',
 			role: props.staff.role,
 			note: props.staff.note ?? '',
@@ -64,6 +66,7 @@ const buildDefaultValues = (props: StaffFormModalProps): StaffFormValues => {
 	}
 	return {
 		name: '',
+		kana: '',
 		email: '',
 		role: 'helper',
 		note: '',
@@ -143,6 +146,13 @@ export const StaffFormModal = (props: StaffFormModalProps) => {
 						label="氏名"
 						required
 						disabled={isSubmitting}
+					/>
+					<FormInput
+						control={control}
+						name="kana"
+						label="ふりがな"
+						disabled={isSubmitting}
+						placeholder="やまだたろう"
 					/>
 					<FormInput
 						control={control}
