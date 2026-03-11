@@ -11,6 +11,11 @@ const StaffNoteSchema = z
 
 export const StaffInputSchema = z.object({
 	name: z.string().min(1, { message: '氏名は必須です' }),
+	kana: z
+		.string()
+		.max(100, { message: 'ふりがなは100文字以内で入力してください' })
+		.nullable()
+		.optional(),
 	email: EmailSchema.optional().nullable(),
 	role: UserRoleSchema,
 	note: StaffNoteSchema,

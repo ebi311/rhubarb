@@ -162,6 +162,7 @@ describe('StaffRepository', () => {
 			const insertRow = {
 				...baseStaffRow,
 				id: '019b1aaf-0000-4000-8000-000000000099',
+				kana: 'しんきすたっふ',
 				note: 'メモ',
 			};
 			const mockInsert = vi.fn().mockReturnThis();
@@ -194,6 +195,7 @@ describe('StaffRepository', () => {
 			const input = {
 				office_id: officeId,
 				name: '新規スタッフ',
+				kana: 'しんきすたっふ',
 				role: 'helper' as const,
 				email: 'new@example.com',
 				note: 'メモ',
@@ -205,6 +207,7 @@ describe('StaffRepository', () => {
 			expect(mockInsert).toHaveBeenCalledWith({
 				office_id: input.office_id,
 				name: input.name,
+				kana: input.kana,
 				role: input.role,
 				email: input.email,
 				note: input.note,
@@ -221,6 +224,56 @@ describe('StaffRepository', () => {
 				serviceTypeIds.two,
 			]);
 		});
+
+		it('kanaがnullの場合はnullとして保存される', async () => {
+			const insertRow = {
+				...baseStaffRow,
+				id: '019b1aaf-0000-4000-8000-000000000099',
+				kana: null,
+			};
+			const mockInsert = vi.fn().mockReturnThis();
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: insertRow, error: null });
+
+			const mockAbilityDelete = vi.fn().mockReturnThis();
+			const mockAbilityEq = vi.fn().mockResolvedValue({ error: null });
+			const mockAbilityInsert = vi.fn().mockResolvedValue({ error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { insert: mockInsert };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return {
+						delete: mockAbilityDelete,
+						insert: mockAbilityInsert,
+					};
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockInsert.mockReturnValue({ select: mockSelect });
+			mockSelect.mockReturnValue({ single: mockSingle });
+			mockAbilityDelete.mockReturnValue({ eq: mockAbilityEq });
+
+			const input = {
+				office_id: officeId,
+				name: '新規スタッフ',
+				kana: null,
+				role: 'helper' as const,
+				email: null,
+				note: null,
+				service_type_ids: [],
+			};
+
+			await repository.create(input);
+
+			expect(mockInsert).toHaveBeenCalledWith(
+				expect.objectContaining({ kana: null }),
+			);
+		});
 	});
 
 	describe('update', () => {
@@ -228,6 +281,7 @@ describe('StaffRepository', () => {
 			const updatedRow = {
 				...baseStaffRow,
 				name: '更新後スタッフ',
+				kana: 'こうしんごすたっふ',
 				email: 'updated@example.com',
 				note: '更新されたメモ',
 			};
@@ -263,6 +317,7 @@ describe('StaffRepository', () => {
 
 			const result = await repository.update(baseStaffRow.id, {
 				name: '更新後スタッフ',
+				kana: 'こうしんごすたっふ',
 				email: 'updated@example.com',
 				note: '更新されたメモ',
 				service_type_ids: [serviceTypeIds.three],
@@ -270,6 +325,7 @@ describe('StaffRepository', () => {
 
 			expect(mockUpdate).toHaveBeenCalledWith({
 				name: '更新後スタッフ',
+				kana: 'こうしんごすたっふ',
 				email: 'updated@example.com',
 				note: '更新されたメモ',
 			});
@@ -278,6 +334,52 @@ describe('StaffRepository', () => {
 			]);
 			expect(result.name).toBe('更新後スタッフ');
 			expect(result.service_type_ids).toEqual([serviceTypeIds.three]);
+		});
+
+		it('kanaがnullの場合はnullとして更新される', async () => {
+			const updatedRow = {
+				...baseStaffRow,
+				kana: null,
+			};
+
+			const mockUpdate = vi.fn().mockReturnThis();
+			const mockEq = vi.fn().mockReturnThis();
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: updatedRow, error: null });
+
+			const mockAbilityDelete = vi.fn().mockReturnThis();
+			const mockAbilityEq = vi.fn().mockResolvedValue({ error: null });
+			const mockAbilityInsert = vi.fn().mockResolvedValue({ error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { update: mockUpdate };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return {
+						delete: mockAbilityDelete,
+						insert: mockAbilityInsert,
+					};
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockUpdate.mockReturnValue({ eq: mockEq });
+			mockEq.mockReturnValue({ select: mockSelect });
+			mockSelect.mockReturnValue({ single: mockSingle });
+			mockAbilityDelete.mockReturnValue({ eq: mockAbilityEq });
+
+			await repository.update(baseStaffRow.id, {
+				name: '管理者A',
+				kana: null,
+				service_type_ids: [],
+			});
+
+			expect(mockUpdate).toHaveBeenCalledWith(
+				expect.objectContaining({ kana: null }),
+			);
 		});
 	});
 

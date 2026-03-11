@@ -36,6 +36,12 @@ export class StaffService {
 		return trimmed ? trimmed : null;
 	}
 
+	private normalizeKana(kana?: string | null): string | null | undefined {
+		if (typeof kana === 'undefined') return undefined;
+		const trimmed = kana?.trim();
+		return trimmed ? trimmed : null;
+	}
+
 	private async getAdminStaff(userId: string) {
 		const staff = await this.staffRepository.findByAuthUserId(userId);
 		if (!staff) throw new ServiceError(404, 'Staff not found');
@@ -94,6 +100,7 @@ export class StaffService {
 		const staff = await this.staffRepository.create({
 			office_id: admin.office_id,
 			name: data.name,
+			kana: this.normalizeKana(data.kana),
 			role: data.role,
 			email: data.email ?? null,
 			note: this.normalizeNote(data.note),
@@ -124,6 +131,7 @@ export class StaffService {
 		await this.assertServiceTypesExist(serviceTypeIds);
 		const staff = await this.staffRepository.update(id, {
 			name: data.name,
+			kana: this.normalizeKana(data.kana),
 			role: data.role,
 			email: data.email ?? null,
 			note: this.normalizeNote(data.note),
