@@ -482,8 +482,8 @@ export class ShiftRepository {
 	 * @param clientId クライアントID
 	 * @param officeId 事業所ID
 	 * @param serviceTypeId サービス種別ID
-	 * @param limit 最大取得数（デフォルト10）
-	 * @returns スタッフIDの配列（重複排除済み、直近担当優先順、limit まで）
+	 * @param limit 最大取得数（デフォルト10、最大 MAX_FETCH_LIMIT）
+	 * @returns スタッフIDの配列（重複排除済み、直近担当優先順、min(limit, MAX_FETCH_LIMIT) 件まで）
 	 */
 	async findPastAssignedStaffIdsByClient(
 		clientId: string,
@@ -495,10 +495,13 @@ export class ShiftRepository {
 		// start_time 降順（直近優先）で取得し、アプリ側で重複排除
 		// Supabase は DISTINCT ON をサポートしないため、多めに取得して重複排除
 		// limit が不正な値（NaN, Infinity, 0以下）の場合は 1 として扱う
-		const effectiveLimit =
+		// effectiveLimit も MAX_FETCH_LIMIT でキャップして一貫性を保つ
+		const effectiveLimit = Math.min(
 			Number.isFinite(limit) && Number.isInteger(limit)
 				? Math.max(1, limit)
-				: 1;
+				: 1,
+			MAX_FETCH_LIMIT,
+		);
 		const fetchLimit = Math.min(
 			effectiveLimit * FETCH_LIMIT_MULTIPLIER,
 			MAX_FETCH_LIMIT,

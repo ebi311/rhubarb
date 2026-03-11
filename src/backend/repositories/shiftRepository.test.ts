@@ -904,7 +904,7 @@ describe('ShiftRepository', () => {
 				{ staff_id: TEST_IDS.STAFF_1 }, // staff-01 (重複)
 				{ staff_id: TEST_IDS.STAFF_3 }, // staff-03
 				{ staff_id: TEST_IDS.STAFF_3 }, // staff-03 (重複)
-				{ staff_id: TEST_IDS.CLIENT_4 }, // staff-04（CLIENT_4を代用）
+				{ staff_id: TEST_IDS.STAFF_4 }, // staff-04
 			];
 
 			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
@@ -927,7 +927,7 @@ describe('ShiftRepository', () => {
 				TEST_IDS.STAFF_3, // staff-03
 			]);
 			// staff-04 は limit 超過のため含まれない
-			expect(result).not.toContain(TEST_IDS.CLIENT_4);
+			expect(result).not.toContain(TEST_IDS.STAFF_4);
 		});
 
 		it('should treat limit <= 0 as 1 (defensive)', async () => {
