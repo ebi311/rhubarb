@@ -948,6 +948,8 @@ export class ShiftAdjustmentSuggestionService {
 		input: StaffAbsenceInput,
 	): Promise<StaffAbsenceProcessResult> {
 		const MAX_CANDIDATES = 3;
+		// 時間衝突で候補外になる可能性を考慮し、多めに取得してからフィルタする
+		const FETCH_CANDIDATES_BUFFER = 10;
 
 		// 管理者権限チェック
 		const admin = await this.getAdminStaff(userId);
@@ -1026,7 +1028,7 @@ export class ShiftAdjustmentSuggestionService {
 						clientId,
 						officeId,
 						serviceTypeId,
-						MAX_CANDIDATES,
+						FETCH_CANDIDATES_BUFFER,
 					),
 				})),
 			),
