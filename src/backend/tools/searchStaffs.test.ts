@@ -1,6 +1,7 @@
 import { Database } from '@/backend/types/supabase';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { SupabaseClient } from '@supabase/supabase-js';
+import type { ToolExecutionOptions } from 'ai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	createSearchStaffsTool,
@@ -9,9 +10,16 @@ import {
 } from './searchStaffs';
 
 describe('searchStaffs tool', () => {
-	const mockListByOffice = vi.fn();
+	const mockSearchByName = vi.fn();
 
 	const mockSupabase = {} as SupabaseClient<Database>;
+
+	// テスト用のダミー ToolExecutionOptions
+	const dummyToolOptions: ToolExecutionOptions = {
+		toolCallId: 'test-call-id',
+		messages: [],
+		abortSignal: new AbortController().signal,
+	};
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -89,11 +97,11 @@ describe('searchStaffs tool', () => {
 	describe('execute', () => {
 		// StaffRepository のモック
 		const mockStaffRepository = {
-			listByOffice: mockListByOffice,
+			searchByName: mockSearchByName,
 		};
 
 		it('名前が部分一致するスタッフを返す', async () => {
-			mockListByOffice.mockResolvedValue([
+			mockSearchByName.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
 					name: '山田太郎',
@@ -106,12 +114,6 @@ describe('searchStaffs tool', () => {
 					role: 'helper',
 					service_type_ids: ['life-support'],
 				},
-				{
-					id: TEST_IDS.STAFF_3,
-					name: '鈴木一郎',
-					role: 'helper',
-					service_type_ids: ['physical-care'],
-				},
 			]);
 
 			const tool = createSearchStaffsTool({
@@ -120,23 +122,31 @@ describe('searchStaffs tool', () => {
 				staffRepository: mockStaffRepository,
 			});
 
-			const result: SearchStaffsResult = await tool.execute({ query: '山田' });
+			const result = (await tool.execute!(
+				{ query: '山田' },
+				dummyToolOptions,
+			)) as SearchStaffsResult;
 
 			expect(result.staffs).toHaveLength(2);
 			expect(result.staffs[0].name).toBe('山田太郎');
 			expect(result.staffs[1].name).toBe('山田花子');
+			expect(mockSearchByName).toHaveBeenCalledWith(
+				TEST_IDS.OFFICE_1,
+				'山田',
+				10,
+			);
 		});
 
-		it('最大10件まで返す', async () => {
-			// 15件のスタッフを生成
-			const manyStaffs = Array.from({ length: 15 }, (_, i) => ({
+		it('最大10件まで返す（DB側でlimit）', async () => {
+			// Repository が最大10件を返すことをシミュレート
+			const tenStaffs = Array.from({ length: 10 }, (_, i) => ({
 				id: `aaaaaaaa-bbbb-4ccc-8ddd-${i.toString().padStart(12, '0')}`,
 				name: `山田${i}号`,
 				role: 'helper',
 				service_type_ids: [],
 			}));
 
-			mockListByOffice.mockResolvedValue(manyStaffs);
+			mockSearchByName.mockResolvedValue(tenStaffs);
 
 			const tool = createSearchStaffsTool({
 				supabase: mockSupabase,
@@ -144,20 +154,21 @@ describe('searchStaffs tool', () => {
 				staffRepository: mockStaffRepository,
 			});
 
-			const result: SearchStaffsResult = await tool.execute({ query: '山田' });
+			const result = (await tool.execute!(
+				{ query: '山田' },
+				dummyToolOptions,
+			)) as SearchStaffsResult;
 
 			expect(result.staffs).toHaveLength(10);
+			expect(mockSearchByName).toHaveBeenCalledWith(
+				TEST_IDS.OFFICE_1,
+				'山田',
+				10,
+			);
 		});
 
 		it('該当するスタッフがいない場合は空配列を返す', async () => {
-			mockListByOffice.mockResolvedValue([
-				{
-					id: TEST_IDS.STAFF_1,
-					name: '田中太郎',
-					role: 'helper',
-					service_type_ids: [],
-				},
-			]);
+			mockSearchByName.mockResolvedValue([]);
 
 			const tool = createSearchStaffsTool({
 				supabase: mockSupabase,
@@ -165,13 +176,16 @@ describe('searchStaffs tool', () => {
 				staffRepository: mockStaffRepository,
 			});
 
-			const result: SearchStaffsResult = await tool.execute({ query: '山田' });
+			const result = (await tool.execute!(
+				{ query: '山田' },
+				dummyToolOptions,
+			)) as SearchStaffsResult;
 
 			expect(result.staffs).toHaveLength(0);
 		});
 
 		it('結果に id, name, role, serviceTypeIds が含まれる', async () => {
-			mockListByOffice.mockResolvedValue([
+			mockSearchByName.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
 					name: '山田太郎',
@@ -186,7 +200,10 @@ describe('searchStaffs tool', () => {
 				staffRepository: mockStaffRepository,
 			});
 
-			const result: SearchStaffsResult = await tool.execute({ query: '山田' });
+			const result = (await tool.execute!(
+				{ query: '山田' },
+				dummyToolOptions,
+			)) as SearchStaffsResult;
 
 			expect(result.staffs[0]).toEqual({
 				id: TEST_IDS.STAFF_1,
@@ -196,8 +213,37 @@ describe('searchStaffs tool', () => {
 			});
 		});
 
-		it('大文字小文字を区別しない検索が可能（ひらがな）', async () => {
-			mockListByOffice.mockResolvedValue([
+		it('ケースインセンシティブ検索がDB側で行われる（アルファベット）', async () => {
+			mockSearchByName.mockResolvedValue([
+				{
+					id: TEST_IDS.STAFF_1,
+					name: 'John Smith',
+					role: 'helper',
+					service_type_ids: [],
+				},
+			]);
+
+			const tool = createSearchStaffsTool({
+				supabase: mockSupabase,
+				officeId: TEST_IDS.OFFICE_1,
+				staffRepository: mockStaffRepository,
+			});
+
+			const result = (await tool.execute!(
+				{ query: 'john' },
+				dummyToolOptions,
+			)) as SearchStaffsResult;
+
+			expect(result.staffs).toHaveLength(1);
+			expect(mockSearchByName).toHaveBeenCalledWith(
+				TEST_IDS.OFFICE_1,
+				'john',
+				10,
+			);
+		});
+
+		it('ひらがな検索が可能', async () => {
+			mockSearchByName.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
 					name: 'やまだたろう',
@@ -212,9 +258,10 @@ describe('searchStaffs tool', () => {
 				staffRepository: mockStaffRepository,
 			});
 
-			const result: SearchStaffsResult = await tool.execute({
-				query: 'やまだ',
-			});
+			const result = (await tool.execute!(
+				{ query: 'やまだ' },
+				dummyToolOptions,
+			)) as SearchStaffsResult;
 
 			expect(result.staffs).toHaveLength(1);
 		});

@@ -300,4 +300,87 @@ describe('StaffRepository', () => {
 			expect(mockEq).toHaveBeenCalledWith('id', baseStaffRow.id);
 		});
 	});
+
+	describe('searchByName', () => {
+		it('名前でケースインセンシティブ検索ができる', async () => {
+			const staffRows = [
+				baseStaffRow,
+				{
+					...baseStaffRow,
+					id: '019b1aaf-0000-4000-8000-000000000002',
+					name: '山田花子',
+					role: 'helper' as const,
+				},
+			];
+			const abilityRows = [
+				{ staff_id: staffRows[0].id, service_type_id: serviceTypeIds.one },
+				{ staff_id: staffRows[1].id, service_type_id: serviceTypeIds.two },
+			];
+
+			const mockStaffSelect = vi.fn().mockReturnThis();
+			const mockStaffEq = vi.fn().mockReturnThis();
+			const mockStaffIlike = vi.fn().mockReturnThis();
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+
+			const mockAbilitySelect = vi.fn().mockReturnThis();
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: abilityRows, error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockStaffSelect };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return { select: mockAbilitySelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+			mockStaffEq.mockReturnValue({ ilike: mockStaffIlike });
+			mockStaffIlike.mockReturnValue({ limit: mockStaffLimit });
+
+			mockAbilitySelect.mockReturnValue({ in: mockAbilityIn });
+
+			const result = await repository.searchByName(officeId, '山田', 10);
+
+			expect(result).toHaveLength(2);
+			expect(mockStaffIlike).toHaveBeenCalledWith('name', '%山田%');
+			expect(mockStaffLimit).toHaveBeenCalledWith(10);
+		});
+
+		it('上限件数を指定できる', async () => {
+			const mockStaffSelect = vi.fn().mockReturnThis();
+			const mockStaffEq = vi.fn().mockReturnThis();
+			const mockStaffIlike = vi.fn().mockReturnThis();
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockStaffSelect };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return {
+						select: vi.fn().mockReturnValue({
+							in: vi.fn().mockResolvedValue({ data: [], error: null }),
+						}),
+					};
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+			mockStaffEq.mockReturnValue({ ilike: mockStaffIlike });
+			mockStaffIlike.mockReturnValue({ limit: mockStaffLimit });
+
+			await repository.searchByName(officeId, 'test', 5);
+
+			expect(mockStaffLimit).toHaveBeenCalledWith(5);
+		});
+	});
 });

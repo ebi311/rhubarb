@@ -225,4 +225,27 @@ export class StaffRepository {
 
 		if (error) throw error;
 	}
+
+	/**
+	 * 名前でケースインセンシティブ検索
+	 * DB 側で ilike + limit を使用してフィルタリング
+	 */
+	async searchByName(
+		officeId: string,
+		nameQuery: string,
+		limit: number,
+	): Promise<StaffWithServiceTypes[]> {
+		const { data, error } = await this.supabase
+			.from('staffs')
+			.select('*')
+			.eq('office_id', officeId)
+			.ilike('name', `%${nameQuery}%`)
+			.limit(limit);
+		if (error) throw error;
+		const rows = data ?? [];
+		const map = await this.fetchServiceTypeMap(rows.map((row) => row.id));
+		return rows.map((row) =>
+			this.toDomainWithServiceTypes(row, map[row.id] ?? []),
+		);
+	}
 }
