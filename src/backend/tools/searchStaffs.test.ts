@@ -1,5 +1,5 @@
 import { Database } from '@/backend/types/supabase';
-import { TEST_IDS } from '@/test/helpers/testIds';
+import { createTestId, TEST_IDS } from '@/test/helpers/testIds';
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { ToolExecutionOptions } from 'ai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -139,8 +139,10 @@ describe('searchStaffs tool', () => {
 
 		it('最大10件まで返す（DB側でlimit）', async () => {
 			// Repository が最大10件を返すことをシミュレート
-			const tenStaffs = Array.from({ length: 10 }, (_, i) => ({
-				id: `aaaaaaaa-bbbb-4ccc-8ddd-${i.toString().padStart(12, '0')}`,
+			// RFC 4122 準拠の UUID を生成
+			const tenStaffIds = Array.from({ length: 10 }, () => createTestId());
+			const tenStaffs = tenStaffIds.map((id, i) => ({
+				id,
 				name: `山田${i}号`,
 				role: 'helper',
 				service_type_ids: [],
@@ -184,11 +186,12 @@ describe('searchStaffs tool', () => {
 			expect(result.staffs).toHaveLength(0);
 		});
 
-		it('結果に id, name, role, serviceTypeIds が含まれる', async () => {
+		it('結果に staffId, name, role, serviceTypeIds が含まれる', async () => {
 			mockSearchByNameOrKana.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
 					name: '山田太郎',
+					kana: 'やまだたろう',
 					role: 'admin',
 					service_type_ids: ['physical-care', 'life-support'],
 				},
@@ -206,8 +209,9 @@ describe('searchStaffs tool', () => {
 			)) as SearchStaffsResult;
 
 			expect(result.staffs[0]).toEqual({
-				id: TEST_IDS.STAFF_1,
+				staffId: TEST_IDS.STAFF_1,
 				name: '山田太郎',
+				kana: 'やまだたろう',
 				role: 'admin',
 				serviceTypeIds: ['physical-care', 'life-support'],
 			});

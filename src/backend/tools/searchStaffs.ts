@@ -22,8 +22,9 @@ export type SearchStaffsParameters = z.infer<
 
 /** 検索結果のスタッフ情報 */
 export type SearchStaffItem = {
-	id: string;
+	staffId: string;
 	name: string;
+	kana?: string;
 	role?: string;
 	serviceTypeIds?: string[];
 };
@@ -65,8 +66,9 @@ export const createSearchStaffsTool = (
 
 			return {
 				staffs: matchedStaffs.map((staff) => ({
-					id: staff.id,
+					staffId: staff.id,
 					name: staff.name,
+					kana: staff.kana ?? undefined,
 					role: staff.role,
 					serviceTypeIds: staff.service_type_ids,
 				})),
