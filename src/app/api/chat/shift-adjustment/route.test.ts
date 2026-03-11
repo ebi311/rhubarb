@@ -8,6 +8,7 @@ const {
 	mockGetUser,
 	mockSupabaseFrom,
 	mockCreateSearchAvailableHelpersTool,
+	mockCreateProcessStaffAbsenceTool,
 	mockStepCountIs,
 } = vi.hoisted(() => ({
 	mockStreamText: vi.fn(),
@@ -15,6 +16,7 @@ const {
 	mockGetUser: vi.fn(),
 	mockSupabaseFrom: vi.fn(),
 	mockCreateSearchAvailableHelpersTool: vi.fn(),
+	mockCreateProcessStaffAbsenceTool: vi.fn(),
 	mockStepCountIs: vi.fn((n: number) => ({ type: 'stepCountIs', count: n })),
 }));
 
@@ -38,6 +40,10 @@ vi.mock('@/utils/supabase/server', () => ({
 
 vi.mock('@/backend/tools/searchAvailableHelpers', () => ({
 	createSearchAvailableHelpersTool: mockCreateSearchAvailableHelpersTool,
+}));
+
+vi.mock('@/backend/tools/processStaffAbsence', () => ({
+	createProcessStaffAbsenceTool: mockCreateProcessStaffAbsenceTool,
 }));
 
 // 環境変数のモック
@@ -75,7 +81,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 
 		// Tool モックを返す
 		mockCreateSearchAvailableHelpersTool.mockReturnValue({
-			description: 'mock tool',
+			description: 'mock search tool',
+		});
+		mockCreateProcessStaffAbsenceTool.mockReturnValue({
+			description: 'mock process absence tool',
 		});
 
 		// デフォルトのstreamTextモック
@@ -348,6 +357,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 				expect.objectContaining({
 					tools: expect.objectContaining({
 						searchAvailableHelpers: expect.anything(),
+						processStaffAbsence: expect.anything(),
 					}),
 					stopWhen: expect.anything(),
 				}),
@@ -372,6 +382,29 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect(mockCreateSearchAvailableHelpersTool).toHaveBeenCalledWith({
 				supabase: expect.anything(),
 				officeId: TEST_IDS.OFFICE_1,
+			});
+		});
+
+		it('createProcessStaffAbsenceTool が正しい引数で呼ばれる', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [
+							{ role: 'user', content: 'スタッフAが休みになりました' },
+						],
+					}),
+				},
+			);
+
+			await POST(request);
+
+			// Tool が正しい引数で作成されたことを確認
+			expect(mockCreateProcessStaffAbsenceTool).toHaveBeenCalledWith({
+				supabase: expect.anything(),
+				userId: 'test-user-id',
 			});
 		});
 
@@ -466,6 +499,11 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect(mockStreamText).toHaveBeenCalledWith(
 				expect.objectContaining({
 					system: expect.stringContaining('searchAvailableHelpers'),
+				}),
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining('processStaffAbsence'),
 				}),
 			);
 		});
