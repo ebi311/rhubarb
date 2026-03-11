@@ -447,5 +447,22 @@ describe('StaffRepository', () => {
 
 			expect(mockStaffLimit).toHaveBeenCalledWith(5);
 		});
+
+		it('空文字クエリの場合は空配列を返す（全件ヒット防止）', async () => {
+			// safeQuery が空文字になるケース（空文字、特殊文字のみ）
+			const result = await repository.searchByNameOrKana(officeId, '', 10);
+
+			expect(result).toEqual([]);
+			// DB にはアクセスしない
+			expect(supabase.from).not.toHaveBeenCalled();
+		});
+
+		it('特殊文字のみの場合は空配列を返す', async () => {
+			// PostgREST 構文インジェクション対策で除去される文字のみ
+			const result = await repository.searchByNameOrKana(officeId, '()', 10);
+
+			expect(result).toEqual([]);
+			expect(supabase.from).not.toHaveBeenCalled();
+		});
 	});
 });

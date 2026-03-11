@@ -84,8 +84,8 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
 - searchStaffs: スタッフを名前で検索します
   - スタッフIDがわからない場合に使用してください
   - 入力: { query: "検索文字列" }
-  - 出力: { staffs: [{ staffId, name, kana }] }
-  - processStaffAbsence と連携する場合、検索結果の staffId を使用してください
+  - 出力: { staffs: [{ id, name, role, serviceTypeIds }] }
+  - processStaffAbsence と連携する場合、検索結果の id を staffId として使用してください
     - 例: { query: "田中" }
 
 ## 制約

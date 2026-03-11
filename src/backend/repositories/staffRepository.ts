@@ -237,6 +237,12 @@ export class StaffRepository {
 	): Promise<StaffWithServiceTypes[]> {
 		// PostgREST 構文インジェクション対策: 特殊文字を除去
 		const safeQuery = query.replace(/[(),]/g, '');
+
+		// 空文字の場合は全件ヒット防止のため空配列を返す
+		if (safeQuery === '') {
+			return [];
+		}
+
 		const { data, error } = await this.supabase
 			.from('staffs')
 			.select('*')
