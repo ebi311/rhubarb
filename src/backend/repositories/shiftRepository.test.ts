@@ -448,4 +448,227 @@ describe('ShiftRepository', () => {
 			);
 		});
 	});
+
+	describe('findAffectedShiftsByAbsence', () => {
+		it('should call list with correct filters for affected shifts', async () => {
+			const staffId = '12345678-1234-1234-8234-123456789001';
+			const startDate = new Date('2026-01-20');
+			const endDate = new Date('2026-01-22');
+			const officeId = '12345678-1234-1234-8234-123456789031';
+
+			const mockData = [
+				{
+					id: '12345678-1234-1234-8234-123456789011',
+					client_id: '12345678-1234-1234-8234-123456789002',
+					service_type_id: 'physical-care',
+					staff_id: staffId,
+					start_time: '2026-01-20T10:00:00+09:00',
+					end_time: '2026-01-20T11:00:00+09:00',
+					status: 'scheduled',
+					is_unassigned: false,
+					created_at: '2026-01-20T00:00:00Z',
+					updated_at: '2026-01-20T00:00:00Z',
+					notes: null,
+					canceled_reason: null,
+					canceled_at: null,
+					clients: { office_id: officeId },
+				},
+				{
+					id: '12345678-1234-1234-8234-123456789012',
+					client_id: '12345678-1234-1234-8234-123456789003',
+					service_type_id: 'life-support',
+					staff_id: staffId,
+					start_time: '2026-01-21T09:00:00+09:00',
+					end_time: '2026-01-21T10:00:00+09:00',
+					status: 'confirmed',
+					is_unassigned: false,
+					created_at: '2026-01-20T00:00:00Z',
+					updated_at: '2026-01-20T00:00:00Z',
+					notes: null,
+					canceled_reason: null,
+					canceled_at: null,
+					clients: { office_id: officeId },
+				},
+			];
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: mockData,
+				error: null,
+			});
+
+			const result = await repository.findAffectedShiftsByAbsence(
+				staffId,
+				startDate,
+				endDate,
+				officeId,
+			);
+
+			expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
+			// join clients
+			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith(
+				'*, clients!inner(office_id)',
+			);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'clients.office_id',
+				officeId,
+			);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'staff_id',
+				staffId,
+			);
+			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
+				'status',
+				'canceled',
+			);
+			expect(result).toHaveLength(2);
+			expect(result[0].id).toBe('12345678-1234-1234-8234-123456789011');
+			expect(result[1].id).toBe('12345678-1234-1234-8234-123456789012');
+		});
+
+		it('should exclude canceled shifts', async () => {
+			const staffId = '12345678-1234-1234-8234-123456789001';
+			const startDate = new Date('2026-01-20');
+			const endDate = new Date('2026-01-22');
+			const officeId = '12345678-1234-1234-8234-123456789031';
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findAffectedShiftsByAbsence(
+				staffId,
+				startDate,
+				endDate,
+				officeId,
+			);
+
+			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
+				'status',
+				'canceled',
+			);
+		});
+
+		it('should return empty array if no shifts found', async () => {
+			const staffId = '12345678-1234-1234-8234-123456789001';
+			const startDate = new Date('2026-01-20');
+			const endDate = new Date('2026-01-22');
+			const officeId = '12345678-1234-1234-8234-123456789031';
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			const result = await repository.findAffectedShiftsByAbsence(
+				staffId,
+				startDate,
+				endDate,
+				officeId,
+			);
+
+			expect(result).toEqual([]);
+		});
+
+		it('should throw error if query fails', async () => {
+			const error = new Error('Query failed');
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: null,
+				error,
+			});
+
+			await expect(
+				repository.findAffectedShiftsByAbsence(
+					'staff-1',
+					new Date('2026-01-20'),
+					new Date('2026-01-22'),
+					'office-1',
+				),
+			).rejects.toThrow('Query failed');
+		});
+	});
+
+	describe('findPastAssignedStaffIdsByClient', () => {
+		it('should return unique staff IDs from past shifts for a client', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+			const limit = 3;
+
+			const mockData = [
+				{ staff_id: '12345678-1234-1234-8234-123456789011' },
+				{ staff_id: '12345678-1234-1234-8234-123456789012' },
+				{ staff_id: '12345678-1234-1234-8234-123456789011' }, // duplicate
+				{ staff_id: '12345678-1234-1234-8234-123456789013' },
+			];
+
+			mockSupabase._mockQuery.lte.mockResolvedValueOnce({
+				data: mockData,
+				error: null,
+			});
+
+			const result = await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				limit,
+			);
+
+			expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
+			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith(
+				'staff_id, clients!inner(office_id)',
+			);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'clients.office_id',
+				officeId,
+			);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'client_id',
+				clientId,
+			);
+			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
+				'staff_id',
+				null,
+			);
+			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
+				'status',
+				'canceled',
+			);
+			// Unique staff IDs, limited to 3
+			expect(result).toHaveLength(3);
+			expect(result).toEqual([
+				'12345678-1234-1234-8234-123456789011',
+				'12345678-1234-1234-8234-123456789012',
+				'12345678-1234-1234-8234-123456789013',
+			]);
+		});
+
+		it('should return empty array if no shifts found', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+
+			mockSupabase._mockQuery.lte.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			const result = await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				3,
+			);
+
+			expect(result).toEqual([]);
+		});
+
+		it('should throw error if query fails', async () => {
+			const error = new Error('Query failed');
+			mockSupabase._mockQuery.lte.mockResolvedValueOnce({
+				data: null,
+				error,
+			});
+
+			await expect(
+				repository.findPastAssignedStaffIdsByClient('client-1', 'office-1', 3),
+			).rejects.toThrow('Query failed');
+		});
+	});
 });

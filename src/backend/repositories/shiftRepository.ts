@@ -429,4 +429,57 @@ export class ShiftRepository {
 		if (error) throw error;
 		return (data ?? []).map((row) => this.toDomain(row));
 	}
+
+	/**
+	 * ヘルパー欠勤時に影響を受けるシフトを取得する
+	 * 指定期間内で staff_id が一致し、status が scheduled または confirmed のシフトを返す
+	 */
+	async findAffectedShiftsByAbsence(
+		staffId: string,
+		startDate: Date,
+		endDate: Date,
+		officeId: string,
+	): Promise<Shift[]> {
+		return this.list({
+			officeId,
+			staffId,
+			startDate,
+			endDate,
+			excludeStatus: 'canceled',
+		});
+	}
+
+	/**
+	 * 過去に指定クライアントを担当したスタッフIDを取得する（重複排除）
+	 * shifts テーブルから実績ベースで取得
+	 *
+	 * @param clientId クライアントID
+	 * @param officeId 事業所ID
+	 * @param limit 最大取得数（デフォルト3）
+	 * @returns スタッフIDの配列（重複排除済み、limit まで）
+	 */
+	async findPastAssignedStaffIdsByClient(
+		clientId: string,
+		officeId: string,
+		limit: number = 3,
+	): Promise<string[]> {
+		const now = new Date();
+
+		const { data, error } = await this.supabase
+			.from('shifts')
+			.select('staff_id, clients!inner(office_id)')
+			.eq('clients.office_id', officeId)
+			.eq('client_id', clientId)
+			.neq('staff_id', null)
+			.neq('status', 'canceled')
+			.lte('start_time', now.toISOString());
+
+		if (error) throw error;
+
+		// 重複排除して limit まで
+		const uniqueStaffIds = [
+			...new Set((data ?? []).map((row) => row.staff_id as string)),
+		];
+		return uniqueStaffIds.slice(0, limit);
+	}
 }
