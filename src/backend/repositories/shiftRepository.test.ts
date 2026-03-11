@@ -12,6 +12,7 @@ const createMockSupabaseClient = () => {
 		delete: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
 		neq: vi.fn().mockReturnThis(),
+		not: vi.fn().mockReturnThis(),
 		or: vi.fn().mockReturnThis(),
 		gte: vi.fn().mockReturnThis(),
 		lte: vi.fn().mockReturnThis(),
@@ -576,8 +577,9 @@ describe('ShiftRepository', () => {
 
 		it('should only include shifts from startDate onwards (not past shifts)', async () => {
 			const staffId = '12345678-1234-1234-8234-123456789001';
-			const startDate = new Date('2026-01-20');
-			const endDate = new Date('2026-01-22');
+			// 未来の日付を指定（今日より後なので、startDate がそのまま使われる）
+			const startDate = new Date('2030-01-20');
+			const endDate = new Date('2030-01-22');
 			const officeId = '12345678-1234-1234-8234-123456789031';
 
 			mockSupabase._mockQuery.order.mockResolvedValueOnce({
@@ -595,8 +597,47 @@ describe('ShiftRepository', () => {
 			// startDate以降のシフトのみ（当日以降）
 			expect(mockSupabase._mockQuery.gte).toHaveBeenCalledWith(
 				'start_time',
-				expect.stringContaining('2026-01-19T15:00:00'), // JST 2026-01-20 00:00 = UTC 2026-01-19 15:00
+				expect.stringContaining('2030-01-19T15:00:00'), // JST 2030-01-20 00:00 = UTC 2030-01-19 15:00
 			);
+		});
+
+		it('should use today as lower bound when startDate is in the past', async () => {
+			const staffId = '12345678-1234-1234-8234-123456789001';
+			// 過去の日付を指定
+			const pastStartDate = new Date('2020-01-01');
+			const endDate = new Date('2030-01-22');
+			const officeId = '12345678-1234-1234-8234-123456789031';
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findAffectedShiftsByAbsence(
+				staffId,
+				pastStartDate,
+				endDate,
+				officeId,
+			);
+
+			// gte の呼び出しを確認
+			// startDate が過去の場合は、今日の00:00(JST)が下限として使われる
+			const gteCall = mockSupabase._mockQuery.gte.mock.calls.find(
+				(call) => call[0] === 'start_time',
+			);
+			expect(gteCall).toBeDefined();
+			const dateUsed = gteCall![1] as string;
+			// 過去の日付（2020-01-01）が使われていないことを確認
+			expect(dateUsed).not.toContain('2019-12-31'); // JST 2020-01-01 = UTC 2019-12-31
+			expect(dateUsed).not.toContain('2020-01-01');
+			// 今日以降の日付が使われていることを確認（正確な日付は実行時に依存）
+			const usedDate = new Date(dateUsed);
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			// 使用された日付が今日以降であること
+			expect(usedDate.getTime()).toBeGreaterThanOrEqual(
+				today.getTime() - 24 * 60 * 60 * 1000,
+			); // 1日のマージン
 		});
 
 		it('should return empty array if no shifts found', async () => {
@@ -686,8 +727,10 @@ describe('ShiftRepository', () => {
 				'status',
 				'completed',
 			);
-			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
+			// PostgREST では .not('staff_id', 'is', null) を使用
+			expect(mockSupabase._mockQuery.not).toHaveBeenCalledWith(
 				'staff_id',
+				'is',
 				null,
 			);
 			// start_time 降順（直近優先）
@@ -807,6 +850,76 @@ describe('ShiftRepository', () => {
 
 			// デフォルト limit = 10
 			expect(mockSupabase._mockQuery.limit).toHaveBeenCalled();
+		});
+
+		it('should use .not() for staff_id null check instead of .neq()', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
+
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				serviceTypeId,
+				10,
+			);
+
+			// PostgREST では .not('staff_id', 'is', null) を使用する必要がある
+			expect(mockSupabase._mockQuery.not).toHaveBeenCalledWith(
+				'staff_id',
+				'is',
+				null,
+			);
+			// .neq('staff_id', null) は使用しない
+			expect(mockSupabase._mockQuery.neq).not.toHaveBeenCalledWith(
+				'staff_id',
+				null,
+			);
+		});
+
+		it('should deduplicate staff IDs and maintain recent-first order when same staff assigned multiple times', async () => {
+			const clientId = '12345678-1234-1234-8234-123456789002';
+			const officeId = '12345678-1234-1234-8234-123456789031';
+			const serviceTypeId = 'life-support';
+			const limit = 3;
+
+			// 同じスタッフが複数回担当した場合のモックデータ（直近順）
+			// staff-01 が2回、staff-02 が1回、staff-03 が2回、staff-04 が1回
+			const mockData = [
+				{ staff_id: '12345678-1234-1234-8234-123456789011' }, // staff-01 (最新)
+				{ staff_id: '12345678-1234-1234-8234-123456789012' }, // staff-02
+				{ staff_id: '12345678-1234-1234-8234-123456789011' }, // staff-01 (重複)
+				{ staff_id: '12345678-1234-1234-8234-123456789013' }, // staff-03
+				{ staff_id: '12345678-1234-1234-8234-123456789013' }, // staff-03 (重複)
+				{ staff_id: '12345678-1234-1234-8234-123456789014' }, // staff-04
+			];
+
+			mockSupabase._mockQuery.limit.mockResolvedValueOnce({
+				data: mockData,
+				error: null,
+			});
+
+			const result = await repository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				serviceTypeId,
+				limit,
+			);
+
+			// 重複排除済み、直近優先順、limit=3 で返却
+			expect(result).toHaveLength(3);
+			expect(result).toEqual([
+				'12345678-1234-1234-8234-123456789011', // staff-01 (最新)
+				'12345678-1234-1234-8234-123456789012', // staff-02
+				'12345678-1234-1234-8234-123456789013', // staff-03
+			]);
+			// staff-04 は limit 超過のため含まれない
+			expect(result).not.toContain('12345678-1234-1234-8234-123456789014');
 		});
 	});
 });

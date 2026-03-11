@@ -1,6 +1,7 @@
 import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import { Shift, ShiftSchema } from '@/models/shift';
+import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
 	getJstDateOnly,
 	getJstHours,
@@ -441,13 +442,18 @@ export class ShiftRepository {
 		officeId: string,
 	): Promise<Shift[]> {
 		// scheduled または confirmed のステータスのみを対象
-		// startDate 以降（当日以降）のシフトのみを取得
+		// startDate と今日（JST）の大きい方を下限として使用
+		// これにより、startDate が過去の場合でも過去シフトは取得されない
+		const today = getJstDateOnly(new Date());
+		const effectiveStartDate =
+			startDate.getTime() > today.getTime() ? startDate : today;
+
 		const query = this.supabase
 			.from('shifts')
 			.select('*, clients!inner(office_id)')
 			.eq('clients.office_id', officeId)
 			.eq('staff_id', staffId)
-			.gte('start_time', setJstTime(startDate, 0, 0).toISOString())
+			.gte('start_time', setJstTime(effectiveStartDate, 0, 0).toISOString())
 			.lte('start_time', setJstTime(endDate, 23, 59).toISOString())
 			.neq('status', 'canceled')
 			.or('status.eq.scheduled,status.eq.confirmed');
@@ -470,7 +476,7 @@ export class ShiftRepository {
 	async findPastAssignedStaffIdsByClient(
 		clientId: string,
 		officeId: string,
-		serviceTypeId: string,
+		serviceTypeId: ServiceTypeId,
 		limit: number = 10,
 	): Promise<string[]> {
 		// status='completed' の実績のみ
@@ -485,7 +491,7 @@ export class ShiftRepository {
 			.eq('client_id', clientId)
 			.eq('service_type_id', serviceTypeId)
 			.eq('status', 'completed')
-			.neq('staff_id', null)
+			.not('staff_id', 'is', null)
 			.order('start_time', { ascending: false })
 			.limit(fetchLimit);
 
