@@ -1,3 +1,4 @@
+import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -71,6 +72,10 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
   - 代替スタッフを探す際に使用してください
   - 日付(YYYY-MM-DD)、開始時刻、終了時刻を指定します
   - 利用者IDを指定すると、その利用者に割当可能なスタッフに絞り込めます
+- processStaffAbsence: スタッフの欠勤を登録し、影響シフトと代替候補を取得します
+  - スタッフが休みになった場合に使用してください
+  - staffId（UUID）、startDate、endDate（YYYY-MM-DD）を指定します
+  - 最大14日間まで指定可能です
 
 ## 制約
 - 提案は具体的かつ実行可能なものにする
@@ -168,6 +173,10 @@ export const POST = async (request: Request): Promise<Response> => {
 			supabase,
 			officeId: staffData.office_id,
 		});
+		const processStaffAbsenceTool = createProcessStaffAbsenceTool({
+			supabase,
+			userId: user.id,
+		});
 
 		// Vercel AI SDK の streamText を使用
 		// messages の型は streamText が受け入れる形式に変換
@@ -181,6 +190,7 @@ export const POST = async (request: Request): Promise<Response> => {
 			})),
 			tools: {
 				searchAvailableHelpers: searchAvailableHelpersTool,
+				processStaffAbsence: processStaffAbsenceTool,
 			},
 			stopWhen: stepCountIs(3),
 		});
