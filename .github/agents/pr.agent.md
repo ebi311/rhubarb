@@ -22,7 +22,6 @@ tools:
     search/searchResults,
     search/textSearch,
     search/usages,
-    search/searchSubagent,
     web/fetch,
     web/githubRepo,
     github/create_pull_request,
@@ -45,7 +44,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: GPT-5 mini (copilot)
+model: GPT-5.4 (copilot)
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。
@@ -103,8 +102,11 @@ model: GPT-5 mini (copilot)
 
 - PR は、`develop` ブランチに対して作成します。
 - PR作成後、Copilot をレビュアーとして追加する
+- この agent は PR 作成と re-review/polling の運用支援までを担当し、review thread を `resolved` にしない
 
 ## Copilot レビュー対応フロー
+
+共通ルールは `.github/agents/pr-review-thread-fragment.md` を参照する。
 
 ### PR作成後・Push後の re-review リクエスト
 
@@ -118,16 +120,35 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/requested_reviewers \
 
 ### レビューコメントのポーリング
 
-PR作成後または Push 後、新しいレビューコメントを検出するためにポーリングを実施する（30秒間隔、最大10分）：
+PR作成後または Push 後、新しいレビューコメントを検出するためにポーリングを実施する（30秒間隔、最大10分）。取得対象は **未解決 (`isResolved == false`) の review thread のみ** とする：
 
 ```bash
-# 最新のレビューが現在のHEADコミットに対して行われたか確認
-HEAD_COMMIT=$(gh api repos/{owner}/{repo}/pulls/{pr_number} --jq '.head.sha')
-LATEST_REVIEW_COMMIT=$(gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews --jq '.[-1].commit_id // "none"')
-
-if [ "$LATEST_REVIEW_COMMIT" = "$HEAD_COMMIT" ]; then
-  echo "New review detected"
-fi
+# 未解決 review thread の最新コメントを取得
+gh api graphql -f query='query($owner:String!, $repo:String!, $pr:Int!) {
+  repository(owner:$owner, name:$repo) {
+    pullRequest(number:$pr) {
+      headRefOid
+      reviewThreads(first:100) {
+        nodes {
+          id
+          isResolved
+          isOutdated
+          comments(last:1) {
+            nodes {
+              id
+              body
+              path
+              line
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  }
+}' -f owner='{owner}' -f repo='{repo}' -F pr={pr_number} \
+| jq '.data.repository.pullRequest.reviewThreads.nodes
+  | map(select(.isResolved == false))'
 ```
 
 ### 未解決コメントの確認と解決
@@ -135,15 +156,15 @@ fi
 ```bash
 # 未解決スレッド数を確認
 gh api graphql -f query='{ repository(owner: "{owner}", name: "{repo}") { pullRequest(number: {pr_number}) { reviewThreads(first: 30) { nodes { isResolved } } } } }' | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
-
-# スレッドを resolved にする
-gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{thread_id}"}) { thread { isResolved } } }'
 ```
+
+- `resolved` の thread は課題一覧に含めない。
+- review thread の `resolved` 操作は、この agent 単独では行わない。修正 push 済み、または却下/後続 Issue 化の説明が PR 上で明示された場合に限り、別フェーズで実行する。
 
 ### 推奨フロー
 
-1. **PR作成時**: `gh pr create` → Copilot レビュアー追加 → ポーリング開始
-2. **修正 Push 時**: `git push` → re-review リクエスト → スレッド解決 → ポーリング開始
+1. **PR作成時**: `gh pr create` → Copilot レビュアー追加 → 未解決 thread のみを対象にポーリング開始
+2. **修正 Push 時**: `git push` → re-review リクエスト → 未解決 thread のみを対象にポーリング開始
 3. **コメント検出時**: 指摘内容を評価 → 修正実施 → テスト実行 → Push → 2に戻る
 4. **未解決 0件**: マージ準備完了
 
@@ -155,7 +176,7 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{thre
 ## ツール
 
 - #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
-- #tool:github/\*: GitHub 操作用ツール全般
+- GitHub 操作用ツール全般
 
 ## ドキュメント
 

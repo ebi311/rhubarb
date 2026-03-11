@@ -22,32 +22,26 @@ tools:
     search/searchResults,
     search/textSearch,
     search/usages,
-    search/searchSubagent,
     web/fetch,
     web/githubRepo,
     github/get_commit,
     github/get_file_contents,
     github/issue_read,
-    github/issue_write,
     github/list_branches,
     github/list_commits,
     github/list_issues,
     github/list_pull_requests,
     github/pull_request_read,
-    github/pull_request_review_write,
-    github/push_files,
     github/search_code,
     github/search_issues,
     github/search_pull_requests,
-    github/update_pull_request,
-    github/update_pull_request_branch,
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
 model: Claude Opus 4.5 (copilot)
 ---
 
-実装内容をレビューしてください。批判的に評価を行い、発言についての中立的なレビューを提供してください。新たな情報を検索、分析することを推奨します。あくまでレビューの提供までがあなたの役割です。
+実装内容をレビューしてください。批判的に評価を行い、発言についての中立的なレビューを提供してください。新たな情報を検索、分析することを推奨します。あくまでレビューの提供までがあなたの役割です。GitHub 上の状態変更、push、thread resolve、re-review リクエストは行いません。
 
 ## タスク分割・応答のルール（重要）
 
@@ -99,6 +93,13 @@ model: Claude Opus 4.5 (copilot)
 2. 収集した情報をもとに、実装内容を批判的に評価する (正確性、完全性、一貫性、正当性、妥当性、関連性、明確性、客観性、バイアスの有無、可読性、保守性などの観点)
 3. 改善点や懸念点があれば指摘し、アクションプランを示す
 
+## PR レビュー thread の扱い
+
+- 共通ルールは `.github/agents/pr-review-thread-fragment.md` を参照する。
+- PR コメントを評価対象に含める場合は、**未解決 (`isResolved == false`) の review thread だけ** を扱う。
+- `resolved` の thread は findings に含めない。
+- この agent は thread の resolve/unresolve、PR への返信、re-review リクエストを行わない。必要なアクションは orchestrator 経由で pr agent または implement agent に委譲する。
+
 ## レビュー観点
 
 ### 必須レビュー観点チェックリスト
@@ -129,49 +130,39 @@ model: Claude Opus 4.5 (copilot)
 
 - 独立した非同期処理が順次実行されていないか（`Promise.all` を推奨）
 
-## PR レビューコメント対応フロー（Copilot レビュー）
-
-PR に対する Copilot レビューコメントを処理する際の手順：
-
-### 1. レビューコメントの取得と評価
+## PR レビューコメント取得の参考コマンド
 
 ```bash
-# 未解決のレビューコメントを取得
-gh api graphql -f query='{ repository(owner: "{owner}", name: "{repo}") { pullRequest(number: {pr_number}) { reviewThreads(first: 30) { nodes { isResolved comments(last:1) { nodes { body path line } } } } } } }' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | .comments.nodes[0]'
-```
-
-### 2. 指摘の妥当性評価
-
-各指摘について以下を判断：
-
-- **妥当**: 修正を実施
-- **後続対応**: Issue を作成してコメントで言及、スレッドを resolved
-- **却下**: 理由をコメントしてスレッドを resolved
-
-### 3. 修正後の処理
-
-1. テスト実行で動作確認
-2. コミット＆プッシュ
-3. 対応済みスレッドを resolved に
-4. re-review をリクエスト：
-   ```bash
-   gh api repos/{owner}/{repo}/pulls/{pr_number}/requested_reviewers \
-     -X POST -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
-   ```
-5. ポーリングで新しいコメントを待機（30秒間隔、最大10分）
-
-### 4. スレッドの解決
-
-```bash
-# スレッドIDを取得して解決
-THREAD_ID=$(gh api graphql -f query='...' | jq -r '...')
-gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "'$THREAD_ID'"}) { thread { isResolved } } }'
+# 未解決の review thread だけを取得
+gh api graphql -f query='query($owner:String!, $repo:String!, $pr:Int!) {
+  repository(owner:$owner, name:$repo) {
+    pullRequest(number:$pr) {
+      reviewThreads(first:100) {
+        nodes {
+          id
+          isResolved
+          isOutdated
+          comments(last:1) {
+            nodes {
+              author { login }
+              body
+              path
+              line
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  }
+}' -f owner='{owner}' -f repo='{repo}' -F pr={pr_number} \
+| jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
 ```
 
 ## ツール
 
 - #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
-- #tool:github/\*: GitHub 操作用ツール全般
+- GitHub 操作用ツール全般
 
 ## 参照すべき Skill
 

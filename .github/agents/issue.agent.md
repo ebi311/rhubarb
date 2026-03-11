@@ -27,7 +27,6 @@ tools:
     search/searchResults,
     search/textSearch,
     search/usages,
-    search/searchSubagent,
     web/fetch,
     web/githubRepo,
     github/add_comment_to_pending_review,
@@ -136,7 +135,7 @@ model: GPT-5.2 (copilot)
 ## ツール
 
 - #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
-- #tool:github/\*: GitHub 操作用ツール全般
+- GitHub 操作用ツール全般
 
 ## ドキュメント
 

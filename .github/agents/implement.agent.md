@@ -23,7 +23,6 @@ tools:
     search/searchResults,
     search/textSearch,
     search/usages,
-    search/searchSubagent,
     github/add_comment_to_pending_review,
     github/add_issue_comment,
     github/create_branch,
@@ -104,6 +103,12 @@ model: GPT-5.3-Codex (copilot)
 9. 必要に応じてドキュメントを更新する
 10. 実装内容を説明する
 11. レビューによる修正依頼があれば対応する。その場合は、新しいブランチは作成せず、同じブランチで対応する
+
+## PR レビュー指摘を受けて実装する場合
+
+- 共通ルールは `.github/agents/pr-review-thread-fragment.md` を参照する。
+- orchestrator / review agent から渡された **未解決 review thread の指摘だけ** を実装対象にする。
+- implement agent 自身は PR コメント取得、thread の resolve、re-review リクエストを行わない。
 
 ## テスト修正の原則
 

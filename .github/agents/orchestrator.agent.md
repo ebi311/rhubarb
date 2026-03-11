@@ -26,8 +26,31 @@ model: GPT-5.2 (copilot)
 5. 必要に応じてステップ 3 と 4 を繰り返す
 6. #tool:agent/runSubagent で pr agent を呼び出し、プルリクエストを作成する
 7. 実装内容とプルリクエストのリンクをユーザーに通知する
-8. ユーザーがレビューを行い、Github の PR コメントが追加されたら、それをチャットで通知する。それを受けて、再度ステップ 3 以降を実行する
-9. ユーザーがマージを行ったら、チャットで通知するので、作業完了を issue agent に通知する。
+8. PR 作成後は、PR 番号/URL を保持し、必要に応じて review agent に「未解決の review thread のみ」を取得・評価させる
+9. review agent の結果をもとに、implement agent で修正し、pr agent に re-review リクエストとポーリング手順を実行/提示させる
+10. ユーザーがマージを行ったら、チャットで通知するので、作業完了を issue agent に通知する。
+
+## PR レビュー運用ポリシー（重要）
+
+- PR コメント対応では、REST の review/comment API をそのまま列挙せず、GraphQL の `reviewThreads` を使って **未解決 (`isResolved == false`) の thread のみ** を対象にする。
+- `resolved` の thread を implement/review に渡してはいけない。既に解決済みの指摘は「現在対応すべき課題」ではない。
+- thread を `resolved` にしてよいのは、以下のいずれかを満たす場合だけ:
+  - 修正が push 済みで、対象 thread に対応完了と判断できる場合
+  - 却下理由または後続 Issue 化の方針を PR 上で明示した場合
+- 根拠がないまま thread を `resolved` にしてはいけない。判断材料が不足する場合は unresolved のまま扱う。
+- `review agent` は読む/評価するだけ、`pr agent` は PR 作成と re-review/polling の運用支援、`implement agent` はコード修正だけを担当する。
+
+## PR レビュー追跡で保持する情報
+
+PR 作成後のレビュー対応ループでは、以下を必ず保持して次の agent に渡す。
+
+- リポジトリ: `{owner}/{repo}`
+- PR 番号: `{pr_number}`
+- PR URL: `{pr_url}`
+- HEAD 情報が分かる場合: `headRefOid` または branch / commit
+- 共通ルール参照: `.github/agents/pr-review-thread-fragment.md`
+
+上記が欠けている場合、PR コメント対応フローを開始しない。まず pr agent の出力や GitHub 情報から補完する。
 
 ## サブエージェント呼び出し方法
 
@@ -198,6 +221,8 @@ model: GPT-5.2 (copilot)
 - 要約: （handoff.summary）
 - 指摘: （payload.keyFindings / suggestedFixes の上位数件）
 - 参照ファイル: （handoff.artifactPaths）
+- PR 情報: （owner/repo, pr_number, pr_url）
+- 共通ルール: `.github/agents/pr-review-thread-fragment.md`
 
 今回やること（1目的に絞る）:
 - （例: ServiceError の扱い修正だけ / テスト修正だけ など）
@@ -216,10 +241,14 @@ model: GPT-5.2 (copilot)
 - 要約: （handoff.summary）
 - 参照ファイル: （handoff.artifactPaths）
 - レビュー上の注意点: （payload.risks があれば）
+- PR 情報: （owner/repo, pr_number, pr_url。新規作成前なら「未作成」）
+- 共通ルール: `.github/agents/pr-review-thread-fragment.md`
 
 PR の要件:
 - develop 向け
 - Issue があれば closes を含める
+- Copilot reviewer を追加する
+- PR 作成後の再レビュー運用では、未解決 thread のみを対象にする
 
 出力は以下の2部構成にしてください。
 1) 人間向け: あなたの通常の見出し構成（空出力は禁止）
@@ -236,10 +265,14 @@ PR の要件:
 - 参照ファイル: （handoff.artifactPaths）
 - 変更ファイル: （payload.changedFiles）
 - 実行コマンド/テスト: （payload.commandsRun / testsRun）
+- PR 情報: （owner/repo を必須。pr_number, pr_url は既存 PR の更新時のみ）
+- 共通ルール: `.github/agents/pr-review-thread-fragment.md`
 
 PR の要件:
 - develop 向け
 - Issue があれば closes を含める
+- Copilot reviewer を追加する
+- PR 作成後の再レビュー運用では、未解決 thread のみを対象にする
 
 出力は以下の2部構成にしてください。
 1) 人間向け: あなたの通常の見出し構成（空出力は禁止）
@@ -259,6 +292,46 @@ PR の要件:
 やること:
 - Issue に「PR作成/マージ済み」のコメント
 - 可能なら closes 関係の整合（PR本文/Issue本文）
+
+出力は以下の2部構成にしてください。
+1) 人間向け: あなたの通常の見出し構成（空出力は禁止）
+2) 末尾: Handoff JSON（jsonコードブロックで1つだけ。上のスキーマ準拠。artifactPaths には作成/参照すべきファイルパスを入れる）
+```
+
+### PR 作成後 → review（未解決 thread 取得）
+
+```
+目的: PR 上の未解決 review thread だけを取得し、対応が必要な指摘を評価する。
+
+前提/要点:
+- PR 情報: （owner/repo, pr_number, pr_url）
+- HEAD 情報: （headRefOid または branch / commit。分かる範囲で）
+- 参照ファイル: `.github/agents/pr-review-thread-fragment.md` と（handoff.artifactPaths）
+
+制約:
+- `resolved` の thread は findings に含めない。
+- 取得と評価だけを行い、thread の resolve/unresolve や PR 返信は行わない。
+
+出力は以下の2部構成にしてください。
+1) 人間向け: あなたの通常の見出し構成（空出力は禁止）
+2) 末尾: Handoff JSON（jsonコードブロックで1つだけ。上のスキーマ準拠。artifactPaths には作成/参照すべきファイルパスを入れる）
+```
+
+### implement 後 → pr（re-review / polling 案内）
+
+```
+目的: 既存 PR に対して re-review リクエストと未解決 thread 前提の polling 手順を実行または提示する。
+
+前提/要点:
+- 要約: （handoff.summary）
+- PR 情報: （owner/repo, pr_number, pr_url）
+- 変更ファイル: （payload.changedFiles）
+- 実行コマンド/テスト: （payload.commandsRun / testsRun）
+- 参照ファイル: `.github/agents/pr-review-thread-fragment.md` と（handoff.artifactPaths）
+
+制約:
+- 新しく課題として返すのは未解決 thread のみ。
+- thread の `resolved` 操作は、根拠が明示できる場合だけ扱う。
 
 出力は以下の2部構成にしてください。
 1) 人間向け: あなたの通常の見出し構成（空出力は禁止）
