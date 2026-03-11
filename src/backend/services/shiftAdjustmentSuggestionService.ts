@@ -75,7 +75,12 @@ export type AvailableHelper = {
 export type StaffCandidate = {
 	staffId: string;
 	staffName: string;
-	/** 優先順位の理由: past_assigned = 過去に担当, assigned = 割当可能（担当経験なし）, available = 空き時間あり */
+	/**
+	 * 優先順位の理由（いずれも時間帯の重複チェック済みで「空き時間あり」のスタッフ）:
+	 * - past_assigned = 過去にその利用者を担当したことがある
+	 * - assigned = 現在その利用者に割当済みだが、担当経験はない
+	 * - available = 現在その利用者には割当されておらず、今回の時間帯が空いている
+	 */
 	priority: 'past_assigned' | 'assigned' | 'available';
 };
 
@@ -943,7 +948,6 @@ export class ShiftAdjustmentSuggestionService {
 		input: StaffAbsenceInput,
 	): Promise<StaffAbsenceProcessResult> {
 		const MAX_CANDIDATES = 3;
-		const MAX_PARALLEL_CANDIDATE_QUERIES = 10;
 
 		// 管理者権限チェック
 		const admin = await this.getAdminStaff(userId);
@@ -1004,7 +1008,10 @@ export class ShiftAdjustmentSuggestionService {
 		const uniqueClientServicePairs = [
 			...new Map(
 				affectedShifts.map((s) => [
-					`${s.client_id}:${s.service_type_id}`,
+					this.assignmentKey({
+						clientId: s.client_id,
+						serviceTypeId: s.service_type_id,
+					}),
 					{ clientId: s.client_id, serviceTypeId: s.service_type_id },
 				]),
 			).values(),
@@ -1014,7 +1021,7 @@ export class ShiftAdjustmentSuggestionService {
 		const [pastStaffResults, assignedStaffResults] = await Promise.all([
 			Promise.all(
 				uniqueClientServicePairs.map(async ({ clientId, serviceTypeId }) => ({
-					key: `${clientId}:${serviceTypeId}`,
+					key: this.assignmentKey({ clientId, serviceTypeId }),
 					staffIds: await this.shiftRepository.findPastAssignedStaffIdsByClient(
 						clientId,
 						officeId,
@@ -1025,7 +1032,7 @@ export class ShiftAdjustmentSuggestionService {
 			),
 			Promise.all(
 				uniqueClientServicePairs.map(async ({ clientId, serviceTypeId }) => ({
-					key: `${clientId}:${serviceTypeId}`,
+					key: this.assignmentKey({ clientId, serviceTypeId }),
 					staffIds:
 						await this.clientStaffAssignmentRepository.findAssignedStaffIdsByClient(
 							officeId,
@@ -1044,35 +1051,24 @@ export class ShiftAdjustmentSuggestionService {
 			assignedStaffResults.map((r) => [r.key, r.staffIds]),
 		);
 
-		// 各影響シフトに対して代替候補を検索（バッチ並列化: DB接続負荷を制限）
-		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] = [];
+		// 各影響シフトに対して代替候補を検索（同期処理）
+		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] =
+			affectedShifts.map((shift) => {
+				const candidates = this.findCandidatesForShift({
+					shift,
+					absenceStaffId: input.staffId,
+					staffMap,
+					maxCandidates: MAX_CANDIDATES,
+					shiftsByDate,
+					pastStaffCache,
+					assignedStaffCache,
+				});
 
-		for (
-			let i = 0;
-			i < affectedShifts.length;
-			i += MAX_PARALLEL_CANDIDATE_QUERIES
-		) {
-			const batch = affectedShifts.slice(i, i + MAX_PARALLEL_CANDIDATE_QUERIES);
-			const batchResults = await Promise.all(
-				batch.map(async (shift) => {
-					const candidates = this.findCandidatesForShift({
-						shift,
-						absenceStaffId: input.staffId,
-						staffMap,
-						maxCandidates: MAX_CANDIDATES,
-						shiftsByDate,
-						pastStaffCache,
-						assignedStaffCache,
-					});
-
-					return {
-						shift: toShiftSnapshot(shift),
-						candidates,
-					};
-				}),
-			);
-			affectedShiftsWithCandidates.push(...batchResults);
-		}
+				return {
+					shift: toShiftSnapshot(shift),
+					candidates,
+				};
+			});
 
 		// 候補なしの件数をカウント
 		const noCandidatesCount = affectedShiftsWithCandidates.filter(
@@ -1160,9 +1156,15 @@ export class ShiftAdjustmentSuggestionService {
 		} = params;
 
 		// キャッシュから過去担当者と割当スタッフを取得
-		const cacheKey = `${shift.client_id}:${shift.service_type_id}`;
+		const cacheKey = this.assignmentKey({
+			clientId: shift.client_id,
+			serviceTypeId: shift.service_type_id,
+		});
 		const pastStaffIds = pastStaffCache.get(cacheKey) ?? [];
 		const assignedStaffIds = assignedStaffCache.get(cacheKey) ?? [];
+
+		// Set でO(1)ルックアップを実現
+		const pastStaffIdSet = new Set(pastStaffIds);
 
 		// 過去担当者（欠勤者除外）
 		const pastAssignedStaffIds = pastStaffIds.filter(
@@ -1170,7 +1172,7 @@ export class ShiftAdjustmentSuggestionService {
 		);
 		// 割当可能だが担当経験なし（欠勤者除外）
 		const assignedOnlyStaffIds = assignedStaffIds.filter(
-			(id) => id !== absenceStaffId && !pastStaffIds.includes(id),
+			(id) => id !== absenceStaffId && !pastStaffIdSet.has(id),
 		);
 
 		// 時間帯と空き状況チェック用のデータを準備
