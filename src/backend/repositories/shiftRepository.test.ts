@@ -602,42 +602,45 @@ describe('ShiftRepository', () => {
 		});
 
 		it('should use today as lower bound when startDate is in the past', async () => {
-			const staffId = '12345678-1234-1234-8234-123456789001';
-			// 過去の日付を指定
-			const pastStartDate = new Date('2020-01-01');
-			const endDate = new Date('2030-01-22');
-			const officeId = '12345678-1234-1234-8234-123456789031';
+			// fake timers で日付を固定（日付フレーク問題を回避）
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2025-06-15T10:00:00+09:00')); // JST 2025-06-15 10:00
 
-			mockSupabase._mockQuery.order.mockResolvedValueOnce({
-				data: [],
-				error: null,
-			});
+			try {
+				const staffId = '12345678-1234-1234-8234-123456789001';
+				// 過去の日付を指定
+				const pastStartDate = new Date('2020-01-01');
+				const endDate = new Date('2030-01-22');
+				const officeId = '12345678-1234-1234-8234-123456789031';
 
-			await repository.findAffectedShiftsByAbsence(
-				staffId,
-				pastStartDate,
-				endDate,
-				officeId,
-			);
+				mockSupabase._mockQuery.order.mockResolvedValueOnce({
+					data: [],
+					error: null,
+				});
 
-			// gte の呼び出しを確認
-			// startDate が過去の場合は、今日の00:00(JST)が下限として使われる
-			const gteCall = mockSupabase._mockQuery.gte.mock.calls.find(
-				(call) => call[0] === 'start_time',
-			);
-			expect(gteCall).toBeDefined();
-			const dateUsed = gteCall![1] as string;
-			// 過去の日付（2020-01-01）が使われていないことを確認
-			expect(dateUsed).not.toContain('2019-12-31'); // JST 2020-01-01 = UTC 2019-12-31
-			expect(dateUsed).not.toContain('2020-01-01');
-			// 今日以降の日付が使われていることを確認（正確な日付は実行時に依存）
-			const usedDate = new Date(dateUsed);
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-			// 使用された日付が今日以降であること
-			expect(usedDate.getTime()).toBeGreaterThanOrEqual(
-				today.getTime() - 24 * 60 * 60 * 1000,
-			); // 1日のマージン
+				await repository.findAffectedShiftsByAbsence(
+					staffId,
+					pastStartDate,
+					endDate,
+					officeId,
+				);
+
+				// gte の呼び出しを確認
+				// startDate が過去の場合は、今日の00:00(JST)が下限として使われる
+				const gteCall = mockSupabase._mockQuery.gte.mock.calls.find(
+					(call) => call[0] === 'start_time',
+				);
+				expect(gteCall).toBeDefined();
+				const dateUsed = gteCall![1] as string;
+				// 過去の日付（2020-01-01）が使われていないことを確認
+				expect(dateUsed).not.toContain('2019-12-31'); // JST 2020-01-01 = UTC 2019-12-31
+				expect(dateUsed).not.toContain('2020-01-01');
+				// 固定した日付（2025-06-15 JST）の00:00が使用されること
+				// JST 2025-06-15 00:00 = UTC 2025-06-14 15:00
+				expect(dateUsed).toContain('2025-06-14T15:00:00');
+			} finally {
+				vi.useRealTimers();
+			}
 		});
 
 		it('should return empty array if no shifts found', async () => {
