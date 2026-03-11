@@ -129,6 +129,45 @@ model: Claude Opus 4.5 (copilot)
 
 - 独立した非同期処理が順次実行されていないか（`Promise.all` を推奨）
 
+## PR レビューコメント対応フロー（Copilot レビュー）
+
+PR に対する Copilot レビューコメントを処理する際の手順：
+
+### 1. レビューコメントの取得と評価
+
+```bash
+# 未解決のレビューコメントを取得
+gh api graphql -f query='{ repository(owner: "{owner}", name: "{repo}") { pullRequest(number: {pr_number}) { reviewThreads(first: 30) { nodes { isResolved comments(last:1) { nodes { body path line } } } } } } }' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | .comments.nodes[0]'
+```
+
+### 2. 指摘の妥当性評価
+
+各指摘について以下を判断：
+
+- **妥当**: 修正を実施
+- **後続対応**: Issue を作成してコメントで言及、スレッドを resolved
+- **却下**: 理由をコメントしてスレッドを resolved
+
+### 3. 修正後の処理
+
+1. テスト実行で動作確認
+2. コミット＆プッシュ
+3. 対応済みスレッドを resolved に
+4. re-review をリクエスト：
+   ```bash
+   gh api repos/{owner}/{repo}/pulls/{pr_number}/requested_reviewers \
+     -X POST -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
+   ```
+5. ポーリングで新しいコメントを待機（30秒間隔、最大10分）
+
+### 4. スレッドの解決
+
+```bash
+# スレッドIDを取得して解決
+THREAD_ID=$(gh api graphql -f query='...' | jq -r '...')
+gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "'$THREAD_ID'"}) { thread { isResolved } } }'
+```
+
 ## ツール
 
 - #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索

@@ -102,7 +102,50 @@ model: GPT-5 mini (copilot)
 ## PR作成ルール
 
 - PR は、`develop` ブランチに対して作成します。
-- PR作成後、Copilot をレビュアーとして追加する:
+- PR作成後、Copilot をレビュアーとして追加する
+
+## Copilot レビュー対応フロー
+
+### PR作成後・Push後の re-review リクエスト
+
+Copilot の自動 re-review がトリガーされない場合、以下のコマンドで明示的にリクエストする：
+
+```bash
+gh api repos/{owner}/{repo}/pulls/{pr_number}/requested_reviewers \
+  -X POST \
+  -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
+```
+
+### レビューコメントのポーリング
+
+PR作成後または Push 後、新しいレビューコメントを検出するためにポーリングを実施する（30秒間隔、最大10分）：
+
+```bash
+# 最新のレビューが現在のHEADコミットに対して行われたか確認
+HEAD_COMMIT=$(gh api repos/{owner}/{repo}/pulls/{pr_number} --jq '.head.sha')
+LATEST_REVIEW_COMMIT=$(gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews --jq '.[-1].commit_id // "none"')
+
+if [ "$LATEST_REVIEW_COMMIT" = "$HEAD_COMMIT" ]; then
+  echo "New review detected"
+fi
+```
+
+### 未解決コメントの確認と解決
+
+```bash
+# 未解決スレッド数を確認
+gh api graphql -f query='{ repository(owner: "{owner}", name: "{repo}") { pullRequest(number: {pr_number}) { reviewThreads(first: 30) { nodes { isResolved } } } } }' | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
+
+# スレッドを resolved にする
+gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "{thread_id}"}) { thread { isResolved } } }'
+```
+
+### 推奨フロー
+
+1. **PR作成時**: `gh pr create` → Copilot レビュアー追加 → ポーリング開始
+2. **修正 Push 時**: `git push` → re-review リクエスト → スレッド解決 → ポーリング開始
+3. **コメント検出時**: 指摘内容を評価 → 修正実施 → テスト実行 → Push → 2に戻る
+4. **未解決 0件**: マージ準備完了
 
 ## Notes
 
