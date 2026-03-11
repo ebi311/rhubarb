@@ -123,6 +123,114 @@ describe('processStaffAbsence tool', () => {
 			const result = ProcessStaffAbsenceParametersSchema.safeParse(validParams);
 			expect(result.success).toBe(true);
 		});
+
+		describe('日付実在性チェック', () => {
+			it('2月31日（存在しない日付）を拒否する', () => {
+				const invalidParams = {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-31',
+					endDate: '2026-03-05',
+				};
+
+				const result =
+					ProcessStaffAbsenceParametersSchema.safeParse(invalidParams);
+				expect(result.success).toBe(false);
+			});
+
+			it('4月31日（存在しない日付）を拒否する', () => {
+				const invalidParams = {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-04-01',
+					endDate: '2026-04-31',
+				};
+
+				const result =
+					ProcessStaffAbsenceParametersSchema.safeParse(invalidParams);
+				expect(result.success).toBe(false);
+			});
+
+			it('閏年の2月29日を受け入れる', () => {
+				const validParams = {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2024-02-29',
+					endDate: '2024-02-29',
+				};
+
+				const result =
+					ProcessStaffAbsenceParametersSchema.safeParse(validParams);
+				expect(result.success).toBe(true);
+			});
+
+			it('非閏年の2月29日を拒否する', () => {
+				const invalidParams = {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2025-02-29',
+					endDate: '2025-03-05',
+				};
+
+				const result =
+					ProcessStaffAbsenceParametersSchema.safeParse(invalidParams);
+				expect(result.success).toBe(false);
+			});
+		});
+
+		describe('期間チェック', () => {
+			it('startDate > endDate の場合を拒否する', () => {
+				const invalidParams = {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-03-10',
+					endDate: '2026-03-01',
+				};
+
+				const result =
+					ProcessStaffAbsenceParametersSchema.safeParse(invalidParams);
+				expect(result.success).toBe(false);
+				if (!result.success) {
+					const messages = result.error.issues.map((e) => e.message);
+					expect(messages).toContain('開始日は終了日以前に設定してください');
+				}
+			});
+
+			it('14日を超える期間を拒否する', () => {
+				const invalidParams = {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-03-01',
+					endDate: '2026-03-16', // 16日間 = 14日超過
+				};
+
+				const result =
+					ProcessStaffAbsenceParametersSchema.safeParse(invalidParams);
+				expect(result.success).toBe(false);
+				if (!result.success) {
+					const messages = result.error.issues.map((e) => e.message);
+					expect(messages).toContain('欠勤期間は最大14日間までです');
+				}
+			});
+
+			it('14日間ちょうどは許可する', () => {
+				const validParams = {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-03-01',
+					endDate: '2026-03-14', // 14日間
+				};
+
+				const result =
+					ProcessStaffAbsenceParametersSchema.safeParse(validParams);
+				expect(result.success).toBe(true);
+			});
+
+			it('同日（1日間）は許可する', () => {
+				const validParams = {
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-03-01',
+					endDate: '2026-03-01',
+				};
+
+				const result =
+					ProcessStaffAbsenceParametersSchema.safeParse(validParams);
+				expect(result.success).toBe(true);
+			});
+		});
 	});
 
 	describe('execute', () => {

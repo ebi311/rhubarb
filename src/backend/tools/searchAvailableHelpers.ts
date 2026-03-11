@@ -2,20 +2,13 @@ import {
 	AvailableHelper,
 	ShiftAdjustmentSuggestionService,
 } from '@/backend/services/shiftAdjustmentSuggestionService';
+import { isValidDate } from '@/backend/tools/_shared';
 import { Database } from '@/backend/types/supabase';
 import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Tool } from 'ai';
 import { tool } from 'ai';
-import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
-import utc from 'dayjs/plugin/utc';
 import { z } from 'zod';
-
-// customParseFormat プラグインを有効化（strict parsing に必要）
-dayjs.extend(customParseFormat);
-// UTC プラグインを有効化
-dayjs.extend(utc);
 
 const TimeSchema = z.object({
 	hour: z.number().int().min(0).max(23),
@@ -24,18 +17,6 @@ const TimeSchema = z.object({
 
 const timeToMinutes = (time: { hour: number; minute: number }): number =>
 	time.hour * 60 + time.minute;
-
-/**
- * 日付文字列が実在する日付かどうかを検証する
- * UTC 固定で解析することで、環境のタイムゾーンに依存しない判定を行う
- * 正規表現で形式は確認済みの前提で、dayjs の strict parsing で実在性をチェック
- */
-const isValidDate = (dateStr: string): boolean => {
-	// UTC 固定でパースし、タイムゾーンの影響を排除
-	const parsed = dayjs.utc(dateStr, 'YYYY-MM-DD', true);
-	// strict parsing で isValid() かつ、parse した結果が元の文字列と一致することを確認
-	return parsed.isValid() && parsed.format('YYYY-MM-DD') === dateStr;
-};
 
 export const SearchAvailableHelpersParametersSchema = z
 	.object({
