@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isValidDate } from './dateValidation';
+import { getDaysDifference, isValidDate } from './dateValidation';
 
 describe('isValidDate', () => {
 	describe('正常な日付', () => {
@@ -59,6 +59,41 @@ describe('isValidDate', () => {
 		it('不完全な日付を拒否する', () => {
 			expect(isValidDate('2026-02')).toBe(false);
 			expect(isValidDate('2026')).toBe(false);
+		});
+	});
+});
+
+describe('getDaysDifference', () => {
+	describe('日数計算（両端含む）', () => {
+		it('2026-03-01〜03-14 は 14日間', () => {
+			expect(getDaysDifference('2026-03-01', '2026-03-14')).toBe(14);
+		});
+
+		it('同日の場合は 1日', () => {
+			expect(getDaysDifference('2026-03-01', '2026-03-01')).toBe(1);
+		});
+
+		it('連続する2日間の場合は 2日', () => {
+			expect(getDaysDifference('2026-03-01', '2026-03-02')).toBe(2);
+		});
+	});
+
+	describe('月またぎ', () => {
+		it('月をまたぐ期間を正しく計算する', () => {
+			// 2026-02-28 〜 2026-03-03 = 4日間（2/28, 3/1, 3/2, 3/3）
+			expect(getDaysDifference('2026-02-28', '2026-03-03')).toBe(4);
+		});
+
+		it('閏年の月またぎを正しく計算する', () => {
+			// 2024-02-28 〜 2024-03-01 = 3日間（2/28, 2/29, 3/1）
+			expect(getDaysDifference('2024-02-28', '2024-03-01')).toBe(3);
+		});
+	});
+
+	describe('年またぎ', () => {
+		it('年をまたぐ期間を正しく計算する', () => {
+			// 2025-12-30 〜 2026-01-02 = 4日間
+			expect(getDaysDifference('2025-12-30', '2026-01-02')).toBe(4);
 		});
 	});
 });

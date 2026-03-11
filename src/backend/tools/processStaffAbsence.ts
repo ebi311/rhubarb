@@ -36,7 +36,7 @@ export const ProcessStaffAbsenceParametersSchema = z
 		(data) =>
 			getDaysDifference(data.startDate, data.endDate) <= MAX_ABSENCE_DAYS,
 		{
-			message: '欠勤期間は最大14日間までです',
+			message: `欠勤期間は最大${MAX_ABSENCE_DAYS}日間までです`,
 			path: ['endDate'],
 		},
 	);
@@ -60,8 +60,7 @@ export const createProcessStaffAbsenceTool = (
 	const { supabase, userId } = options;
 
 	return tool({
-		description:
-			'スタッフの欠勤を登録し、影響するシフトと代替候補スタッフを取得します。欠勤期間は最大14日間まで指定できます。',
+		description: `スタッフの欠勤を登録し、影響するシフトと代替候補スタッフを取得します。欠勤期間は最大${MAX_ABSENCE_DAYS}日間まで指定できます。`,
 		inputSchema: ProcessStaffAbsenceParametersSchema,
 		execute: async (
 			params: ProcessStaffAbsenceParameters,
