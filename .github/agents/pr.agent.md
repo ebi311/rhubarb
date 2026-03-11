@@ -44,7 +44,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: GPT-5.4 (copilot)
+model: Claude Sonnet 4.6 (copilot)
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。
