@@ -104,4 +104,129 @@ describe('ClientStaffAssignmentRepository', () => {
 			);
 		});
 	});
+
+	describe('findAssignedStaffIdsByClient', () => {
+		it('should return staff IDs assigned to a client with service type filter', async () => {
+			const supabase = {
+				from: vi.fn(),
+			} as unknown as SupabaseClient<Database>;
+			const repository = new ClientStaffAssignmentRepository(supabase);
+
+			const rows = [
+				{
+					staff_id: TEST_IDS.STAFF_1,
+					clients: { office_id: TEST_IDS.OFFICE_1 },
+					staffs: { office_id: TEST_IDS.OFFICE_1 },
+				},
+				{
+					staff_id: TEST_IDS.STAFF_2,
+					clients: { office_id: TEST_IDS.OFFICE_1 },
+					staffs: { office_id: TEST_IDS.OFFICE_1 },
+				},
+			];
+
+			const query: any = {
+				select: vi.fn().mockReturnThis(),
+				eq: vi.fn().mockReturnThis(),
+			};
+			// 最後のeq呼び出しで結果を返す
+			query.eq
+				.mockReturnValueOnce(query) // clients.office_id
+				.mockReturnValueOnce(query) // staffs.office_id
+				.mockReturnValueOnce(query) // client_id
+				.mockResolvedValueOnce({ data: rows, error: null }); // service_type_id
+
+			(supabase.from as any).mockReturnValue(query);
+
+			const result = await repository.findAssignedStaffIdsByClient(
+				TEST_IDS.OFFICE_1,
+				TEST_IDS.CLIENT_1,
+				'life-support',
+			);
+
+			expect(supabase.from).toHaveBeenCalledWith('client_staff_assignments');
+			expect(query.select).toHaveBeenCalledWith(
+				'staff_id, clients!inner(office_id), staffs!inner(office_id)',
+			);
+			expect(query.eq).toHaveBeenNthCalledWith(
+				1,
+				'clients.office_id',
+				TEST_IDS.OFFICE_1,
+			);
+			expect(query.eq).toHaveBeenNthCalledWith(
+				2,
+				'staffs.office_id',
+				TEST_IDS.OFFICE_1,
+			);
+			expect(query.eq).toHaveBeenNthCalledWith(
+				3,
+				'client_id',
+				TEST_IDS.CLIENT_1,
+			);
+			expect(query.eq).toHaveBeenNthCalledWith(
+				4,
+				'service_type_id',
+				'life-support',
+			);
+
+			expect(result).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);
+		});
+
+		it('should return empty array when no assignments found', async () => {
+			const supabase = {
+				from: vi.fn(),
+			} as unknown as SupabaseClient<Database>;
+			const repository = new ClientStaffAssignmentRepository(supabase);
+
+			const query: any = {
+				select: vi.fn().mockReturnThis(),
+				eq: vi.fn().mockReturnThis(),
+			};
+			query.eq
+				.mockReturnValueOnce(query)
+				.mockReturnValueOnce(query)
+				.mockReturnValueOnce(query)
+				.mockResolvedValueOnce({ data: [], error: null });
+
+			(supabase.from as any).mockReturnValue(query);
+
+			const result = await repository.findAssignedStaffIdsByClient(
+				TEST_IDS.OFFICE_1,
+				TEST_IDS.CLIENT_1,
+				'life-support',
+			);
+
+			expect(result).toEqual([]);
+		});
+
+		it('should throw error if query fails', async () => {
+			const supabase = {
+				from: vi.fn(),
+			} as unknown as SupabaseClient<Database>;
+			const repository = new ClientStaffAssignmentRepository(supabase);
+
+			const query: any = {
+				select: vi.fn().mockReturnThis(),
+				eq: vi.fn().mockReturnThis(),
+			};
+			query.eq
+				.mockReturnValueOnce(query)
+				.mockReturnValueOnce(query)
+				.mockReturnValueOnce(query)
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Query failed'),
+				});
+
+			(supabase.from as any).mockReturnValue(query);
+
+			await expect(
+				repository.findAssignedStaffIdsByClient(
+					TEST_IDS.OFFICE_1,
+					TEST_IDS.CLIENT_1,
+					'life-support',
+				),
+			).rejects.toThrow('Query failed');
+		});
+	});
 });
