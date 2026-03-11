@@ -10,7 +10,7 @@ import {
 } from './searchStaffs';
 
 describe('searchStaffs tool', () => {
-	const mockSearchByName = vi.fn();
+	const mockSearchByNameOrKana = vi.fn();
 
 	const mockSupabase = {} as SupabaseClient<Database>;
 
@@ -97,11 +97,11 @@ describe('searchStaffs tool', () => {
 	describe('execute', () => {
 		// StaffRepository のモック
 		const mockStaffRepository = {
-			searchByName: mockSearchByName,
+			searchByNameOrKana: mockSearchByNameOrKana,
 		};
 
 		it('名前が部分一致するスタッフを返す', async () => {
-			mockSearchByName.mockResolvedValue([
+			mockSearchByNameOrKana.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
 					name: '山田太郎',
@@ -130,7 +130,7 @@ describe('searchStaffs tool', () => {
 			expect(result.staffs).toHaveLength(2);
 			expect(result.staffs[0].name).toBe('山田太郎');
 			expect(result.staffs[1].name).toBe('山田花子');
-			expect(mockSearchByName).toHaveBeenCalledWith(
+			expect(mockSearchByNameOrKana).toHaveBeenCalledWith(
 				TEST_IDS.OFFICE_1,
 				'山田',
 				10,
@@ -146,7 +146,7 @@ describe('searchStaffs tool', () => {
 				service_type_ids: [],
 			}));
 
-			mockSearchByName.mockResolvedValue(tenStaffs);
+			mockSearchByNameOrKana.mockResolvedValue(tenStaffs);
 
 			const tool = createSearchStaffsTool({
 				supabase: mockSupabase,
@@ -160,7 +160,7 @@ describe('searchStaffs tool', () => {
 			)) as SearchStaffsResult;
 
 			expect(result.staffs).toHaveLength(10);
-			expect(mockSearchByName).toHaveBeenCalledWith(
+			expect(mockSearchByNameOrKana).toHaveBeenCalledWith(
 				TEST_IDS.OFFICE_1,
 				'山田',
 				10,
@@ -168,7 +168,7 @@ describe('searchStaffs tool', () => {
 		});
 
 		it('該当するスタッフがいない場合は空配列を返す', async () => {
-			mockSearchByName.mockResolvedValue([]);
+			mockSearchByNameOrKana.mockResolvedValue([]);
 
 			const tool = createSearchStaffsTool({
 				supabase: mockSupabase,
@@ -185,7 +185,7 @@ describe('searchStaffs tool', () => {
 		});
 
 		it('結果に id, name, role, serviceTypeIds が含まれる', async () => {
-			mockSearchByName.mockResolvedValue([
+			mockSearchByNameOrKana.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
 					name: '山田太郎',
@@ -214,7 +214,7 @@ describe('searchStaffs tool', () => {
 		});
 
 		it('ケースインセンシティブ検索がDB側で行われる（アルファベット）', async () => {
-			mockSearchByName.mockResolvedValue([
+			mockSearchByNameOrKana.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
 					name: 'John Smith',
@@ -235,7 +235,7 @@ describe('searchStaffs tool', () => {
 			)) as SearchStaffsResult;
 
 			expect(result.staffs).toHaveLength(1);
-			expect(mockSearchByName).toHaveBeenCalledWith(
+			expect(mockSearchByNameOrKana).toHaveBeenCalledWith(
 				TEST_IDS.OFFICE_1,
 				'john',
 				10,
@@ -243,10 +243,11 @@ describe('searchStaffs tool', () => {
 		});
 
 		it('ひらがな検索が可能', async () => {
-			mockSearchByName.mockResolvedValue([
+			mockSearchByNameOrKana.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
 					name: 'やまだたろう',
+					kana: 'やまだたろう',
 					role: 'helper',
 					service_type_ids: [],
 				},
@@ -264,6 +265,37 @@ describe('searchStaffs tool', () => {
 			)) as SearchStaffsResult;
 
 			expect(result.staffs).toHaveLength(1);
+		});
+
+		it('kanaフィールドでも検索できる', async () => {
+			mockSearchByNameOrKana.mockResolvedValue([
+				{
+					id: TEST_IDS.STAFF_1,
+					name: '山田太郎',
+					kana: 'やまだたろう',
+					role: 'admin',
+					service_type_ids: ['physical-care'],
+				},
+			]);
+
+			const tool = createSearchStaffsTool({
+				supabase: mockSupabase,
+				officeId: TEST_IDS.OFFICE_1,
+				staffRepository: mockStaffRepository,
+			});
+
+			const result = (await tool.execute!(
+				{ query: 'やまだ' },
+				dummyToolOptions,
+			)) as SearchStaffsResult;
+
+			expect(result.staffs).toHaveLength(1);
+			expect(result.staffs[0].name).toBe('山田太郎');
+			expect(mockSearchByNameOrKana).toHaveBeenCalledWith(
+				TEST_IDS.OFFICE_1,
+				'やまだ',
+				10,
+			);
 		});
 	});
 });

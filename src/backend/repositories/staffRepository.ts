@@ -227,19 +227,19 @@ export class StaffRepository {
 	}
 
 	/**
-	 * 名前でケースインセンシティブ検索
-	 * DB 側で ilike + limit を使用してフィルタリング
+	 * 名前またはかな（kana）でケースインセンシティブ検索
+	 * DB 側で or + ilike + limit を使用してフィルタリング
 	 */
-	async searchByName(
+	async searchByNameOrKana(
 		officeId: string,
-		nameQuery: string,
+		query: string,
 		limit: number,
 	): Promise<StaffWithServiceTypes[]> {
 		const { data, error } = await this.supabase
 			.from('staffs')
 			.select('*')
 			.eq('office_id', officeId)
-			.ilike('name', `%${nameQuery}%`)
+			.or(`name.ilike.%${query}%,kana.ilike.%${query}%`)
 			.limit(limit);
 		if (error) throw error;
 		const rows = data ?? [];

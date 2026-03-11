@@ -9,7 +9,11 @@ import { z } from 'zod';
 const MAX_RESULTS = 10;
 
 export const SearchStaffsParametersSchema = z.object({
-	query: z.string().min(1).max(100).describe('スタッフ名（部分一致）'),
+	query: z
+		.string()
+		.min(1)
+		.max(100)
+		.describe('スタッフ名またはかな（部分一致）'),
 });
 
 export type SearchStaffsParameters = z.infer<
@@ -32,7 +36,7 @@ type CreateSearchStaffsToolOptions = {
 	supabase: SupabaseClient<Database>;
 	officeId: string;
 	/** テスト用の DI */
-	staffRepository?: Pick<StaffRepository, 'searchByName'>;
+	staffRepository?: Pick<StaffRepository, 'searchByNameOrKana'>;
 };
 
 /**
@@ -47,13 +51,13 @@ export const createSearchStaffsTool = (
 
 	return tool({
 		description:
-			'スタッフを名前で検索します。名前の部分一致で検索し、最大10件まで返します。',
+			'スタッフを名前またはかな（ふりがな）で検索します。部分一致で検索し、最大10件まで返します。',
 		inputSchema: SearchStaffsParametersSchema,
 		execute: async (
 			params: SearchStaffsParameters,
 		): Promise<SearchStaffsResult> => {
-			// DB 側で ilike + limit を使用してケースインセンシティブ検索
-			const matchedStaffs = await repo.searchByName(
+			// DB 側で or + ilike + limit を使用してケースインセンシティブ検索
+			const matchedStaffs = await repo.searchByNameOrKana(
 				officeId,
 				params.query,
 				MAX_RESULTS,
