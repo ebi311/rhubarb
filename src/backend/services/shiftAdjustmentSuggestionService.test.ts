@@ -1446,6 +1446,9 @@ describe('processStaffAbsence', () => {
 		);
 		expect(availableCandidate).toBeDefined();
 		expect(availableCandidate!.priority).toBe('available');
+
+		// シフト一覧取得が1回だけ呼ばれることを検証（N+1対策）
+		expect(mockShiftRepo.list).toHaveBeenCalledTimes(1);
 	});
 
 	it('候補は最大3名まで', async () => {

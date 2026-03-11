@@ -336,6 +336,26 @@ export class ShiftAdjustmentSuggestionService {
 		return shiftsByStaff;
 	};
 
+	/**
+	 * 日付ごとにグループ化されたMapから、指定日付の前後1日のシフトを取得
+	 * O(1)でアクセスし、O(n)のfilterを回避
+	 */
+	private getShiftsForDateRange = (
+		shiftsByDate: Map<string, ScheduledShift[]>,
+		targetDate: Date,
+	): ScheduledShift[] => {
+		const result: ScheduledShift[] = [];
+		for (let delta = -1; delta <= 1; delta++) {
+			const date = addJstDays(targetDate, delta);
+			const dateKey = formatJstDateString(date);
+			const shifts = shiftsByDate.get(dateKey);
+			if (shifts) {
+				result.push(...shifts);
+			}
+		}
+		return result;
+	};
+
 	private buildAssignableStaffMap = async (params: {
 		officeId: string;
 		shifts: ScheduledShift[];
@@ -923,6 +943,7 @@ export class ShiftAdjustmentSuggestionService {
 		input: StaffAbsenceInput,
 	): Promise<StaffAbsenceProcessResult> {
 		const MAX_CANDIDATES = 3;
+		const MAX_PARALLEL_CANDIDATE_QUERIES = 10;
 
 		// 管理者権限チェック
 		const admin = await this.getAdminStaff(userId);
@@ -970,24 +991,47 @@ export class ShiftAdjustmentSuggestionService {
 			excludeStatus: 'canceled',
 		});
 
-		// 各影響シフトに対して代替候補を検索（並列化）
-		const affectedShiftsWithCandidates = await Promise.all(
-			affectedShifts.map(async (shift) => {
-				const candidates = await this.findCandidatesForShift({
-					shift,
-					absenceStaffId: input.staffId,
-					officeId,
-					staffMap,
-					maxCandidates: MAX_CANDIDATES,
-					allShiftsInPeriod,
-				});
+		// 日付ごとにシフトをグループ化（findCandidatesForShift での O(n) フィルタリングを回避）
+		const shiftsByDate = new Map<string, ScheduledShift[]>();
+		for (const s of allShiftsInPeriod) {
+			const dateKey = formatJstDateString(s.date);
+			const existing = shiftsByDate.get(dateKey) ?? [];
+			existing.push(s);
+			shiftsByDate.set(dateKey, existing);
+		}
 
-				return {
-					shift: toShiftSnapshot(shift),
-					candidates,
-				};
-			}),
-		);
+		// 各影響シフトに対して代替候補を検索（バッチ並列化: DB接続負荷を制限）
+		const affectedShiftsWithCandidates: {
+			shift: ShiftSnapshot;
+			candidates: StaffCandidate[];
+		}[] = [];
+
+		for (
+			let i = 0;
+			i < affectedShifts.length;
+			i += MAX_PARALLEL_CANDIDATE_QUERIES
+		) {
+			const batch = affectedShifts.slice(i, i + MAX_PARALLEL_CANDIDATE_QUERIES);
+			const batchResults = await Promise.all(
+				batch.map(async (shift) => {
+					const candidates = await this.findCandidatesForShift({
+						shift,
+						absenceStaffId: input.staffId,
+						officeId,
+						staffMap,
+						maxCandidates: MAX_CANDIDATES,
+						allShiftsInPeriod,
+						shiftsByDate,
+					});
+
+					return {
+						shift: toShiftSnapshot(shift),
+						candidates,
+					};
+				}),
+			);
+			affectedShiftsWithCandidates.push(...batchResults);
+		}
 
 		// 候補なしの件数をカウント
 		const noCandidatesCount = affectedShiftsWithCandidates.filter(
@@ -1016,6 +1060,7 @@ export class ShiftAdjustmentSuggestionService {
 		staffMap: Map<string, OfficeStaff>;
 		maxCandidates: number;
 		allShiftsInPeriod: ScheduledShift[];
+		shiftsByDate: Map<string, ScheduledShift[]>;
 	}): Promise<StaffCandidate[]> => {
 		const {
 			shift,
@@ -1023,7 +1068,7 @@ export class ShiftAdjustmentSuggestionService {
 			officeId,
 			staffMap,
 			maxCandidates,
-			allShiftsInPeriod,
+			shiftsByDate,
 		} = params;
 
 		// 1. 過去担当者を取得（shifts completed + client_staff_assignments）
@@ -1054,13 +1099,9 @@ export class ShiftAdjustmentSuggestionService {
 			endTime: shift.time.end,
 		});
 
-		// 3. 空き状況チェック用のシフトをフィルタリング（前後1日）
-		// 既に取得済みのallShiftsInPeriodから該当日付範囲を抽出
-		const targetStart = addJstDays(targetDate, -1);
-		const targetEnd = addJstDays(targetDate, 1);
-		const shiftsNearDate = allShiftsInPeriod.filter((s) => {
-			return s.date >= targetStart && s.date <= targetEnd;
-		});
+		// 3. 空き状況チェック用のシフトを取得（前後1日）
+		// 事前にグループ化されたMapからO(1)でアクセス
+		const shiftsNearDate = this.getShiftsForDateRange(shiftsByDate, targetDate);
 		const shiftsByStaff = this.buildShiftsByStaff(shiftsNearDate);
 
 		const candidates: StaffCandidate[] = [];
