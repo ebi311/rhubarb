@@ -16,6 +16,7 @@ describe('StaffRepository', () => {
 		id: '019b1aaf-0000-4000-8000-000000000001',
 		office_id: officeId,
 		name: '管理者A',
+		kana: null as string | null,
 		role: 'admin' as const,
 		email: 'admin@example.com',
 		note: null as string | null,
@@ -298,6 +299,170 @@ describe('StaffRepository', () => {
 
 			expect(mockDelete).toHaveBeenCalled();
 			expect(mockEq).toHaveBeenCalledWith('id', baseStaffRow.id);
+		});
+	});
+
+	describe('searchByNameOrKana', () => {
+		it('名前でケースインセンシティブ検索ができる', async () => {
+			const staffRows = [
+				{ ...baseStaffRow, kana: 'かんりしゃえー' },
+				{
+					...baseStaffRow,
+					id: '019b1aaf-0000-4000-8000-000000000002',
+					name: '山田花子',
+					kana: 'やまだはなこ',
+					role: 'helper' as const,
+				},
+			];
+			const abilityRows = [
+				{ staff_id: staffRows[0].id, service_type_id: serviceTypeIds.one },
+				{ staff_id: staffRows[1].id, service_type_id: serviceTypeIds.two },
+			];
+
+			const mockStaffSelect = vi.fn().mockReturnThis();
+			const mockStaffEq = vi.fn().mockReturnThis();
+			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+
+			const mockAbilitySelect = vi.fn().mockReturnThis();
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: abilityRows, error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockStaffSelect };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return { select: mockAbilitySelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+			mockStaffEq.mockReturnValue({ or: mockStaffOr });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
+
+			mockAbilitySelect.mockReturnValue({ in: mockAbilityIn });
+
+			const result = await repository.searchByNameOrKana(officeId, '山田', 10);
+
+			expect(result).toHaveLength(2);
+			expect(mockStaffOr).toHaveBeenCalledWith(
+				'name.ilike.%山田%,kana.ilike.%山田%',
+			);
+			expect(mockStaffLimit).toHaveBeenCalledWith(10);
+		});
+
+		it('kanaでひらがな検索ができる', async () => {
+			const staffRows = [
+				{
+					...baseStaffRow,
+					id: '019b1aaf-0000-4000-8000-000000000003',
+					name: '田中太郎',
+					kana: 'たなかたろう',
+					role: 'helper' as const,
+				},
+			];
+			const abilityRows = [
+				{ staff_id: staffRows[0].id, service_type_id: serviceTypeIds.one },
+			];
+
+			const mockStaffSelect = vi.fn().mockReturnThis();
+			const mockStaffEq = vi.fn().mockReturnThis();
+			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+
+			const mockAbilitySelect = vi.fn().mockReturnThis();
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: abilityRows, error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockStaffSelect };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return { select: mockAbilitySelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+			mockStaffEq.mockReturnValue({ or: mockStaffOr });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
+
+			mockAbilitySelect.mockReturnValue({ in: mockAbilityIn });
+
+			const result = await repository.searchByNameOrKana(
+				officeId,
+				'たなか',
+				10,
+			);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].name).toBe('田中太郎');
+			expect(mockStaffOr).toHaveBeenCalledWith(
+				'name.ilike.%たなか%,kana.ilike.%たなか%',
+			);
+		});
+
+		it('上限件数を指定できる', async () => {
+			const mockStaffSelect = vi.fn().mockReturnThis();
+			const mockStaffEq = vi.fn().mockReturnThis();
+			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockStaffSelect };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return {
+						select: vi.fn().mockReturnValue({
+							in: vi.fn().mockResolvedValue({ data: [], error: null }),
+						}),
+					};
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+			mockStaffEq.mockReturnValue({ or: mockStaffOr });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
+
+			await repository.searchByNameOrKana(officeId, 'test', 5);
+
+			expect(mockStaffLimit).toHaveBeenCalledWith(5);
+		});
+
+		it('空文字クエリの場合は空配列を返す（全件ヒット防止）', async () => {
+			// safeQuery が空文字になるケース（空文字、特殊文字のみ）
+			const result = await repository.searchByNameOrKana(officeId, '', 10);
+
+			expect(result).toEqual([]);
+			// DB にはアクセスしない
+			expect(supabase.from).not.toHaveBeenCalled();
+		});
+
+		it('特殊文字のみの場合は空配列を返す', async () => {
+			// PostgREST 構文インジェクション対策で除去される文字のみ
+			const result = await repository.searchByNameOrKana(officeId, '()', 10);
+
+			expect(result).toEqual([]);
+			expect(supabase.from).not.toHaveBeenCalled();
 		});
 	});
 });

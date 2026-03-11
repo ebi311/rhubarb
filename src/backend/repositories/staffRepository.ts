@@ -225,4 +225,36 @@ export class StaffRepository {
 
 		if (error) throw error;
 	}
+
+	/**
+	 * 名前またはかな（kana）でケースインセンシティブ検索
+	 * DB 側で or + ilike + limit を使用してフィルタリング
+	 */
+	async searchByNameOrKana(
+		officeId: string,
+		query: string,
+		limit: number,
+	): Promise<StaffWithServiceTypes[]> {
+		// PostgREST 構文インジェクション対策: 特殊文字を除去
+		const safeQuery = query.replace(/[(),]/g, '');
+
+		// 空文字の場合は全件ヒット防止のため空配列を返す
+		if (safeQuery === '') {
+			return [];
+		}
+
+		const { data, error } = await this.supabase
+			.from('staffs')
+			.select('*')
+			.eq('office_id', officeId)
+			.or(`name.ilike.%${safeQuery}%,kana.ilike.%${safeQuery}%`)
+			.order('name', { ascending: true })
+			.limit(limit);
+		if (error) throw error;
+		const rows = data ?? [];
+		const map = await this.fetchServiceTypeMap(rows.map((row) => row.id));
+		return rows.map((row) =>
+			this.toDomainWithServiceTypes(row, map[row.id] ?? []),
+		);
+	}
 }

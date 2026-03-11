@@ -10,6 +10,11 @@ export const StaffSchema = z.object({
 	office_id: z.uuid(),
 	auth_user_id: z.uuid().nullable().optional(), // Supabase Auth との紐付け用
 	name: z.string().min(1, { message: '氏名は必須です' }),
+	kana: z
+		.string()
+		.max(100, { message: 'ふりがなは100文字以内で入力してください' })
+		.nullable()
+		.optional(),
 	role: UserRoleSchema,
 	email: EmailSchema.optional().nullable(),
 	note: z

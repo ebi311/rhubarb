@@ -421,6 +421,7 @@ export type Database = {
 					created_at: string;
 					email: string | null;
 					id: string;
+					kana: string | null;
 					name: string;
 					note: string | null;
 					office_id: string;
@@ -432,6 +433,7 @@ export type Database = {
 					created_at?: string;
 					email?: string | null;
 					id?: string;
+					kana?: string | null;
 					name: string;
 					note?: string | null;
 					office_id: string;
@@ -443,6 +445,7 @@ export type Database = {
 					created_at?: string;
 					email?: string | null;
 					id?: string;
+					kana?: string | null;
 					name?: string;
 					note?: string | null;
 					office_id?: string;
