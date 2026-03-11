@@ -686,7 +686,7 @@ describe('ShiftRepository', () => {
 			const serviceTypeId = 'life-support';
 			const limit = 3;
 
-			// SQL DISTINCT + ORDER BY で取得済み（直近順）、重複なしのデータ
+			// start_time 降順で取得後、JavaScript の Set で重複排除（直近優先）
 			const mockData = [
 				{ staff_id: '12345678-1234-1234-8234-123456789011' },
 				{ staff_id: '12345678-1234-1234-8234-123456789012' },
@@ -706,7 +706,7 @@ describe('ShiftRepository', () => {
 			);
 
 			expect(mockSupabase.from).toHaveBeenCalledWith('shifts');
-			// DISTINCT staff_id を使用
+			// staff_id を含む列を取得（重複排除はアプリ側で実施）
 			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith(
 				'staff_id, clients!inner(office_id)',
 			);
