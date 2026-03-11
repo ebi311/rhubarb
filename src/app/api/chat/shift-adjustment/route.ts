@@ -70,12 +70,16 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
 ## 利用可能なツール
 - searchAvailableHelpers: 指定した日時に空きのあるヘルパーを検索できます
   - 代替スタッフを探す際に使用してください
-  - 日付(YYYY-MM-DD)、開始時刻、終了時刻を指定します
-  - 利用者IDを指定すると、その利用者に割当可能なスタッフに絞り込めます
+  - date は日付(YYYY-MM-DD)、startTime / endTime は { hour, minute } 形式のオブジェクトで指定します
+    - 例: { date: "2024-04-01", startTime: { hour: 9, minute: 0 }, endTime: { hour: 10, minute: 0 } }
+  - clientId を指定する場合は、必ず対応する serviceTypeId（サービス種別ID）も一緒に指定してください
+    - 例: { clientId: "<利用者ID>", serviceTypeId: "<サービス種別ID>" }
 - processStaffAbsence: スタッフの欠勤を登録し、影響シフトと代替候補を取得します
   - スタッフが休みになった場合に使用してください
   - staffId（UUID）、startDate、endDate（YYYY-MM-DD）を指定します
   - 最大14日間まで指定可能です
+  - 任意項目 memo には、可能な限り欠勤理由や補足情報を日本語で簡潔に記載してください
+    - 例: { staffId: "<スタッフID>", startDate: "2024-04-01", endDate: "2024-04-03", memo: "体調不良のため" }
 
 ## 制約
 - 提案は具体的かつ実行可能なものにする
