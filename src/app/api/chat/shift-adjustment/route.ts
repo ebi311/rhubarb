@@ -22,7 +22,8 @@ const NonTextPartSchema = z
 	})
 	.strip()
 	.refine((part) => part.type !== 'text', {
-		message: 'non-text part type expected',
+		message:
+			"Expected a non-text part, but received type 'text'. Use TextPartSchema for text parts.",
 	});
 
 const MessagePartSchema = z.union([TextPartSchema, NonTextPartSchema]);
