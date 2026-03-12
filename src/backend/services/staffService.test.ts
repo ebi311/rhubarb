@@ -81,6 +81,16 @@ describe('StaffService', () => {
 			service_type_ids: [ids.svc1],
 		};
 
+		const setupServiceTypesMock = (serviceIds: string[]) => {
+			const inMock = vi.fn().mockResolvedValue({
+				data: serviceIds.map((id) => ({ id })),
+				error: null,
+			});
+			const selectMock = vi.fn().mockReturnValue({ in: inMock });
+			const fromMock = supabase.from as ReturnType<typeof vi.fn>;
+			fromMock.mockReturnValue({ select: selectMock } as any);
+		};
+
 		it('バリデーションに成功すると作成', async () => {
 			const inMock = vi.fn().mockResolvedValue({
 				data: [{ id: ids.svc1 }],
@@ -130,6 +140,32 @@ describe('StaffService', () => {
 			expect(selectAllMock).toHaveBeenCalledWith('id');
 			expect(inMock).toHaveBeenCalledWith('id', defaultIds);
 		});
+
+		it('kana あり → repository.create に kana が渡される', async () => {
+			setupServiceTypesMock([ids.svc1]);
+			(staffRepository.create as any).mockResolvedValue(
+				mockStaff({ service_type_ids: [ids.svc1] }),
+			);
+
+			await service.create(ids.auth, { ...input, kana: 'てすとかな' });
+
+			expect(staffRepository.create).toHaveBeenCalledWith(
+				expect.objectContaining({ kana: 'てすとかな' }),
+			);
+		});
+
+		it('kana 空文字 → repository.create に kana: null が渡される', async () => {
+			setupServiceTypesMock([ids.svc1]);
+			(staffRepository.create as any).mockResolvedValue(
+				mockStaff({ service_type_ids: [ids.svc1] }),
+			);
+
+			await service.create(ids.auth, { ...input, kana: '' });
+
+			expect(staffRepository.create).toHaveBeenCalledWith(
+				expect.objectContaining({ kana: null }),
+			);
+		});
 	});
 
 	describe('update', () => {
@@ -164,6 +200,62 @@ describe('StaffService', () => {
 			const result = await service.update(ids.auth, ids.staffOther, input);
 			expect(result.service_type_ids).toEqual([ids.svc2]);
 			expect(staffRepository.update).toHaveBeenCalled();
+		});
+
+		it('kana あり → repository.update に kana が渡される', async () => {
+			const inMock = vi.fn().mockResolvedValue({
+				data: [{ id: ids.svc2 }],
+				error: null,
+			});
+			const fromMock = supabase.from as ReturnType<typeof vi.fn>;
+			fromMock.mockReturnValue({
+				select: () => ({ in: inMock }),
+			} as any);
+
+			(staffRepository.findWithServiceTypesById as any).mockResolvedValue(
+				mockStaff({ id: ids.staffOther, service_type_ids: [ids.svc1] }),
+			);
+			(staffRepository.update as any).mockResolvedValue(
+				mockStaff({ id: ids.staffOther, service_type_ids: [ids.svc2] }),
+			);
+
+			await service.update(ids.auth, ids.staffOther, {
+				...input,
+				kana: 'こうしんかな',
+			});
+
+			expect(staffRepository.update).toHaveBeenCalledWith(
+				ids.staffOther,
+				expect.objectContaining({ kana: 'こうしんかな' }),
+			);
+		});
+
+		it('kana 空文字 → repository.update に kana: null が渡される', async () => {
+			const inMock = vi.fn().mockResolvedValue({
+				data: [{ id: ids.svc2 }],
+				error: null,
+			});
+			const fromMock = supabase.from as ReturnType<typeof vi.fn>;
+			fromMock.mockReturnValue({
+				select: () => ({ in: inMock }),
+			} as any);
+
+			(staffRepository.findWithServiceTypesById as any).mockResolvedValue(
+				mockStaff({ id: ids.staffOther, service_type_ids: [ids.svc1] }),
+			);
+			(staffRepository.update as any).mockResolvedValue(
+				mockStaff({ id: ids.staffOther, service_type_ids: [ids.svc2] }),
+			);
+
+			await service.update(ids.auth, ids.staffOther, {
+				...input,
+				kana: '',
+			});
+
+			expect(staffRepository.update).toHaveBeenCalledWith(
+				ids.staffOther,
+				expect.objectContaining({ kana: null }),
+			);
 		});
 	});
 
