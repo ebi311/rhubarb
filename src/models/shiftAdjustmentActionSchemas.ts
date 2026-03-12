@@ -8,6 +8,8 @@ import { TimeRangeSchema } from './valueObjects/timeRange';
 
 const toJstDay = (date: Date) => dateJst(date).startOf('day');
 
+const JstDateStringOutputSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
 const addTimeRangeValidationIssues = (
 	ctx: z.core.$RefinementCtx,
 	start: unknown,
@@ -186,6 +188,57 @@ export const ShiftAdjustmentShiftSuggestionSchema = z.object({
 });
 export type ShiftAdjustmentShiftSuggestion = z.infer<
 	typeof ShiftAdjustmentShiftSuggestionSchema
+>;
+
+export const StaffCandidatePrioritySchema = z.enum([
+	'past_assigned',
+	'assigned',
+	'available',
+]);
+export type StaffCandidatePriority = z.infer<
+	typeof StaffCandidatePrioritySchema
+>;
+
+export const StaffCandidateSchema = z.object({
+	staffId: z.uuid(),
+	staffName: z.string().min(1),
+	priority: StaffCandidatePrioritySchema,
+});
+export type StaffCandidate = z.infer<typeof StaffCandidateSchema>;
+
+export const AffectedShiftWithCandidatesSchema = z.object({
+	shift: ShiftSnapshotSchema,
+	candidates: z.array(StaffCandidateSchema),
+});
+export type AffectedShiftWithCandidates = z.infer<
+	typeof AffectedShiftWithCandidatesSchema
+>;
+
+export const StaffAbsenceProcessMetaSchema = z
+	.object({
+		timedOut: z.boolean(),
+		processedCount: z.number().int().min(0),
+		totalCount: z.number().int().min(0),
+	})
+	.refine((meta) => meta.processedCount <= meta.totalCount, {
+		message: 'processedCount must be less than or equal to totalCount',
+		path: ['processedCount'],
+	});
+export type StaffAbsenceProcessMeta = z.infer<
+	typeof StaffAbsenceProcessMetaSchema
+>;
+
+export const StaffAbsenceProcessResultSchema = z.object({
+	meta: StaffAbsenceProcessMetaSchema,
+	absenceStaffId: z.uuid(),
+	absenceStaffName: z.string().min(1),
+	startDate: JstDateStringOutputSchema,
+	endDate: JstDateStringOutputSchema,
+	affectedShifts: z.array(AffectedShiftWithCandidatesSchema),
+	summary: z.string().min(1),
+});
+export type StaffAbsenceProcessResult = z.infer<
+	typeof StaffAbsenceProcessResultSchema
 >;
 
 export const SuggestShiftAdjustmentsOutputSchema = z.object({

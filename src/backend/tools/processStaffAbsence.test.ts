@@ -1,30 +1,46 @@
 import { Database } from '@/backend/types/supabase';
+import { StaffAbsenceProcessResultSchema } from '@/models/shiftAdjustmentActionSchemas';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	createProcessStaffAbsenceTool,
 	ProcessStaffAbsenceParametersSchema,
 } from './processStaffAbsence';
 
+const { mockProcessStaffAbsence } = vi.hoisted(() => ({
+	mockProcessStaffAbsence: vi.fn(),
+}));
+
 // ShiftAdjustmentSuggestionService をモック（クラスモックには function を使用）
 vi.mock('@/backend/services/shiftAdjustmentSuggestionService', () => ({
 	ShiftAdjustmentSuggestionService: function MockService() {
 		return {
-			processStaffAbsence: vi.fn().mockResolvedValue({
-				absenceStaffId: TEST_IDS.STAFF_1,
-				absenceStaffName: '山田太郎',
-				startDate: '2026-02-25',
-				endDate: '2026-02-27',
-				affectedShifts: [],
-				summary: '影響シフト: 0件',
-			}),
+			processStaffAbsence: mockProcessStaffAbsence,
 		};
 	},
 }));
 
 describe('processStaffAbsence tool', () => {
 	const mockSupabase = {} as SupabaseClient<Database>;
+	const defaultResult = {
+		meta: {
+			timedOut: false,
+			processedCount: 0,
+			totalCount: 0,
+		},
+		absenceStaffId: TEST_IDS.STAFF_1,
+		absenceStaffName: '山田太郎',
+		startDate: '2026-02-25',
+		endDate: '2026-02-27',
+		affectedShifts: [],
+		summary: '影響シフト: 0件',
+	};
+
+	beforeEach(() => {
+		mockProcessStaffAbsence.mockReset();
+		mockProcessStaffAbsence.mockResolvedValue(defaultResult);
+	});
 
 	it('tool が正しい構造を持つ', () => {
 		const tool = createProcessStaffAbsenceTool({
@@ -78,7 +94,7 @@ describe('processStaffAbsence tool', () => {
 		it('不正な日付形式を拒否する', () => {
 			const invalidParams = {
 				staffId: TEST_IDS.STAFF_1,
-				startDate: '2026/02/25', // 不正な形式
+				startDate: '2026/02/25',
 				endDate: '2026-02-27',
 			};
 
@@ -195,7 +211,7 @@ describe('processStaffAbsence tool', () => {
 				const invalidParams = {
 					staffId: TEST_IDS.STAFF_1,
 					startDate: '2026-03-01',
-					endDate: '2026-03-16', // 16日間 = 14日超過
+					endDate: '2026-03-16',
 				};
 
 				const result =
@@ -211,7 +227,7 @@ describe('processStaffAbsence tool', () => {
 				const validParams = {
 					staffId: TEST_IDS.STAFF_1,
 					startDate: '2026-03-01',
-					endDate: '2026-03-14', // 14日間
+					endDate: '2026-03-14',
 				};
 
 				const result =
@@ -234,13 +250,12 @@ describe('processStaffAbsence tool', () => {
 	});
 
 	describe('execute', () => {
-		it('execute が ShiftAdjustmentSuggestionService.processStaffAbsence を呼び出す', async () => {
+		it('service の返却値を meta 付き契約で返す', async () => {
 			const tool = createProcessStaffAbsenceTool({
 				supabase: mockSupabase,
 				userId: TEST_IDS.USER_1,
 			});
 
-			// AI SDK v6 の tool.execute は options 引数が必須
 			const result = await tool.execute!(
 				{
 					staffId: TEST_IDS.STAFF_1,
@@ -254,14 +269,107 @@ describe('processStaffAbsence tool', () => {
 				},
 			);
 
-			expect(result).toEqual({
+			const parsedResult = StaffAbsenceProcessResultSchema.parse(result);
+
+			expect(parsedResult).toEqual(defaultResult);
+		});
+
+		it('partial result の shape を保持する', async () => {
+			mockProcessStaffAbsence.mockResolvedValueOnce({
+				meta: {
+					timedOut: true,
+					processedCount: 1,
+					totalCount: 2,
+				},
+				absenceStaffId: TEST_IDS.STAFF_1,
+				absenceStaffName: '山田太郎',
+				startDate: '2026-02-25',
+				endDate: '2026-02-27',
+				affectedShifts: [
+					{
+						shift: {
+							id: TEST_IDS.SCHEDULE_1,
+							client_id: TEST_IDS.CLIENT_1,
+							service_type_id: 'life-support',
+							staff_id: TEST_IDS.STAFF_1,
+							date: new Date('2026-02-25T00:00:00+09:00'),
+							start_time: { hour: 9, minute: 0 },
+							end_time: { hour: 10, minute: 0 },
+							status: 'scheduled',
+						},
+						candidates: [
+							{
+								staffId: TEST_IDS.STAFF_2,
+								staffName: '佐藤花子',
+								priority: 'past_assigned',
+							},
+						],
+					},
+				],
+				summary: '影響シフト: 1/2件（一部のみ処理）',
+			});
+
+			const tool = createProcessStaffAbsenceTool({
+				supabase: mockSupabase,
+				userId: TEST_IDS.USER_1,
+			});
+
+			const result = await tool.execute!(
+				{
+					staffId: TEST_IDS.STAFF_1,
+					startDate: '2026-02-25',
+					endDate: '2026-02-27',
+				},
+				{
+					abortSignal: new AbortController().signal,
+					toolCallId: 'test-call-id',
+					messages: [],
+				},
+			);
+
+			const parsedResult = StaffAbsenceProcessResultSchema.parse(result);
+
+			expect(parsedResult.meta).toEqual({
+				timedOut: true,
+				processedCount: 1,
+				totalCount: 2,
+			});
+			expect(parsedResult.summary).toContain('1/2件');
+		});
+
+		it('契約に合わない service 応答を拒否する', async () => {
+			mockProcessStaffAbsence.mockResolvedValueOnce({
+				meta: {
+					timedOut: false,
+					processedCount: 0,
+					totalCount: 0,
+				},
 				absenceStaffId: TEST_IDS.STAFF_1,
 				absenceStaffName: '山田太郎',
 				startDate: '2026-02-25',
 				endDate: '2026-02-27',
 				affectedShifts: [],
-				summary: '影響シフト: 0件',
+			} as never);
+
+			const tool = createProcessStaffAbsenceTool({
+				supabase: mockSupabase,
+				userId: TEST_IDS.USER_1,
 			});
+
+			await expect(
+				tool.execute!(
+					{
+						staffId: TEST_IDS.STAFF_1,
+						startDate: '2026-02-25',
+						endDate: '2026-02-27',
+					},
+					{
+						abortSignal: new AbortController().signal,
+						toolCallId: 'test-call-id',
+						messages: [],
+					},
+				),
+			).rejects.toThrow();
 		});
 	});
 });

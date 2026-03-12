@@ -1188,6 +1188,22 @@ describe('processStaffAbsence', () => {
 		vi.useRealTimers();
 	});
 
+	it('入力が不正な場合は400を返す', async () => {
+		const userId = createTestId();
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+
+		await expect(
+			service.processStaffAbsence(userId, {
+				staffId: TEST_IDS.STAFF_2,
+				startDate: new Date('2026-02-26T00:00:00+09:00'),
+				endDate: new Date('2026-02-25T00:00:00+09:00'),
+			}),
+		).rejects.toMatchObject({ status: 400, message: 'Validation error' });
+	});
+
 	it('非adminは403を返す', async () => {
 		const userId = createTestId();
 

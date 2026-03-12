@@ -4,6 +4,7 @@ import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import {
+	AffectedShiftWithCandidates,
 	ClientDatetimeChangeInput,
 	ClientDatetimeChangeInputSchema,
 	ShiftAdjustmentOperation,
@@ -11,6 +12,9 @@ import {
 	ShiftAdjustmentSuggestion,
 	ShiftSnapshot,
 	StaffAbsenceInput,
+	StaffAbsenceInputSchema,
+	StaffAbsenceProcessResult,
+	StaffCandidate,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
@@ -63,51 +67,6 @@ export type FindAvailableHelpersInput = {
 export type AvailableHelper = {
 	id: string;
 	name: string;
-};
-
-// ======================================
-// processStaffAbsence 関連の型定義
-// ======================================
-
-/**
- * 代替候補スタッフ
- */
-export type StaffCandidate = {
-	staffId: string;
-	staffName: string;
-	/**
-	 * 優先順位の理由（いずれも時間帯の重複チェック済みで「空き時間あり」のスタッフ）:
-	 * - past_assigned = 過去にその利用者を担当したことがある
-	 * - assigned = 現在その利用者に割当済みだが、担当経験はない
-	 * - available = 現在その利用者には割当されておらず、今回の時間帯が空いている
-	 */
-	priority: 'past_assigned' | 'assigned' | 'available';
-};
-
-/**
- * 影響シフトとその代替候補
- */
-export type AffectedShiftWithCandidates = {
-	shift: ShiftSnapshot;
-	candidates: StaffCandidate[];
-};
-
-/**
- * processStaffAbsence の戻り値
- */
-export type StaffAbsenceProcessResult = {
-	meta: {
-		timedOut: boolean;
-		processedCount: number;
-		totalCount: number;
-	};
-	absenceStaffId: string;
-	absenceStaffName: string;
-	startDate: string; // YYYY-MM-DD
-	endDate: string; // YYYY-MM-DD
-	affectedShifts: AffectedShiftWithCandidates[];
-	/** AI が読む用のサマリー */
-	summary: string;
 };
 
 const isOverlapping = (
@@ -268,6 +227,17 @@ export class ShiftAdjustmentSuggestionService {
 	}): string {
 		return `${params.clientId}|${params.serviceTypeId}`;
 	}
+
+	private validateStaffAbsence = (
+		input: StaffAbsenceInput,
+	): StaffAbsenceInput => {
+		const parsedInput = StaffAbsenceInputSchema.safeParse(input);
+		if (!parsedInput.success) {
+			throw new ServiceError(400, 'Validation error', parsedInput.error.issues);
+		}
+
+		return parsedInput.data;
+	};
 
 	private validateClientDatetimeChange = (
 		change: ClientDatetimeChangeInput,
@@ -959,21 +929,24 @@ export class ShiftAdjustmentSuggestionService {
 
 		// 管理者権限チェック
 		const admin = await this.getAdminStaff(userId);
+		const validatedInput = this.validateStaffAbsence(input);
 
 		// 欠勤スタッフの存在と同一事業所チェック
-		const absenceStaff = await this.staffRepository.findById(input.staffId);
+		const absenceStaff = await this.staffRepository.findById(
+			validatedInput.staffId,
+		);
 		if (!absenceStaff || absenceStaff.office_id !== admin.office_id) {
 			throw new ServiceError(404, 'Absence staff not found');
 		}
 
 		const officeId = admin.office_id;
-		const startDate = input.startDate;
-		const endDate = input.endDate;
+		const startDate = validatedInput.startDate;
+		const endDate = validatedInput.endDate;
 
 		// 影響シフトを取得
 		const affectedShifts =
 			await this.shiftRepository.findAffectedShiftsByAbsence(
-				input.staffId,
+				validatedInput.staffId,
 				startDate,
 				endDate,
 				officeId,
@@ -984,7 +957,7 @@ export class ShiftAdjustmentSuggestionService {
 		if (totalCount === 0) {
 			return {
 				meta: { timedOut: false, processedCount: 0, totalCount: 0 },
-				absenceStaffId: input.staffId,
+				absenceStaffId: validatedInput.staffId,
 				absenceStaffName: absenceStaff.name,
 				startDate: formatJstDateString(startDate),
 				endDate: formatJstDateString(endDate),
@@ -1067,7 +1040,7 @@ export class ShiftAdjustmentSuggestionService {
 
 			const candidates = this.findCandidatesForShift({
 				shift,
-				absenceStaffId: input.staffId,
+				absenceStaffId: validatedInput.staffId,
 				staffMap,
 				maxCandidates: MAX_CANDIDATES,
 				shiftsByDate,
@@ -1091,7 +1064,7 @@ export class ShiftAdjustmentSuggestionService {
 
 		return {
 			meta: { timedOut: isTimedOut(), processedCount, totalCount },
-			absenceStaffId: input.staffId,
+			absenceStaffId: validatedInput.staffId,
 			absenceStaffName: absenceStaff.name,
 			startDate: formatJstDateString(startDate),
 			endDate: formatJstDateString(endDate),

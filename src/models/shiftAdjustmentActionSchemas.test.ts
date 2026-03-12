@@ -4,6 +4,7 @@ import {
 	ShiftAdjustmentOperationSchema,
 	ShiftAdjustmentRequestSchema,
 	StaffAbsenceInputSchema,
+	StaffAbsenceProcessResultSchema,
 	SuggestClientDatetimeChangeAdjustmentsOutputSchema,
 	SuggestShiftAdjustmentsOutputSchema,
 } from './shiftAdjustmentActionSchemas';
@@ -211,6 +212,56 @@ describe('ShiftAdjustmentOperationSchema', () => {
 
 		expect(newEndTimeIssue).toBeDefined();
 		expect(newEndTimeIssue?.message).toBe(timeRangeErrorMessage);
+	});
+});
+
+describe('StaffAbsenceProcessResultSchema', () => {
+	it('partial result の shape をパースできる', () => {
+		const result = StaffAbsenceProcessResultSchema.safeParse({
+			meta: { timedOut: true, processedCount: 1, totalCount: 2 },
+			absenceStaffId: TEST_IDS.STAFF_1,
+			absenceStaffName: '山田太郎',
+			startDate: '2026-02-01',
+			endDate: '2026-02-02',
+			affectedShifts: [
+				{
+					shift: {
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_1,
+						date: '2026-02-01',
+						start_time: { hour: 9, minute: 0 },
+						end_time: { hour: 10, minute: 0 },
+						status: 'scheduled',
+					},
+					candidates: [
+						{
+							staffId: TEST_IDS.STAFF_2,
+							staffName: '佐藤花子',
+							priority: 'available',
+						},
+					],
+				},
+			],
+			summary: '影響シフト: 1/2件（一部のみ処理）',
+		});
+
+		expect(result.success).toBe(true);
+	});
+
+	it('processedCount が totalCount を超える場合は拒否する', () => {
+		const result = StaffAbsenceProcessResultSchema.safeParse({
+			meta: { timedOut: true, processedCount: 2, totalCount: 1 },
+			absenceStaffId: TEST_IDS.STAFF_1,
+			absenceStaffName: '山田太郎',
+			startDate: '2026-02-01',
+			endDate: '2026-02-02',
+			affectedShifts: [],
+			summary: '影響シフト: 0件',
+		});
+
+		expect(result.success).toBe(false);
 	});
 });
 

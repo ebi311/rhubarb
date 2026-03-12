@@ -1,9 +1,10 @@
-import {
-	ShiftAdjustmentSuggestionService,
-	StaffAbsenceProcessResult,
-} from '@/backend/services/shiftAdjustmentSuggestionService';
+import { ShiftAdjustmentSuggestionService } from '@/backend/services/shiftAdjustmentSuggestionService';
 import { getDaysDifference, isValidDate } from '@/backend/tools/_shared';
 import { Database } from '@/backend/types/supabase';
+import {
+	StaffAbsenceProcessResult,
+	StaffAbsenceProcessResultSchema,
+} from '@/models/shiftAdjustmentActionSchemas';
 import { parseJstDateString } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Tool } from 'ai';
@@ -71,12 +72,14 @@ export const createProcessStaffAbsenceTool = (
 			const startDate = parseJstDateString(params.startDate);
 			const endDate = parseJstDateString(params.endDate);
 
-			return service.processStaffAbsence(userId, {
+			const result = await service.processStaffAbsence(userId, {
 				staffId: params.staffId,
 				startDate,
 				endDate,
 				memo: params.memo,
 			});
+
+			return StaffAbsenceProcessResultSchema.parse(result);
 		},
 	});
 };
