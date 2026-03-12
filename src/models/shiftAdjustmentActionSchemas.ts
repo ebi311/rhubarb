@@ -1,7 +1,10 @@
 import { dateJst } from '@/utils/date';
 import { z } from 'zod';
 import { ShiftStatusSchema } from './shift';
-import { JstDateInputSchema } from './valueObjects/jstDate';
+import {
+	createJstDateInputSchema,
+	JstDateInputSchema,
+} from './valueObjects/jstDate';
 import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
 import { TimeValueSchema } from './valueObjects/time';
 import { TimeRangeSchema } from './valueObjects/timeRange';
@@ -9,6 +12,59 @@ import { TimeRangeSchema } from './valueObjects/timeRange';
 const toJstDay = (date: Date) => dateJst(date).startOf('day');
 
 const JstDateStringOutputSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const STAFF_ABSENCE_MAX_DAYS = 14;
+export const STAFF_ABSENCE_DATE_FORMAT_MESSAGE =
+	'日付はYYYY-MM-DD形式で指定してください';
+export const STAFF_ABSENCE_INVALID_DATE_MESSAGE =
+	'存在する日付を指定してください';
+export const STAFF_ABSENCE_DATE_ORDER_MESSAGE =
+	'開始日は終了日以前に設定してください';
+export const STAFF_ABSENCE_MAX_RANGE_MESSAGE = `欠勤期間は最大${STAFF_ABSENCE_MAX_DAYS}日間までです`;
+
+const StaffAbsenceDateInputSchema = createJstDateInputSchema({
+	formatMessage: STAFF_ABSENCE_DATE_FORMAT_MESSAGE,
+	invalidDateMessage: STAFF_ABSENCE_INVALID_DATE_MESSAGE,
+});
+
+export const addStaffAbsenceDateRangeValidationIssues = (params: {
+	ctx: z.core.$RefinementCtx;
+	startDate: unknown;
+	endDate: unknown;
+	startField?: string;
+	endField?: string;
+}) => {
+	const startField = params.startField ?? 'startDate';
+	const endField = params.endField ?? 'endDate';
+	const parsedStartDate = StaffAbsenceDateInputSchema.safeParse(
+		params.startDate,
+	);
+	const parsedEndDate = StaffAbsenceDateInputSchema.safeParse(params.endDate);
+
+	if (!parsedStartDate.success || !parsedEndDate.success) {
+		return;
+	}
+
+	const start = toJstDay(parsedStartDate.data);
+	const end = toJstDay(parsedEndDate.data);
+
+	if (start.isAfter(end)) {
+		params.ctx.addIssue({
+			code: 'custom',
+			message: STAFF_ABSENCE_DATE_ORDER_MESSAGE,
+			path: [startField],
+		});
+	}
+
+	const diffDays = end.diff(start, 'day');
+	if (diffDays > STAFF_ABSENCE_MAX_DAYS - 1) {
+		params.ctx.addIssue({
+			code: 'custom',
+			message: STAFF_ABSENCE_MAX_RANGE_MESSAGE,
+			path: [endField],
+		});
+	}
+};
 
 const addTimeRangeValidationIssues = (
 	ctx: z.core.$RefinementCtx,
@@ -34,27 +90,17 @@ const addTimeRangeValidationIssues = (
 export const StaffAbsenceInputSchema = z
 	.object({
 		staffId: z.uuid(),
-		startDate: JstDateInputSchema,
-		endDate: JstDateInputSchema,
+		startDate: StaffAbsenceDateInputSchema,
+		endDate: StaffAbsenceDateInputSchema,
 		memo: z.string().max(500).optional(),
 	})
-	.refine((v) => !toJstDay(v.startDate).isAfter(toJstDay(v.endDate)), {
-		message: 'startDate must be before or equal to endDate',
-		path: ['endDate'],
-	})
-	.refine(
-		(v) => {
-			const start = toJstDay(v.startDate);
-			const end = toJstDay(v.endDate);
-			const diffDays = end.diff(start, 'day');
-			// start=1日目, end=14日目 を許容するため diffDays<=13
-			return diffDays <= 13;
-		},
-		{
-			message: 'Date range must be within 14 days',
-			path: ['endDate'],
-		},
-	);
+	.superRefine((value, ctx) => {
+		addStaffAbsenceDateRangeValidationIssues({
+			ctx,
+			startDate: value.startDate,
+			endDate: value.endDate,
+		});
+	});
 
 export type StaffAbsenceInput = z.output<typeof StaffAbsenceInputSchema>;
 export type StaffAbsenceActionInput = z.input<typeof StaffAbsenceInputSchema>;
@@ -220,9 +266,22 @@ export const StaffAbsenceProcessMetaSchema = z
 		processedCount: z.number().int().min(0),
 		totalCount: z.number().int().min(0),
 	})
-	.refine((meta) => meta.processedCount <= meta.totalCount, {
-		message: 'processedCount must be less than or equal to totalCount',
-		path: ['processedCount'],
+	.superRefine((meta, ctx) => {
+		if (meta.processedCount > meta.totalCount) {
+			ctx.addIssue({
+				code: 'custom',
+				message: 'processedCount must be less than or equal to totalCount',
+				path: ['processedCount'],
+			});
+		}
+
+		if (!meta.timedOut && meta.processedCount !== meta.totalCount) {
+			ctx.addIssue({
+				code: 'custom',
+				message: 'processedCount must equal totalCount when timedOut is false',
+				path: ['processedCount'],
+			});
+		}
 	});
 export type StaffAbsenceProcessMeta = z.infer<
 	typeof StaffAbsenceProcessMetaSchema

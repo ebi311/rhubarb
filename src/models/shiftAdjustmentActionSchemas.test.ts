@@ -4,6 +4,7 @@ import {
 	ShiftAdjustmentOperationSchema,
 	ShiftAdjustmentRequestSchema,
 	StaffAbsenceInputSchema,
+	StaffAbsenceProcessMetaSchema,
 	StaffAbsenceProcessResultSchema,
 	SuggestClientDatetimeChangeAdjustmentsOutputSchema,
 	SuggestShiftAdjustmentsOutputSchema,
@@ -32,9 +33,9 @@ describe('StaffAbsenceInputSchema', () => {
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			expect(result.error.issues[0]?.message).toBe(
-				'startDate must be before or equal to endDate',
+				'開始日は終了日以前に設定してください',
 			);
-			expect(result.error.issues[0]?.path).toEqual(['endDate']);
+			expect(result.error.issues[0]?.path).toEqual(['startDate']);
 		}
 	});
 
@@ -48,7 +49,7 @@ describe('StaffAbsenceInputSchema', () => {
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			expect(result.error.issues[0]?.message).toBe(
-				'Date range must be within 14 days',
+				'欠勤期間は最大14日間までです',
 			);
 			expect(result.error.issues[0]?.path).toEqual(['endDate']);
 		}
@@ -62,6 +63,22 @@ describe('StaffAbsenceInputSchema', () => {
 		});
 
 		expect(result.success).toBe(true);
+	});
+
+	it('存在しない日付を日本語メッセージで拒否する', () => {
+		const result = StaffAbsenceInputSchema.safeParse({
+			staffId: TEST_IDS.STAFF_1,
+			startDate: '2026-02-31',
+			endDate: '2026-03-01',
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'存在する日付を指定してください',
+			);
+			expect(result.error.issues[0]?.path).toEqual(['startDate']);
+		}
 	});
 });
 
@@ -212,6 +229,44 @@ describe('ShiftAdjustmentOperationSchema', () => {
 
 		expect(newEndTimeIssue).toBeDefined();
 		expect(newEndTimeIssue?.message).toBe(timeRangeErrorMessage);
+	});
+});
+
+describe('StaffAbsenceProcessMetaSchema', () => {
+	it('timedOut=false かつ processedCount===totalCount を受け付ける', () => {
+		const result = StaffAbsenceProcessMetaSchema.safeParse({
+			timedOut: false,
+			processedCount: 2,
+			totalCount: 2,
+		});
+
+		expect(result.success).toBe(true);
+	});
+
+	it('timedOut=false で processedCount と totalCount が不一致なら拒否する', () => {
+		const result = StaffAbsenceProcessMetaSchema.safeParse({
+			timedOut: false,
+			processedCount: 1,
+			totalCount: 2,
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'processedCount must equal totalCount when timedOut is false',
+			);
+			expect(result.error.issues[0]?.path).toEqual(['processedCount']);
+		}
+	});
+
+	it('timedOut=true の partial result は受け付ける', () => {
+		const result = StaffAbsenceProcessMetaSchema.safeParse({
+			timedOut: true,
+			processedCount: 1,
+			totalCount: 2,
+		});
+
+		expect(result.success).toBe(true);
 	});
 });
 

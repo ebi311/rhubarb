@@ -1188,6 +1188,35 @@ describe('processStaffAbsence', () => {
 		vi.useRealTimers();
 	});
 
+	it('存在しない日付文字列を日本語メッセージで拒否する', async () => {
+		const userId = createTestId();
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+
+		const invalidInput = {
+			staffId: TEST_IDS.STAFF_2,
+			startDate: '2026-02-31',
+			endDate: '2026-03-01',
+		} as unknown as Parameters<
+			ShiftAdjustmentSuggestionService['processStaffAbsence']
+		>[1];
+
+		await expect(
+			service.processStaffAbsence(userId, invalidInput),
+		).rejects.toMatchObject({
+			status: 400,
+			message: 'Validation error',
+			details: expect.arrayContaining([
+				expect.objectContaining({
+					message: '存在する日付を指定してください',
+					path: ['startDate'],
+				}),
+			]),
+		});
+	});
+
 	it('入力が不正な場合は400を返す', async () => {
 		const userId = createTestId();
 

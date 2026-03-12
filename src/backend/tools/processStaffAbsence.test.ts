@@ -50,6 +50,8 @@ describe('processStaffAbsence tool', () => {
 
 		expect(tool).toHaveProperty('description');
 		expect(tool).toHaveProperty('inputSchema');
+		expect(tool).toHaveProperty('outputSchema');
+		expect(tool.outputSchema).toBe(StaffAbsenceProcessResultSchema);
 		expect(tool).toHaveProperty('execute');
 		expect(typeof tool.execute).toBe('function');
 	});
