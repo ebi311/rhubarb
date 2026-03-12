@@ -1,0 +1,85 @@
+import { TEST_IDS } from '@/test/helpers/testIds';
+import { render } from '@testing-library/react';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChatMessageList } from './ChatMessageList';
+import type { ChatMessage } from './useAdjustmentChat';
+
+const createMessage = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
+	id: TEST_IDS.SCHEDULE_1,
+	role: 'assistant',
+	content: 'AI response',
+	timestamp: new Date('2026-02-24T10:00:00.000Z'),
+	...overrides,
+});
+
+describe('ChatMessageList', () => {
+	const scrollIntoViewMock = vi.fn();
+	const originalScrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+		HTMLElement.prototype,
+		'scrollIntoView',
+	);
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+			configurable: true,
+			value: scrollIntoViewMock,
+			writable: true,
+		});
+	});
+
+	afterAll(() => {
+		if (originalScrollIntoViewDescriptor) {
+			Object.defineProperty(
+				HTMLElement.prototype,
+				'scrollIntoView',
+				originalScrollIntoViewDescriptor,
+			);
+			return;
+		}
+
+		Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+	});
+
+	it('streaming 中は scrollIntoView を auto で呼ぶ', () => {
+		render(<ChatMessageList messages={[createMessage()]} isStreaming={true} />);
+
+		expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'auto' });
+	});
+
+	it('非 streaming で新規メッセージ追加時は scrollIntoView を smooth で呼ぶ', () => {
+		const initialMessages = [createMessage()];
+		const { rerender } = render(
+			<ChatMessageList messages={initialMessages} isStreaming={false} />,
+		);
+		scrollIntoViewMock.mockClear();
+
+		rerender(
+			<ChatMessageList
+				messages={[
+					...initialMessages,
+					createMessage({
+						id: TEST_IDS.SCHEDULE_2,
+						content: 'follow-up message',
+					}),
+				]}
+				isStreaming={false}
+			/>,
+		);
+
+		expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
+		expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth' });
+	});
+
+	it('streaming 終了だけでは追加スクロールしない', () => {
+		const messages = [createMessage()];
+		const { rerender } = render(
+			<ChatMessageList messages={messages} isStreaming={true} />,
+		);
+		scrollIntoViewMock.mockClear();
+
+		rerender(<ChatMessageList messages={messages} isStreaming={false} />);
+
+		expect(scrollIntoViewMock).not.toHaveBeenCalled();
+	});
+});
