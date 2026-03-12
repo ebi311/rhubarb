@@ -1,5 +1,5 @@
 import { ShiftAdjustmentSuggestionService } from '@/backend/services/shiftAdjustmentSuggestionService';
-import { Database } from '@/backend/types/supabase';
+import type { Database } from '@/backend/types/supabase';
 import {
 	addStaffAbsenceDateRangeValidationIssues,
 	STAFF_ABSENCE_DATE_FORMAT_MESSAGE,

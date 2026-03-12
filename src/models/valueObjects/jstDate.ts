@@ -50,7 +50,7 @@ export const createJstDateStringSchema = (
 	return z.string().superRefine((value, ctx) => {
 		if (!JST_DATE_REGEX.test(value)) {
 			ctx.addIssue({
-				code: 'custom',
+				code: z.ZodIssueCode.custom,
 				message: formatMessage,
 			});
 			return;
@@ -58,7 +58,7 @@ export const createJstDateStringSchema = (
 
 		if (!isValidJstDateString(value)) {
 			ctx.addIssue({
-				code: 'custom',
+				code: z.ZodIssueCode.custom,
 				message: invalidDateMessage,
 			});
 		}

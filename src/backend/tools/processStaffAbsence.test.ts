@@ -1,4 +1,4 @@
-import { Database } from '@/backend/types/supabase';
+import type { Database } from '@/backend/types/supabase';
 import { StaffAbsenceProcessResultSchema } from '@/models/shiftAdjustmentActionSchemas';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { SupabaseClient } from '@supabase/supabase-js';

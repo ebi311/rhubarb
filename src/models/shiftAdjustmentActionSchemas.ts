@@ -1,5 +1,5 @@
 import { dateJst } from '@/utils/date';
-import { z } from 'zod';
+import { z, type RefinementCtx } from 'zod';
 import { ShiftStatusSchema } from './shift';
 import {
 	createJstDateInputSchema,
@@ -35,7 +35,7 @@ const StaffAbsenceDateStringSchema = createJstDateStringSchema({
 });
 
 export const addStaffAbsenceDateRangeValidationIssues = (params: {
-	ctx: z.core.$RefinementCtx;
+	ctx: RefinementCtx;
 	startDate: unknown;
 	endDate: unknown;
 	startField?: string;
@@ -57,7 +57,7 @@ export const addStaffAbsenceDateRangeValidationIssues = (params: {
 
 	if (start.isAfter(end)) {
 		params.ctx.addIssue({
-			code: 'custom',
+			code: z.ZodIssueCode.custom,
 			message: STAFF_ABSENCE_DATE_ORDER_MESSAGE,
 			path: [startField],
 		});
@@ -66,7 +66,7 @@ export const addStaffAbsenceDateRangeValidationIssues = (params: {
 	const diffDays = end.diff(start, 'day');
 	if (diffDays > STAFF_ABSENCE_MAX_DAYS - 1) {
 		params.ctx.addIssue({
-			code: 'custom',
+			code: z.ZodIssueCode.custom,
 			message: STAFF_ABSENCE_MAX_RANGE_MESSAGE,
 			path: [endField],
 		});
@@ -74,7 +74,7 @@ export const addStaffAbsenceDateRangeValidationIssues = (params: {
 };
 
 const addTimeRangeValidationIssues = (
-	ctx: z.core.$RefinementCtx,
+	ctx: RefinementCtx,
 	start: unknown,
 	end: unknown,
 	startField: string,
@@ -276,7 +276,7 @@ export const StaffAbsenceProcessMetaSchema = z
 	.superRefine((meta, ctx) => {
 		if (meta.processedCount > meta.totalCount) {
 			ctx.addIssue({
-				code: 'custom',
+				code: z.ZodIssueCode.custom,
 				message: STAFF_ABSENCE_PROCESSED_COUNT_EXCEEDS_TOTAL_MESSAGE,
 				path: ['processedCount'],
 			});
@@ -284,7 +284,7 @@ export const StaffAbsenceProcessMetaSchema = z
 
 		if (!meta.timedOut && meta.processedCount !== meta.totalCount) {
 			ctx.addIssue({
-				code: 'custom',
+				code: z.ZodIssueCode.custom,
 				message: STAFF_ABSENCE_PROCESSED_COUNT_MISMATCH_MESSAGE,
 				path: ['processedCount'],
 			});
