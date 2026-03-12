@@ -38,7 +38,6 @@ export const addStaffAbsenceDateRangeValidationIssues = (params: {
 	ctx: RefinementCtx;
 	startDate: unknown;
 	endDate: unknown;
-	startField?: string;
 	endField?: string;
 }) => {
 	const endField = params.endField ?? 'endDate';

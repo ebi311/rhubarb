@@ -33,7 +33,6 @@ export const ProcessStaffAbsenceParametersSchema = z
 			ctx,
 			startDate: data.startDate,
 			endDate: data.endDate,
-			startField: 'startDate',
 			endField: 'endDate',
 		});
 	});

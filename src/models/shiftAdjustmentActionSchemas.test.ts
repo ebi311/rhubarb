@@ -11,6 +11,23 @@ import {
 } from './shiftAdjustmentActionSchemas';
 import { TimeRangeSchema } from './valueObjects/timeRange';
 
+type StaffAbsenceDateRangeValidationParams = Parameters<
+	typeof import('./shiftAdjustmentActionSchemas').addStaffAbsenceDateRangeValidationIssues
+>[0];
+
+describe('addStaffAbsenceDateRangeValidationIssues', () => {
+	it('startField を helper の引数として公開しない', () => {
+		type HasStartField =
+			'startField' extends keyof StaffAbsenceDateRangeValidationParams
+				? true
+				: false;
+
+		const hasStartField: HasStartField = false;
+
+		expect(hasStartField).toBe(false);
+	});
+});
+
 describe('StaffAbsenceInputSchema', () => {
 	it('start=1日目, end=14日目 は OK（最大14日）', () => {
 		const result = StaffAbsenceInputSchema.safeParse({
