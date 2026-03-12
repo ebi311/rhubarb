@@ -253,7 +253,23 @@ describe('StaffAbsenceProcessMetaSchema', () => {
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			expect(result.error.issues[0]?.message).toBe(
-				'processedCount must equal totalCount when timedOut is false',
+				'timedOut が false の場合、processedCount は totalCount と一致する必要があります',
+			);
+			expect(result.error.issues[0]?.path).toEqual(['processedCount']);
+		}
+	});
+
+	it('processedCount が totalCount を超える場合は日本語メッセージで拒否する', () => {
+		const result = StaffAbsenceProcessMetaSchema.safeParse({
+			timedOut: true,
+			processedCount: 3,
+			totalCount: 2,
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'processedCount は totalCount 以下である必要があります',
 			);
 			expect(result.error.issues[0]?.path).toEqual(['processedCount']);
 		}
@@ -299,7 +315,7 @@ describe('StaffAbsenceProcessResultSchema', () => {
 					],
 				},
 			],
-			summary: '影響シフト: 1/2件（一部のみ処理）',
+			summary: '影響シフト: 1/2件（一部のみ処理)',
 		});
 
 		expect(result.success).toBe(true);
@@ -317,6 +333,26 @@ describe('StaffAbsenceProcessResultSchema', () => {
 		});
 
 		expect(result.success).toBe(false);
+	});
+
+	it('output の startDate/endDate でも実在しない日付を拒否する', () => {
+		const result = StaffAbsenceProcessResultSchema.safeParse({
+			meta: { timedOut: false, processedCount: 0, totalCount: 0 },
+			absenceStaffId: TEST_IDS.STAFF_1,
+			absenceStaffName: '山田太郎',
+			startDate: '2026-02-31',
+			endDate: '2026-03-01',
+			affectedShifts: [],
+			summary: '影響シフト: 0件',
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'存在する日付を指定してください',
+			);
+			expect(result.error.issues[0]?.path).toEqual(['startDate']);
+		}
 	});
 });
 

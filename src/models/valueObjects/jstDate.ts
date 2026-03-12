@@ -47,10 +47,22 @@ export const createJstDateStringSchema = (
 	const invalidDateMessage =
 		messages.invalidDateMessage ?? DEFAULT_JST_DATE_INVALID_MESSAGE;
 
-	return z
-		.string()
-		.regex(JST_DATE_REGEX, formatMessage)
-		.refine(isValidJstDateString, invalidDateMessage);
+	return z.string().superRefine((value, ctx) => {
+		if (!JST_DATE_REGEX.test(value)) {
+			ctx.addIssue({
+				code: 'custom',
+				message: formatMessage,
+			});
+			return;
+		}
+
+		if (!isValidJstDateString(value)) {
+			ctx.addIssue({
+				code: 'custom',
+				message: invalidDateMessage,
+			});
+		}
+	});
 };
 
 export const JstDateStringSchema = createJstDateStringSchema();

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ShiftStatusSchema } from './shift';
 import {
 	createJstDateInputSchema,
+	createJstDateStringSchema,
 	JstDateInputSchema,
 } from './valueObjects/jstDate';
 import { ServiceTypeIdSchema } from './valueObjects/serviceTypeId';
@@ -10,8 +11,6 @@ import { TimeValueSchema } from './valueObjects/time';
 import { TimeRangeSchema } from './valueObjects/timeRange';
 
 const toJstDay = (date: Date) => dateJst(date).startOf('day');
-
-const JstDateStringOutputSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const STAFF_ABSENCE_MAX_DAYS = 14;
 export const STAFF_ABSENCE_DATE_FORMAT_MESSAGE =
@@ -21,8 +20,16 @@ export const STAFF_ABSENCE_INVALID_DATE_MESSAGE =
 export const STAFF_ABSENCE_DATE_ORDER_MESSAGE =
 	'開始日は終了日以前に設定してください';
 export const STAFF_ABSENCE_MAX_RANGE_MESSAGE = `欠勤期間は最大${STAFF_ABSENCE_MAX_DAYS}日間までです`;
+const STAFF_ABSENCE_PROCESSED_COUNT_EXCEEDS_TOTAL_MESSAGE =
+	'processedCount は totalCount 以下である必要があります';
+const STAFF_ABSENCE_PROCESSED_COUNT_MISMATCH_MESSAGE =
+	'timedOut が false の場合、processedCount は totalCount と一致する必要があります';
 
 const StaffAbsenceDateInputSchema = createJstDateInputSchema({
+	formatMessage: STAFF_ABSENCE_DATE_FORMAT_MESSAGE,
+	invalidDateMessage: STAFF_ABSENCE_INVALID_DATE_MESSAGE,
+});
+const StaffAbsenceDateStringSchema = createJstDateStringSchema({
 	formatMessage: STAFF_ABSENCE_DATE_FORMAT_MESSAGE,
 	invalidDateMessage: STAFF_ABSENCE_INVALID_DATE_MESSAGE,
 });
@@ -270,7 +277,7 @@ export const StaffAbsenceProcessMetaSchema = z
 		if (meta.processedCount > meta.totalCount) {
 			ctx.addIssue({
 				code: 'custom',
-				message: 'processedCount must be less than or equal to totalCount',
+				message: STAFF_ABSENCE_PROCESSED_COUNT_EXCEEDS_TOTAL_MESSAGE,
 				path: ['processedCount'],
 			});
 		}
@@ -278,7 +285,7 @@ export const StaffAbsenceProcessMetaSchema = z
 		if (!meta.timedOut && meta.processedCount !== meta.totalCount) {
 			ctx.addIssue({
 				code: 'custom',
-				message: 'processedCount must equal totalCount when timedOut is false',
+				message: STAFF_ABSENCE_PROCESSED_COUNT_MISMATCH_MESSAGE,
 				path: ['processedCount'],
 			});
 		}
@@ -291,8 +298,8 @@ export const StaffAbsenceProcessResultSchema = z.object({
 	meta: StaffAbsenceProcessMetaSchema,
 	absenceStaffId: z.uuid(),
 	absenceStaffName: z.string().min(1),
-	startDate: JstDateStringOutputSchema,
-	endDate: JstDateStringOutputSchema,
+	startDate: StaffAbsenceDateStringSchema,
+	endDate: StaffAbsenceDateStringSchema,
 	affectedShifts: z.array(AffectedShiftWithCandidatesSchema),
 	summary: z.string().min(1),
 });

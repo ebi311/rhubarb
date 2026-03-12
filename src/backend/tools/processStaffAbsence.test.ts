@@ -308,7 +308,7 @@ describe('processStaffAbsence tool', () => {
 						],
 					},
 				],
-				summary: '影響シフト: 1/2件（一部のみ処理）',
+				summary: '影響シフト: 1/2件（一部のみ処理)',
 			});
 
 			const tool = createProcessStaffAbsenceTool({
@@ -372,6 +372,33 @@ describe('processStaffAbsence tool', () => {
 					},
 				),
 			).rejects.toThrow();
+		});
+
+		it('service 応答の output 日付が実在しない場合は拒否する', async () => {
+			mockProcessStaffAbsence.mockResolvedValueOnce({
+				...defaultResult,
+				startDate: '2026-02-31',
+			} as never);
+
+			const tool = createProcessStaffAbsenceTool({
+				supabase: mockSupabase,
+				userId: TEST_IDS.USER_1,
+			});
+
+			await expect(
+				tool.execute!(
+					{
+						staffId: TEST_IDS.STAFF_1,
+						startDate: '2026-02-25',
+						endDate: '2026-02-27',
+					},
+					{
+						abortSignal: new AbortController().signal,
+						toolCallId: 'test-call-id',
+						messages: [],
+					},
+				),
+			).rejects.toThrow('存在する日付を指定してください');
 		});
 	});
 });
