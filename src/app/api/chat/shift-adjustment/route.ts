@@ -20,7 +20,7 @@ const NonTextPartSchema = z
 	.object({
 		type: z.string().min(1),
 	})
-	.passthrough()
+	.strip()
 	.refine((part) => part.type !== 'text', {
 		message: 'non-text part type expected',
 	});
@@ -28,15 +28,37 @@ const NonTextPartSchema = z
 const MessagePartSchema = z.union([TextPartSchema, NonTextPartSchema]);
 
 // Vercel AI SDK v6 は parts 配列形式でメッセージを送信
-const ChatMessageSchema = z.object({
-	role: z.enum(['user', 'assistant']),
-	// v6: parts 配列形式（content は後方互換性のため optional）
-	parts: z
-		.array(MessagePartSchema)
-		.max(CHAT_MESSAGE_PARTS_MAX_COUNT)
-		.optional(),
-	content: z.string().max(CHAT_MESSAGE_CONTENT_MAX_LENGTH).optional(),
-});
+const ChatMessageSchema = z
+	.object({
+		role: z.enum(['user', 'assistant']),
+		// v6: parts 配列形式（content は後方互換性のため optional）
+		parts: z
+			.array(MessagePartSchema)
+			.max(CHAT_MESSAGE_PARTS_MAX_COUNT)
+			.optional(),
+		content: z.string().max(CHAT_MESSAGE_CONTENT_MAX_LENGTH).optional(),
+	})
+	.refine(
+		(message) => {
+			if (!message.parts?.length) {
+				return true;
+			}
+
+			const totalTextLength = message.parts.reduce((sum, part) => {
+				if (part.type !== 'text' || !('text' in part)) {
+					return sum;
+				}
+
+				return sum + part.text.length;
+			}, 0);
+
+			return totalTextLength <= CHAT_MESSAGE_CONTENT_MAX_LENGTH;
+		},
+		{
+			message: 'Total text length in parts must be at most 10000 characters',
+			path: ['parts'],
+		},
+	);
 
 // メッセージからテキストコンテンツを抽出
 const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
@@ -46,7 +68,9 @@ const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
 
 	const textFromParts = msg.parts
 		.flatMap((part) =>
-			part.type === 'text' && typeof part.text === 'string' ? [part.text] : [],
+			part.type === 'text' && 'text' in part && typeof part.text === 'string'
+				? [part.text]
+				: [],
 		)
 		.join('');
 
