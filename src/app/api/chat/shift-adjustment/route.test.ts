@@ -132,6 +132,78 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('assistant の parts に non-text が混在していても 400 にならず text のみを送る', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [
+					{ role: 'user', content: '調整をお願いします' },
+					{
+						role: 'assistant',
+						parts: [
+							{ type: 'reasoning', reasoning: '内部推論' },
+							{
+								type: 'tool-searchStaffs',
+								toolCallId: 'call_1',
+								state: 'output-available',
+								output: { staffs: [] },
+							},
+							{ type: 'text', text: '候補を確認しました。' },
+						],
+					},
+				],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				messages: [
+					{ role: 'user', content: '調整をお願いします' },
+					{ role: 'assistant', content: '候補を確認しました。' },
+				],
+			}),
+		);
+	});
+
+	it('parts に text が無い場合でも空文字として処理する', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [
+					{ role: 'user', content: '続けてください' },
+					{
+						role: 'assistant',
+						parts: [
+							{
+								type: 'tool-searchStaffs',
+								toolCallId: 'call_2',
+								state: 'output-available',
+								output: { staffs: [] },
+							},
+						],
+					},
+				],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				messages: [
+					{ role: 'user', content: '続けてください' },
+					{ role: 'assistant', content: '' },
+				],
+			}),
+		);
+	});
+
 	it('messages が空の場合は 400 エラーを返す', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',

@@ -13,25 +13,38 @@ const TextPartSchema = z.object({
 	text: z.string(),
 });
 
+const NonTextPartSchema = z
+	.object({
+		type: z.string().min(1),
+	})
+	.passthrough()
+	.refine((part) => part.type !== 'text', {
+		message: 'non-text part type expected',
+	});
+
+const MessagePartSchema = z.union([TextPartSchema, NonTextPartSchema]);
+
 // Vercel AI SDK v6 は parts 配列形式でメッセージを送信
 const ChatMessageSchema = z.object({
 	role: z.enum(['user', 'assistant']),
 	// v6: parts 配列形式（content は後方互換性のため optional）
-	parts: z.array(TextPartSchema).optional(),
+	parts: z.array(MessagePartSchema).optional(),
 	content: z.string().max(10000).optional(),
 });
 
 // メッセージからテキストコンテンツを抽出
 const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
-	// parts 配列がある場合はそこからテキストを抽出
-	if (msg.parts && msg.parts.length > 0) {
-		return msg.parts
-			.filter((p) => p.type === 'text')
-			.map((p) => p.text)
-			.join('');
+	if (!msg.parts?.length) {
+		return msg.content ?? '';
 	}
-	// fallback: content フィールド
-	return msg.content ?? '';
+
+	const textFromParts = msg.parts
+		.flatMap((part) =>
+			part.type === 'text' && typeof part.text === 'string' ? [part.text] : [],
+		)
+		.join('');
+
+	return textFromParts || msg.content || '';
 };
 
 const ShiftContextItemSchema = z.object({
