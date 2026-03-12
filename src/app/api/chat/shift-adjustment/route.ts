@@ -22,8 +22,7 @@ const NonTextPartSchema = z
 	})
 	.strip()
 	.refine((part) => part.type !== 'text', {
-		message:
-			"Expected a non-text part, but received type 'text'. Use TextPartSchema for text parts.",
+		message: "Part type must not be 'text'",
 	});
 
 const MessagePartSchema = z.union([TextPartSchema, NonTextPartSchema]);
@@ -56,7 +55,7 @@ const ChatMessageSchema = z
 			return totalTextLength <= CHAT_MESSAGE_CONTENT_MAX_LENGTH;
 		},
 		{
-			message: 'Total text length in parts must be at most 10000 characters',
+			message: `Total text length in parts must be at most ${CHAT_MESSAGE_CONTENT_MAX_LENGTH} characters`,
 			path: ['parts'],
 		},
 	);

@@ -204,6 +204,35 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('non-text parts のみで content がある場合は content にフォールバックする', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [
+					{
+						role: 'assistant',
+						parts: [{ type: 'step-start' }],
+						content: 'フォールバックコンテンツ',
+					},
+					{ role: 'user', content: '続けてください' },
+				],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				messages: [
+					{ role: 'assistant', content: 'フォールバックコンテンツ' },
+					{ role: 'user', content: '続けてください' },
+				],
+			}),
+		);
+	});
+
 	it('content なしで parts のみでも正常に処理する', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
