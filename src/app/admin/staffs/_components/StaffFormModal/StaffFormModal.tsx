@@ -20,9 +20,9 @@ const normalizeStringToNull = (
 	typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 
 const StaffFormSchema = StaffInputSchema.extend({
-	kana: StaffInputSchema.shape.kana.or(z.literal('')),
+	kana: StaffInputSchema.shape.kana,
 	email: StaffInputSchema.shape.email.or(z.literal('')),
-	note: StaffInputSchema.shape.note.or(z.literal('')),
+	note: StaffInputSchema.shape.note,
 	service_type_ids: z.array(ServiceTypeIdSchema).default([]),
 }).transform((value) => ({
 	...value,

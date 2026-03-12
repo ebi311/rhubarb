@@ -1,4 +1,5 @@
 import type { Database } from '@/backend/types/supabase';
+import { TEST_IDS } from '@/test/helpers/testIds';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StaffRepository } from './staffRepository';
@@ -6,14 +7,14 @@ import { StaffRepository } from './staffRepository';
 describe('StaffRepository', () => {
 	let supabase: SupabaseClient<Database>;
 	let repository: StaffRepository;
-	const officeId = '019b179f-c74d-75ef-a328-55a8f65a0d8a';
+	const officeId = TEST_IDS.OFFICE_1;
 	const serviceTypeIds = {
 		one: 'physical-care',
 		two: 'life-support',
 		three: 'commute-support',
 	};
 	const baseStaffRow = {
-		id: '019b1aaf-0000-4000-8000-000000000001',
+		id: TEST_IDS.STAFF_1,
 		office_id: officeId,
 		name: '管理者A',
 		kana: null as string | null,
@@ -39,7 +40,7 @@ describe('StaffRepository', () => {
 				baseStaffRow,
 				{
 					...baseStaffRow,
-					id: '019b1aaf-0000-4000-8000-000000000002',
+					id: TEST_IDS.STAFF_2,
 					name: 'ヘルパーB',
 					role: 'helper' as const,
 					email: 'helper@example.com',
@@ -161,7 +162,7 @@ describe('StaffRepository', () => {
 		it('スタッフを作成しサービス区分を設定できる', async () => {
 			const insertRow = {
 				...baseStaffRow,
-				id: '019b1aaf-0000-4000-8000-000000000099',
+				id: TEST_IDS.STAFF_4,
 				kana: 'しんきすたっふ',
 				note: 'メモ',
 			};
@@ -228,7 +229,7 @@ describe('StaffRepository', () => {
 		it('kanaがnullの場合はnullとして保存される', async () => {
 			const insertRow = {
 				...baseStaffRow,
-				id: '019b1aaf-0000-4000-8000-000000000099',
+				id: TEST_IDS.STAFF_4,
 				kana: null,
 			};
 			const mockInsert = vi.fn().mockReturnThis();
@@ -410,7 +411,7 @@ describe('StaffRepository', () => {
 				{ ...baseStaffRow, kana: 'かんりしゃえー' },
 				{
 					...baseStaffRow,
-					id: '019b1aaf-0000-4000-8000-000000000002',
+					id: TEST_IDS.STAFF_2,
 					name: '山田花子',
 					kana: 'やまだはなこ',
 					role: 'helper' as const,
@@ -464,7 +465,7 @@ describe('StaffRepository', () => {
 			const staffRows = [
 				{
 					...baseStaffRow,
-					id: '019b1aaf-0000-4000-8000-000000000003',
+					id: TEST_IDS.STAFF_3,
 					name: '田中太郎',
 					kana: 'たなかたろう',
 					role: 'helper' as const,

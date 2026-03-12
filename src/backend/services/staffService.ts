@@ -30,15 +30,11 @@ export class StaffService {
 		this.staffRepository = repo ?? new StaffRepository(supabase);
 	}
 
-	private normalizeNote(note?: string | null): string | null | undefined {
-		if (typeof note === 'undefined') return undefined;
-		const trimmed = note?.trim();
-		return trimmed ? trimmed : null;
-	}
-
-	private normalizeKana(kana?: string | null): string | null | undefined {
-		if (typeof kana === 'undefined') return undefined;
-		const trimmed = kana?.trim();
+	private normalizeOptionalText(
+		value?: string | null,
+	): string | null | undefined {
+		if (typeof value === 'undefined') return undefined;
+		const trimmed = value?.trim();
 		return trimmed ? trimmed : null;
 	}
 
@@ -100,10 +96,10 @@ export class StaffService {
 		const staff = await this.staffRepository.create({
 			office_id: admin.office_id,
 			name: data.name,
-			kana: this.normalizeKana(data.kana),
+			kana: this.normalizeOptionalText(data.kana),
 			role: data.role,
 			email: data.email ?? null,
-			note: this.normalizeNote(data.note),
+			note: this.normalizeOptionalText(data.note),
 			service_type_ids: serviceTypeIds,
 		});
 		return this.toRecord(staff);
@@ -131,10 +127,10 @@ export class StaffService {
 		await this.assertServiceTypesExist(serviceTypeIds);
 		const staff = await this.staffRepository.update(id, {
 			name: data.name,
-			kana: this.normalizeKana(data.kana),
+			kana: this.normalizeOptionalText(data.kana),
 			role: data.role,
 			email: data.email ?? null,
-			note: this.normalizeNote(data.note),
+			note: this.normalizeOptionalText(data.note),
 			service_type_ids: serviceTypeIds,
 		});
 		return this.toRecord(staff);
