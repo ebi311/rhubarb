@@ -72,7 +72,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: GPT-5.2 (copilot)
+model: gpt-5.2
 ---
 
 # Issue 管理エージェント

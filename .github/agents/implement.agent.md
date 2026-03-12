@@ -45,7 +45,7 @@ tools:
     github/update_pull_request_branch,
     todo,
   ]
-model: GPT-5.3-Codex (copilot)
+model: gpt-5.3-codex
 ---
 
 あなたは TDD の原則に従って実装を行うエージェントです。指定された計画に基づき、テストを先に書いてから最小限の実装を行います。

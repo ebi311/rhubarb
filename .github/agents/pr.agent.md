@@ -44,7 +44,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: Claude Sonnet 4.6 (copilot)
+model: claude-sonnet-4.6
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。
