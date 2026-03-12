@@ -8,9 +8,12 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 // AI SDK v6 の UIMessage 形式（parts 配列）をサポート
+const CHAT_MESSAGE_CONTENT_MAX_LENGTH = 10000;
+const CHAT_MESSAGE_PARTS_MAX_COUNT = 50;
+
 const TextPartSchema = z.object({
 	type: z.literal('text'),
-	text: z.string(),
+	text: z.string().max(CHAT_MESSAGE_CONTENT_MAX_LENGTH),
 });
 
 const NonTextPartSchema = z
@@ -28,8 +31,11 @@ const MessagePartSchema = z.union([TextPartSchema, NonTextPartSchema]);
 const ChatMessageSchema = z.object({
 	role: z.enum(['user', 'assistant']),
 	// v6: parts 配列形式（content は後方互換性のため optional）
-	parts: z.array(MessagePartSchema).optional(),
-	content: z.string().max(10000).optional(),
+	parts: z
+		.array(MessagePartSchema)
+		.max(CHAT_MESSAGE_PARTS_MAX_COUNT)
+		.optional(),
+	content: z.string().max(CHAT_MESSAGE_CONTENT_MAX_LENGTH).optional(),
 });
 
 // メッセージからテキストコンテンツを抽出
