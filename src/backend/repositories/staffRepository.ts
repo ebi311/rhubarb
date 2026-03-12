@@ -16,6 +16,7 @@ type StaffUpdate = Database['public']['Tables']['staffs']['Update'];
 type StaffCreateParams = {
 	office_id: string;
 	name: string;
+	kana?: string | null;
 	role: UserRole;
 	email?: string | null;
 	note?: string | null;
@@ -24,6 +25,7 @@ type StaffCreateParams = {
 
 type StaffUpdateParams = {
 	name?: string;
+	kana?: string | null;
 	role?: UserRole;
 	email?: string | null;
 	note?: string | null;
@@ -94,6 +96,7 @@ export class StaffRepository {
 	private buildUpdatePayload(input: StaffUpdateParams): StaffUpdate {
 		const payload: StaffUpdate = {};
 		if (typeof input.name !== 'undefined') payload.name = input.name;
+		if (typeof input.kana !== 'undefined') payload.kana = input.kana ?? null;
 		if (typeof input.role !== 'undefined') payload.role = input.role;
 		if (typeof input.email !== 'undefined') payload.email = input.email ?? null;
 		if (typeof input.note !== 'undefined') payload.note = input.note ?? null;
@@ -143,6 +146,7 @@ export class StaffRepository {
 		const payload: StaffInsert = {
 			office_id: input.office_id,
 			name: input.name,
+			kana: input.kana ?? null,
 			role: input.role,
 			email: input.email ?? null,
 			note: input.note ?? null,
