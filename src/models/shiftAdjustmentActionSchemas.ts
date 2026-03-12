@@ -41,7 +41,6 @@ export const addStaffAbsenceDateRangeValidationIssues = (params: {
 	startField?: string;
 	endField?: string;
 }) => {
-	const startField = params.startField ?? 'startDate';
 	const endField = params.endField ?? 'endDate';
 	const parsedStartDate = StaffAbsenceDateInputSchema.safeParse(
 		params.startDate,
@@ -59,7 +58,7 @@ export const addStaffAbsenceDateRangeValidationIssues = (params: {
 		params.ctx.addIssue({
 			code: z.ZodIssueCode.custom,
 			message: STAFF_ABSENCE_DATE_ORDER_MESSAGE,
-			path: [startField],
+			path: [endField],
 		});
 	}
 

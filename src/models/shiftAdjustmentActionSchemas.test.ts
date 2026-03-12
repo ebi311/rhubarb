@@ -35,7 +35,7 @@ describe('StaffAbsenceInputSchema', () => {
 			expect(result.error.issues[0]?.message).toBe(
 				'開始日は終了日以前に設定してください',
 			);
-			expect(result.error.issues[0]?.path).toEqual(['startDate']);
+			expect(result.error.issues[0]?.path).toEqual(['endDate']);
 		}
 	});
 
