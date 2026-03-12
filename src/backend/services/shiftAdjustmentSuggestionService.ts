@@ -96,6 +96,11 @@ export type AffectedShiftWithCandidates = {
  * processStaffAbsence の戻り値
  */
 export type StaffAbsenceProcessResult = {
+	meta: {
+		timedOut: boolean;
+		processedCount: number;
+		totalCount: number;
+	};
 	absenceStaffId: string;
 	absenceStaffName: string;
 	startDate: string; // YYYY-MM-DD
@@ -950,6 +955,7 @@ export class ShiftAdjustmentSuggestionService {
 		const MAX_CANDIDATES = 3;
 		// 時間衝突で候補外になる可能性を考慮し、多めに取得してからフィルタする
 		const FETCH_CANDIDATES_BUFFER = 10;
+		const { checkTimeout, isTimedOut } = this.createTimeoutChecker();
 
 		// 管理者権限チェック
 		const admin = await this.getAdminStaff(userId);
@@ -972,10 +978,12 @@ export class ShiftAdjustmentSuggestionService {
 				endDate,
 				officeId,
 			);
+		const totalCount = affectedShifts.length;
 
 		// 影響シフトがない場合は早期リターン
-		if (affectedShifts.length === 0) {
+		if (totalCount === 0) {
 			return {
+				meta: { timedOut: false, processedCount: 0, totalCount: 0 },
 				absenceStaffId: input.staffId,
 				absenceStaffName: absenceStaff.name,
 				startDate: formatJstDateString(startDate),
@@ -1053,38 +1061,43 @@ export class ShiftAdjustmentSuggestionService {
 			assignedStaffResults.map((r) => [r.key, r.staffIds]),
 		);
 
-		// 各影響シフトに対して代替候補を検索（同期処理）
-		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] =
-			affectedShifts.map((shift) => {
-				const candidates = this.findCandidatesForShift({
-					shift,
-					absenceStaffId: input.staffId,
-					staffMap,
-					maxCandidates: MAX_CANDIDATES,
-					shiftsByDate,
-					pastStaffCache,
-					assignedStaffCache,
-				});
+		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] = [];
+		for (const shift of affectedShifts) {
+			if (checkTimeout()) break;
 
-				return {
-					shift: toShiftSnapshot(shift),
-					candidates,
-				};
+			const candidates = this.findCandidatesForShift({
+				shift,
+				absenceStaffId: input.staffId,
+				staffMap,
+				maxCandidates: MAX_CANDIDATES,
+				shiftsByDate,
+				pastStaffCache,
+				assignedStaffCache,
 			});
 
-		// 候補なしの件数をカウント
+			affectedShiftsWithCandidates.push({
+				shift: toShiftSnapshot(shift),
+				candidates,
+			});
+		}
+
+		const processedCount = affectedShiftsWithCandidates.length;
 		const noCandidatesCount = affectedShiftsWithCandidates.filter(
 			(a) => a.candidates.length === 0,
 		).length;
+		const summaryPrefix = isTimedOut()
+			? `影響シフト: ${processedCount}/${totalCount}件（タイムアウトにより一部のみ処理）`
+			: `影響シフト: ${processedCount}件`;
 
 		return {
+			meta: { timedOut: isTimedOut(), processedCount, totalCount },
 			absenceStaffId: input.staffId,
 			absenceStaffName: absenceStaff.name,
 			startDate: formatJstDateString(startDate),
 			endDate: formatJstDateString(endDate),
 			affectedShifts: affectedShiftsWithCandidates,
 			summary:
-				`影響シフト: ${affectedShifts.length}件` +
+				summaryPrefix +
 				(noCandidatesCount > 0 ? `, 候補なし: ${noCandidatesCount}件` : ''),
 		};
 	}

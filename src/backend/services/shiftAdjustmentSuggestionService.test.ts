@@ -1284,8 +1284,95 @@ describe('processStaffAbsence', () => {
 		expect(result.absenceStaffName).toBe('欠勤者A');
 		expect(result.startDate).toBe('2026-02-25');
 		expect(result.endDate).toBe('2026-02-26');
+		expect(result.meta).toEqual({
+			timedOut: false,
+			processedCount: 0,
+			totalCount: 0,
+		});
 		expect(result.affectedShifts).toHaveLength(0);
 		expect(result.summary).toContain('影響シフト: 0件');
+	});
+
+	it('タイムアウト時は partial result を正常系で返す', async () => {
+		const userId = createTestId();
+		const absenceStaffId = TEST_IDS.STAFF_2;
+		const clientId = TEST_IDS.CLIENT_1;
+
+		let t = 0;
+		service = new ShiftAdjustmentSuggestionService(mockSupabase, {
+			staffRepository: mockStaffRepo,
+			shiftRepository: mockShiftRepo,
+			clientStaffAssignmentRepository: mockClientStaffAssignmentRepo,
+			maxExecutionMs: 1,
+			now: () => {
+				t += 1;
+				return t;
+			},
+		});
+
+		mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
+		);
+		mockStaffRepo.findById = vi
+			.fn()
+			.mockResolvedValueOnce(
+				createAdminStaff({ id: absenceStaffId, name: '欠勤者A' }),
+			);
+		mockStaffRepo.listByOffice.mockResolvedValue([
+			createStaffWithServiceTypes({
+				id: TEST_IDS.STAFF_3,
+				name: '候補者B',
+				role: 'helper',
+				service_type_ids: ['life-support'],
+			}),
+		]);
+
+		const affectedShifts = [
+			createShift({
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: clientId,
+				staff_id: absenceStaffId,
+				date: new Date('2026-02-25T00:00:00+09:00'),
+				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			}),
+			createShift({
+				id: TEST_IDS.SCHEDULE_2,
+				client_id: clientId,
+				staff_id: absenceStaffId,
+				date: new Date('2026-02-26T00:00:00+09:00'),
+				time: { start: { hour: 12, minute: 0 }, end: { hour: 13, minute: 0 } },
+				status: 'scheduled',
+				service_type_id: 'life-support',
+			}),
+		];
+		mockShiftRepo.findAffectedShiftsByAbsence = vi
+			.fn()
+			.mockResolvedValueOnce(affectedShifts);
+		mockShiftRepo.findPastAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValue([TEST_IDS.STAFF_3]);
+		mockClientStaffAssignmentRepo.findAssignedStaffIdsByClient = vi
+			.fn()
+			.mockResolvedValue([TEST_IDS.STAFF_3]);
+		mockShiftRepo.list.mockResolvedValue([]);
+
+		const result = await service.processStaffAbsence(userId, {
+			staffId: absenceStaffId,
+			startDate: new Date('2026-02-25T00:00:00+09:00'),
+			endDate: new Date('2026-02-26T00:00:00+09:00'),
+		});
+
+		expect(result.meta).toEqual({
+			timedOut: true,
+			processedCount: 1,
+			totalCount: 2,
+		});
+		expect(result.affectedShifts).toHaveLength(1);
+		expect(result.affectedShifts[0]?.shift.id).toBe(TEST_IDS.SCHEDULE_1);
+		expect(result.summary).toContain('影響シフト: 1/2件');
+		expect(result.summary).toContain('一部のみ処理');
 	});
 
 	it('影響シフトに対して過去担当者が候補として優先される', async () => {
@@ -1558,6 +1645,11 @@ describe('processStaffAbsence', () => {
 			endDate: new Date('2026-02-26T00:00:00+09:00'),
 		});
 
+		expect(result.meta).toEqual({
+			timedOut: false,
+			processedCount: 2,
+			totalCount: 2,
+		});
 		expect(result.summary).toContain('影響シフト: 2件');
 		expect(result.summary).toContain('候補なし: 2件');
 	});
