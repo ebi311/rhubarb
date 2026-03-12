@@ -13,13 +13,22 @@ export const ChatMessageList = ({
 	isStreaming = false,
 }: ChatMessageListProps) => {
 	const endRef = useRef<HTMLDivElement>(null);
+	const prevMessageCountRef = useRef(0);
 
 	// 自動スクロール
 	useEffect(() => {
+		const hasNewMessage = messages.length > prevMessageCountRef.current;
+
 		if (typeof endRef.current?.scrollIntoView === 'function') {
-			endRef.current.scrollIntoView({ behavior: 'smooth' });
+			if (isStreaming) {
+				endRef.current.scrollIntoView({ behavior: 'auto' });
+			} else if (hasNewMessage) {
+				endRef.current.scrollIntoView({ behavior: 'smooth' });
+			}
 		}
-	}, [messages]);
+
+		prevMessageCountRef.current = messages.length;
+	}, [messages, isStreaming]);
 
 	if (messages.length === 0) {
 		return (
