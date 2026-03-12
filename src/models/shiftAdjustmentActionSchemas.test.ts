@@ -4,10 +4,29 @@ import {
 	ShiftAdjustmentOperationSchema,
 	ShiftAdjustmentRequestSchema,
 	StaffAbsenceInputSchema,
+	StaffAbsenceProcessMetaSchema,
+	StaffAbsenceProcessResultSchema,
 	SuggestClientDatetimeChangeAdjustmentsOutputSchema,
 	SuggestShiftAdjustmentsOutputSchema,
 } from './shiftAdjustmentActionSchemas';
 import { TimeRangeSchema } from './valueObjects/timeRange';
+
+type StaffAbsenceDateRangeValidationParams = Parameters<
+	typeof import('./shiftAdjustmentActionSchemas').addStaffAbsenceDateRangeValidationIssues
+>[0];
+
+describe('addStaffAbsenceDateRangeValidationIssues', () => {
+	it('startField を helper の引数として公開しない', () => {
+		type HasStartField =
+			'startField' extends keyof StaffAbsenceDateRangeValidationParams
+				? true
+				: false;
+
+		const hasStartField: HasStartField = false;
+
+		expect(hasStartField).toBe(false);
+	});
+});
 
 describe('StaffAbsenceInputSchema', () => {
 	it('start=1日目, end=14日目 は OK（最大14日）', () => {
@@ -31,7 +50,7 @@ describe('StaffAbsenceInputSchema', () => {
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			expect(result.error.issues[0]?.message).toBe(
-				'startDate must be before or equal to endDate',
+				'開始日は終了日以前に設定してください',
 			);
 			expect(result.error.issues[0]?.path).toEqual(['endDate']);
 		}
@@ -47,7 +66,7 @@ describe('StaffAbsenceInputSchema', () => {
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			expect(result.error.issues[0]?.message).toBe(
-				'Date range must be within 14 days',
+				'欠勤期間は最大14日間までです',
 			);
 			expect(result.error.issues[0]?.path).toEqual(['endDate']);
 		}
@@ -61,6 +80,22 @@ describe('StaffAbsenceInputSchema', () => {
 		});
 
 		expect(result.success).toBe(true);
+	});
+
+	it('存在しない日付を日本語メッセージで拒否する', () => {
+		const result = StaffAbsenceInputSchema.safeParse({
+			staffId: TEST_IDS.STAFF_1,
+			startDate: '2026-02-31',
+			endDate: '2026-03-01',
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'存在する日付を指定してください',
+			);
+			expect(result.error.issues[0]?.path).toEqual(['startDate']);
+		}
 	});
 });
 
@@ -211,6 +246,130 @@ describe('ShiftAdjustmentOperationSchema', () => {
 
 		expect(newEndTimeIssue).toBeDefined();
 		expect(newEndTimeIssue?.message).toBe(timeRangeErrorMessage);
+	});
+});
+
+describe('StaffAbsenceProcessMetaSchema', () => {
+	it('timedOut=false かつ processedCount===totalCount を受け付ける', () => {
+		const result = StaffAbsenceProcessMetaSchema.safeParse({
+			timedOut: false,
+			processedCount: 2,
+			totalCount: 2,
+		});
+
+		expect(result.success).toBe(true);
+	});
+
+	it('timedOut=false で processedCount と totalCount が不一致なら拒否する', () => {
+		const result = StaffAbsenceProcessMetaSchema.safeParse({
+			timedOut: false,
+			processedCount: 1,
+			totalCount: 2,
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'timedOut が false の場合、processedCount は totalCount と一致する必要があります',
+			);
+			expect(result.error.issues[0]?.path).toEqual(['processedCount']);
+		}
+	});
+
+	it('processedCount が totalCount を超える場合は日本語メッセージで拒否する', () => {
+		const result = StaffAbsenceProcessMetaSchema.safeParse({
+			timedOut: true,
+			processedCount: 3,
+			totalCount: 2,
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'processedCount は totalCount 以下である必要があります',
+			);
+			expect(result.error.issues[0]?.path).toEqual(['processedCount']);
+		}
+	});
+
+	it('timedOut=true の partial result は受け付ける', () => {
+		const result = StaffAbsenceProcessMetaSchema.safeParse({
+			timedOut: true,
+			processedCount: 1,
+			totalCount: 2,
+		});
+
+		expect(result.success).toBe(true);
+	});
+});
+
+describe('StaffAbsenceProcessResultSchema', () => {
+	it('partial result の shape をパースできる', () => {
+		const result = StaffAbsenceProcessResultSchema.safeParse({
+			meta: { timedOut: true, processedCount: 1, totalCount: 2 },
+			absenceStaffId: TEST_IDS.STAFF_1,
+			absenceStaffName: '山田太郎',
+			startDate: '2026-02-01',
+			endDate: '2026-02-02',
+			affectedShifts: [
+				{
+					shift: {
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_1,
+						date: '2026-02-01',
+						start_time: { hour: 9, minute: 0 },
+						end_time: { hour: 10, minute: 0 },
+						status: 'scheduled',
+					},
+					candidates: [
+						{
+							staffId: TEST_IDS.STAFF_2,
+							staffName: '佐藤花子',
+							priority: 'available',
+						},
+					],
+				},
+			],
+			summary: '影響シフト: 1/2件（一部のみ処理)',
+		});
+
+		expect(result.success).toBe(true);
+	});
+
+	it('processedCount が totalCount を超える場合は拒否する', () => {
+		const result = StaffAbsenceProcessResultSchema.safeParse({
+			meta: { timedOut: true, processedCount: 2, totalCount: 1 },
+			absenceStaffId: TEST_IDS.STAFF_1,
+			absenceStaffName: '山田太郎',
+			startDate: '2026-02-01',
+			endDate: '2026-02-02',
+			affectedShifts: [],
+			summary: '影響シフト: 0件',
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it('output の startDate/endDate でも実在しない日付を拒否する', () => {
+		const result = StaffAbsenceProcessResultSchema.safeParse({
+			meta: { timedOut: false, processedCount: 0, totalCount: 0 },
+			absenceStaffId: TEST_IDS.STAFF_1,
+			absenceStaffName: '山田太郎',
+			startDate: '2026-02-31',
+			endDate: '2026-03-01',
+			affectedShifts: [],
+			summary: '影響シフト: 0件',
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'存在する日付を指定してください',
+			);
+			expect(result.error.issues[0]?.path).toEqual(['startDate']);
+		}
 	});
 });
 

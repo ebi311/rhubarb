@@ -4,13 +4,18 @@ import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import {
+	AffectedShiftWithCandidates,
 	ClientDatetimeChangeInput,
 	ClientDatetimeChangeInputSchema,
 	ShiftAdjustmentOperation,
 	ShiftAdjustmentRationaleItem,
 	ShiftAdjustmentSuggestion,
 	ShiftSnapshot,
+	StaffAbsenceActionInput,
 	StaffAbsenceInput,
+	StaffAbsenceInputSchema,
+	StaffAbsenceProcessResult,
+	StaffCandidate,
 } from '@/models/shiftAdjustmentActionSchemas';
 import { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
@@ -63,46 +68,6 @@ export type FindAvailableHelpersInput = {
 export type AvailableHelper = {
 	id: string;
 	name: string;
-};
-
-// ======================================
-// processStaffAbsence 関連の型定義
-// ======================================
-
-/**
- * 代替候補スタッフ
- */
-export type StaffCandidate = {
-	staffId: string;
-	staffName: string;
-	/**
-	 * 優先順位の理由（いずれも時間帯の重複チェック済みで「空き時間あり」のスタッフ）:
-	 * - past_assigned = 過去にその利用者を担当したことがある
-	 * - assigned = 現在その利用者に割当済みだが、担当経験はない
-	 * - available = 現在その利用者には割当されておらず、今回の時間帯が空いている
-	 */
-	priority: 'past_assigned' | 'assigned' | 'available';
-};
-
-/**
- * 影響シフトとその代替候補
- */
-export type AffectedShiftWithCandidates = {
-	shift: ShiftSnapshot;
-	candidates: StaffCandidate[];
-};
-
-/**
- * processStaffAbsence の戻り値
- */
-export type StaffAbsenceProcessResult = {
-	absenceStaffId: string;
-	absenceStaffName: string;
-	startDate: string; // YYYY-MM-DD
-	endDate: string; // YYYY-MM-DD
-	affectedShifts: AffectedShiftWithCandidates[];
-	/** AI が読む用のサマリー */
-	summary: string;
 };
 
 const isOverlapping = (
@@ -263,6 +228,17 @@ export class ShiftAdjustmentSuggestionService {
 	}): string {
 		return `${params.clientId}|${params.serviceTypeId}`;
 	}
+
+	private validateStaffAbsence = (
+		input: StaffAbsenceActionInput,
+	): StaffAbsenceInput => {
+		const parsedInput = StaffAbsenceInputSchema.safeParse(input);
+		if (!parsedInput.success) {
+			throw new ServiceError(400, 'Validation error', parsedInput.error.issues);
+		}
+
+		return parsedInput.data;
+	};
 
 	private validateClientDatetimeChange = (
 		change: ClientDatetimeChangeInput,
@@ -945,38 +921,44 @@ export class ShiftAdjustmentSuggestionService {
 	 */
 	async processStaffAbsence(
 		userId: string,
-		input: StaffAbsenceInput,
+		input: StaffAbsenceActionInput,
 	): Promise<StaffAbsenceProcessResult> {
 		const MAX_CANDIDATES = 3;
 		// 時間衝突で候補外になる可能性を考慮し、多めに取得してからフィルタする
 		const FETCH_CANDIDATES_BUFFER = 10;
+		const { checkTimeout, isTimedOut } = this.createTimeoutChecker();
 
 		// 管理者権限チェック
 		const admin = await this.getAdminStaff(userId);
+		const validatedInput = this.validateStaffAbsence(input);
 
 		// 欠勤スタッフの存在と同一事業所チェック
-		const absenceStaff = await this.staffRepository.findById(input.staffId);
+		const absenceStaff = await this.staffRepository.findById(
+			validatedInput.staffId,
+		);
 		if (!absenceStaff || absenceStaff.office_id !== admin.office_id) {
 			throw new ServiceError(404, 'Absence staff not found');
 		}
 
 		const officeId = admin.office_id;
-		const startDate = input.startDate;
-		const endDate = input.endDate;
+		const startDate = validatedInput.startDate;
+		const endDate = validatedInput.endDate;
 
 		// 影響シフトを取得
 		const affectedShifts =
 			await this.shiftRepository.findAffectedShiftsByAbsence(
-				input.staffId,
+				validatedInput.staffId,
 				startDate,
 				endDate,
 				officeId,
 			);
+		const totalCount = affectedShifts.length;
 
 		// 影響シフトがない場合は早期リターン
-		if (affectedShifts.length === 0) {
+		if (totalCount === 0) {
 			return {
-				absenceStaffId: input.staffId,
+				meta: { timedOut: false, processedCount: 0, totalCount: 0 },
+				absenceStaffId: validatedInput.staffId,
 				absenceStaffName: absenceStaff.name,
 				startDate: formatJstDateString(startDate),
 				endDate: formatJstDateString(endDate),
@@ -1053,38 +1035,43 @@ export class ShiftAdjustmentSuggestionService {
 			assignedStaffResults.map((r) => [r.key, r.staffIds]),
 		);
 
-		// 各影響シフトに対して代替候補を検索（同期処理）
-		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] =
-			affectedShifts.map((shift) => {
-				const candidates = this.findCandidatesForShift({
-					shift,
-					absenceStaffId: input.staffId,
-					staffMap,
-					maxCandidates: MAX_CANDIDATES,
-					shiftsByDate,
-					pastStaffCache,
-					assignedStaffCache,
-				});
+		const affectedShiftsWithCandidates: AffectedShiftWithCandidates[] = [];
+		for (const shift of affectedShifts) {
+			if (checkTimeout()) break;
 
-				return {
-					shift: toShiftSnapshot(shift),
-					candidates,
-				};
+			const candidates = this.findCandidatesForShift({
+				shift,
+				absenceStaffId: validatedInput.staffId,
+				staffMap,
+				maxCandidates: MAX_CANDIDATES,
+				shiftsByDate,
+				pastStaffCache,
+				assignedStaffCache,
 			});
 
-		// 候補なしの件数をカウント
+			affectedShiftsWithCandidates.push({
+				shift: toShiftSnapshot(shift),
+				candidates,
+			});
+		}
+
+		const processedCount = affectedShiftsWithCandidates.length;
 		const noCandidatesCount = affectedShiftsWithCandidates.filter(
 			(a) => a.candidates.length === 0,
 		).length;
+		const summaryPrefix = isTimedOut()
+			? `影響シフト: ${processedCount}/${totalCount}件（タイムアウトにより一部のみ処理）`
+			: `影響シフト: ${processedCount}件`;
 
 		return {
-			absenceStaffId: input.staffId,
+			meta: { timedOut: isTimedOut(), processedCount, totalCount },
+			absenceStaffId: validatedInput.staffId,
 			absenceStaffName: absenceStaff.name,
 			startDate: formatJstDateString(startDate),
 			endDate: formatJstDateString(endDate),
 			affectedShifts: affectedShiftsWithCandidates,
 			summary:
-				`影響シフト: ${affectedShifts.length}件` +
+				summaryPrefix +
 				(noCandidatesCount > 0 ? `, 候補なし: ${noCandidatesCount}件` : ''),
 		};
 	}
