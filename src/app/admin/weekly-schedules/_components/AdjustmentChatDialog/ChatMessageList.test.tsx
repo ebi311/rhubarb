@@ -1,6 +1,6 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { render } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatMessageList } from './ChatMessageList';
 import type { ChatMessage } from './useAdjustmentChat';
 
@@ -14,6 +14,10 @@ const createMessage = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
 
 describe('ChatMessageList', () => {
 	const scrollIntoViewMock = vi.fn();
+	const originalScrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+		HTMLElement.prototype,
+		'scrollIntoView',
+	);
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -22,6 +26,19 @@ describe('ChatMessageList', () => {
 			value: scrollIntoViewMock,
 			writable: true,
 		});
+	});
+
+	afterAll(() => {
+		if (originalScrollIntoViewDescriptor) {
+			Object.defineProperty(
+				HTMLElement.prototype,
+				'scrollIntoView',
+				originalScrollIntoViewDescriptor,
+			);
+			return;
+		}
+
+		Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
 	});
 
 	it('streaming 中は scrollIntoView を auto で呼ぶ', () => {
