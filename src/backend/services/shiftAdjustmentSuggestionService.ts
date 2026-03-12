@@ -11,6 +11,7 @@ import {
 	ShiftAdjustmentRationaleItem,
 	ShiftAdjustmentSuggestion,
 	ShiftSnapshot,
+	StaffAbsenceActionInput,
 	StaffAbsenceInput,
 	StaffAbsenceInputSchema,
 	StaffAbsenceProcessResult,
@@ -229,7 +230,7 @@ export class ShiftAdjustmentSuggestionService {
 	}
 
 	private validateStaffAbsence = (
-		input: StaffAbsenceInput,
+		input: StaffAbsenceActionInput,
 	): StaffAbsenceInput => {
 		const parsedInput = StaffAbsenceInputSchema.safeParse(input);
 		if (!parsedInput.success) {
@@ -920,7 +921,7 @@ export class ShiftAdjustmentSuggestionService {
 	 */
 	async processStaffAbsence(
 		userId: string,
-		input: StaffAbsenceInput,
+		input: StaffAbsenceActionInput,
 	): Promise<StaffAbsenceProcessResult> {
 		const MAX_CANDIDATES = 3;
 		// 時間衝突で候補外になる可能性を考慮し、多めに取得してからフィルタする

@@ -3,6 +3,7 @@ import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import { Shift } from '@/models/shift';
+import type { StaffAbsenceActionInput } from '@/models/shiftAdjustmentActionSchemas';
 import { Staff, StaffWithServiceTypes } from '@/models/staff';
 import { createTestId, TEST_IDS } from '@/test/helpers/testIds';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -1195,13 +1196,11 @@ describe('processStaffAbsence', () => {
 			createAdminStaff({ id: createTestId(), auth_user_id: userId }),
 		);
 
-		const invalidInput = {
+		const invalidInput: StaffAbsenceActionInput = {
 			staffId: TEST_IDS.STAFF_2,
 			startDate: '2026-02-31',
 			endDate: '2026-03-01',
-		} as unknown as Parameters<
-			ShiftAdjustmentSuggestionService['processStaffAbsence']
-		>[1];
+		};
 
 		await expect(
 			service.processStaffAbsence(userId, invalidInput),
