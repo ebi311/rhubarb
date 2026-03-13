@@ -8,30 +8,73 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 // AI SDK v6 の UIMessage 形式（parts 配列）をサポート
+const CHAT_MESSAGE_CONTENT_MAX_LENGTH = 10000;
+const CHAT_MESSAGE_PARTS_MAX_COUNT = 50;
+
 const TextPartSchema = z.object({
 	type: z.literal('text'),
-	text: z.string(),
+	text: z.string().max(CHAT_MESSAGE_CONTENT_MAX_LENGTH),
 });
 
+const NonTextPartSchema = z
+	.object({
+		type: z.string().min(1),
+	})
+	.strip()
+	.refine((part) => part.type !== 'text', {
+		message: "Part type must not be 'text'",
+	});
+
+const MessagePartSchema = z.union([TextPartSchema, NonTextPartSchema]);
+
 // Vercel AI SDK v6 は parts 配列形式でメッセージを送信
-const ChatMessageSchema = z.object({
-	role: z.enum(['user', 'assistant']),
-	// v6: parts 配列形式（content は後方互換性のため optional）
-	parts: z.array(TextPartSchema).optional(),
-	content: z.string().max(10000).optional(),
-});
+const ChatMessageSchema = z
+	.object({
+		role: z.enum(['user', 'assistant']),
+		// v6: parts 配列形式（content は後方互換性のため optional）
+		parts: z
+			.array(MessagePartSchema)
+			.max(CHAT_MESSAGE_PARTS_MAX_COUNT)
+			.optional(),
+		content: z.string().max(CHAT_MESSAGE_CONTENT_MAX_LENGTH).optional(),
+	})
+	.refine(
+		(message) => {
+			if (!message.parts?.length) {
+				return true;
+			}
+
+			const totalTextLength = message.parts.reduce((sum, part) => {
+				if (part.type !== 'text' || !('text' in part)) {
+					return sum;
+				}
+
+				return sum + part.text.length;
+			}, 0);
+
+			return totalTextLength <= CHAT_MESSAGE_CONTENT_MAX_LENGTH;
+		},
+		{
+			message: `Total text length in parts must be at most ${CHAT_MESSAGE_CONTENT_MAX_LENGTH} characters`,
+			path: ['parts'],
+		},
+	);
 
 // メッセージからテキストコンテンツを抽出
 const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
-	// parts 配列がある場合はそこからテキストを抽出
-	if (msg.parts && msg.parts.length > 0) {
-		return msg.parts
-			.filter((p) => p.type === 'text')
-			.map((p) => p.text)
-			.join('');
+	if (!msg.parts?.length) {
+		return msg.content ?? '';
 	}
-	// fallback: content フィールド
-	return msg.content ?? '';
+
+	const textFromParts = msg.parts
+		.flatMap((part) =>
+			part.type === 'text' && 'text' in part && typeof part.text === 'string'
+				? [part.text]
+				: [],
+		)
+		.join('');
+
+	return textFromParts || msg.content || '';
 };
 
 const ShiftContextItemSchema = z.object({
