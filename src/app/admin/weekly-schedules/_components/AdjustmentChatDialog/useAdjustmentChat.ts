@@ -1,3 +1,4 @@
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { useChat } from '@ai-sdk/react';
 import { TextStreamChatTransport, type UIMessage } from 'ai';
 import { useCallback, useMemo } from 'react';
@@ -13,6 +14,8 @@ export type ShiftContext = {
 	id: string;
 	staffName?: string;
 	clientName?: string;
+	clientId: string;
+	serviceTypeId: ServiceTypeId;
 	date: string;
 	startTime: string;
 	endTime: string;

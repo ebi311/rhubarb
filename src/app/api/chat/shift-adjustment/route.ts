@@ -1,6 +1,7 @@
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
 import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
+import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { stepCountIs, streamText } from 'ai';
@@ -79,6 +80,8 @@ const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
 
 const ShiftContextItemSchema = z.object({
 	id: z.string().uuid(),
+	clientId: z.string().uuid(),
+	serviceTypeId: ServiceTypeIdSchema,
 	staffName: z.string().optional(),
 	clientName: z.string().optional(),
 	date: z.string(),
@@ -118,6 +121,7 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
     - 例: { date: "2024-04-01", startTime: { hour: 9, minute: 0 }, endTime: { hour: 10, minute: 0 } }
   - clientId を指定する場合は、必ず対応する serviceTypeId（サービス種別ID）も一緒に指定してください
     - 例: { clientId: "<利用者ID>", serviceTypeId: "<サービス種別ID>" }
+  - シフトコンテキストに clientId と serviceTypeId が含まれている場合は、ユーザーに確認せずその値を直接ツール呼び出しに使用してください
 - processStaffAbsence: スタッフの欠勤を登録し、影響シフトと代替候補を取得します
   - スタッフが休みになった場合に使用してください
   - staffId（UUID）、startDate、endDate（YYYY-MM-DD）を指定します
@@ -145,7 +149,7 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 
 	const shiftLines = context.shifts.map(
 		(s) =>
-			`- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'}`,
+			`- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (clientId: ${s.clientId}, serviceTypeId: ${s.serviceTypeId})`,
 	);
 
 	return `\n\n## 現在のシフト情報\n${shiftLines.join('\n')}`;

@@ -389,7 +389,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 				context: {
 					shifts: [
 						{
-							id: '550e8400-e29b-41d4-a716-446655440001',
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_2,
 							staffName: 'スタッフA',
 							clientName: '利用者B',
 							date: '2025-01-20',
@@ -404,10 +406,22 @@ describe('POST /api/chat/shift-adjustment', () => {
 		const response = await POST(request);
 
 		expect(response.status).toBe(200);
-		// システムプロンプトにシフト情報が含まれていることを確認
+		// システムプロンプトにシフト情報と clientId/serviceTypeId が含まれていることを確認
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
-				system: expect.stringContaining('スタッフA'),
+				system: expect.stringContaining(TEST_IDS.CLIENT_1),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(TEST_IDS.SERVICE_TYPE_2),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'コンテキストに clientId と serviceTypeId が含まれている',
+				),
 			}),
 		);
 	});
@@ -485,6 +499,8 @@ describe('POST /api/chat/shift-adjustment', () => {
 					shifts: [
 						{
 							id: 'invalid-uuid',
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
 							staffName: 'スタッフA',
 							clientName: '利用者B',
 							date: '2025-01-20',
