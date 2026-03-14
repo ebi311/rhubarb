@@ -131,7 +131,8 @@ ${SERVICE_TYPE_LABELS_PROMPT}
     - 例: { date: "2024-04-01", startTime: { hour: 9, minute: 0 }, endTime: { hour: 10, minute: 0 } }
   - clientId を指定する場合は、必ず対応する serviceTypeId（サービス種別ID）も一緒に指定してください
     - 例: { clientId: "<利用者ID>", serviceTypeId: "<サービス種別ID>" }
-  - シフトコンテキストに clientId と serviceTypeId が含まれている場合は、ユーザーに確認せずその値を直接ツール呼び出しに使用してください
+  - 対象シフトが1件に特定できる場合（context.shifts が1件）は、ユーザーに確認せず clientId / serviceTypeId を直接ツール呼び出しに使用してください
+  - 対象シフトが複数ある場合は、どのシフトを対象にするかをユーザーに確認してからツールを呼び出してください
 - processStaffAbsence: スタッフの欠勤を登録し、影響シフトと代替候補を取得します
   - スタッフが休みになった場合に使用してください
   - staffId（UUID）、startDate、endDate（YYYY-MM-DD）を指定します
@@ -172,7 +173,8 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 - このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
 - context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
 - startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
-  例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }`
+  例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
+- ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
 			: `
 
 ## 対象シフトの確認（重要）

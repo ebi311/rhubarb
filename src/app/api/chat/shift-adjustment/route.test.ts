@@ -420,7 +420,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'コンテキストに clientId と serviceTypeId が含まれている',
+					'対象シフトが1件に特定できる場合（context.shifts が1件）',
 				),
 			}),
 		);
