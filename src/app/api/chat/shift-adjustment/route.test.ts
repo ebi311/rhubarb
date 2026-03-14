@@ -567,6 +567,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 
 		expect(response.status).toBe(200);
 		const streamTextCall = mockStreamText.mock.calls[0]?.[0];
+		expect(streamTextCall.system).toContain(
+			'どのシフトを対象にするかをユーザーに確認してください',
+		);
 		expect(streamTextCall.system).not.toContain(
 			'このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください',
 		);
