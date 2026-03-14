@@ -81,16 +81,39 @@ const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
 	return textFromParts || msg.content || '';
 };
 
-const ShiftContextItemSchema = z.object({
-	id: z.string().uuid(),
-	clientId: z.string().uuid(),
-	serviceTypeId: ServiceTypeIdSchema,
-	staffName: z.string().optional(),
-	clientName: z.string().optional(),
-	date: z.string(),
-	startTime: z.string(),
-	endTime: z.string(),
-});
+const SHIFT_CONTEXT_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const SHIFT_CONTEXT_TIME_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+const toMinutesFromTime = (time: string): number => {
+	const [hour, minute] = time.split(':').map(Number);
+	return hour * 60 + minute;
+};
+
+const ShiftContextItemSchema = z
+	.object({
+		id: z.string().uuid(),
+		clientId: z.string().uuid(),
+		serviceTypeId: ServiceTypeIdSchema,
+		staffName: z.string().optional(),
+		clientName: z.string().optional(),
+		date: z.string().regex(SHIFT_CONTEXT_DATE_REGEX, {
+			message: 'date must be in YYYY-MM-DD format',
+		}),
+		startTime: z.string().regex(SHIFT_CONTEXT_TIME_REGEX, {
+			message: 'startTime must be in HH:mm format',
+		}),
+		endTime: z.string().regex(SHIFT_CONTEXT_TIME_REGEX, {
+			message: 'endTime must be in HH:mm format',
+		}),
+	})
+	.refine(
+		(shift) =>
+			toMinutesFromTime(shift.startTime) < toMinutesFromTime(shift.endTime),
+		{
+			message: 'startTime must be earlier than endTime',
+			path: ['endTime'],
+		},
+	);
 
 const ChatRequestSchema = z.object({
 	messages: z.array(ChatMessageSchema).min(1).max(50),
