@@ -1,6 +1,7 @@
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
 import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
+import { createJstDateStringSchema } from '@/models/valueObjects/jstDate';
 import {
 	ServiceTypeIdSchema,
 	ServiceTypeLabels,
@@ -81,7 +82,6 @@ const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
 	return textFromParts || msg.content || '';
 };
 
-const SHIFT_CONTEXT_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const SHIFT_CONTEXT_TIME_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
 const toMinutesFromTime = (time: string): number => {
@@ -96,8 +96,9 @@ const ShiftContextItemSchema = z
 		serviceTypeId: ServiceTypeIdSchema,
 		staffName: z.string().optional(),
 		clientName: z.string().optional(),
-		date: z.string().regex(SHIFT_CONTEXT_DATE_REGEX, {
-			message: 'date must be in YYYY-MM-DD format',
+		date: createJstDateStringSchema({
+			formatMessage: 'date must be in YYYY-MM-DD format',
+			invalidDateMessage: 'date must be a valid date',
 		}),
 		startTime: z.string().regex(SHIFT_CONTEXT_TIME_REGEX, {
 			message: 'startTime must be in HH:mm format',

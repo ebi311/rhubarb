@@ -455,6 +455,35 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).not.toHaveBeenCalled();
 	});
 
+	it('context.shifts.date が存在しない日付の場合は 400 エラーを返す', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '調整してください' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_2,
+							staffName: 'スタッフA',
+							clientName: '利用者B',
+							date: '2025-02-31',
+							startTime: '09:00',
+							endTime: '11:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(400);
+		expect(mockStreamText).not.toHaveBeenCalled();
+	});
+
 	it('context.shifts.startTime/endTime が HH:mm 形式でない場合は 400 エラーを返す', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
