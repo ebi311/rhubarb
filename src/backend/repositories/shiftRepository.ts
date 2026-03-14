@@ -515,7 +515,7 @@ export class ShiftRepository {
 			.eq('client_id', clientId)
 			.eq('service_type_id', serviceTypeId)
 			.neq('status', 'canceled')
-			.lt('start_time', new Date().toISOString())
+			.lt('end_time', new Date().toISOString())
 			.not('staff_id', 'is', null)
 			.order('start_time', { ascending: false })
 			.limit(fetchLimit);

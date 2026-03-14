@@ -730,13 +730,13 @@ describe('ShiftRepository', () => {
 				'service_type_id',
 				serviceTypeId,
 			);
-			// canceled を除外し、過去シフトのみ対象
+			// canceled を除外し、過去シフトのみ対象（end_time 基準）
 			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
 				'status',
 				'canceled',
 			);
 			expect(mockSupabase._mockQuery.lt).toHaveBeenCalledWith(
-				'start_time',
+				'end_time',
 				expect.any(String),
 			);
 			// PostgREST では .not('staff_id', 'is', null) を使用
@@ -760,7 +760,7 @@ describe('ShiftRepository', () => {
 			]);
 		});
 
-		it('should filter by non-canceled status and past start_time only', async () => {
+		it('should filter by non-canceled status and past end_time only', async () => {
 			const clientId = TEST_IDS.CLIENT_1;
 			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
@@ -777,13 +777,13 @@ describe('ShiftRepository', () => {
 				10,
 			);
 
-			// canceled を除外し、start_time < now() のみ対象
+			// canceled を除外し、end_time < now() のみ対象
 			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
 				'status',
 				'canceled',
 			);
 			expect(mockSupabase._mockQuery.lt).toHaveBeenCalledWith(
-				'start_time',
+				'end_time',
 				expect.any(String),
 			);
 		});
