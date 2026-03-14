@@ -1,7 +1,11 @@
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
 import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
-import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
+import { createJstDateStringSchema } from '@/models/valueObjects/jstDate';
+import {
+	ServiceTypeIdSchema,
+	ServiceTypeLabels,
+} from '@/models/valueObjects/serviceTypeId';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { stepCountIs, streamText } from 'ai';
@@ -78,16 +82,39 @@ const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
 	return textFromParts || msg.content || '';
 };
 
-const ShiftContextItemSchema = z.object({
-	id: z.string().uuid(),
-	clientId: z.string().uuid(),
-	serviceTypeId: ServiceTypeIdSchema,
-	staffName: z.string().optional(),
-	clientName: z.string().optional(),
-	date: z.string(),
-	startTime: z.string(),
-	endTime: z.string(),
-});
+const SHIFT_CONTEXT_TIME_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+const toMinutesFromTime = (time: string): number => {
+	const [hour, minute] = time.split(':').map(Number);
+	return hour * 60 + minute;
+};
+
+const ShiftContextItemSchema = z
+	.object({
+		id: z.string().uuid(),
+		clientId: z.string().uuid(),
+		serviceTypeId: ServiceTypeIdSchema,
+		staffName: z.string().optional(),
+		clientName: z.string().optional(),
+		date: createJstDateStringSchema({
+			formatMessage: 'date must be in YYYY-MM-DD format',
+			invalidDateMessage: 'date must be a valid date',
+		}),
+		startTime: z.string().regex(SHIFT_CONTEXT_TIME_REGEX, {
+			message: 'startTime must be in HH:mm format',
+		}),
+		endTime: z.string().regex(SHIFT_CONTEXT_TIME_REGEX, {
+			message: 'endTime must be in HH:mm format',
+		}),
+	})
+	.refine(
+		(shift) =>
+			toMinutesFromTime(shift.startTime) < toMinutesFromTime(shift.endTime),
+		{
+			message: 'startTime must be earlier than endTime',
+			path: ['endTime'],
+		},
+	);
 
 const ChatRequestSchema = z.object({
 	messages: z.array(ChatMessageSchema).min(1).max(50),
@@ -100,6 +127,10 @@ const ChatRequestSchema = z.object({
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+
+const SERVICE_TYPE_LABELS_PROMPT = Object.entries(ServiceTypeLabels)
+	.map(([serviceTypeId, label]) => `- ${serviceTypeId}: ${label}`)
+	.join('\n');
 
 const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサポートするAIアシスタントです。
 
@@ -114,6 +145,9 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
 3. 実行可能な調整案を提示する
 4. 各案のメリット・デメリットを説明する
 
+## サービス種別IDと表示名の対応
+${SERVICE_TYPE_LABELS_PROMPT}
+
 ## 利用可能なツール
 - searchAvailableHelpers: 指定した日時に空きのあるヘルパーを検索できます
   - 代替スタッフを探す際に使用してください
@@ -121,7 +155,8 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
     - 例: { date: "2024-04-01", startTime: { hour: 9, minute: 0 }, endTime: { hour: 10, minute: 0 } }
   - clientId を指定する場合は、必ず対応する serviceTypeId（サービス種別ID）も一緒に指定してください
     - 例: { clientId: "<利用者ID>", serviceTypeId: "<サービス種別ID>" }
-  - シフトコンテキストに clientId と serviceTypeId が含まれている場合は、ユーザーに確認せずその値を直接ツール呼び出しに使用してください
+  - 対象シフトが1件に特定できる場合（context.shifts が1件）は、ユーザーに確認せず clientId / serviceTypeId を直接ツール呼び出しに使用してください
+  - 対象シフトが複数ある場合は、どのシフトを対象にするかをユーザーに確認してからツールを呼び出してください
 - processStaffAbsence: スタッフの欠勤を登録し、影響シフトと代替候補を取得します
   - スタッフが休みになった場合に使用してください
   - staffId（UUID）、startDate、endDate（YYYY-MM-DD）を指定します
@@ -147,12 +182,32 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 		return '';
 	}
 
-	const shiftLines = context.shifts.map(
-		(s) =>
-			`- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (clientId: ${s.clientId}, serviceTypeId: ${s.serviceTypeId})`,
-	);
+	const shiftLines = context.shifts.map((s) => {
+		const serviceTypeLabel = ServiceTypeLabels[s.serviceTypeId];
 
-	return `\n\n## 現在のシフト情報\n${shiftLines.join('\n')}`;
+		return `- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (${serviceTypeLabel}（serviceTypeId: ${s.serviceTypeId}）, clientId: ${s.clientId})`;
+	});
+
+	const shiftSelectionPrompt =
+		context.shifts.length === 1
+			? `
+
+## 対象シフトの扱い（重要）
+- context.shifts[0] が今回の対象シフトです。
+- このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
+- context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
+- startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
+  例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
+- ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
+			: `
+
+## 対象シフトの確認（重要）
+- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。`;
+
+	return `
+
+## 現在のシフト情報
+${shiftLines.join('\n')}${shiftSelectionPrompt}`;
 };
 
 export const POST = async (request: Request): Promise<Response> => {
