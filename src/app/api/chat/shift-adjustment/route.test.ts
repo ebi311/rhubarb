@@ -426,6 +426,152 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('単一シフトでは日時/サービス/利用者の確認質問不要の指示を system に含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: 'このシフトの代替を探して' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_2,
+							staffName: 'スタッフA',
+							clientName: '利用者B',
+							date: '2025-01-20',
+							startTime: '09:00',
+							endTime: '11:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください',
+				),
+			}),
+		);
+	});
+
+	it('serviceTypeId が physical-care のとき表示名「身体介護」を system に含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '詳細を確認して' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_2,
+							staffName: 'スタッフA',
+							clientName: '利用者B',
+							date: '2025-01-20',
+							startTime: '09:00',
+							endTime: '11:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					`身体介護（serviceTypeId: ${TEST_IDS.SERVICE_TYPE_2}）`,
+				),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT にサービス種別IDと表示名の対応表を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: 'テスト' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('サービス種別IDと表示名の対応'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('life-support: 生活支援'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('physical-care: 身体介護'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('commute-support: 通院サポート'),
+			}),
+		);
+	});
+
+	it('複数シフトの場合は単一シフト向けの確認不要指示を含めない', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '対象を調整して' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							staffName: 'スタッフA',
+							clientName: '利用者B',
+							date: '2025-01-20',
+							startTime: '09:00',
+							endTime: '11:00',
+						},
+						{
+							id: TEST_IDS.SCHEDULE_2,
+							clientId: TEST_IDS.CLIENT_2,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_2,
+							staffName: 'スタッフC',
+							clientName: '利用者D',
+							date: '2025-01-21',
+							startTime: '10:00',
+							endTime: '12:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		const streamTextCall = mockStreamText.mock.calls[0]?.[0];
+		expect(streamTextCall.system).not.toContain(
+			'このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください',
+		);
+	});
+
 	it('GEMINI_API_KEY が未設定の場合は 500 エラーを返す', async () => {
 		// 環境変数を一時的にクリア
 		const originalKey = process.env.GEMINI_API_KEY;

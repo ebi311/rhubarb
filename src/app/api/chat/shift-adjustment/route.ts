@@ -1,7 +1,10 @@
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
 import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
-import { ServiceTypeIdSchema } from '@/models/valueObjects/serviceTypeId';
+import {
+	ServiceTypeIdSchema,
+	ServiceTypeLabels,
+} from '@/models/valueObjects/serviceTypeId';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { stepCountIs, streamText } from 'ai';
@@ -101,6 +104,10 @@ const ChatRequestSchema = z.object({
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
+const SERVICE_TYPE_LABELS_PROMPT = Object.entries(ServiceTypeLabels)
+	.map(([serviceTypeId, label]) => `- ${serviceTypeId}: ${label}`)
+	.join('\n');
+
 const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサポートするAIアシスタントです。
 
 ## あなたの役割
@@ -113,6 +120,9 @@ const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサ
 2. 影響を受けるシフトを特定する
 3. 実行可能な調整案を提示する
 4. 各案のメリット・デメリットを説明する
+
+## サービス種別IDと表示名の対応
+${SERVICE_TYPE_LABELS_PROMPT}
 
 ## 利用可能なツール
 - searchAvailableHelpers: 指定した日時に空きのあるヘルパーを検索できます
@@ -147,12 +157,29 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 		return '';
 	}
 
-	const shiftLines = context.shifts.map(
-		(s) =>
-			`- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (clientId: ${s.clientId}, serviceTypeId: ${s.serviceTypeId})`,
-	);
+	const shiftLines = context.shifts.map((s) => {
+		const serviceTypeLabel = ServiceTypeLabels[s.serviceTypeId];
 
-	return `\n\n## 現在のシフト情報\n${shiftLines.join('\n')}`;
+		return `- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (${serviceTypeLabel}（serviceTypeId: ${s.serviceTypeId}）, clientId: ${s.clientId})`;
+	});
+
+	const shiftSelectionPrompt =
+		context.shifts.length === 1
+			? `
+
+## 対象シフトの扱い（重要）
+- context.shifts[0] が今回の対象シフトです。
+- このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
+- context.shifts[0] の date / startTime / endTime / clientId / serviceTypeId をそのまま tool 入力に使用してください。`
+			: `
+
+## 対象シフトの確認（重要）
+- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。`;
+
+	return `
+
+## 現在のシフト情報
+${shiftLines.join('\n')}${shiftSelectionPrompt}`;
 };
 
 export const POST = async (request: Request): Promise<Response> => {
