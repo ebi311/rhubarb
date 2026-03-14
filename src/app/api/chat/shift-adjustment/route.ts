@@ -170,7 +170,9 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 ## 対象シフトの扱い（重要）
 - context.shifts[0] が今回の対象シフトです。
 - このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
-- context.shifts[0] の date / startTime / endTime / clientId / serviceTypeId をそのまま tool 入力に使用してください。`
+- context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
+- startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
+  例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }`
 			: `
 
 ## 対象シフトの確認（重要）
