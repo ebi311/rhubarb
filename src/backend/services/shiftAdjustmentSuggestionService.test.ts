@@ -29,6 +29,7 @@ const createMockShiftRepository = (): Mocked<ShiftRepository> => {
 	return {
 		list: vi.fn(),
 		findById: vi.fn(),
+		findPastAssignedStaffIdsByClient: vi.fn().mockResolvedValue([]),
 	} as unknown as Mocked<ShiftRepository>;
 };
 
@@ -816,6 +817,156 @@ describe('ShiftAdjustmentSuggestionService', () => {
 
 			expect(result).toHaveLength(1);
 			expect(result[0]!.name).toBe('ヘルパーA');
+		});
+
+		it('割当が0件で過去実績がある場合は過去実績にフォールバックする', async () => {
+			const helperAId = createTestId();
+			const helperBId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperBId,
+					name: 'ヘルパーB',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+			mockShiftRepo.list.mockResolvedValueOnce([]);
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[],
+			);
+			mockShiftRepo.findPastAssignedStaffIdsByClient.mockResolvedValueOnce([
+				helperBId,
+			]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]!.id).toBe(helperBId);
+		});
+
+		it('割当が0件かつ過去実績も0件なら制限なしで返す', async () => {
+			const helperAId = createTestId();
+			const helperBId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperBId,
+					name: 'ヘルパーB',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+			mockShiftRepo.list.mockResolvedValueOnce([]);
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[],
+			);
+			mockShiftRepo.findPastAssignedStaffIdsByClient.mockResolvedValueOnce([]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+			});
+
+			expect(result).toHaveLength(2);
+			expect(result.map((h) => h.id)).toEqual([helperAId, helperBId]);
+		});
+
+		it('指定serviceTypeの割当が0件なら他serviceTypeに割当があってもフォールバックする', async () => {
+			const helperAId = createTestId();
+			const helperBId = createTestId();
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: helperAId,
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperBId,
+					name: 'ヘルパーB',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+			mockShiftRepo.list.mockResolvedValueOnce([]);
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: helperAId,
+						service_type_id: 'physical-care',
+					},
+				],
+			);
+			mockShiftRepo.findPastAssignedStaffIdsByClient.mockResolvedValueOnce([
+				helperBId,
+			]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]!.id).toBe(helperBId);
+		});
+
+		it('フォールバック時に過去実績取得へ正しい引数を渡す', async () => {
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: createTestId(),
+					name: 'ヘルパーA',
+					role: 'helper',
+					service_type_ids: ['life-support'],
+				}),
+			]);
+			mockShiftRepo.list.mockResolvedValueOnce([]);
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[],
+			);
+			mockShiftRepo.findPastAssignedStaffIdsByClient.mockResolvedValueOnce([]);
+
+			await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-02-25',
+				startTime: { hour: 10, minute: 0 },
+				endTime: { hour: 11, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+			});
+
+			expect(
+				mockShiftRepo.findPastAssignedStaffIdsByClient,
+			).toHaveBeenCalledWith(
+				TEST_IDS.CLIENT_1,
+				TEST_IDS.OFFICE_1,
+				TEST_IDS.SERVICE_TYPE_1,
+			);
 		});
 
 		it('admin スタッフは結果に含まれない', async () => {
