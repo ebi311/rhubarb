@@ -688,7 +688,7 @@ describe('ShiftRepository', () => {
 	});
 
 	describe('findPastAssignedStaffIdsByClient', () => {
-		it('should return unique staff IDs from completed shifts for a client with serviceTypeId filter', async () => {
+		it('should return unique staff IDs from non-canceled past shifts for a client with serviceTypeId filter', async () => {
 			const clientId = TEST_IDS.CLIENT_1;
 			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
@@ -730,10 +730,14 @@ describe('ShiftRepository', () => {
 				'service_type_id',
 				serviceTypeId,
 			);
-			// status='completed' 限定
-			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+			// canceled を除外し、過去シフトのみ対象（end_time 基準）
+			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
 				'status',
-				'completed',
+				'canceled',
+			);
+			expect(mockSupabase._mockQuery.lt).toHaveBeenCalledWith(
+				'end_time',
+				expect.any(String),
 			);
 			// PostgREST では .not('staff_id', 'is', null) を使用
 			expect(mockSupabase._mockQuery.not).toHaveBeenCalledWith(
@@ -756,7 +760,7 @@ describe('ShiftRepository', () => {
 			]);
 		});
 
-		it('should filter by completed status only', async () => {
+		it('should filter by non-canceled status and past end_time only', async () => {
 			const clientId = TEST_IDS.CLIENT_1;
 			const officeId = TEST_IDS.OFFICE_1;
 			const serviceTypeId = 'life-support';
@@ -773,10 +777,14 @@ describe('ShiftRepository', () => {
 				10,
 			);
 
-			// status='completed' に限定
-			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+			// canceled を除外し、end_time < now() のみ対象
+			expect(mockSupabase._mockQuery.neq).toHaveBeenCalledWith(
 				'status',
-				'completed',
+				'canceled',
+			);
+			expect(mockSupabase._mockQuery.lt).toHaveBeenCalledWith(
+				'end_time',
+				expect.any(String),
 			);
 		});
 

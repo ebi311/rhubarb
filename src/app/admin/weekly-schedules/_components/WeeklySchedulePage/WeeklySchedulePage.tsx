@@ -120,6 +120,8 @@ const formatTimeStr = (time: { hour: number; minute: number }): string =>
 
 const createShiftContext = (shift: ShiftDisplayRow): ShiftContext => ({
 	id: shift.id,
+	clientId: shift.clientId,
+	serviceTypeId: shift.serviceTypeId,
 	clientName: shift.clientName,
 	staffName: shift.staffName ?? undefined,
 	date: formatJstDateString(shift.date),

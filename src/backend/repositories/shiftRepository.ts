@@ -476,7 +476,8 @@ export class ShiftRepository {
 	}
 
 	/**
-	 * 過去に指定クライアント・サービス種別で完了したシフトの担当スタッフIDを取得する
+	 * 過去に指定クライアント・サービス種別で担当したシフトのスタッフIDを取得する
+	 * canceled を除外し、end_time < 現在時刻（アプリサーバ） の実績を対象にする
 	 * 直近担当優先順（重複排除済み）
 	 *
 	 * @param clientId クライアントID
@@ -491,7 +492,7 @@ export class ShiftRepository {
 		serviceTypeId: ServiceTypeId,
 		limit: number = 10,
 	): Promise<string[]> {
-		// status='completed' の実績のみ
+		// canceled を除外し、end_time < 現在時刻（アプリサーバ） の実績を対象
 		// start_time 降順（直近優先）で取得し、アプリ側で重複排除
 		// Supabase は DISTINCT ON をサポートしないため、多めに取得して重複排除
 		// limit が不正な値（NaN, Infinity, 0以下）の場合は 1 として扱う
@@ -513,7 +514,8 @@ export class ShiftRepository {
 			.eq('clients.office_id', officeId)
 			.eq('client_id', clientId)
 			.eq('service_type_id', serviceTypeId)
-			.eq('status', 'completed')
+			.neq('status', 'canceled')
+			.lt('end_time', new Date().toISOString())
 			.not('staff_id', 'is', null)
 			.order('start_time', { ascending: false })
 			.limit(fetchLimit);

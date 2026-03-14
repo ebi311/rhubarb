@@ -869,18 +869,35 @@ export class ShiftAdjustmentSuggestionService {
 		clientId: string | undefined,
 		serviceTypeId: ServiceTypeId | undefined,
 	): Promise<Set<string> | null> => {
-		if (!clientId) return null;
+		if (!clientId || !serviceTypeId) return null;
 
 		const assignmentLinks =
 			await this.clientStaffAssignmentRepository.listLinksByOfficeAndClientIds(
 				officeId,
 				[clientId],
 			);
-		// serviceTypeId でフィルタして、その (client_id, service_type_id) に割当可能なスタッフに絞る
-		const filteredLinks = serviceTypeId
-			? assignmentLinks.filter((l) => l.service_type_id === serviceTypeId)
-			: assignmentLinks;
-		return new Set(filteredLinks.map((l) => l.staff_id));
+
+		// (client_id, service_type_id) の割当がある場合はそれを優先
+		const assignedStaffIds = assignmentLinks
+			.filter((l) => l.service_type_id === serviceTypeId)
+			.map((l) => l.staff_id);
+		if (assignedStaffIds.length > 0) {
+			return new Set(assignedStaffIds);
+		}
+
+		// 割当0件時のみ過去担当実績にフォールバック
+		const pastAssignedStaffIds =
+			await this.shiftRepository.findPastAssignedStaffIdsByClient(
+				clientId,
+				officeId,
+				serviceTypeId,
+			);
+		if (pastAssignedStaffIds.length > 0) {
+			return new Set(pastAssignedStaffIds);
+		}
+
+		// 割当も過去実績もない場合は制限しない
+		return null;
 	};
 
 	/**

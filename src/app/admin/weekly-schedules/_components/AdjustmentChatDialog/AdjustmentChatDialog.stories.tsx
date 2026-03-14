@@ -20,6 +20,8 @@ type Story = StoryObj<typeof meta>;
 
 const shiftContext = {
 	id: TEST_IDS.SCHEDULE_1,
+	clientId: TEST_IDS.CLIENT_1,
+	serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
 	staffName: '山田太郎',
 	clientName: '田中太郎',
 	date: '2026-02-24',
