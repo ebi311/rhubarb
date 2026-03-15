@@ -969,6 +969,122 @@ describe('ShiftAdjustmentSuggestionService', () => {
 			);
 		});
 
+		it('過去実績のヘルパーが全員埋まっている場合は全ヘルパーにフォールバックする', async () => {
+			// Issue #113 再現ケース:
+			// 過去実績ヘルパーが1人だけで、その1人が指定時間帯に別シフトを持つ場合、
+			// 他のヘルパーが空いているのに候補が0件になるバグの修正確認
+			const pastHelperBusyId = createTestId(); // 過去実績あり・当日は埋まっている
+			const helperFreeId = createTestId(); // 過去実績なし・当日は空き
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: pastHelperBusyId,
+					name: 'ヘルパーB（過去実績あり・埋まり）',
+					role: 'helper',
+					service_type_ids: ['commute-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperFreeId,
+					name: 'ヘルパーA（過去実績なし・空き）',
+					role: 'helper',
+					service_type_ids: ['commute-support'],
+				}),
+			]);
+
+			// 過去実績ヘルパーは指定時間帯(09:00-10:00)に別シフトあり
+			mockShiftRepo.list.mockResolvedValueOnce([
+				createShift({
+					id: createTestId(),
+					client_id: TEST_IDS.CLIENT_2,
+					staff_id: pastHelperBusyId,
+					date: new Date('2026-03-16T00:00:00+09:00'),
+					time: {
+						start: { hour: 9, minute: 0 },
+						end: { hour: 10, minute: 0 },
+					},
+					status: 'scheduled',
+				}),
+			]);
+
+			// explicit assignment なし
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[],
+			);
+			// 過去実績は pastHelperBusyId のみ
+			mockShiftRepo.findPastAssignedStaffIdsByClient.mockResolvedValueOnce([
+				pastHelperBusyId,
+			]);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-03-16',
+				startTime: { hour: 9, minute: 0 },
+				endTime: { hour: 10, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: 'commute-support',
+			});
+
+			// 過去実績ヘルパーは埋まっているが、空きのあるヘルパーAが返される
+			expect(result).toHaveLength(1);
+			expect(result[0]!.id).toBe(helperFreeId);
+		});
+
+		it('明示的アサインのヘルパーが全員埋まっている場合は空配列を返す（フォールバックしない）', async () => {
+			const assignedBusyId = createTestId(); // 明示的アサインあり・埋まっている
+			const helperFreeId = createTestId(); // アサインなし・空き
+
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				createStaffWithServiceTypes({
+					id: assignedBusyId,
+					name: 'ヘルパーB（アサインあり・埋まり）',
+					role: 'helper',
+					service_type_ids: ['commute-support'],
+				}),
+				createStaffWithServiceTypes({
+					id: helperFreeId,
+					name: 'ヘルパーA（アサインなし・空き）',
+					role: 'helper',
+					service_type_ids: ['commute-support'],
+				}),
+			]);
+
+			// アサインヘルパーは指定時間帯に別シフトあり
+			mockShiftRepo.list.mockResolvedValueOnce([
+				createShift({
+					id: createTestId(),
+					client_id: TEST_IDS.CLIENT_2,
+					staff_id: assignedBusyId,
+					date: new Date('2026-03-16T00:00:00+09:00'),
+					time: {
+						start: { hour: 9, minute: 0 },
+						end: { hour: 10, minute: 0 },
+					},
+					status: 'scheduled',
+				}),
+			]);
+
+			// 明示的アサインあり
+			mockClientStaffAssignmentRepo.listLinksByOfficeAndClientIds.mockResolvedValueOnce(
+				[
+					{
+						client_id: TEST_IDS.CLIENT_1,
+						staff_id: assignedBusyId,
+						service_type_id: 'commute-support',
+					},
+				],
+			);
+
+			const result = await service.findAvailableHelpers(TEST_IDS.OFFICE_1, {
+				date: '2026-03-16',
+				startTime: { hour: 9, minute: 0 },
+				endTime: { hour: 10, minute: 0 },
+				clientId: TEST_IDS.CLIENT_1,
+				serviceTypeId: 'commute-support',
+			});
+
+			// 明示的アサインの場合はフォールバックしない → 空配列
+			expect(result).toHaveLength(0);
+		});
+
 		it('admin スタッフは結果に含まれない', async () => {
 			const adminId = createTestId();
 			const helperId = createTestId();

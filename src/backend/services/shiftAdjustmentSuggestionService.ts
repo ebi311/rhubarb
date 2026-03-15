@@ -829,33 +829,42 @@ export class ShiftAdjustmentSuggestionService {
 		});
 
 		// clientId が指定されている場合、割当可能なスタッフIDを取得
-		const assignableStaffIds = await this.getAssignableStaffIds(
-			officeId,
-			input.clientId,
-			input.serviceTypeId,
-		);
+		const { ids: assignableStaffIds, isStrict } =
+			await this.getAssignableStaffIds(
+				officeId,
+				input.clientId,
+				input.serviceTypeId,
+			);
 
 		// 空きヘルパーをフィルタリング
-		const availableHelpers: AvailableHelper[] = [];
-		for (const helper of helpers) {
-			const isEligible = this.isHelperEligibleForRange({
-				helper,
-				assignableStaffIds,
-				serviceTypeId: input.serviceTypeId,
-				shiftsByStaff,
-				range,
-			});
-			if (!isEligible) continue;
+		const filterHelpers = (ids: Set<string> | null): AvailableHelper[] => {
+			const result: AvailableHelper[] = [];
+			for (const helper of helpers) {
+				const isEligible = this.isHelperEligibleForRange({
+					helper,
+					assignableStaffIds: ids,
+					serviceTypeId: input.serviceTypeId,
+					shiftsByStaff,
+					range,
+				});
+				if (!isEligible) continue;
 
-			availableHelpers.push({
-				id: helper.id,
-				name: helper.name,
-			});
+				result.push({ id: helper.id, name: helper.name });
 
-			// 最大5人まで
-			if (availableHelpers.length >= MAX_RESULTS) {
-				break;
+				if (result.length >= MAX_RESULTS) break;
 			}
+			return result;
+		};
+
+		const availableHelpers = filterHelpers(assignableStaffIds);
+
+		// 過去実績による優先フィルタで0件の場合、全ヘルパーを対象に再検索
+		if (
+			availableHelpers.length === 0 &&
+			!isStrict &&
+			assignableStaffIds !== null
+		) {
+			return filterHelpers(null);
 		}
 
 		return availableHelpers;
@@ -863,13 +872,17 @@ export class ShiftAdjustmentSuggestionService {
 
 	/**
 	 * クライアントに割当可能なスタッフIDのセットを取得する
+	 *
+	 * @returns ids: 対象スタッフIDのSet（nullは制限なし）
+	 *          isStrict: trueの場合は明示的アサインによる厳格フィルタ、
+	 *                    falseの場合は過去実績による優先フィルタ（空き0件時に全員へフォールバック可能）
 	 */
 	private getAssignableStaffIds = async (
 		officeId: string,
 		clientId: string | undefined,
 		serviceTypeId: ServiceTypeId | undefined,
-	): Promise<Set<string> | null> => {
-		if (!clientId || !serviceTypeId) return null;
+	): Promise<{ ids: Set<string> | null; isStrict: boolean }> => {
+		if (!clientId || !serviceTypeId) return { ids: null, isStrict: false };
 
 		const assignmentLinks =
 			await this.clientStaffAssignmentRepository.listLinksByOfficeAndClientIds(
@@ -877,15 +890,15 @@ export class ShiftAdjustmentSuggestionService {
 				[clientId],
 			);
 
-		// (client_id, service_type_id) の割当がある場合はそれを優先
+		// (client_id, service_type_id) の割当がある場合はそれを優先（厳格フィルタ）
 		const assignedStaffIds = assignmentLinks
 			.filter((l) => l.service_type_id === serviceTypeId)
 			.map((l) => l.staff_id);
 		if (assignedStaffIds.length > 0) {
-			return new Set(assignedStaffIds);
+			return { ids: new Set(assignedStaffIds), isStrict: true };
 		}
 
-		// 割当0件時のみ過去担当実績にフォールバック
+		// 割当0件時のみ過去担当実績にフォールバック（優先フィルタ：空き0件時は全員対象に）
 		const pastAssignedStaffIds =
 			await this.shiftRepository.findPastAssignedStaffIdsByClient(
 				clientId,
@@ -893,11 +906,11 @@ export class ShiftAdjustmentSuggestionService {
 				serviceTypeId,
 			);
 		if (pastAssignedStaffIds.length > 0) {
-			return new Set(pastAssignedStaffIds);
+			return { ids: new Set(pastAssignedStaffIds), isStrict: false };
 		}
 
 		// 割当も過去実績もない場合は制限しない
-		return null;
+		return { ids: null, isStrict: false };
 	};
 
 	/**
