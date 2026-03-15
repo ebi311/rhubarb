@@ -1,0 +1,139 @@
+import { TEST_IDS } from '@/test/helpers/testIds';
+import { describe, expect, it } from 'vitest';
+import { parseProposal } from './parseProposal';
+
+describe('parseProposal', () => {
+	const allowlist = {
+		shiftIds: [TEST_IDS.SCHEDULE_1],
+		staffIds: [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2],
+	};
+
+	it('assistant content から ```json ブロックを抽出して parse できる', () => {
+		const content = `以下が提案です。\n\n\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}",
+  "reason": "欠勤のため"
+}
+\`\`\``;
+
+		const result = parseProposal(content, allowlist);
+
+		expect(result).toEqual({
+			type: 'change_shift_staff',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			toStaffId: TEST_IDS.STAFF_2,
+			reason: '欠勤のため',
+		});
+	});
+
+	it('複数の json ブロックがある場合は先頭のブロックを採用する', () => {
+		const content = `最初の提案です。\n\n\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}
+\`\`\`\n\n別案です。\n\n\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_1}"
+}
+\`\`\``;
+
+		const result = parseProposal(content, allowlist);
+
+		expect(result).toEqual({
+			type: 'change_shift_staff',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			toStaffId: TEST_IDS.STAFF_2,
+		});
+	});
+
+	it('json ブロックが無い場合は null', () => {
+		const result = parseProposal('提案は文章のみです', allowlist);
+		expect(result).toBeNull();
+	});
+
+	it('json が壊れている場合は null', () => {
+		const content = `\`\`\`json\n{ invalid json }\n\`\`\``;
+		const result = parseProposal(content, allowlist);
+		expect(result).toBeNull();
+	});
+
+	it('スキーマ不一致の場合は null', () => {
+		const content = `\`\`\`json
+{
+  "type": "update_shift_time",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "startAt": "not-date",
+  "endAt": "2026-03-16T10:00:00+09:00"
+}
+\`\`\``;
+
+		const result = parseProposal(content, allowlist);
+		expect(result).toBeNull();
+	});
+
+	it('allowlist にない shiftId の場合は null', () => {
+		const content = `\`\`\`json
+{
+  "type": "update_shift_time",
+  "shiftId": "${TEST_IDS.SCHEDULE_2}",
+  "startAt": "2026-03-16T09:00:00+09:00",
+  "endAt": "2026-03-16T10:00:00+09:00"
+}
+\`\`\``;
+
+		const result = parseProposal(content, allowlist);
+		expect(result).toBeNull();
+	});
+
+	it('change_shift_staff で allowlist.staffIds が undefined の場合は null', () => {
+		const content = `\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}
+\`\`\``;
+
+		const result = parseProposal(content, {
+			shiftIds: [TEST_IDS.SCHEDULE_1],
+		});
+
+		expect(result).toBeNull();
+	});
+
+	it('change_shift_staff で allowlist.staffIds が空配列の場合は null', () => {
+		const content = `\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}
+\`\`\``;
+
+		const result = parseProposal(content, {
+			shiftIds: [TEST_IDS.SCHEDULE_1],
+			staffIds: [],
+		});
+
+		expect(result).toBeNull();
+	});
+
+	it('allowlist にない toStaffId の場合は null', () => {
+		const content = `\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_4}"
+}
+\`\`\``;
+
+		const result = parseProposal(content, allowlist);
+		expect(result).toBeNull();
+	});
+});

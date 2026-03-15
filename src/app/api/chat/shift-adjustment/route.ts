@@ -174,6 +174,10 @@ ${SERVICE_TYPE_LABELS_PROMPT}
 - 提案は具体的かつ実行可能なものにする
 - 不明な点があれば確認を求める
 - スタッフや利用者の負担を考慮する
+- シフト変更の提案を出す場合は、必ず assistant メッセージ内に 1 つの \`\`\`json コードブロックを含める
+- JSON は次のいずれか 1 つの形式に厳密に従う
+  - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>", "reason": "<任意の理由>" }
+  - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime>", "endAt": "<ISO datetime>", "reason": "<任意の理由>" }
 
 日本語で丁寧に対応してください。`;
 

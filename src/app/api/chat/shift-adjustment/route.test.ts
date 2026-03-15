@@ -646,6 +646,35 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('SYSTEM_PROMPT に proposal の ```json 規約文を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '提案してください' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('```json コードブロック'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('change_shift_staff'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('update_shift_time'),
+			}),
+		);
+	});
+
 	it('複数シフトの場合は単一シフト向けの確認不要指示を含めない', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
