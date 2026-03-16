@@ -3,7 +3,7 @@ import {
 	type AiChatMutationProposal,
 } from '@/models/aiChatMutationProposal';
 
-type ProposalAllowlist = {
+export type ProposalAllowlist = {
 	shiftIds: string[];
 	staffIds?: string[];
 };

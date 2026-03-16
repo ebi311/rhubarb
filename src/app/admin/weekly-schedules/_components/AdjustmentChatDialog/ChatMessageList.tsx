@@ -8,6 +8,39 @@ type ChatMessageListProps = {
 	isStreaming?: boolean;
 };
 
+const PROPOSAL_PLACEHOLDER_TEXT = '（提案を生成しました）';
+const JSON_CODE_BLOCK_REGEX = /```json\s*[\s\S]*?\s*```/gi;
+const JSON_CODE_BLOCK_DETECT_REGEX = /```json\s*[\s\S]*?\s*```/i;
+
+const getAssistantDisplayContent = (content: string): string | null => {
+	if (content.trim().length === 0) {
+		return null;
+	}
+
+	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(content);
+	const contentWithoutJsonBlock = content
+		.replace(JSON_CODE_BLOCK_REGEX, '')
+		.trim();
+
+	if (contentWithoutJsonBlock.length > 0) {
+		return contentWithoutJsonBlock;
+	}
+
+	if (hasJsonCodeBlock) {
+		return PROPOSAL_PLACEHOLDER_TEXT;
+	}
+
+	return null;
+};
+
+const getMessageDisplayContent = (message: ChatMessage): string | null => {
+	if (message.role === 'assistant') {
+		return getAssistantDisplayContent(message.content);
+	}
+
+	return message.content;
+};
+
 export const ChatMessageList = ({
 	messages,
 	isStreaming = false,
@@ -40,27 +73,31 @@ export const ChatMessageList = ({
 
 	return (
 		<div className="flex-1 space-y-4 overflow-y-auto p-4">
-			{messages.map((message) => (
-				<div
-					key={message.id}
-					className={`chat ${message.role === 'user' ? 'chat-end' : 'chat-start'}`}
-				>
-					<div className="chat-header text-xs text-base-content/70">
-						{message.role === 'user' ? 'あなた' : 'AIアシスタント'}
-					</div>
+			{messages.map((message) => {
+				const displayContent = getMessageDisplayContent(message);
+
+				return (
 					<div
-						className={`chat-bubble whitespace-pre-wrap ${
-							message.role === 'user'
-								? 'chat-bubble-primary'
-								: 'chat-bubble-neutral'
-						}`}
+						key={message.id}
+						className={`chat ${message.role === 'user' ? 'chat-end' : 'chat-start'}`}
 					>
-						{message.content || (
-							<span className="loading loading-sm loading-dots" />
-						)}
+						<div className="chat-header text-xs text-base-content/70">
+							{message.role === 'user' ? 'あなた' : 'AIアシスタント'}
+						</div>
+						<div
+							className={`chat-bubble whitespace-pre-wrap ${
+								message.role === 'user'
+									? 'chat-bubble-primary'
+									: 'chat-bubble-neutral'
+							}`}
+						>
+							{displayContent || (
+								<span className="loading loading-sm loading-dots" />
+							)}
+						</div>
 					</div>
-				</div>
-			))}
+				);
+			})}
 			{isStreaming && messages[messages.length - 1]?.content && (
 				<div className="chat-start chat">
 					<div className="chat-bubble chat-bubble-neutral opacity-50">

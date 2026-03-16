@@ -267,4 +267,46 @@ describe('AdjustmentChatDialog', () => {
 			screen.getByText(/AI service is not configured/),
 		).toBeInTheDocument();
 	});
+
+	it('assistant の最新メッセージに提案 JSON があると案内を表示する', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					{
+						id: '2',
+						role: 'assistant',
+						parts: [
+							{
+								type: 'text',
+								text: `提案です
+\`\`\`json
+{
+  "type": "update_shift_time",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "startAt": "2026-02-24T10:00:00+09:00",
+  "endAt": "2026-02-24T11:00:00+09:00"
+}
+\`\`\``,
+							},
+						],
+					},
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.getByText('提案を検出しました（確定は次のステップで行います）'),
+		).toBeInTheDocument();
+	});
 });
