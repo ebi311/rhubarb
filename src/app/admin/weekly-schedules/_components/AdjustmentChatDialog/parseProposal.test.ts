@@ -48,24 +48,27 @@ describe('parseProposal', () => {
 		expect(result).toBeNull();
 	});
 
-	it('update_shift_time の正常系では proposal を返す', () => {
+	it('update_shift_time は json ブロック1件 + offset 付きISO + allowlist内 shiftId のとき proposal を返す', () => {
 		const content = `時間変更の提案です。\n\n\`\`\`json
 {
   "type": "update_shift_time",
   "shiftId": "${TEST_IDS.SCHEDULE_1}",
-  "startAt": "2026-03-16T09:00:00+09:00",
-  "endAt": "2026-03-16T10:00:00+09:00",
+  "startAt": "2026-03-16T00:00:00Z",
+  "endAt": "2026-03-16T01:00:00Z",
   "reason": "営業時間変更のため"
 }
 \`\`\``;
 
+		expect(content.match(/```json/gi)).toHaveLength(1);
+
 		const result = parseProposal(content, allowlist);
 
+		expect(result).not.toBeNull();
 		expect(result).toEqual({
 			type: 'update_shift_time',
 			shiftId: TEST_IDS.SCHEDULE_1,
-			startAt: '2026-03-16T09:00:00+09:00',
-			endAt: '2026-03-16T10:00:00+09:00',
+			startAt: '2026-03-16T00:00:00Z',
+			endAt: '2026-03-16T01:00:00Z',
 			reason: '営業時間変更のため',
 		});
 	});
