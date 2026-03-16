@@ -8,10 +8,9 @@ type ProposalAllowlist = {
 	staffIds?: string[];
 };
 
-const JSON_CODE_BLOCK_REGEX = /```json\s*([\s\S]*?)\s*```/gi;
-
 const extractJsonCodeBlock = (content: string): string | null => {
-	const matches = [...content.matchAll(JSON_CODE_BLOCK_REGEX)];
+	const jsonCodeBlockRegex = /```json\s*([\s\S]*?)\s*```/gi;
+	const matches = [...content.matchAll(jsonCodeBlockRegex)];
 
 	if (matches.length !== 1) {
 		return null;

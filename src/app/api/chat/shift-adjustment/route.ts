@@ -179,7 +179,8 @@ ${SERVICE_TYPE_LABELS_PROMPT}
   - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>", "reason": "<任意の理由>" }
   - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>", "reason": "<任意の理由>" }
 - update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
-  - 例: 2026-03-16T09:00:00+09:00
+  - 例1: 2026-03-16T09:00:00+09:00
+  - 例2: 2026-03-16T00:00:00Z
 
 日本語で丁寧に対応してください。`;
 

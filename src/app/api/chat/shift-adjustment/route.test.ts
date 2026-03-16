@@ -685,6 +685,11 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
+				system: expect.stringContaining('2026-03-16T00:00:00Z'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
 				system: expect.stringContaining('末尾 Z も可'),
 			}),
 		);

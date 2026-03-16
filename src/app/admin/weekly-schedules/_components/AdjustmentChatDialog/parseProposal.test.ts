@@ -73,6 +73,50 @@ describe('parseProposal', () => {
 		});
 	});
 
+	it('update_shift_time は +09:00 オフセット指定でも proposal を返す', () => {
+		const content = `時間変更の提案です。\n\n\`\`\`json
+{
+  "type": "update_shift_time",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "startAt": "2026-03-16T09:00:00+09:00",
+  "endAt": "2026-03-16T10:00:00+09:00",
+  "reason": "営業時間変更のため"
+}
+\`\`\``;
+
+		const result = parseProposal(content, allowlist);
+
+		expect(result).toEqual({
+			type: 'update_shift_time',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			startAt: '2026-03-16T09:00:00+09:00',
+			endAt: '2026-03-16T10:00:00+09:00',
+			reason: '営業時間変更のため',
+		});
+	});
+
+	it('同一入力で複数回呼び出しても結果が変わらない', () => {
+		const content = `以下が提案です。\n\n\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}",
+  "reason": "欠勤のため"
+}
+\`\`\``;
+
+		const firstResult = parseProposal(content, allowlist);
+		const secondResult = parseProposal(content, allowlist);
+
+		expect(firstResult).toEqual(secondResult);
+		expect(secondResult).toEqual({
+			type: 'change_shift_staff',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			toStaffId: TEST_IDS.STAFF_2,
+			reason: '欠勤のため',
+		});
+	});
+
 	it('json ブロックが無い場合は null', () => {
 		const result = parseProposal('提案は文章のみです', allowlist);
 		expect(result).toBeNull();
