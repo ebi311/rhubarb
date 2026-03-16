@@ -1,6 +1,8 @@
 create table public.ai_operation_logs (
 id uuid not null default gen_random_uuid() primary key,
 office_id uuid not null references public.offices (id) on delete cascade,
+-- Supabase Auth のユーザー UUID を保持する。
+-- 監査ログはユーザー削除後も保持する必要があるため、auth.users への FK は張らない。
 actor_user_id uuid not null,
 source text not null,
 operation_type text not null,
@@ -11,6 +13,12 @@ result jsonb,
 created_at timestamptz not null default now(),
 constraint ai_operation_logs_source_check check (source = 'ai_chat')
 );
+
+comment on table public.ai_operation_logs is
+'AI操作の監査ログ。RLS方針: INSERT は service role のみ、SELECT は同一オフィスの admin のみ、UPDATE/DELETE は不許可。';
+
+comment on column public.ai_operation_logs.actor_user_id is
+'Supabase Auth のユーザー UUID。監査ログをユーザー削除後も保持するため、auth.users への FK は張らない。';
 
 create index ai_operation_logs_office_created_at_idx
 on public.ai_operation_logs (office_id, created_at desc);
