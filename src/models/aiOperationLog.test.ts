@@ -39,6 +39,20 @@ describe('AiOperationLogSchema', () => {
 
 		expect(result.success).toBe(false);
 	});
+
+	it('targets が null の場合はエラー', () => {
+		const result = AiOperationLogSchema.safeParse({
+			id: TEST_IDS.SCHEDULE_1,
+			office_id: TEST_IDS.OFFICE_1,
+			actor_user_id: TEST_IDS.USER_1,
+			source: 'ai_chat',
+			operation_type: 'shift.change_staff',
+			targets: null,
+			created_at: '2026-03-20T00:00:00Z',
+		});
+
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('AiOperationLogInputSchema', () => {
@@ -61,6 +75,18 @@ describe('AiOperationLogInputSchema', () => {
 			source: 'ai_chat',
 			operation_type: 'shift.change_staff',
 			targets: {},
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it('targets が null の場合はエラー', () => {
+		const result = AiOperationLogInputSchema.safeParse({
+			office_id: TEST_IDS.OFFICE_1,
+			actor_user_id: TEST_IDS.USER_1,
+			source: 'ai_chat',
+			operation_type: 'shift.change_staff',
+			targets: null,
 		});
 
 		expect(result.success).toBe(false);

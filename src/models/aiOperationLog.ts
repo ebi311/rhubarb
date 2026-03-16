@@ -16,13 +16,18 @@ const JsonValueSchema: z.ZodType<Json> = z.lazy(() =>
 	]),
 );
 
+const NonNullJsonValueSchema = JsonValueSchema.refine(
+	(v): v is Exclude<Json, null> => v !== null,
+	{ message: 'targets must not be null' },
+);
+
 export const AiOperationLogSchema = z.object({
 	id: z.uuid(),
 	office_id: z.uuid(),
 	actor_user_id: z.uuid(),
 	source: AiOperationLogSourceSchema,
 	operation_type: z.string().trim().min(1),
-	targets: JsonValueSchema,
+	targets: NonNullJsonValueSchema,
 	proposal: JsonValueSchema.nullable().optional(),
 	request: JsonValueSchema.nullable().optional(),
 	result: JsonValueSchema.nullable().optional(),
@@ -36,7 +41,7 @@ export const AiOperationLogInputSchema = z.object({
 	actor_user_id: z.uuid(),
 	source: AiOperationLogSourceSchema,
 	operation_type: z.string().trim().min(1),
-	targets: JsonValueSchema,
+	targets: NonNullJsonValueSchema,
 	proposal: JsonValueSchema.nullable().optional(),
 	request: JsonValueSchema.nullable().optional(),
 	result: JsonValueSchema.nullable().optional(),
