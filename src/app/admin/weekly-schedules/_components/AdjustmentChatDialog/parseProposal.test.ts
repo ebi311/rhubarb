@@ -52,6 +52,28 @@ describe('parseProposal', () => {
 		});
 	});
 
+	it('update_shift_time の正常系では proposal を返す', () => {
+		const content = `時間変更の提案です。\n\n\`\`\`json
+{
+  "type": "update_shift_time",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "startAt": "2026-03-16T09:00:00+09:00",
+  "endAt": "2026-03-16T10:00:00+09:00",
+  "reason": "営業時間変更のため"
+}
+\`\`\``;
+
+		const result = parseProposal(content, allowlist);
+
+		expect(result).toEqual({
+			type: 'update_shift_time',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			startAt: '2026-03-16T09:00:00+09:00',
+			endAt: '2026-03-16T10:00:00+09:00',
+			reason: '営業時間変更のため',
+		});
+	});
+
 	it('json ブロックが無い場合は null', () => {
 		const result = parseProposal('提案は文章のみです', allowlist);
 		expect(result).toBeNull();
