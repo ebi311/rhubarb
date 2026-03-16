@@ -11,6 +11,8 @@ const UpdateShiftTimeProposalSchema = z
 	.object({
 		type: z.literal('update_shift_time'),
 		shiftId: z.uuid(),
+		// NOTE: タイムゾーンオフセット必須。SYSTEM_PROMPT 側の
+		// 「+09:00 または末尾 Z 必須」の規約と常に整合させること。
 		startAt: z.string().datetime({ offset: true }),
 		endAt: z.string().datetime({ offset: true }),
 		reason: z.string().min(1).optional(),

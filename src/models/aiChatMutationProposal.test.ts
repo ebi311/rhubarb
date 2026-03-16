@@ -26,6 +26,18 @@ describe('AiChatMutationProposalSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
+	it('update_shift_time proposal は UTC の Z 指定も受け入れる', () => {
+		const result = AiChatMutationProposalSchema.safeParse({
+			type: 'update_shift_time',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			startAt: '2026-03-16T00:00:00Z',
+			endAt: '2026-03-16T01:00:00Z',
+			reason: '利用者都合',
+		});
+
+		expect(result.success).toBe(true);
+	});
+
 	it('update_shift_time で startAt が endAt 以降の場合はエラー', () => {
 		const result = AiChatMutationProposalSchema.safeParse({
 			type: 'update_shift_time',
@@ -53,6 +65,17 @@ describe('AiChatMutationProposalSchema', () => {
 			shiftId: TEST_IDS.SCHEDULE_1,
 			startAt: '2026-03-16 09:00:00',
 			endAt: 'not-a-date',
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it('update_shift_time でタイムゾーンオフセット無しはエラー', () => {
+		const result = AiChatMutationProposalSchema.safeParse({
+			type: 'update_shift_time',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			startAt: '2026-03-16T09:00:00',
+			endAt: '2026-03-16T10:00:00',
 		});
 
 		expect(result.success).toBe(false);
