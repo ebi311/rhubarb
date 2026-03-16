@@ -38,6 +38,29 @@ describe('AiChatMutationProposalSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
+	it('change_shift_staff で reason が空白のみの場合はエラー', () => {
+		const result = AiChatMutationProposalSchema.safeParse({
+			type: 'change_shift_staff',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			toStaffId: TEST_IDS.STAFF_2,
+			reason: '   ',
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it('update_shift_time で reason が空白のみの場合はエラー', () => {
+		const result = AiChatMutationProposalSchema.safeParse({
+			type: 'update_shift_time',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			startAt: '2026-03-16T09:00:00+09:00',
+			endAt: '2026-03-16T10:00:00+09:00',
+			reason: '   ',
+		});
+
+		expect(result.success).toBe(false);
+	});
+
 	it('update_shift_time で startAt が endAt 以降の場合はエラー', () => {
 		const result = AiChatMutationProposalSchema.safeParse({
 			type: 'update_shift_time',

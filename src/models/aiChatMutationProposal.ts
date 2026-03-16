@@ -4,7 +4,7 @@ const ChangeShiftStaffProposalSchema = z.object({
 	type: z.literal('change_shift_staff'),
 	shiftId: z.uuid(),
 	toStaffId: z.uuid(),
-	reason: z.string().min(1).optional(),
+	reason: z.string().trim().min(1).optional(),
 });
 
 const UpdateShiftTimeProposalSchema = z
@@ -15,7 +15,7 @@ const UpdateShiftTimeProposalSchema = z
 		// 「+09:00 または末尾 Z 必須」の規約と常に整合させること。
 		startAt: z.string().datetime({ offset: true }),
 		endAt: z.string().datetime({ offset: true }),
-		reason: z.string().min(1).optional(),
+		reason: z.string().trim().min(1).optional(),
 	})
 	.superRefine((proposal, ctx) => {
 		if (new Date(proposal.startAt) >= new Date(proposal.endAt)) {

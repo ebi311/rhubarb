@@ -693,6 +693,21 @@ describe('POST /api/chat/shift-adjustment', () => {
 				system: expect.stringContaining('末尾 Z も可'),
 			}),
 		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('reason は任意'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('不明なら省略'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('空文字は使わない'),
+			}),
+		);
 	});
 
 	it('複数シフトの場合は単一シフト向けの確認不要指示を含めない', async () => {

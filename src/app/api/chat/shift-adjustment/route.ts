@@ -177,7 +177,10 @@ ${SERVICE_TYPE_LABELS_PROMPT}
 - シフト変更の提案を出す場合は、必ず assistant メッセージ内に 1 つの \`\`\`json コードブロックを含める
 - JSON は次のいずれか 1 つの形式に厳密に従う
   - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>", "reason": "<任意の理由>" }
+  - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>" }
   - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>", "reason": "<任意の理由>" }
+  - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>" }
+- reason は任意。不明なら省略し、空文字は使わない（空白のみも不可）
 - update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
   - 例1: 2026-03-16T09:00:00+09:00
   - 例2: 2026-03-16T00:00:00Z
