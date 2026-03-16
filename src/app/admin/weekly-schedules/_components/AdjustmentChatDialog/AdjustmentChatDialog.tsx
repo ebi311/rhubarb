@@ -10,12 +10,14 @@ import { useAdjustmentChat } from './useAdjustmentChat';
 type AdjustmentChatDialogProps = {
 	isOpen: boolean;
 	shiftContext: ShiftContext;
+	staffIdsAllowlist: string[];
 	onClose: () => void;
 };
 
 export const AdjustmentChatDialog = ({
 	isOpen,
 	shiftContext,
+	staffIdsAllowlist,
 	onClose,
 }: AdjustmentChatDialogProps) => {
 	const { messages, isStreaming, error, sendMessage, stop } = useAdjustmentChat(
@@ -35,8 +37,9 @@ export const AdjustmentChatDialog = ({
 
 		return parseProposal(latestAssistantMessage.content, {
 			shiftIds: [shiftContext.id],
+			staffIds: staffIdsAllowlist,
 		});
-	}, [messages, shiftContext.id]);
+	}, [messages, shiftContext.id, staffIdsAllowlist]);
 
 	const handleClose = () => {
 		stop(); // ストリーミング中止

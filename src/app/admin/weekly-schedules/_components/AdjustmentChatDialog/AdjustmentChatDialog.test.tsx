@@ -57,6 +57,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={false}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -67,6 +68,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -80,6 +82,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -126,6 +129,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -146,6 +150,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -159,6 +164,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -177,6 +183,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -195,6 +202,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -214,6 +222,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={onClose}
 			/>,
 		);
@@ -237,6 +246,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -259,6 +269,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -301,6 +312,49 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.getByText('提案を検出しました（確定は次のステップで行います）'),
+		).toBeInTheDocument();
+	});
+
+	it('change_shift_staff の提案 JSON があると案内を表示する', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					{
+						id: '2',
+						role: 'assistant',
+						parts: [
+							{
+								type: 'text',
+								text: `担当者変更案です
+\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}
+\`\`\``,
+							},
+						],
+					},
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
 				onClose={vi.fn()}
 			/>,
 		);
