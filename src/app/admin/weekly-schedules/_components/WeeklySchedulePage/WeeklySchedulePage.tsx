@@ -301,6 +301,7 @@ export const WeeklySchedulePage = ({
 	};
 
 	const hasShifts = initialShifts.length > 0;
+	const staffIdsAllowlist = staffOptions.map((staffOption) => staffOption.id);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -417,6 +418,7 @@ export const WeeklySchedulePage = ({
 				<AdjustmentChatDialog
 					isOpen={!!chatDialogShift}
 					shiftContext={createShiftContext(chatDialogShift)}
+					staffIdsAllowlist={staffIdsAllowlist}
 					onClose={() => setChatDialogShift(null)}
 				/>
 			)}

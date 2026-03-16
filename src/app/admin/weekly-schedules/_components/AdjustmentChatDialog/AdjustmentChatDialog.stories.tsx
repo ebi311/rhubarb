@@ -12,6 +12,7 @@ const meta = {
 	tags: ['autodocs'],
 	args: {
 		onClose: fn(),
+		staffIdsAllowlist: [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2],
 	},
 } satisfies Meta<typeof AdjustmentChatDialog>;
 

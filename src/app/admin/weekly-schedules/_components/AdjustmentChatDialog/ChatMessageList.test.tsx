@@ -1,5 +1,5 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatMessageList } from './ChatMessageList';
 import type { ChatMessage } from './useAdjustmentChat';
@@ -81,5 +81,23 @@ describe('ChatMessageList', () => {
 		rerender(<ChatMessageList messages={messages} isStreaming={false} />);
 
 		expect(scrollIntoViewMock).not.toHaveBeenCalled();
+	});
+
+	it('assistant メッセージ内の JSON コードブロックは表示せず、JSON のみならプレースホルダを表示する', () => {
+		render(
+			<ChatMessageList
+				messages={[
+					createMessage({
+						content: `
+\`\`\`json
+{ "type": "update_shift_time" }
+\`\`\``,
+					}),
+				]}
+			/>,
+		);
+
+		expect(screen.queryByText(/```json/)).not.toBeInTheDocument();
+		expect(screen.getByText('（提案を生成しました）')).toBeInTheDocument();
 	});
 });
