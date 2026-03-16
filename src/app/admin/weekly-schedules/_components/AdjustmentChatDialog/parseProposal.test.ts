@@ -28,7 +28,7 @@ describe('parseProposal', () => {
 		});
 	});
 
-	it('複数の json ブロックがある場合は先頭のブロックを採用する', () => {
+	it('複数の json ブロックがある場合は null を返す', () => {
 		const content = `最初の提案です。\n\n\`\`\`json
 {
   "type": "change_shift_staff",
@@ -45,11 +45,7 @@ describe('parseProposal', () => {
 
 		const result = parseProposal(content, allowlist);
 
-		expect(result).toEqual({
-			type: 'change_shift_staff',
-			shiftId: TEST_IDS.SCHEDULE_1,
-			toStaffId: TEST_IDS.STAFF_2,
-		});
+		expect(result).toBeNull();
 	});
 
 	it('update_shift_time の正常系では proposal を返す', () => {
