@@ -363,4 +363,61 @@ describe('AdjustmentChatDialog', () => {
 			screen.getByText('提案を検出しました（確定は次のステップで行います）'),
 		).toBeInTheDocument();
 	});
+
+	it('detectedProposal の算出で reverse を呼ばずに最新 assistant を検出できる', () => {
+		const reverseSpy = vi
+			.spyOn(Array.prototype, 'reverse')
+			.mockImplementation(() => {
+				throw new Error('reverse should not be called');
+			});
+
+		try {
+			mockUseChat.mockReturnValue(
+				createMockUseChatReturn({
+					messages: [
+						{
+							id: 'assistant-1',
+							role: 'assistant',
+							parts: [
+								{
+									type: 'text',
+									text: `提案です
+\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}
+\`\`\``,
+								},
+							],
+						},
+						{
+							id: 'user-1',
+							role: 'user',
+							parts: [{ type: 'text', text: '確認お願いします' }],
+						},
+					],
+					sendMessage: mockSendMessage,
+					stop: mockStop,
+					setMessages: mockSetMessages,
+				}),
+			);
+
+			render(
+				<AdjustmentChatDialog
+					isOpen={true}
+					shiftContext={shiftContext}
+					staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+					onClose={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText('提案を検出しました（確定は次のステップで行います）'),
+			).toBeInTheDocument();
+		} finally {
+			reverseSpy.mockRestore();
+		}
+	});
 });
