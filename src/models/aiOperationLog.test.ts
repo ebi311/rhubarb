@@ -12,7 +12,7 @@ describe('AiOperationLogSchema', () => {
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: TEST_IDS.USER_1,
 			source: 'ai_chat',
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: { shift_id: TEST_IDS.SCHEDULE_1 },
 			proposal: { type: 'change_shift_staff' },
 			request: { reason: 'test' },
@@ -32,7 +32,7 @@ describe('AiOperationLogSchema', () => {
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: TEST_IDS.USER_1,
 			source: 'ai_chat',
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: { shift_id: TEST_IDS.SCHEDULE_1 },
 			proposal: null,
 			request: null,
@@ -49,7 +49,7 @@ describe('AiOperationLogSchema', () => {
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: TEST_IDS.USER_1,
 			source: 'manual',
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: {},
 			created_at: '2026-03-20T00:00:00Z',
 		});
@@ -63,7 +63,7 @@ describe('AiOperationLogSchema', () => {
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: TEST_IDS.USER_1,
 			source: 'ai_chat',
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: null,
 			created_at: '2026-03-20T00:00:00Z',
 		});
@@ -78,7 +78,7 @@ describe('AiOperationLogInputSchema', () => {
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: TEST_IDS.USER_1,
 			source: 'ai_chat',
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: { shift_id: TEST_IDS.SCHEDULE_1 },
 			proposal: null,
 			request: null,
@@ -93,7 +93,7 @@ describe('AiOperationLogInputSchema', () => {
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: TEST_IDS.USER_1,
 			source: 'ai_chat',
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: { shift_id: TEST_IDS.SCHEDULE_1 },
 		});
 
@@ -105,7 +105,7 @@ describe('AiOperationLogInputSchema', () => {
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: 'invalid',
 			source: 'ai_chat',
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: {},
 		});
 
@@ -117,7 +117,7 @@ describe('AiOperationLogInputSchema', () => {
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: TEST_IDS.USER_1,
 			source: 'ai_chat',
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: null,
 		});
 

@@ -24,7 +24,7 @@ describe('AiOperationLogService', () => {
 		await service.log({
 			office_id: TEST_IDS.OFFICE_1,
 			actor_user_id: TEST_IDS.USER_1,
-			operation_type: 'shift.change_staff',
+			operation_type: 'change_shift_staff',
 			targets: { shift_id: TEST_IDS.SCHEDULE_1 },
 		});
 
@@ -52,6 +52,7 @@ describe('AiOperationLogService', () => {
 			service.log({
 				office_id: TEST_IDS.OFFICE_1,
 				actor_user_id: TEST_IDS.USER_1,
+				// @ts-expect-error: runtime validation should reject blank operation_type
 				operation_type: ' ',
 				targets: { shift_id: TEST_IDS.SCHEDULE_1 },
 			}),
@@ -65,6 +66,7 @@ describe('AiOperationLogService', () => {
 			service.log({
 				office_id: TEST_IDS.OFFICE_1,
 				actor_user_id: TEST_IDS.USER_1,
+				// @ts-expect-error: runtime validation should reject blank operation_type
 				operation_type: ' ',
 				targets: { shift_id: TEST_IDS.SCHEDULE_1 },
 			}),
@@ -83,7 +85,7 @@ describe('AiOperationLogService', () => {
 			service.logSilently({
 				office_id: TEST_IDS.OFFICE_1,
 				actor_user_id: TEST_IDS.USER_1,
-				operation_type: 'shift.change_staff',
+				operation_type: 'change_shift_staff',
 				targets: {},
 			}),
 		).resolves.toBeUndefined();

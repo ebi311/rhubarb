@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
 import type { Json } from '@/backend/types/supabase';
+import { AiChatMutationProposalTypeSchema } from '@/models/aiChatMutationProposal';
 import { TimestampSchema } from '@/models/valueObjects/timestamp';
 
 export const AiOperationLogSourceSchema = z.literal('ai_chat');
+
+export const AiOperationTypeSchema = AiChatMutationProposalTypeSchema;
 
 // Json (Supabase) は null を含むため、nullable() は不要
 const JsonValueSchema: z.ZodType<Json> = z.lazy(() =>
@@ -27,7 +30,7 @@ export const AiOperationLogSchema = z.object({
 	office_id: z.uuid(),
 	actor_user_id: z.uuid(),
 	source: AiOperationLogSourceSchema,
-	operation_type: z.string().trim().min(1),
+	operation_type: AiOperationTypeSchema,
 	targets: NonNullJsonValueSchema,
 	proposal: JsonValueSchema.optional(),
 	request: JsonValueSchema.optional(),
@@ -41,7 +44,7 @@ export const AiOperationLogInputSchema = z.object({
 	office_id: z.uuid(),
 	actor_user_id: z.uuid(),
 	source: AiOperationLogSourceSchema,
-	operation_type: z.string().trim().min(1),
+	operation_type: AiOperationTypeSchema,
 	targets: NonNullJsonValueSchema,
 	proposal: JsonValueSchema.optional(),
 	request: JsonValueSchema.optional(),
