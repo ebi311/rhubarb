@@ -26,6 +26,23 @@ describe('AiOperationLogSchema', () => {
 		}
 	});
 
+	it('proposal/request/result に null を許容する', () => {
+		const result = AiOperationLogSchema.safeParse({
+			id: TEST_IDS.SCHEDULE_1,
+			office_id: TEST_IDS.OFFICE_1,
+			actor_user_id: TEST_IDS.USER_1,
+			source: 'ai_chat',
+			operation_type: 'shift.change_staff',
+			targets: { shift_id: TEST_IDS.SCHEDULE_1 },
+			proposal: null,
+			request: null,
+			result: null,
+			created_at: '2026-03-20T00:00:00Z',
+		});
+
+		expect(result.success).toBe(true);
+	});
+
 	it('source が ai_chat 以外の場合はエラー', () => {
 		const result = AiOperationLogSchema.safeParse({
 			id: TEST_IDS.SCHEDULE_1,
@@ -56,6 +73,21 @@ describe('AiOperationLogSchema', () => {
 });
 
 describe('AiOperationLogInputSchema', () => {
+	it('proposal/request/result に null を許容する', () => {
+		const result = AiOperationLogInputSchema.safeParse({
+			office_id: TEST_IDS.OFFICE_1,
+			actor_user_id: TEST_IDS.USER_1,
+			source: 'ai_chat',
+			operation_type: 'shift.change_staff',
+			targets: { shift_id: TEST_IDS.SCHEDULE_1 },
+			proposal: null,
+			request: null,
+			result: null,
+		});
+
+		expect(result.success).toBe(true);
+	});
+
 	it('proposal/request/result 省略でも有効', () => {
 		const result = AiOperationLogInputSchema.safeParse({
 			office_id: TEST_IDS.OFFICE_1,

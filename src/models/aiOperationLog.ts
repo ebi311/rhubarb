@@ -5,6 +5,7 @@ import { TimestampSchema } from '@/models/valueObjects/timestamp';
 
 export const AiOperationLogSourceSchema = z.literal('ai_chat');
 
+// Json (Supabase) は null を含むため、nullable() は不要
 const JsonValueSchema: z.ZodType<Json> = z.lazy(() =>
 	z.union([
 		z.string(),
@@ -28,9 +29,9 @@ export const AiOperationLogSchema = z.object({
 	source: AiOperationLogSourceSchema,
 	operation_type: z.string().trim().min(1),
 	targets: NonNullJsonValueSchema,
-	proposal: JsonValueSchema.nullable().optional(),
-	request: JsonValueSchema.nullable().optional(),
-	result: JsonValueSchema.nullable().optional(),
+	proposal: JsonValueSchema.optional(),
+	request: JsonValueSchema.optional(),
+	result: JsonValueSchema.optional(),
 	created_at: TimestampSchema,
 });
 
@@ -42,9 +43,9 @@ export const AiOperationLogInputSchema = z.object({
 	source: AiOperationLogSourceSchema,
 	operation_type: z.string().trim().min(1),
 	targets: NonNullJsonValueSchema,
-	proposal: JsonValueSchema.nullable().optional(),
-	request: JsonValueSchema.nullable().optional(),
-	result: JsonValueSchema.nullable().optional(),
+	proposal: JsonValueSchema.optional(),
+	request: JsonValueSchema.optional(),
+	result: JsonValueSchema.optional(),
 });
 
 export type AiOperationLogInput = z.infer<typeof AiOperationLogInputSchema>;
