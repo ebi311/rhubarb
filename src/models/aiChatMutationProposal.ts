@@ -41,6 +41,32 @@ export const AiChatMutationProposalSchema = z.discriminatedUnion('type', [
 	UpdateShiftTimeProposalSchema,
 ]);
 
+export const ProposalAllowlistSchema = z.object({
+	shiftIds: z.array(z.uuid()),
+	staffIds: z.array(z.uuid()).optional(),
+});
+
+export const ExecuteAiChatMutationInputSchema = z.object({
+	proposal: AiChatMutationProposalSchema,
+	allowlist: ProposalAllowlistSchema,
+});
+
+export const ExecuteAiChatMutationResultSchema = z.object({
+	type: AiChatMutationProposalTypeSchema,
+	shiftId: z.uuid(),
+	officeId: z.uuid(),
+});
+
 export type AiChatMutationProposal = z.infer<
 	typeof AiChatMutationProposalSchema
+>;
+
+export type ProposalAllowlist = z.infer<typeof ProposalAllowlistSchema>;
+
+export type ExecuteAiChatMutationInput = z.infer<
+	typeof ExecuteAiChatMutationInputSchema
+>;
+
+export type ExecuteAiChatMutationResult = z.infer<
+	typeof ExecuteAiChatMutationResultSchema
 >;

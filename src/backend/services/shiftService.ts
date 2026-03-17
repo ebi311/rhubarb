@@ -3,6 +3,11 @@ import { ServiceUserRepository } from '@/backend/repositories/serviceUserReposit
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
+import {
+	type AiChatMutationProposal,
+	type ExecuteAiChatMutationResult,
+	type ProposalAllowlist,
+} from '@/models/aiChatMutationProposal';
 import { Shift } from '@/models/shift';
 import {
 	AssignStaffWithCascadeOutput,
@@ -89,6 +94,11 @@ export class ShiftService {
 		if (!staff) throw new ServiceError(404, 'Staff not found');
 		if (staff.role !== 'admin') throw new ServiceError(403, 'Forbidden');
 		return staff;
+	}
+
+	async findActorOfficeId(userId: string): Promise<string | null> {
+		const staff = await this.staffRepository.findByAuthUserId(userId);
+		return staff?.office_id ?? null;
 	}
 
 	/**
@@ -329,6 +339,148 @@ export class ShiftService {
 
 		await this.shiftRepository.create(shift);
 		return shift;
+	}
+
+	async executeAiChatMutationProposal(
+		userId: string,
+		proposal: AiChatMutationProposal,
+		allowlist: ProposalAllowlist,
+	): Promise<ExecuteAiChatMutationResult> {
+		const adminStaff = await this.getAdminStaff(userId);
+
+		if (!allowlist.shiftIds.includes(proposal.shiftId)) {
+			throw new ServiceError(400, 'Proposal target shift is not allowed');
+		}
+
+		const shift = await this.shiftRepository.findById(proposal.shiftId);
+		if (!shift) throw new ServiceError(404, 'Shift not found');
+
+		this.ensureShiftUpdatable(shift);
+		await this.ensureShiftInAdminOffice(adminStaff.office_id, shift);
+
+		if (proposal.type === 'change_shift_staff') {
+			return this.executeChangeShiftStaffProposal({
+				proposal,
+				allowlist,
+				adminOfficeId: adminStaff.office_id,
+				shift,
+			});
+		}
+
+		return this.executeUpdateShiftTimeProposal({
+			proposal,
+			adminOfficeId: adminStaff.office_id,
+			shift,
+		});
+	}
+
+	private async executeChangeShiftStaffProposal(params: {
+		proposal: Extract<AiChatMutationProposal, { type: 'change_shift_staff' }>;
+		allowlist: ProposalAllowlist;
+		adminOfficeId: string;
+		shift: Shift;
+	}): Promise<ExecuteAiChatMutationResult> {
+		if (!params.allowlist.staffIds?.includes(params.proposal.toStaffId)) {
+			throw new ServiceError(400, 'Proposal target staff is not allowed');
+		}
+
+		const targetWindow = this.buildShiftDateWindow(params.shift);
+		this.ensureNotChangingStaffForPastShift(targetWindow.start);
+
+		if (params.shift.staff_id === params.proposal.toStaffId) {
+			throw new ServiceError(
+				400,
+				'New staff is already assigned to this shift',
+			);
+		}
+
+		await this.ensureStaffAssignableForShift({
+			newStaffId: params.proposal.toStaffId,
+			adminOfficeId: params.adminOfficeId,
+			serviceTypeId: params.shift.service_type_id,
+		});
+
+		await this.ensureNoStaffConflicts({
+			staffId: params.proposal.toStaffId,
+			startTime: targetWindow.start,
+			endTime: targetWindow.end,
+			officeId: params.adminOfficeId,
+			excludeShiftId: params.shift.id,
+		});
+
+		await this.shiftRepository.updateStaffAssignment(
+			params.shift.id,
+			params.proposal.toStaffId,
+			params.proposal.reason,
+		);
+
+		return {
+			type: params.proposal.type,
+			shiftId: params.shift.id,
+			officeId: params.adminOfficeId,
+		};
+	}
+
+	private async executeUpdateShiftTimeProposal(params: {
+		proposal: Extract<AiChatMutationProposal, { type: 'update_shift_time' }>;
+		adminOfficeId: string;
+		shift: Shift;
+	}): Promise<ExecuteAiChatMutationResult> {
+		const newStartTime = new Date(params.proposal.startAt);
+		const newEndTime = new Date(params.proposal.endAt);
+		if (
+			Number.isNaN(newStartTime.getTime()) ||
+			Number.isNaN(newEndTime.getTime())
+		) {
+			throw new ServiceError(400, 'Invalid datetime');
+		}
+
+		this.ensureEndAfterStart(newStartTime, newEndTime);
+		this.ensureSameDayDatetimeRange(newStartTime, newEndTime);
+		this.ensureDateWithinShiftAdjustmentRange(params.shift.date, newStartTime);
+
+		const currentWindow = this.buildShiftDateWindow(params.shift);
+		if (
+			this.hasScheduleChanged({
+				currentStartTime: currentWindow.start,
+				currentEndTime: currentWindow.end,
+				newStartTime,
+				newEndTime,
+			})
+		) {
+			this.ensureNotMovingToPast(newStartTime);
+		}
+
+		await this.ensureNoClientConflicts({
+			clientId: params.shift.client_id,
+			startTime: newStartTime,
+			endTime: newEndTime,
+			officeId: params.adminOfficeId,
+			excludeShiftId: params.shift.id,
+		});
+
+		if (params.shift.staff_id) {
+			await this.ensureNoStaffConflicts({
+				staffId: params.shift.staff_id,
+				startTime: newStartTime,
+				endTime: newEndTime,
+				officeId: params.adminOfficeId,
+				excludeShiftId: params.shift.id,
+			});
+		}
+
+		await this.shiftRepository.updateShiftSchedule(params.shift.id, {
+			startTime: newStartTime,
+			endTime: newEndTime,
+			staffId: params.shift.staff_id ?? null,
+			notes: params.proposal.reason,
+		});
+
+		return {
+			type: params.proposal.type,
+			shiftId: params.shift.id,
+			officeId: params.adminOfficeId,
+		};
 	}
 
 	private ensureShiftUpdatable(shift: Shift) {
