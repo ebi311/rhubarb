@@ -31,14 +31,5 @@ for select
 
 to authenticated
 using (
-exists (
-select
-1
-from
-public.staffs as s
-where
-s.auth_user_id = auth.uid ()
-and s.office_id = ai_operation_logs.office_id
-and s.role = 'admin'
-)
+public.is_admin_in_office(ai_operation_logs.office_id)
 );
