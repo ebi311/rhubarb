@@ -1,4 +1,5 @@
 import { AiOperationLogRepository } from '@/backend/repositories/aiOperationLogRepository';
+import { ServiceError } from '@/backend/services/basicScheduleService';
 import {
 	AiOperationLog,
 	AiOperationLogInput,
@@ -21,12 +22,15 @@ export class AiOperationLogService {
 	}
 
 	async log(input: AiOperationLogServiceInput): Promise<AiOperationLog> {
-		const payload = AiOperationLogInputSchema.parse({
+		const parsed = AiOperationLogInputSchema.safeParse({
 			...input,
 			source: 'ai_chat',
 		});
+		if (!parsed.success) {
+			throw new ServiceError(400, 'Validation error', parsed.error.issues);
+		}
 
-		return this.repository.create(payload);
+		return this.repository.create(parsed.data);
 	}
 
 	async logSilently(input: AiOperationLogServiceInput): Promise<void> {

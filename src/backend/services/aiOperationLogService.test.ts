@@ -1,4 +1,5 @@
 import { AiOperationLogRepository } from '@/backend/repositories/aiOperationLogRepository';
+import { ServiceError } from '@/backend/services/basicScheduleService';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,6 +40,36 @@ describe('AiOperationLogService', () => {
 	it('repository 未指定時は createAdminClient を使って初期化する', () => {
 		new AiOperationLogService();
 		expect(createAdminClient).toHaveBeenCalledTimes(1);
+	});
+
+	it('log は不正な入力時に ServiceError(400) を投げる', async () => {
+		const repository = {
+			create: vi.fn(),
+		} as unknown as AiOperationLogRepository;
+		const service = new AiOperationLogService({ repository });
+
+		await expect(
+			service.log({
+				office_id: TEST_IDS.OFFICE_1,
+				actor_user_id: TEST_IDS.USER_1,
+				operation_type: ' ',
+				targets: { shift_id: TEST_IDS.SCHEDULE_1 },
+			}),
+		).rejects.toMatchObject({
+			name: 'ServiceError',
+			status: 400,
+			message: 'Validation error',
+		});
+
+		await expect(
+			service.log({
+				office_id: TEST_IDS.OFFICE_1,
+				actor_user_id: TEST_IDS.USER_1,
+				operation_type: ' ',
+				targets: { shift_id: TEST_IDS.SCHEDULE_1 },
+			}),
+		).rejects.toBeInstanceOf(ServiceError);
+		expect(repository.create).not.toHaveBeenCalled();
 	});
 
 	it('logSilently は失敗しても例外を投げない', async () => {
