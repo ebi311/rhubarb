@@ -13,7 +13,9 @@ result jsonb,
 created_at timestamptz not null default now(),
 constraint ai_operation_logs_source_check check (source = 'ai_chat'),
 constraint ai_operation_logs_operation_type_check
-check (operation_type in ('change_shift_staff', 'update_shift_time'))
+check (operation_type in ('change_shift_staff', 'update_shift_time')),
+constraint ai_operation_logs_targets_type_check
+check (jsonb_typeof(targets) = 'object')
 );
 
 comment on table public.ai_operation_logs is

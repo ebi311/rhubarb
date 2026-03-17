@@ -69,6 +69,25 @@ describe('AiOperationLogSchema', () => {
 		});
 
 		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'targets は null にできません',
+			);
+		}
+	});
+
+	it('targets がオブジェクト以外の場合はエラー', () => {
+		const result = AiOperationLogSchema.safeParse({
+			id: TEST_IDS.SCHEDULE_1,
+			office_id: TEST_IDS.OFFICE_1,
+			actor_user_id: TEST_IDS.USER_1,
+			source: 'ai_chat',
+			operation_type: 'change_shift_staff',
+			targets: ['shift_id', TEST_IDS.SCHEDULE_1],
+			created_at: '2026-03-20T00:00:00Z',
+		});
+
+		expect(result.success).toBe(false);
 	});
 });
 
@@ -119,6 +138,23 @@ describe('AiOperationLogInputSchema', () => {
 			source: 'ai_chat',
 			operation_type: 'change_shift_staff',
 			targets: null,
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues[0]?.message).toBe(
+				'targets は null にできません',
+			);
+		}
+	});
+
+	it('targets がオブジェクト以外の場合はエラー', () => {
+		const result = AiOperationLogInputSchema.safeParse({
+			office_id: TEST_IDS.OFFICE_1,
+			actor_user_id: TEST_IDS.USER_1,
+			source: 'ai_chat',
+			operation_type: 'change_shift_staff',
+			targets: ['shift_id', TEST_IDS.SCHEDULE_1],
 		});
 
 		expect(result.success).toBe(false);

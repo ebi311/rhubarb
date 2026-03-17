@@ -21,8 +21,14 @@ const JsonValueSchema: z.ZodType<Json> = z.lazy(() =>
 );
 
 const NonNullJsonValueSchema = JsonValueSchema.refine(
-	(v): v is Exclude<Json, null> => v !== null,
-	{ message: 'targets must not be null' },
+	(value): value is Exclude<Json, null> => value !== null,
+	{ message: 'targets は null にできません' },
+);
+
+const TargetsSchema = NonNullJsonValueSchema.refine(
+	(value): value is Record<string, Json> =>
+		typeof value === 'object' && !Array.isArray(value),
+	{ message: 'targets は JSON オブジェクトである必要があります' },
 );
 
 export const AiOperationLogSchema = z.object({
@@ -31,7 +37,7 @@ export const AiOperationLogSchema = z.object({
 	actor_user_id: z.uuid(),
 	source: AiOperationLogSourceSchema,
 	operation_type: AiOperationTypeSchema,
-	targets: NonNullJsonValueSchema,
+	targets: TargetsSchema,
 	proposal: JsonValueSchema.optional(),
 	request: JsonValueSchema.optional(),
 	result: JsonValueSchema.optional(),
@@ -45,7 +51,7 @@ export const AiOperationLogInputSchema = z.object({
 	actor_user_id: z.uuid(),
 	source: AiOperationLogSourceSchema,
 	operation_type: AiOperationTypeSchema,
-	targets: NonNullJsonValueSchema,
+	targets: TargetsSchema,
 	proposal: JsonValueSchema.optional(),
 	request: JsonValueSchema.optional(),
 	result: JsonValueSchema.optional(),
