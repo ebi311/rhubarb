@@ -35,5 +35,5 @@ for select
 
 to authenticated
 using (
-public.is_admin_in_office(ai_operation_logs.office_id)
+public.is_admin_in_office(office_id)
 );
