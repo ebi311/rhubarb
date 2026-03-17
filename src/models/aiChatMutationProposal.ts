@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+export const AI_CHAT_MUTATION_PROPOSAL_TYPES = [
+	'change_shift_staff',
+	'update_shift_time',
+] as const;
+
+export const AiChatMutationProposalTypeSchema = z.enum(
+	AI_CHAT_MUTATION_PROPOSAL_TYPES,
+);
+
 const ChangeShiftStaffProposalSchema = z.object({
 	type: z.literal('change_shift_staff'),
 	shiftId: z.uuid(),

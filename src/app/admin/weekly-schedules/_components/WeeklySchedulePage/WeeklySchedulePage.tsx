@@ -5,7 +5,7 @@ import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AdjustmentChatDialog } from '../AdjustmentChatDialog';
 import type { ShiftContext } from '../AdjustmentChatDialog/useAdjustmentChat';
 import {
@@ -301,7 +301,10 @@ export const WeeklySchedulePage = ({
 	};
 
 	const hasShifts = initialShifts.length > 0;
-	const staffIdsAllowlist = staffOptions.map((staffOption) => staffOption.id);
+	const staffIdsAllowlist = useMemo(
+		() => staffOptions.map((staffOption) => staffOption.id),
+		[staffOptions],
+	);
 
 	return (
 		<div className="flex flex-col gap-4">

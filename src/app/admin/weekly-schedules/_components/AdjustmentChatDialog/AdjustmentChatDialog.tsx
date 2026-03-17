@@ -27,9 +27,16 @@ export const AdjustmentChatDialog = ({
 	);
 
 	const detectedProposal = useMemo(() => {
-		const latestAssistantMessage = [...messages]
-			.reverse()
-			.find((message) => message.role === 'assistant');
+		let latestAssistantMessage: (typeof messages)[number] | null = null;
+
+		for (let index = messages.length - 1; index >= 0; index -= 1) {
+			const message = messages[index];
+
+			if (message.role === 'assistant') {
+				latestAssistantMessage = message;
+				break;
+			}
+		}
 
 		if (!latestAssistantMessage?.content) {
 			return null;
