@@ -4,6 +4,7 @@ import {
 	ALLOWLIST_MAX_SHIFT_IDS,
 	ALLOWLIST_MAX_STAFF_IDS,
 	AiChatMutationProposalSchema,
+	ExecuteAiChatMutationInputSchema,
 	ProposalAllowlistSchema,
 } from './aiChatMutationProposal';
 
@@ -148,5 +149,56 @@ describe('ProposalAllowlistSchema', () => {
 		});
 
 		expect(result.success).toBe(false);
+	});
+});
+
+describe('ExecuteAiChatMutationInputSchema', () => {
+	it('change_shift_staff で allowlist.staffIds が undefined の場合はエラー', () => {
+		const result = ExecuteAiChatMutationInputSchema.safeParse({
+			proposal: {
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+			},
+			allowlist: {
+				shiftIds: [TEST_IDS.SCHEDULE_1],
+			},
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						path: ['allowlist', 'staffIds'],
+					}),
+				]),
+			);
+		}
+	});
+
+	it('change_shift_staff で allowlist.staffIds が空配列の場合はエラー', () => {
+		const result = ExecuteAiChatMutationInputSchema.safeParse({
+			proposal: {
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+			},
+			allowlist: {
+				shiftIds: [TEST_IDS.SCHEDULE_1],
+				staffIds: [],
+			},
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						path: ['allowlist', 'staffIds'],
+					}),
+				]),
+			);
+		}
 	});
 });
