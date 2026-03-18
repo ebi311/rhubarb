@@ -39,15 +39,15 @@ export const ProposalConfirmCard = ({
 			</p>
 			<div className="mt-3 space-y-2 text-sm">
 				<div className="grid grid-cols-[56px_1fr] gap-x-2">
-					<span className="text-base-content/70">Before</span>
+					<span className="text-base-content/70">変更前</span>
 					<span className="font-medium">{beforeValue}</span>
 				</div>
 				<div className="grid grid-cols-[56px_1fr] gap-x-2">
-					<span className="text-base-content/70">After</span>
+					<span className="text-base-content/70">変更後</span>
 					<span className="font-medium">{afterValue}</span>
 				</div>
 				<div className="grid grid-cols-[56px_1fr] gap-x-2">
-					<span className="text-base-content/70">Reason</span>
+					<span className="text-base-content/70">理由</span>
 					<span>{proposal.reason ?? '（理由なし）'}</span>
 				</div>
 			</div>
@@ -57,7 +57,7 @@ export const ProposalConfirmCard = ({
 					className="btn btn-ghost btn-sm"
 					onClick={onDismiss}
 				>
-					Dismiss
+					キャンセル
 				</button>
 				<button
 					type="button"
@@ -65,7 +65,7 @@ export const ProposalConfirmCard = ({
 					onClick={onConfirm}
 					disabled={isConfirmDisabled}
 				>
-					Confirm
+					確定
 				</button>
 			</div>
 		</div>

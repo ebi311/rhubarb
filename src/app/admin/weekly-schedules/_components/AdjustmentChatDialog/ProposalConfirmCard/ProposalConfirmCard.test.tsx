@@ -35,7 +35,7 @@ describe('ProposalConfirmCard', () => {
 			/>,
 		);
 
-		const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+		const confirmButton = screen.getByRole('button', { name: '確定' });
 		expect(confirmButton).toBeDisabled();
 
 		await user.click(confirmButton);
@@ -54,10 +54,10 @@ describe('ProposalConfirmCard', () => {
 			/>,
 		);
 
-		expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+		expect(screen.getByRole('button', { name: '確定' })).toBeDisabled();
 	});
 
-	it('Confirm / Dismiss クリックで callback が呼ばれる', async () => {
+	it('確定 / キャンセル クリックで callback が呼ばれる', async () => {
 		const user = userEvent.setup();
 		const onConfirm = vi.fn();
 		const onDismiss = vi.fn();
@@ -72,14 +72,14 @@ describe('ProposalConfirmCard', () => {
 			/>,
 		);
 
-		await user.click(screen.getByRole('button', { name: 'Confirm' }));
-		await user.click(screen.getByRole('button', { name: 'Dismiss' }));
+		await user.click(screen.getByRole('button', { name: '確定' }));
+		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
 
 		expect(onConfirm).toHaveBeenCalledTimes(1);
 		expect(onDismiss).toHaveBeenCalledTimes(1);
 	});
 
-	it('change_shift_staff の Before / After と reason を表示する', () => {
+	it('change_shift_staff の 変更前 / 変更後 と 理由 を表示する', () => {
 		render(
 			<ProposalConfirmCard
 				proposal={createChangeStaffProposal()}
@@ -91,10 +91,11 @@ describe('ProposalConfirmCard', () => {
 		);
 
 		expect(screen.getByText('担当者変更')).toBeInTheDocument();
-		expect(screen.getByText('Before')).toBeInTheDocument();
-		expect(screen.getByText('After')).toBeInTheDocument();
+		expect(screen.getByText('変更前')).toBeInTheDocument();
+		expect(screen.getByText('変更後')).toBeInTheDocument();
 		expect(screen.getByText('山田 太郎')).toBeInTheDocument();
 		expect(screen.getByText('佐藤 花子')).toBeInTheDocument();
+		expect(screen.getByText('理由')).toBeInTheDocument();
 		expect(screen.getByText('担当者の急病のため')).toBeInTheDocument();
 	});
 });
