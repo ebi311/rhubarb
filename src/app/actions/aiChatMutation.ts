@@ -40,7 +40,6 @@ export const executeAiChatMutationAction = async (
 
 	const service = new ShiftService(supabase);
 	const aiOperationLogService = new AiOperationLogService();
-	const actorOfficeId = await service.findActorOfficeId(user.id);
 
 	try {
 		const result = await service.executeAiChatMutationProposal(
@@ -64,7 +63,11 @@ export const executeAiChatMutationAction = async (
 		return successResult(ExecuteAiChatMutationResultSchema.parse(result));
 	} catch (error) {
 		if (error instanceof ServiceError) {
-			if (!shouldSkipAuditLog(error.status) && actorOfficeId) {
+			const actorOfficeId = !shouldSkipAuditLog(error.status)
+				? await service.findActorOfficeId(user.id).catch(() => null)
+				: null;
+
+			if (actorOfficeId) {
 				await aiOperationLogService.logSilently({
 					office_id: actorOfficeId,
 					actor_user_id: user.id,

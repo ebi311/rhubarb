@@ -46,10 +46,31 @@ export const ProposalAllowlistSchema = z.object({
 	staffIds: z.array(z.uuid()).optional(),
 });
 
-export const ExecuteAiChatMutationInputSchema = z.object({
-	proposal: AiChatMutationProposalSchema,
-	allowlist: ProposalAllowlistSchema,
-});
+export const ExecuteAiChatMutationInputSchema = z
+	.object({
+		proposal: AiChatMutationProposalSchema,
+		allowlist: ProposalAllowlistSchema,
+	})
+	.superRefine((input, ctx) => {
+		if (input.proposal.type === 'change_shift_staff') {
+			if (input.allowlist.staffIds === undefined) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'allowlist.staffIds is required',
+					path: ['allowlist', 'staffIds'],
+				});
+				return;
+			}
+
+			if (input.allowlist.staffIds.length === 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'allowlist.staffIds must not be empty',
+					path: ['allowlist', 'staffIds'],
+				});
+			}
+		}
+	});
 
 export const ExecuteAiChatMutationResultSchema = z.object({
 	type: AiChatMutationProposalTypeSchema,
