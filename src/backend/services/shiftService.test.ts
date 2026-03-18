@@ -2655,4 +2655,246 @@ describe('ShiftService', () => {
 			);
 		});
 	});
+
+	describe('executeAiChatMutationProposal', () => {
+		const userId = TEST_IDS.USER_1;
+		const shiftId = TEST_IDS.SCHEDULE_1;
+		const toStaffId = TEST_IDS.STAFF_2;
+		const adminStaff = createTestStaff({
+			auth_user_id: userId,
+			office_id: TEST_IDS.OFFICE_1,
+			role: 'admin',
+		});
+		const targetShift = createTestShift({
+			id: shiftId,
+			client_id: TEST_IDS.CLIENT_1,
+			service_type_id: 'physical-care',
+			staff_id: TEST_IDS.STAFF_1,
+			date: new Date('2030-05-10T00:00:00+09:00'),
+			time: {
+				start: { hour: 10, minute: 0 },
+				end: { hour: 11, minute: 0 },
+			},
+		});
+		const targetClient = createTestServiceUser({
+			id: TEST_IDS.CLIENT_1,
+			office_id: TEST_IDS.OFFICE_1,
+		});
+
+		it('should throw 403 for non-admin user', async () => {
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(
+				createTestStaff({ role: 'helper' }),
+			);
+
+			await expect(
+				service.executeAiChatMutationProposal(
+					userId,
+					{
+						type: 'update_shift_time',
+						shiftId,
+						startAt: '2030-05-10T10:00:00+09:00',
+						endAt: '2030-05-10T11:00:00+09:00',
+					},
+					{ shiftIds: [shiftId] },
+				),
+			).rejects.toThrow(
+				expect.objectContaining({ status: 403, message: 'Forbidden' }),
+			);
+		});
+
+		it('should throw 400 when proposal shiftId is not in allowlist', async () => {
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+
+			await expect(
+				service.executeAiChatMutationProposal(
+					userId,
+					{
+						type: 'update_shift_time',
+						shiftId,
+						startAt: '2030-05-10T10:30:00+09:00',
+						endAt: '2030-05-10T11:30:00+09:00',
+					},
+					{ shiftIds: [TEST_IDS.SCHEDULE_2] },
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'Proposal target shift is not allowed',
+				}),
+			);
+		});
+
+		it('should throw 400 when toStaffId is not in allowlist for change_shift_staff', async () => {
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(targetClient);
+
+			await expect(
+				service.executeAiChatMutationProposal(
+					userId,
+					{
+						type: 'change_shift_staff',
+						shiftId,
+						toStaffId,
+						reason: 'ヘルパー変更',
+					},
+					{ shiftIds: [shiftId], staffIds: [TEST_IDS.STAFF_3] },
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 400,
+					message: 'Proposal target staff is not allowed',
+				}),
+			);
+		});
+
+		it('should throw 409 when change_shift_staff causes staff conflict', async () => {
+			const candidateStaff = createTestStaff({
+				id: toStaffId,
+				office_id: TEST_IDS.OFFICE_1,
+				role: 'helper',
+			});
+			const candidateWithAbilities: StaffWithServiceTypes = {
+				...candidateStaff,
+				service_type_ids: ['physical-care'],
+			};
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(targetClient);
+			mockStaffRepo.findById.mockResolvedValueOnce(candidateStaff);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				candidateWithAbilities,
+			]);
+			mockShiftRepo.findStaffConflictingShifts.mockResolvedValueOnce([
+				createTestShift({ id: TEST_IDS.SCHEDULE_2 }),
+			]);
+
+			await expect(
+				service.executeAiChatMutationProposal(
+					userId,
+					{
+						type: 'change_shift_staff',
+						shiftId,
+						toStaffId,
+						reason: 'ヘルパー変更',
+					},
+					{ shiftIds: [shiftId], staffIds: [toStaffId] },
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 409,
+					message: 'Staff has conflicting shift',
+				}),
+			);
+		});
+
+		it('should throw 409 when update_shift_time causes client conflict', async () => {
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce({
+				...targetShift,
+				staff_id: null,
+				is_unassigned: true,
+			});
+			mockServiceUserRepo.findById.mockResolvedValueOnce(targetClient);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([
+				createTestShift({ id: TEST_IDS.SCHEDULE_2 }),
+			]);
+
+			await expect(
+				service.executeAiChatMutationProposal(
+					userId,
+					{
+						type: 'update_shift_time',
+						shiftId,
+						startAt: '2030-05-11T10:00:00+09:00',
+						endAt: '2030-05-11T11:00:00+09:00',
+						reason: '日時変更',
+					},
+					{ shiftIds: [shiftId] },
+				),
+			).rejects.toThrow(
+				expect.objectContaining({
+					status: 409,
+					message: 'Client has conflicting shift',
+				}),
+			);
+		});
+
+		it('should return success result for change_shift_staff proposal (UC1)', async () => {
+			const candidateStaff = createTestStaff({
+				id: toStaffId,
+				office_id: TEST_IDS.OFFICE_1,
+				role: 'helper',
+			});
+			const candidateWithAbilities: StaffWithServiceTypes = {
+				...candidateStaff,
+				service_type_ids: ['physical-care'],
+			};
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce(targetShift);
+			mockServiceUserRepo.findById.mockResolvedValueOnce(targetClient);
+			mockStaffRepo.findById.mockResolvedValueOnce(candidateStaff);
+			mockStaffRepo.listByOffice.mockResolvedValueOnce([
+				candidateWithAbilities,
+			]);
+			mockShiftRepo.findStaffConflictingShifts.mockResolvedValueOnce([]);
+
+			const result = await service.executeAiChatMutationProposal(
+				userId,
+				{
+					type: 'change_shift_staff',
+					shiftId,
+					toStaffId,
+					reason: 'ヘルパー変更',
+				},
+				{ shiftIds: [shiftId], staffIds: [toStaffId] },
+			);
+
+			expect(mockShiftRepo.updateStaffAssignment).toHaveBeenCalledWith(
+				shiftId,
+				toStaffId,
+				'ヘルパー変更',
+			);
+			expect(result).toEqual({
+				type: 'change_shift_staff',
+				shiftId,
+				officeId: TEST_IDS.OFFICE_1,
+			});
+		});
+
+		it('should return success result for update_shift_time proposal (UC2)', async () => {
+			mockStaffRepo.findByAuthUserId.mockResolvedValueOnce(adminStaff);
+			mockShiftRepo.findById.mockResolvedValueOnce({
+				...targetShift,
+				staff_id: null,
+				is_unassigned: true,
+			});
+			mockServiceUserRepo.findById.mockResolvedValueOnce(targetClient);
+			mockShiftRepo.findClientConflictingShifts.mockResolvedValueOnce([]);
+
+			const result = await service.executeAiChatMutationProposal(
+				userId,
+				{
+					type: 'update_shift_time',
+					shiftId,
+					startAt: '2030-05-11T10:00:00+09:00',
+					endAt: '2030-05-11T11:00:00+09:00',
+					reason: '日時変更',
+				},
+				{ shiftIds: [shiftId] },
+			);
+
+			expect(mockShiftRepo.updateShiftSchedule).toHaveBeenCalledWith(shiftId, {
+				startTime: new Date('2030-05-11T10:00:00+09:00'),
+				endTime: new Date('2030-05-11T11:00:00+09:00'),
+				staffId: null,
+				notes: '日時変更',
+			});
+			expect(result).toEqual({
+				type: 'update_shift_time',
+				shiftId,
+				officeId: TEST_IDS.OFFICE_1,
+			});
+		});
+	});
 });
