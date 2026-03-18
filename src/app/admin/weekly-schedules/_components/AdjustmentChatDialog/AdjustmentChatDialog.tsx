@@ -27,6 +27,11 @@ export const AdjustmentChatDialog = ({
 		},
 	);
 
+	const staffIdsAllowlist = useMemo(
+		() => staffOptions.map((staffOption) => staffOption.id),
+		[staffOptions],
+	);
+
 	const detectedProposal = useMemo(() => {
 		let latestAssistantMessage: (typeof messages)[number] | null = null;
 
@@ -43,13 +48,11 @@ export const AdjustmentChatDialog = ({
 			return null;
 		}
 
-		const staffIdsAllowlist = staffOptions.map((staffOption) => staffOption.id);
-
 		return parseProposal(latestAssistantMessage.content, {
 			shiftIds: [shiftContext.id],
 			staffIds: staffIdsAllowlist,
 		});
-	}, [messages, shiftContext.id, staffOptions]);
+	}, [messages, shiftContext.id, staffIdsAllowlist]);
 
 	const handleClose = () => {
 		stop(); // ストリーミング中止
