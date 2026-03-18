@@ -6,8 +6,8 @@ type ProposalConfirmCardProps = {
 	afterValue: string;
 	isStreaming?: boolean;
 	isExecuting?: boolean;
-	onConfirm: () => void;
-	onDismiss: () => void;
+	onConfirm: () => void | Promise<void>;
+	onDismiss: () => void | Promise<void>;
 };
 
 const getOperationLabel = (

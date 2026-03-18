@@ -1,7 +1,7 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { ProposalConfirmCard } from './ProposalConfirmCard';
 
 const createChangeStaffProposal = () => ({
@@ -20,6 +20,17 @@ const createUpdateTimeProposal = () => ({
 });
 
 describe('ProposalConfirmCard', () => {
+	it('onConfirm / onDismiss は async 関数を受け取れる型になっている', () => {
+		type Props = React.ComponentProps<typeof ProposalConfirmCard>;
+
+		expectTypeOf<Props['onConfirm']>().toEqualTypeOf<
+			() => void | Promise<void>
+		>();
+		expectTypeOf<Props['onDismiss']>().toEqualTypeOf<
+			() => void | Promise<void>
+		>();
+	});
+
 	it('streaming 中は Confirm ボタンが disabled になり、クリックしても onConfirm が呼ばれない', async () => {
 		const user = userEvent.setup();
 		const onConfirm = vi.fn();
