@@ -64,6 +64,17 @@ export const useProposalExecution = ({
 					onSuccess?.(data);
 				},
 			});
+		} catch {
+			handleActionResult(
+				{
+					data: null,
+					error: DEFAULT_ERROR_MESSAGE,
+					status: 500,
+				},
+				{
+					errorMessage: DEFAULT_ERROR_MESSAGE,
+				},
+			);
 		} finally {
 			isExecutingRef.current = false;
 			setIsExecuting(false);

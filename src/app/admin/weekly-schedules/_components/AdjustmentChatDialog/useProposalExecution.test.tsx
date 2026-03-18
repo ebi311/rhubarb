@@ -156,6 +156,28 @@ describe('useProposalExecution', () => {
 		);
 	});
 
+	it('Actionが例外をthrowしてもデフォルトエラートーストを表示しisExecutingを戻す', async () => {
+		executeAiChatMutationActionMock.mockRejectedValue(new Error('Unexpected'));
+
+		const { result } = renderHook(() =>
+			useProposalExecution({ proposal, allowlist }),
+		);
+
+		await act(async () => {
+			await result.current.execute();
+		});
+
+		expect(handleActionResultMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				data: null,
+				error: DEFAULT_ERROR_MESSAGE,
+				status: 500,
+			}),
+			expect.objectContaining({ errorMessage: DEFAULT_ERROR_MESSAGE }),
+		);
+		expect(result.current.isExecuting).toBe(false);
+	});
+
 	it('実行中の二重送信を防止する', async () => {
 		const deferred =
 			createDeferred<ActionResult<ExecuteAiChatMutationResult>>();
