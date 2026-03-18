@@ -9,6 +9,9 @@ export const AiChatMutationProposalTypeSchema = z.enum(
 	AI_CHAT_MUTATION_PROPOSAL_TYPES,
 );
 
+export const ALLOWLIST_MAX_SHIFT_IDS = 200;
+export const ALLOWLIST_MAX_STAFF_IDS = 500;
+
 const ChangeShiftStaffProposalSchema = z.object({
 	type: z.literal('change_shift_staff'),
 	shiftId: z.uuid(),
@@ -42,8 +45,8 @@ export const AiChatMutationProposalSchema = z.discriminatedUnion('type', [
 ]);
 
 export const ProposalAllowlistSchema = z.object({
-	shiftIds: z.array(z.uuid()),
-	staffIds: z.array(z.uuid()).optional(),
+	shiftIds: z.array(z.uuid()).min(1).max(ALLOWLIST_MAX_SHIFT_IDS),
+	staffIds: z.array(z.uuid()).max(ALLOWLIST_MAX_STAFF_IDS).optional(),
 });
 
 export const ExecuteAiChatMutationInputSchema = z
