@@ -13,12 +13,12 @@ type ProposalConfirmCardProps = {
 const getOperationLabel = (
 	proposalType: AiChatMutationProposal['type'],
 ): string => {
-	switch (proposalType) {
-		case 'change_shift_staff':
-			return '担当者変更';
-		case 'update_shift_time':
-			return '時間変更';
-	}
+	const operationLabelMap = {
+		change_shift_staff: '担当者変更',
+		update_shift_time: '時間変更',
+	} satisfies Record<AiChatMutationProposal['type'], string>;
+
+	return operationLabelMap[proposalType];
 };
 
 export const ProposalConfirmCard = ({
