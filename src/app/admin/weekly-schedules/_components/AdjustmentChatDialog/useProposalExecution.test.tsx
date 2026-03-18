@@ -213,4 +213,17 @@ describe('useProposalExecution', () => {
 		expect(handleActionResultMock).not.toHaveBeenCalled();
 		expect(result.current.isExecuting).toBe(false);
 	});
+
+	it('dismissでonDismissが呼ばれる', () => {
+		const onDismiss = vi.fn();
+		const { result } = renderHook(() =>
+			useProposalExecution({ proposal, allowlist, onDismiss }),
+		);
+
+		act(() => {
+			result.current.dismiss();
+		});
+
+		expect(onDismiss).toHaveBeenCalledTimes(1);
+	});
 });
