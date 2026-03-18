@@ -28,8 +28,11 @@ export const buildProposalDisplayValues = ({
 		};
 	}
 
+	const startDate = new Date(proposal.startAt);
+	const endDate = new Date(proposal.endAt);
+
 	return {
 		beforeValue: `${shiftContext.startTime}〜${shiftContext.endTime}`,
-		afterValue: `${toJstTimeStr(new Date(proposal.startAt))}〜${toJstTimeStr(new Date(proposal.endAt))}`,
+		afterValue: `${toJstTimeStr(startDate)}〜${toJstTimeStr(endDate)}`,
 	};
 };

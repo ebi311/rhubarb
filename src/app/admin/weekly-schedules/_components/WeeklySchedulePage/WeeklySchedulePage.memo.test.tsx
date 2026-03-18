@@ -10,7 +10,7 @@ import {
 
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
-const capturedStaffOptions: string[][] = [];
+const capturedStaffIds: string[][] = [];
 
 vi.mock('next/navigation', () => ({
 	useRouter: () => ({
@@ -38,9 +38,7 @@ vi.mock('../AdjustmentChatDialog', () => ({
 		if (!isOpen) {
 			return null;
 		}
-		capturedStaffOptions.push(
-			staffOptions.map((staffOption) => staffOption.id),
-		);
+		capturedStaffIds.push(staffOptions.map((staffOption) => staffOption.id));
 		return <div role="dialog">シフト調整チャット</div>;
 	},
 }));
@@ -86,7 +84,7 @@ describe('WeeklySchedulePage staffOptions', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		capturedStaffOptions.length = 0;
+		capturedStaffIds.length = 0;
 	});
 
 	it('再レンダー時もダイアログへ同じスタッフID一覧が渡る', async () => {
@@ -95,20 +93,14 @@ describe('WeeklySchedulePage staffOptions', () => {
 
 		await user.click(screen.getByRole('button', { name: 'AIに相談' }));
 		expect(screen.getByRole('dialog')).toBeInTheDocument();
-		expect(capturedStaffOptions).toHaveLength(1);
-		expect(capturedStaffOptions[0]).toEqual([
-			TEST_IDS.STAFF_1,
-			TEST_IDS.STAFF_2,
-		]);
+		expect(capturedStaffIds).toHaveLength(1);
+		expect(capturedStaffIds[0]).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);
 
 		await user.click(
 			screen.getByRole('button', { name: '利用者別グリッド表示' }),
 		);
 
-		expect(capturedStaffOptions).toHaveLength(2);
-		expect(capturedStaffOptions[1]).toEqual([
-			TEST_IDS.STAFF_1,
-			TEST_IDS.STAFF_2,
-		]);
+		expect(capturedStaffIds).toHaveLength(2);
+		expect(capturedStaffIds[1]).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);
 	});
 });
