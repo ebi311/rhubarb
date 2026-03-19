@@ -1,5 +1,6 @@
 'use client';
 
+import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { useMemo } from 'react';
 import { ChatInput } from './ChatInput';
 import { ChatMessageList } from './ChatMessageList';
@@ -10,20 +11,25 @@ import { useAdjustmentChat } from './useAdjustmentChat';
 type AdjustmentChatDialogProps = {
 	isOpen: boolean;
 	shiftContext: ShiftContext;
-	staffIdsAllowlist: string[];
+	staffOptions: StaffPickerOption[];
 	onClose: () => void;
 };
 
 export const AdjustmentChatDialog = ({
 	isOpen,
 	shiftContext,
-	staffIdsAllowlist,
+	staffOptions,
 	onClose,
 }: AdjustmentChatDialogProps) => {
 	const { messages, isStreaming, error, sendMessage, stop } = useAdjustmentChat(
 		{
 			shiftContext,
 		},
+	);
+
+	const staffIdsAllowlist = useMemo(
+		() => staffOptions.map((staffOption) => staffOption.id),
+		[staffOptions],
 	);
 
 	const detectedProposal = useMemo(() => {

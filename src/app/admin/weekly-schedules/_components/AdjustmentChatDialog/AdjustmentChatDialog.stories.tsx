@@ -12,7 +12,20 @@ const meta = {
 	tags: ['autodocs'],
 	args: {
 		onClose: fn(),
-		staffIdsAllowlist: [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2],
+		staffOptions: [
+			{
+				id: TEST_IDS.STAFF_1,
+				name: '山田太郎',
+				role: 'helper',
+				serviceTypeIds: [TEST_IDS.SERVICE_TYPE_1],
+			},
+			{
+				id: TEST_IDS.STAFF_2,
+				name: '鈴木花子',
+				role: 'helper',
+				serviceTypeIds: [TEST_IDS.SERVICE_TYPE_1],
+			},
+		],
 	},
 } satisfies Meta<typeof AdjustmentChatDialog>;
 

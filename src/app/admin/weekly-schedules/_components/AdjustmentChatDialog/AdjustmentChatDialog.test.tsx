@@ -22,6 +22,21 @@ const shiftContext = {
 	endTime: '11:00',
 };
 
+const staffOptions = [
+	{
+		id: TEST_IDS.STAFF_1,
+		name: '山田太郎',
+		role: 'helper' as const,
+		serviceTypeIds: [TEST_IDS.SERVICE_TYPE_1],
+	},
+	{
+		id: TEST_IDS.STAFF_2,
+		name: '鈴木花子',
+		role: 'helper' as const,
+		serviceTypeIds: [TEST_IDS.SERVICE_TYPE_1],
+	},
+];
+
 // デフォルトのモック状態を生成（AI SDK v6 API）
 const createMockUseChatReturn = (overrides: Record<string, unknown> = {}) => ({
 	messages: [],
@@ -57,7 +72,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={false}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -68,7 +83,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -82,7 +97,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -129,7 +144,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -150,7 +165,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -164,7 +179,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -183,7 +198,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -202,7 +217,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -222,7 +237,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={onClose}
 			/>,
 		);
@@ -246,7 +261,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -269,7 +284,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -312,7 +327,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -354,7 +369,7 @@ describe('AdjustmentChatDialog', () => {
 			<AdjustmentChatDialog
 				isOpen={true}
 				shiftContext={shiftContext}
-				staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+				staffOptions={staffOptions}
 				onClose={vi.fn()}
 			/>,
 		);
@@ -408,7 +423,7 @@ describe('AdjustmentChatDialog', () => {
 				<AdjustmentChatDialog
 					isOpen={true}
 					shiftContext={shiftContext}
-					staffIdsAllowlist={[TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]}
+					staffOptions={staffOptions}
 					onClose={vi.fn()}
 				/>,
 			);

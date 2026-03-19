@@ -10,7 +10,7 @@ import {
 
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
-const capturedStaffIdsAllowlist: string[][] = [];
+const capturedStaffIds: string[][] = [];
 
 vi.mock('next/navigation', () => ({
 	useRouter: () => ({
@@ -30,20 +30,20 @@ vi.mock('@/app/actions/weeklySchedules', () => ({
 vi.mock('../AdjustmentChatDialog', () => ({
 	AdjustmentChatDialog: ({
 		isOpen,
-		staffIdsAllowlist,
+		staffOptions,
 	}: {
 		isOpen: boolean;
-		staffIdsAllowlist: string[];
+		staffOptions: Array<{ id: string }>;
 	}) => {
 		if (!isOpen) {
 			return null;
 		}
-		capturedStaffIdsAllowlist.push(staffIdsAllowlist);
+		capturedStaffIds.push(staffOptions.map((staffOption) => staffOption.id));
 		return <div role="dialog">シフト調整チャット</div>;
 	},
 }));
 
-describe('WeeklySchedulePage staffIdsAllowlist', () => {
+describe('WeeklySchedulePage staffOptions', () => {
 	const weekStartDate = new Date('2026-01-19T00:00:00');
 
 	const sampleShifts: ShiftDisplayRow[] = [
@@ -84,23 +84,23 @@ describe('WeeklySchedulePage staffIdsAllowlist', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		capturedStaffIdsAllowlist.length = 0;
+		capturedStaffIds.length = 0;
 	});
 
-	it('再レンダー時に staffIdsAllowlist の参照が変わらない', async () => {
+	it('再レンダー時もダイアログへ同じスタッフID一覧が渡る', async () => {
 		const user = userEvent.setup();
 		render(<WeeklySchedulePage {...defaultProps} />);
 
 		await user.click(screen.getByRole('button', { name: 'AIに相談' }));
 		expect(screen.getByRole('dialog')).toBeInTheDocument();
-		expect(capturedStaffIdsAllowlist).toHaveLength(1);
-		const firstAllowlist = capturedStaffIdsAllowlist[0];
+		expect(capturedStaffIds).toHaveLength(1);
+		expect(capturedStaffIds[0]).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);
 
 		await user.click(
 			screen.getByRole('button', { name: '利用者別グリッド表示' }),
 		);
 
-		expect(capturedStaffIdsAllowlist).toHaveLength(2);
-		expect(capturedStaffIdsAllowlist[1]).toBe(firstAllowlist);
+		expect(capturedStaffIds).toHaveLength(2);
+		expect(capturedStaffIds[1]).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);
 	});
 });
