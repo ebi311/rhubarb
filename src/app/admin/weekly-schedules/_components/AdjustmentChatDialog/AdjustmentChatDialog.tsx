@@ -18,6 +18,26 @@ type AdjustmentChatDialogProps = {
 	onClose: () => void;
 };
 
+/** 最新の assistant メッセージから proposal を検出する（complexity 分離）*/
+const findLatestProposal = (
+	messages: Array<{ id: string; role: string; content: string }>,
+	allowlist: Parameters<typeof parseProposal>[1],
+) => {
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const message = messages[index];
+
+		if (message.role === 'assistant' && message.content) {
+			const proposal = parseProposal(message.content, allowlist);
+
+			if (proposal) {
+				return { messageId: message.id, proposal };
+			}
+		}
+	}
+
+	return null;
+};
+
 export const AdjustmentChatDialog = ({
 	isOpen,
 	shiftContext,
@@ -42,23 +62,15 @@ export const AdjustmentChatDialog = ({
 		[shiftContext.id, staffIdsAllowlist],
 	);
 
-	const detectedProposal = useMemo(() => {
-		let latestAssistantMessage: (typeof messages)[number] | null = null;
+	/** 最新の assistant メッセージ（id + parsed proposal）を返す */
+	const { detectedProposal, proposalKey } = useMemo(() => {
+		const result = findLatestProposal(messages, allowlist);
 
-		for (let index = messages.length - 1; index >= 0; index -= 1) {
-			const message = messages[index];
-
-			if (message.role === 'assistant') {
-				latestAssistantMessage = message;
-				break;
-			}
-		}
-
-		if (!latestAssistantMessage?.content) {
-			return null;
-		}
-
-		return parseProposal(latestAssistantMessage.content, allowlist);
+		return {
+			detectedProposal: result ? result.proposal : null,
+			// dismiss キーは「この assistant メッセージの id」で安定管理する
+			proposalKey: result ? result.messageId : null,
+		};
 	}, [messages, allowlist]);
 
 	const proposalDisplayValues = useMemo(() => {
@@ -72,11 +84,6 @@ export const AdjustmentChatDialog = ({
 			staffOptions,
 		});
 	}, [detectedProposal, shiftContext, staffOptions]);
-
-	const proposalKey = useMemo(
-		() => (detectedProposal ? JSON.stringify(detectedProposal) : null),
-		[detectedProposal],
-	);
 	const [dismissedProposalKey, setDismissedProposalKey] = useState<
 		string | null
 	>(null);
