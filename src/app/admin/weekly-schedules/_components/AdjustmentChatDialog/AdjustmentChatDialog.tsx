@@ -18,24 +18,40 @@ type AdjustmentChatDialogProps = {
 	onClose: () => void;
 };
 
-/** 最新の assistant メッセージから proposal を検出する（complexity 分離）*/
+/**
+ * 末尾側で最初に見つかる assistant メッセージ 1 件だけを対象に proposal を検出する。
+ * 最新 assistant に proposal が無い場合は null を返し、過去提案へはフォールバックしない。
+ */
 const findLatestProposal = (
 	messages: Array<{ id: string; role: string; content: string }>,
 	allowlist: Parameters<typeof parseProposal>[1],
 ) => {
+	let latestAssistantMessage: {
+		id: string;
+		role: string;
+		content: string;
+	} | null = null;
+
 	for (let index = messages.length - 1; index >= 0; index -= 1) {
 		const message = messages[index];
 
-		if (message.role === 'assistant' && message.content) {
-			const proposal = parseProposal(message.content, allowlist);
-
-			if (proposal) {
-				return { messageId: message.id, proposal };
-			}
+		if (message.role === 'assistant') {
+			latestAssistantMessage = message;
+			break;
 		}
 	}
 
-	return null;
+	if (!latestAssistantMessage?.content) {
+		return null;
+	}
+
+	const proposal = parseProposal(latestAssistantMessage.content, allowlist);
+
+	if (!proposal) {
+		return null;
+	}
+
+	return { messageId: latestAssistantMessage.id, proposal };
 };
 
 export const AdjustmentChatDialog = ({

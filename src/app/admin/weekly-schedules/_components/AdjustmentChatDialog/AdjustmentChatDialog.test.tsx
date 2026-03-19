@@ -355,6 +355,44 @@ describe('AdjustmentChatDialog', () => {
 		).toBeInTheDocument();
 	});
 
+	it('最新 assistant に proposal がない場合は過去 proposal を表示しない', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(`{
+  \"type\": \"change_shift_staff\",
+  \"shiftId\": \"${TEST_IDS.SCHEDULE_1}\",
+  \"toStaffId\": \"${TEST_IDS.STAFF_2}\"
+}`),
+					{
+						id: 'assistant-2',
+						role: 'assistant',
+						parts: [
+							{ type: 'text', text: '確認しました。追加情報をください。' },
+						],
+					},
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.queryByText('担当者変更')).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('button', { name: '確定' }),
+		).not.toBeInTheDocument();
+	});
+
 	it('change_shift_staff の提案 JSON があると担当者変更カードを表示する', () => {
 		mockUseChat.mockReturnValue(
 			createMockUseChatReturn({
@@ -521,6 +559,46 @@ describe('AdjustmentChatDialog', () => {
 		);
 
 		expect(screen.getByRole('button', { name: '確定' })).toBeDisabled();
+	});
+
+	it('isExecuting=true のときキャンセルボタンが disabled で押下しても dismiss されない', async () => {
+		const user = userEvent.setup();
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(`{
+  \"type\": \"change_shift_staff\",
+  \"shiftId\": \"${TEST_IDS.SCHEDULE_1}\",
+  \"toStaffId\": \"${TEST_IDS.STAFF_2}\"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+		mockUseProposalExecution.mockReturnValue({
+			isExecuting: true,
+			execute: mockExecuteProposal,
+			dismiss: mockDismissProposal,
+		});
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const dismissButton = screen.getByRole('button', { name: 'キャンセル' });
+		expect(dismissButton).toBeDisabled();
+
+		await user.click(dismissButton);
+
+		expect(mockDismissProposal).not.toHaveBeenCalled();
+		expect(screen.getByText('担当者変更')).toBeInTheDocument();
 	});
 
 	it('detectedProposal の算出で reverse を呼ばずに最新 assistant を検出できる', () => {
