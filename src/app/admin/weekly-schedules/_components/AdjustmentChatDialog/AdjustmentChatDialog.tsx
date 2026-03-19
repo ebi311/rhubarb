@@ -1,12 +1,15 @@
 'use client';
 
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { buildProposalDisplayValues } from './buildProposalDisplayValues';
 import { ChatInput } from './ChatInput';
 import { ChatMessageList } from './ChatMessageList';
 import { parseProposal } from './parseProposal';
+import { ProposalConfirmCard } from './ProposalConfirmCard';
 import type { ShiftContext } from './useAdjustmentChat';
 import { useAdjustmentChat } from './useAdjustmentChat';
+import { useProposalExecution } from './useProposalExecution';
 
 type AdjustmentChatDialogProps = {
 	isOpen: boolean;
@@ -31,6 +34,13 @@ export const AdjustmentChatDialog = ({
 		() => staffOptions.map((staffOption) => staffOption.id),
 		[staffOptions],
 	);
+	const allowlist = useMemo(
+		() => ({
+			shiftIds: [shiftContext.id],
+			staffIds: staffIdsAllowlist,
+		}),
+		[shiftContext.id, staffIdsAllowlist],
+	);
 
 	const detectedProposal = useMemo(() => {
 		let latestAssistantMessage: (typeof messages)[number] | null = null;
@@ -48,11 +58,36 @@ export const AdjustmentChatDialog = ({
 			return null;
 		}
 
-		return parseProposal(latestAssistantMessage.content, {
-			shiftIds: [shiftContext.id],
-			staffIds: staffIdsAllowlist,
+		return parseProposal(latestAssistantMessage.content, allowlist);
+	}, [messages, allowlist]);
+
+	const proposalDisplayValues = useMemo(() => {
+		if (!detectedProposal) {
+			return null;
+		}
+
+		return buildProposalDisplayValues({
+			proposal: detectedProposal,
+			shiftContext,
+			staffOptions,
 		});
-	}, [messages, shiftContext.id, staffIdsAllowlist]);
+	}, [detectedProposal, shiftContext, staffOptions]);
+
+	const proposalKey = useMemo(
+		() => (detectedProposal ? JSON.stringify(detectedProposal) : null),
+		[detectedProposal],
+	);
+	const [dismissedProposalKey, setDismissedProposalKey] = useState<
+		string | null
+	>(null);
+	const isDismissed =
+		proposalKey !== null && proposalKey === dismissedProposalKey;
+
+	const { execute, dismiss, isExecuting } = useProposalExecution({
+		proposal: detectedProposal,
+		allowlist,
+		onDismiss: () => setDismissedProposalKey(proposalKey),
+	});
 
 	const handleClose = () => {
 		stop(); // ストリーミング中止
@@ -106,9 +141,17 @@ export const AdjustmentChatDialog = ({
 				{error && <div className="m-4 alert alert-error">{error}</div>}
 
 				{/* 提案検出表示 */}
-				{detectedProposal && (
-					<div className="mx-4 mt-4 rounded-md border border-info/30 bg-info/10 px-3 py-2 text-xs text-info-content">
-						提案を検出しました（確定は次のステップで行います）
+				{detectedProposal && !isDismissed && proposalDisplayValues && (
+					<div className="mx-4 mt-4">
+						<ProposalConfirmCard
+							proposal={detectedProposal}
+							beforeValue={proposalDisplayValues.beforeValue}
+							afterValue={proposalDisplayValues.afterValue}
+							isStreaming={isStreaming}
+							isExecuting={isExecuting}
+							onConfirm={execute}
+							onDismiss={dismiss}
+						/>
 					</div>
 				)}
 

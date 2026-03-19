@@ -6,9 +6,14 @@ import { AdjustmentChatDialog } from './AdjustmentChatDialog';
 
 // Vercel AI SDK useChat のモック
 const mockUseChat = vi.fn();
+const mockUseProposalExecution = vi.fn();
 
 vi.mock('@ai-sdk/react', () => ({
 	useChat: () => mockUseChat(),
+}));
+
+vi.mock('./useProposalExecution', () => ({
+	useProposalExecution: (options: unknown) => mockUseProposalExecution(options),
 }));
 
 const shiftContext = {
@@ -48,16 +53,34 @@ const createMockUseChatReturn = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
+const createProposalMessage = (proposalJson: string) => ({
+	id: 'assistant-1',
+	role: 'assistant',
+	parts: [
+		{
+			type: 'text',
+			text: `提案です
+\`\`\`json
+${proposalJson}
+\`\`\``,
+		},
+	],
+});
+
 describe('AdjustmentChatDialog', () => {
 	let mockSendMessage: Mock;
 	let mockStop: Mock;
 	let mockSetMessages: Mock;
+	let mockExecuteProposal: Mock;
+	let mockDismissProposal: Mock;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockSendMessage = vi.fn();
 		mockStop = vi.fn();
 		mockSetMessages = vi.fn();
+		mockExecuteProposal = vi.fn();
+		mockDismissProposal = vi.fn();
 		mockUseChat.mockReturnValue(
 			createMockUseChatReturn({
 				sendMessage: mockSendMessage,
@@ -65,6 +88,11 @@ describe('AdjustmentChatDialog', () => {
 				setMessages: mockSetMessages,
 			}),
 		);
+		mockUseProposalExecution.mockReturnValue({
+			isExecuting: false,
+			execute: mockExecuteProposal,
+			dismiss: mockDismissProposal,
+		});
 	});
 
 	it('ダイアログが開閉する', () => {
@@ -294,28 +322,16 @@ describe('AdjustmentChatDialog', () => {
 		).toBeInTheDocument();
 	});
 
-	it('assistant の最新メッセージに提案 JSON があると案内を表示する', () => {
+	it('assistant の最新メッセージに提案 JSON があると ProposalConfirmCard を表示する', () => {
 		mockUseChat.mockReturnValue(
 			createMockUseChatReturn({
 				messages: [
-					{
-						id: '2',
-						role: 'assistant',
-						parts: [
-							{
-								type: 'text',
-								text: `提案です
-\`\`\`json
-{
+					createProposalMessage(`{
   "type": "update_shift_time",
   "shiftId": "${TEST_IDS.SCHEDULE_1}",
   "startAt": "2026-02-24T10:00:00+09:00",
   "endAt": "2026-02-24T11:00:00+09:00"
-}
-\`\`\``,
-							},
-						],
-					},
+}`),
 				],
 				sendMessage: mockSendMessage,
 				stop: mockStop,
@@ -332,32 +348,22 @@ describe('AdjustmentChatDialog', () => {
 			/>,
 		);
 
+		expect(screen.getByText('時間変更')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '確定' })).toBeInTheDocument();
 		expect(
-			screen.getByText('提案を検出しました（確定は次のステップで行います）'),
+			screen.getByRole('button', { name: 'キャンセル' }),
 		).toBeInTheDocument();
 	});
 
-	it('change_shift_staff の提案 JSON があると案内を表示する', () => {
+	it('change_shift_staff の提案 JSON があると担当者変更カードを表示する', () => {
 		mockUseChat.mockReturnValue(
 			createMockUseChatReturn({
 				messages: [
-					{
-						id: '2',
-						role: 'assistant',
-						parts: [
-							{
-								type: 'text',
-								text: `担当者変更案です
-\`\`\`json
-{
+					createProposalMessage(`{
   "type": "change_shift_staff",
   "shiftId": "${TEST_IDS.SCHEDULE_1}",
   "toStaffId": "${TEST_IDS.STAFF_2}"
-}
-\`\`\``,
-							},
-						],
-					},
+}`),
 				],
 				sendMessage: mockSendMessage,
 				stop: mockStop,
@@ -374,9 +380,147 @@ describe('AdjustmentChatDialog', () => {
 			/>,
 		);
 
-		expect(
-			screen.getByText('提案を検出しました（確定は次のステップで行います）'),
-		).toBeInTheDocument();
+		expect(screen.getByText('担当者変更')).toBeInTheDocument();
+		expect(screen.getByText('山田太郎')).toBeInTheDocument();
+		expect(screen.getByText('鈴木花子')).toBeInTheDocument();
+	});
+
+	it('確定ボタン押下で execute が呼ばれる', async () => {
+		const user = userEvent.setup();
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: '確定' }));
+
+		expect(mockExecuteProposal).toHaveBeenCalledTimes(1);
+	});
+
+	it('キャンセル押下でカードが非表示になる', async () => {
+		type UseProposalExecutionOptions = {
+			onDismiss?: () => void;
+		};
+		const user = userEvent.setup();
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+		mockUseProposalExecution.mockImplementation(
+			(options: UseProposalExecutionOptions) => ({
+				isExecuting: false,
+				execute: mockExecuteProposal,
+				dismiss: () => {
+					options.onDismiss?.();
+					mockDismissProposal();
+				},
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+		expect(mockDismissProposal).toHaveBeenCalledTimes(1);
+		expect(screen.queryByText('担当者変更')).not.toBeInTheDocument();
+	});
+
+	it('isStreaming=true のとき確定ボタンが disabled になる', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				status: 'streaming',
+				messages: [
+					createProposalMessage(`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByRole('button', { name: '確定' })).toBeDisabled();
+	});
+
+	it('isExecuting=true のとき確定ボタンが disabled になる', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+		mockUseProposalExecution.mockReturnValue({
+			isExecuting: true,
+			execute: mockExecuteProposal,
+			dismiss: mockDismissProposal,
+		});
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByRole('button', { name: '確定' })).toBeDisabled();
 	});
 
 	it('detectedProposal の算出で reverse を呼ばずに最新 assistant を検出できる', () => {
@@ -390,23 +534,11 @@ describe('AdjustmentChatDialog', () => {
 			mockUseChat.mockReturnValue(
 				createMockUseChatReturn({
 					messages: [
-						{
-							id: 'assistant-1',
-							role: 'assistant',
-							parts: [
-								{
-									type: 'text',
-									text: `提案です
-\`\`\`json
-{
+						createProposalMessage(`{
   "type": "change_shift_staff",
   "shiftId": "${TEST_IDS.SCHEDULE_1}",
   "toStaffId": "${TEST_IDS.STAFF_2}"
-}
-\`\`\``,
-								},
-							],
-						},
+}`),
 						{
 							id: 'user-1',
 							role: 'user',
@@ -428,9 +560,7 @@ describe('AdjustmentChatDialog', () => {
 				/>,
 			);
 
-			expect(
-				screen.getByText('提案を検出しました（確定は次のステップで行います）'),
-			).toBeInTheDocument();
+			expect(screen.getByText('担当者変更')).toBeInTheDocument();
 		} finally {
 			reverseSpy.mockRestore();
 		}
