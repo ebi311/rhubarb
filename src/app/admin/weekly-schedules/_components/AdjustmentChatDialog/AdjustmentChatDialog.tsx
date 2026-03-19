@@ -1,18 +1,57 @@
 'use client';
 
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { buildProposalDisplayValues } from './buildProposalDisplayValues';
 import { ChatInput } from './ChatInput';
 import { ChatMessageList } from './ChatMessageList';
 import { parseProposal } from './parseProposal';
+import { ProposalConfirmCard } from './ProposalConfirmCard';
 import type { ShiftContext } from './useAdjustmentChat';
 import { useAdjustmentChat } from './useAdjustmentChat';
+import { useProposalExecution } from './useProposalExecution';
 
 type AdjustmentChatDialogProps = {
 	isOpen: boolean;
 	shiftContext: ShiftContext;
 	staffOptions: StaffPickerOption[];
 	onClose: () => void;
+};
+
+/**
+ * 末尾側で最初に見つかる assistant メッセージ 1 件だけを対象に proposal を検出する。
+ * 最新 assistant に proposal が無い場合は null を返し、過去提案へはフォールバックしない。
+ */
+const findLatestProposal = (
+	messages: Array<{ id: string; role: string; content: string }>,
+	allowlist: Parameters<typeof parseProposal>[1],
+) => {
+	let latestAssistantMessage: {
+		id: string;
+		role: string;
+		content: string;
+	} | null = null;
+
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const message = messages[index];
+
+		if (message.role === 'assistant') {
+			latestAssistantMessage = message;
+			break;
+		}
+	}
+
+	if (!latestAssistantMessage?.content) {
+		return null;
+	}
+
+	const proposal = parseProposal(latestAssistantMessage.content, allowlist);
+
+	if (!proposal) {
+		return null;
+	}
+
+	return { messageId: latestAssistantMessage.id, proposal };
 };
 
 export const AdjustmentChatDialog = ({
@@ -31,28 +70,47 @@ export const AdjustmentChatDialog = ({
 		() => staffOptions.map((staffOption) => staffOption.id),
 		[staffOptions],
 	);
+	const allowlist = useMemo(
+		() => ({
+			shiftIds: [shiftContext.id],
+			staffIds: staffIdsAllowlist,
+		}),
+		[shiftContext.id, staffIdsAllowlist],
+	);
 
-	const detectedProposal = useMemo(() => {
-		let latestAssistantMessage: (typeof messages)[number] | null = null;
+	/** 最新の assistant メッセージ（id + parsed proposal）を返す */
+	const { detectedProposal, proposalKey } = useMemo(() => {
+		const result = findLatestProposal(messages, allowlist);
 
-		for (let index = messages.length - 1; index >= 0; index -= 1) {
-			const message = messages[index];
+		return {
+			detectedProposal: result ? result.proposal : null,
+			// dismiss キーは「この assistant メッセージの id」で安定管理する
+			proposalKey: result ? result.messageId : null,
+		};
+	}, [messages, allowlist]);
 
-			if (message.role === 'assistant') {
-				latestAssistantMessage = message;
-				break;
-			}
-		}
-
-		if (!latestAssistantMessage?.content) {
+	const proposalDisplayValues = useMemo(() => {
+		if (!detectedProposal) {
 			return null;
 		}
 
-		return parseProposal(latestAssistantMessage.content, {
-			shiftIds: [shiftContext.id],
-			staffIds: staffIdsAllowlist,
+		return buildProposalDisplayValues({
+			proposal: detectedProposal,
+			shiftContext,
+			staffOptions,
 		});
-	}, [messages, shiftContext.id, staffIdsAllowlist]);
+	}, [detectedProposal, shiftContext, staffOptions]);
+	const [dismissedProposalKey, setDismissedProposalKey] = useState<
+		string | null
+	>(null);
+	const isDismissed =
+		proposalKey !== null && proposalKey === dismissedProposalKey;
+
+	const { execute, dismiss, isExecuting } = useProposalExecution({
+		proposal: detectedProposal,
+		allowlist,
+		onDismiss: () => setDismissedProposalKey(proposalKey),
+	});
 
 	const handleClose = () => {
 		stop(); // ストリーミング中止
@@ -106,9 +164,17 @@ export const AdjustmentChatDialog = ({
 				{error && <div className="m-4 alert alert-error">{error}</div>}
 
 				{/* 提案検出表示 */}
-				{detectedProposal && (
-					<div className="mx-4 mt-4 rounded-md border border-info/30 bg-info/10 px-3 py-2 text-xs text-info-content">
-						提案を検出しました（確定は次のステップで行います）
+				{detectedProposal && !isDismissed && proposalDisplayValues && (
+					<div className="mx-4 mt-4">
+						<ProposalConfirmCard
+							proposal={detectedProposal}
+							beforeValue={proposalDisplayValues.beforeValue}
+							afterValue={proposalDisplayValues.afterValue}
+							isStreaming={isStreaming}
+							isExecuting={isExecuting}
+							onConfirm={execute}
+							onDismiss={dismiss}
+						/>
 					</div>
 				)}
 

@@ -68,6 +68,21 @@ describe('ProposalConfirmCard', () => {
 		expect(screen.getByRole('button', { name: '確定' })).toBeDisabled();
 	});
 
+	it('executing 中は キャンセル ボタンも disabled になる', () => {
+		render(
+			<ProposalConfirmCard
+				proposal={createUpdateTimeProposal()}
+				beforeValue="10:00-11:00"
+				afterValue="11:00-12:00"
+				isExecuting={true}
+				onConfirm={vi.fn()}
+				onDismiss={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByRole('button', { name: 'キャンセル' })).toBeDisabled();
+	});
+
 	it('確定 / キャンセル クリックで callback が呼ばれる', async () => {
 		const user = userEvent.setup();
 		const onConfirm = vi.fn();

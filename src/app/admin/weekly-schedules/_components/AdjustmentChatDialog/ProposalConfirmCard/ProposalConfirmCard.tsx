@@ -31,6 +31,7 @@ export const ProposalConfirmCard = ({
 	onDismiss,
 }: ProposalConfirmCardProps) => {
 	const isConfirmDisabled = isStreaming || isExecuting;
+	const isDismissDisabled = isExecuting;
 
 	return (
 		<div className="rounded-lg border border-info/30 bg-base-100 p-4">
@@ -56,6 +57,7 @@ export const ProposalConfirmCard = ({
 					type="button"
 					className="btn btn-ghost btn-sm"
 					onClick={onDismiss}
+					disabled={isDismissDisabled}
 				>
 					キャンセル
 				</button>
