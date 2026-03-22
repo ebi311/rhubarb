@@ -1153,6 +1153,15 @@ describe('ShiftService', () => {
 	});
 
 	describe('assignStaffWithCascadeUnassign', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-03-01T00:00:00+09:00'));
+		});
+
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
 		it('should throw 400 when newStaffId is already assigned to target shift', async () => {
 			const userId = createTestId();
 			const shiftId = TEST_IDS.SCHEDULE_1;
@@ -1521,7 +1530,6 @@ describe('ShiftService', () => {
 		});
 
 		it('should throw 400 when assigning past shift', async () => {
-			vi.useFakeTimers();
 			vi.setSystemTime(new Date('2026-02-22T00:00:00+09:00'));
 
 			const userId = createTestId();
@@ -1558,8 +1566,6 @@ describe('ShiftService', () => {
 					message: 'Cannot change staff for past shift',
 				}),
 			);
-
-			vi.useRealTimers();
 		});
 
 		it('should throw service error with details when cascade unassign partially fails', async () => {
