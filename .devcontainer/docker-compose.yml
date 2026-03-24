@@ -8,10 +8,12 @@ services:
     user: node
     volumes:
       - ../:/workspaces/app:cached
+      - copilot_data:/home/node/.copilot
       - node_modules:/workspaces/app/node_modules
     tty: true
     stdin_open: true
     command: sleep infinity
 
 volumes:
+  copilot_data:
   node_modules:

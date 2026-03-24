@@ -72,6 +72,9 @@
 				"streetsidesoftware.code-spell-checker"
 			]
 		}
+	},
+	"remoteEnv": {
+		"GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
 	}
 
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
