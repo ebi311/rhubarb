@@ -1,3 +1,4 @@
+import type { ExecuteAiChatMutationResult } from '@/models/aiChatMutationProposal';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -452,6 +453,55 @@ describe('AdjustmentChatDialog', () => {
 		await user.click(screen.getByRole('button', { name: '確定' }));
 
 		expect(mockExecuteProposal).toHaveBeenCalledTimes(1);
+	});
+
+	it('確定成功時にカードが非表示になる', async () => {
+		type UseProposalExecutionOptions = {
+			onSuccess?: (data: ExecuteAiChatMutationResult | null) => void;
+		};
+		const user = userEvent.setup();
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+		mockUseProposalExecution.mockImplementation(
+			(options: UseProposalExecutionOptions) => ({
+				isExecuting: false,
+				execute: async () => {
+					options.onSuccess?.(null);
+					mockExecuteProposal();
+				},
+				dismiss: mockDismissProposal,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText('担当者変更')).toBeInTheDocument();
+
+		await user.click(screen.getByRole('button', { name: '確定' }));
+
+		expect(mockExecuteProposal).toHaveBeenCalledTimes(1);
+		await waitFor(() => {
+			expect(screen.queryByText('担当者変更')).not.toBeInTheDocument();
+		});
 	});
 
 	it('キャンセル押下でカードが非表示になる', async () => {

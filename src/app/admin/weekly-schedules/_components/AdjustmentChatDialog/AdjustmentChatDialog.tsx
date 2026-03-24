@@ -109,6 +109,7 @@ export const AdjustmentChatDialog = ({
 	const { execute, dismiss, isExecuting } = useProposalExecution({
 		proposal: detectedProposal,
 		allowlist,
+		onSuccess: () => setDismissedProposalKey(proposalKey),
 		onDismiss: () => setDismissedProposalKey(proposalKey),
 	});
 
