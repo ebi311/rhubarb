@@ -1,3 +1,4 @@
+import type { ExecuteAiChatMutationResult } from '@/models/aiChatMutationProposal';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -456,7 +457,7 @@ describe('AdjustmentChatDialog', () => {
 
 	it('確定成功時にカードが非表示になる', async () => {
 		type UseProposalExecutionOptions = {
-			onSuccess?: () => void;
+			onSuccess?: (data: ExecuteAiChatMutationResult | null) => void;
 		};
 		const user = userEvent.setup();
 		mockUseChat.mockReturnValue(
@@ -477,7 +478,7 @@ describe('AdjustmentChatDialog', () => {
 			(options: UseProposalExecutionOptions) => ({
 				isExecuting: false,
 				execute: async () => {
-					options.onSuccess?.();
+					options.onSuccess?.(null);
 					mockExecuteProposal();
 				},
 				dismiss: mockDismissProposal,
