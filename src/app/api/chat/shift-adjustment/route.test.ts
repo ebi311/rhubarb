@@ -710,6 +710,83 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('SYSTEM_PROMPT にツール未実行時の成功断言禁止ルールを含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '対応を完了して' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'ツール未実行の状態で、処理が完了した・確定した・変更できた等の成功断言をしてはならない',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'まだ未確定であることを必ず明示し、UI の確定操作（例: 確定ボタン）を案内する',
+				),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT にツール失敗時の成功断言禁止ルールを含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '失敗時の案内を確認して' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'ツール実行が失敗した場合、成功断言をしてはならない',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'失敗した事実を必ず明示し、再実行（リトライ）または次に取るべき具体的アクションへ誘導する',
+				),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT にツール成功時のみ成功断言を許可するルールを含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '成功時のルールを確認して' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'ツール実行が成功した場合に限り、成功断言を許可する',
+				),
+			}),
+		);
+	});
+
 	it('複数シフトの場合は単一シフト向けの確認不要指示を含めない', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
