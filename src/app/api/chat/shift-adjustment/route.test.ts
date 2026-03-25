@@ -759,7 +759,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
-	it('SYSTEM_PROMPT に proposal 省略禁止ルールを含める', async () => {
+	it('SYSTEM_PROMPT に proposal 必須条件と情報不足時の質問許可ルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -774,7 +774,14 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'ツール未実行でも proposal(JSON) は必ず出力し、省略してはならない',
+					'対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposal(JSON) を必ず出力し、省略してはならない',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'対象シフト（shiftId）が未特定など情報不足時は、proposal(JSON) を無理に出力せず、必要な確認質問のみを行ってよい',
 				),
 			}),
 		);
@@ -796,6 +803,13 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect.objectContaining({
 				system: expect.stringContaining(
 					'ツール未実行の状態で、処理が完了した・確定した・変更できた等の成功断言をしてはならない',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'対象シフト（shiftId）が未特定など情報不足時は、proposal(JSON) を無理に出力せず、必要な確認質問のみを行ってよい',
 				),
 			}),
 		);
