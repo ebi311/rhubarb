@@ -710,6 +710,76 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('SYSTEM_PROMPT に proposal(JSON) は成功断言ではないルールを含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '調整案を出して' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'proposal(JSON) の提示は成功断言ではありません',
+				),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT に shiftId 不足時の丸投げ禁止と聞き返しルールを含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: 'shiftId が分からない' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'「システム上で shiftId を確認してください」のような丸投げをしてはならない',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'UI 上の候補（日時・利用者名・スタッフ名など）を示して対象特定を促すか、会話で必要情報を聞き返してください',
+				),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT に proposal 省略禁止ルールを含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '未確定時の対応を確認したい' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'ツール未実行でも proposal(JSON) は必ず出力し、省略してはならない',
+				),
+			}),
+		);
+	});
+
 	it('SYSTEM_PROMPT にツール未実行時の成功断言禁止ルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
@@ -732,7 +802,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'まだ未確定であることを必ず明示し、UI の確定操作（例: 確定ボタン）を案内する',
+					'proposal(JSON) 提示後は未確定であることを明示し、UI の確定操作（例: 確定ボタン）を案内する',
 				),
 			}),
 		);
