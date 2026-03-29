@@ -156,17 +156,17 @@ export const AdjustmentChatDialog = ({
 	const hasVisibleProposal =
 		detectedProposal !== null && !isDismissed && proposalDisplayValues !== null;
 
-	const proposalSection =
-		detectedProposal !== null && !isDismissed && proposalDisplayValues !== null
-			? renderProposalSection({
-					detectedProposal,
-					proposalDisplayValues,
-					isStreaming,
-					isExecuting,
-					onConfirm: execute,
-					onDismiss: dismiss,
-				})
-			: null;
+	const proposalMessageId = hasVisibleProposal ? proposalKey : null;
+	const proposalSection = hasVisibleProposal
+		? renderProposalSection({
+				detectedProposal: detectedProposal!,
+				proposalDisplayValues: proposalDisplayValues!,
+				isStreaming,
+				isExecuting,
+				onConfirm: execute,
+				onDismiss: dismiss,
+			})
+		: null;
 
 	if (!isOpen) return null;
 
@@ -221,7 +221,7 @@ export const AdjustmentChatDialog = ({
 				<ChatMessageList
 					messages={messages}
 					isStreaming={isStreaming}
-					hasVisibleProposal={hasVisibleProposal}
+					proposalMessageId={proposalMessageId}
 				/>
 
 				{/* 入力エリア */}

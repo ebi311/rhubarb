@@ -6,7 +6,7 @@ import type { ChatMessage } from './useAdjustmentChat';
 type ChatMessageListProps = {
 	messages: ChatMessage[];
 	isStreaming?: boolean;
-	hasVisibleProposal?: boolean;
+	proposalMessageId?: string | null;
 };
 
 const PROPOSAL_PLACEHOLDER_TEXT = '（提案を生成しました）';
@@ -17,19 +17,19 @@ const getAssistantContentWithoutJsonBlock = (content: string): string =>
 	content.replace(JSON_CODE_BLOCK_REGEX, '').trim();
 
 const shouldHideProposalPlaceholderMessage = (
-	content: string,
-	hasVisibleProposal?: boolean,
+	message: ChatMessage,
+	proposalMessageId?: string | null,
 ): boolean => {
-	if (!hasVisibleProposal) {
+	if (!proposalMessageId || message.id !== proposalMessageId) {
 		return false;
 	}
 
-	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(content);
+	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(message.content);
 	if (!hasJsonCodeBlock) {
 		return false;
 	}
 
-	return getAssistantContentWithoutJsonBlock(content).length === 0;
+	return getAssistantContentWithoutJsonBlock(message.content).length === 0;
 };
 
 const getAssistantDisplayContent = (content: string): string | null => {
@@ -62,7 +62,7 @@ const getMessageDisplayContent = (message: ChatMessage): string | null => {
 export const ChatMessageList = ({
 	messages,
 	isStreaming = false,
-	hasVisibleProposal = false,
+	proposalMessageId = null,
 }: ChatMessageListProps) => {
 	const endRef = useRef<HTMLDivElement>(null);
 	const prevMessageCountRef = useRef(0);
@@ -95,10 +95,7 @@ export const ChatMessageList = ({
 			{messages.map((message) => {
 				if (
 					message.role === 'assistant' &&
-					shouldHideProposalPlaceholderMessage(
-						message.content,
-						hasVisibleProposal,
-					)
+					shouldHideProposalPlaceholderMessage(message, proposalMessageId)
 				) {
 					return null;
 				}
