@@ -109,7 +109,9 @@ export const parseProposal = (
 		return proposal;
 	}
 
-	console.warn('[parseProposal] failed to parse proposal', { failReason });
+	if (failReason && failReason !== 'no_json_block') {
+		console.warn('[parseProposal] failed to parse proposal', { failReason });
+	}
 
 	return null;
 };

@@ -8,14 +8,14 @@ describe('parseProposal', () => {
 		staffIds: [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2],
 	};
 
-	const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+	let warnSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
-		warnSpy.mockClear();
+		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 	});
 
 	afterEach(() => {
-		warnSpy.mockClear();
+		warnSpy.mockRestore();
 	});
 
 	it('assistant content から ```json ブロックを抽出して parse できる', () => {
@@ -280,14 +280,11 @@ describe('parseProposal warning', () => {
 		staffIds: [TEST_IDS.STAFF_1],
 	};
 
-	it('失敗時に console.warn を出す', () => {
+	it('no_json_block の場合は console.warn を出さない', () => {
 		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		const result = parseProposal('提案は文章のみです', allowlist);
 		expect(result).toBeNull();
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining('[parseProposal] failed to parse proposal'),
-			expect.objectContaining({ failReason: 'no_json_block' }),
-		);
+		expect(warnSpy).not.toHaveBeenCalled();
 		warnSpy.mockRestore();
 	});
 });
