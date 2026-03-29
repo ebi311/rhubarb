@@ -10,7 +10,7 @@ services:
       - ../:/workspaces/app:cached
       - copilot_data:/home/node/.copilot
       - node_modules:/workspaces/app/node_modules
-      - /run/host-services/ssh-auth.sock:/ssh-agent
+      - ${SSH_AUTH_SOCK:-/run/host-services/ssh-auth.sock}:/ssh-agent
     environment:
       - SSH_AUTH_SOCK=/ssh-agent
     tty: true
