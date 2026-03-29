@@ -6,7 +6,7 @@ import type { ChatMessage } from './useAdjustmentChat';
 type ChatMessageListProps = {
 	messages: ChatMessage[];
 	isStreaming?: boolean;
-	hasProposal?: boolean;
+	hasVisibleProposal?: boolean;
 };
 
 const PROPOSAL_PLACEHOLDER_TEXT = '（提案を生成しました）';
@@ -18,9 +18,9 @@ const getAssistantContentWithoutJsonBlock = (content: string): string =>
 
 const shouldHideProposalPlaceholderMessage = (
 	content: string,
-	hasProposal: boolean,
+	hasVisibleProposal?: boolean,
 ): boolean => {
-	if (!hasProposal) {
+	if (!hasVisibleProposal) {
 		return false;
 	}
 
@@ -32,15 +32,8 @@ const shouldHideProposalPlaceholderMessage = (
 	return getAssistantContentWithoutJsonBlock(content).length === 0;
 };
 
-const getAssistantDisplayContent = (
-	content: string,
-	hasProposal: boolean,
-): string | null => {
+const getAssistantDisplayContent = (content: string): string | null => {
 	if (content.trim().length === 0) {
-		return null;
-	}
-
-	if (shouldHideProposalPlaceholderMessage(content, hasProposal)) {
 		return null;
 	}
 
@@ -58,12 +51,9 @@ const getAssistantDisplayContent = (
 	return null;
 };
 
-const getMessageDisplayContent = (
-	message: ChatMessage,
-	hasProposal: boolean,
-): string | null => {
+const getMessageDisplayContent = (message: ChatMessage): string | null => {
 	if (message.role === 'assistant') {
-		return getAssistantDisplayContent(message.content, hasProposal);
+		return getAssistantDisplayContent(message.content);
 	}
 
 	return message.content;
@@ -72,7 +62,7 @@ const getMessageDisplayContent = (
 export const ChatMessageList = ({
 	messages,
 	isStreaming = false,
-	hasProposal = false,
+	hasVisibleProposal = false,
 }: ChatMessageListProps) => {
 	const endRef = useRef<HTMLDivElement>(null);
 	const prevMessageCountRef = useRef(0);
@@ -105,12 +95,15 @@ export const ChatMessageList = ({
 			{messages.map((message) => {
 				if (
 					message.role === 'assistant' &&
-					shouldHideProposalPlaceholderMessage(message.content, hasProposal)
+					shouldHideProposalPlaceholderMessage(
+						message.content,
+						hasVisibleProposal,
+					)
 				) {
 					return null;
 				}
 
-				const displayContent = getMessageDisplayContent(message, hasProposal);
+				const displayContent = getMessageDisplayContent(message);
 
 				return (
 					<div

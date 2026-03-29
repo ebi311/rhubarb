@@ -98,10 +98,10 @@ describe('ChatMessageList', () => {
 		expect(screen.getByText('（提案を生成しました）')).toBeInTheDocument();
 	});
 
-	it('hasProposal=true のとき JSON のみメッセージでプレースホルダを表示しない', () => {
+	it('hasVisibleProposal=true のとき JSON のみメッセージでプレースホルダを表示しない', () => {
 		render(
 			<ChatMessageList
-				hasProposal={true}
+				hasVisibleProposal={true}
 				messages={[
 					createMessage({
 						content: '```json\n{ "type": "update_shift_time" }\n```',

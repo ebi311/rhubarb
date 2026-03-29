@@ -221,7 +221,7 @@ export const AdjustmentChatDialog = ({
 				<ChatMessageList
 					messages={messages}
 					isStreaming={isStreaming}
-					hasProposal={hasVisibleProposal}
+					hasVisibleProposal={hasVisibleProposal}
 				/>
 
 				{/* 入力エリア */}
