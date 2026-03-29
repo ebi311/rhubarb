@@ -228,6 +228,13 @@ describe('parseProposalWithDiagnostic', () => {
 		});
 	});
 
+	it('empty_json_block を返す', () => {
+		expect(parseProposalWithDiagnostic('```json\n```', allowlist)).toEqual({
+			proposal: null,
+			failReason: 'empty_json_block',
+		});
+	});
+
 	it('multiple_json_blocks を返す', () => {
 		const content = '```json\n{}\n```\n\n```json\n{}\n```';
 		expect(parseProposalWithDiagnostic(content, allowlist)).toEqual({
