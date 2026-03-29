@@ -730,7 +730,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'✅ 「今回は提案JSONはありません。必要なら作成します」',
+					'✅ 「今回は提案はありません。必要なら作成します」',
 				),
 			}),
 		);

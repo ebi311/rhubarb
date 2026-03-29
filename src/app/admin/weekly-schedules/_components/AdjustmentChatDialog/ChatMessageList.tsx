@@ -6,21 +6,46 @@ import type { ChatMessage } from './useAdjustmentChat';
 type ChatMessageListProps = {
 	messages: ChatMessage[];
 	isStreaming?: boolean;
+	hasProposal?: boolean;
 };
 
 const PROPOSAL_PLACEHOLDER_TEXT = '（提案を生成しました）';
 const JSON_CODE_BLOCK_REGEX = /```json\s*[\s\S]*?\s*```/gi;
 const JSON_CODE_BLOCK_DETECT_REGEX = /```json\s*[\s\S]*?\s*```/i;
 
-const getAssistantDisplayContent = (content: string): string | null => {
+const getAssistantContentWithoutJsonBlock = (content: string): string =>
+	content.replace(JSON_CODE_BLOCK_REGEX, '').trim();
+
+const shouldHideProposalPlaceholderMessage = (
+	content: string,
+	hasProposal: boolean,
+): boolean => {
+	if (!hasProposal) {
+		return false;
+	}
+
+	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(content);
+	if (!hasJsonCodeBlock) {
+		return false;
+	}
+
+	return getAssistantContentWithoutJsonBlock(content).length === 0;
+};
+
+const getAssistantDisplayContent = (
+	content: string,
+	hasProposal: boolean,
+): string | null => {
 	if (content.trim().length === 0) {
 		return null;
 	}
 
+	if (shouldHideProposalPlaceholderMessage(content, hasProposal)) {
+		return null;
+	}
+
 	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(content);
-	const contentWithoutJsonBlock = content
-		.replace(JSON_CODE_BLOCK_REGEX, '')
-		.trim();
+	const contentWithoutJsonBlock = getAssistantContentWithoutJsonBlock(content);
 
 	if (contentWithoutJsonBlock.length > 0) {
 		return contentWithoutJsonBlock;
@@ -33,9 +58,12 @@ const getAssistantDisplayContent = (content: string): string | null => {
 	return null;
 };
 
-const getMessageDisplayContent = (message: ChatMessage): string | null => {
+const getMessageDisplayContent = (
+	message: ChatMessage,
+	hasProposal: boolean,
+): string | null => {
 	if (message.role === 'assistant') {
-		return getAssistantDisplayContent(message.content);
+		return getAssistantDisplayContent(message.content, hasProposal);
 	}
 
 	return message.content;
@@ -44,6 +72,7 @@ const getMessageDisplayContent = (message: ChatMessage): string | null => {
 export const ChatMessageList = ({
 	messages,
 	isStreaming = false,
+	hasProposal = false,
 }: ChatMessageListProps) => {
 	const endRef = useRef<HTMLDivElement>(null);
 	const prevMessageCountRef = useRef(0);
@@ -74,7 +103,14 @@ export const ChatMessageList = ({
 	return (
 		<div className="flex-1 space-y-4 overflow-y-auto p-4">
 			{messages.map((message) => {
-				const displayContent = getMessageDisplayContent(message);
+				if (
+					message.role === 'assistant' &&
+					shouldHideProposalPlaceholderMessage(message.content, hasProposal)
+				) {
+					return null;
+				}
+
+				const displayContent = getMessageDisplayContent(message, hasProposal);
 
 				return (
 					<div

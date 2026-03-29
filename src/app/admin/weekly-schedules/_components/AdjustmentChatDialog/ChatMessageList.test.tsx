@@ -88,10 +88,7 @@ describe('ChatMessageList', () => {
 			<ChatMessageList
 				messages={[
 					createMessage({
-						content: `
-\`\`\`json
-{ "type": "update_shift_time" }
-\`\`\``,
+						content: '```json\n{ "type": "update_shift_time" }\n```',
 					}),
 				]}
 			/>,
@@ -99,5 +96,22 @@ describe('ChatMessageList', () => {
 
 		expect(screen.queryByText(/```json/)).not.toBeInTheDocument();
 		expect(screen.getByText('（提案を生成しました）')).toBeInTheDocument();
+	});
+
+	it('hasProposal=true のとき JSON のみメッセージでプレースホルダを表示しない', () => {
+		render(
+			<ChatMessageList
+				hasProposal={true}
+				messages={[
+					createMessage({
+						content: '```json\n{ "type": "update_shift_time" }\n```',
+					}),
+				]}
+			/>,
+		);
+
+		expect(
+			screen.queryByText('（提案を生成しました）'),
+		).not.toBeInTheDocument();
 	});
 });

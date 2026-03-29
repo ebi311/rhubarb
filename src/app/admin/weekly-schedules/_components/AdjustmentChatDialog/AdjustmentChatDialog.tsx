@@ -54,6 +54,41 @@ const findLatestProposal = (
 	return { messageId: latestAssistantMessage.id, proposal };
 };
 
+type ProposalSectionProps = {
+	detectedProposal: NonNullable<ReturnType<typeof parseProposal>>;
+	proposalDisplayValues: ReturnType<typeof buildProposalDisplayValues>;
+	isStreaming: boolean;
+	isExecuting: boolean;
+	onConfirm: () => Promise<void>;
+	onDismiss: () => void;
+};
+
+const renderErrorAlert = (error: string | null) =>
+	error ? <div className="m-4 alert alert-error">{error}</div> : null;
+
+const renderProposalSection = ({
+	detectedProposal,
+	proposalDisplayValues,
+	isStreaming,
+	isExecuting,
+	onConfirm,
+	onDismiss,
+}: ProposalSectionProps) => {
+	return (
+		<div className="mx-4 mt-4">
+			<ProposalConfirmCard
+				proposal={detectedProposal}
+				beforeValue={proposalDisplayValues.beforeValue}
+				afterValue={proposalDisplayValues.afterValue}
+				isStreaming={isStreaming}
+				isExecuting={isExecuting}
+				onConfirm={onConfirm}
+				onDismiss={onDismiss}
+			/>
+		</div>
+	);
+};
+
 export const AdjustmentChatDialog = ({
 	isOpen,
 	shiftContext,
@@ -118,6 +153,21 @@ export const AdjustmentChatDialog = ({
 		onClose();
 	};
 
+	const hasVisibleProposal =
+		detectedProposal !== null && !isDismissed && proposalDisplayValues !== null;
+
+	const proposalSection =
+		detectedProposal !== null && !isDismissed && proposalDisplayValues !== null
+			? renderProposalSection({
+					detectedProposal,
+					proposalDisplayValues,
+					isStreaming,
+					isExecuting,
+					onConfirm: execute,
+					onDismiss: dismiss,
+				})
+			: null;
+
 	if (!isOpen) return null;
 
 	return (
@@ -162,25 +212,17 @@ export const AdjustmentChatDialog = ({
 				</div>
 
 				{/* エラー表示 */}
-				{error && <div className="m-4 alert alert-error">{error}</div>}
+				{renderErrorAlert(error)}
 
 				{/* 提案検出表示 */}
-				{detectedProposal && !isDismissed && proposalDisplayValues && (
-					<div className="mx-4 mt-4">
-						<ProposalConfirmCard
-							proposal={detectedProposal}
-							beforeValue={proposalDisplayValues.beforeValue}
-							afterValue={proposalDisplayValues.afterValue}
-							isStreaming={isStreaming}
-							isExecuting={isExecuting}
-							onConfirm={execute}
-							onDismiss={dismiss}
-						/>
-					</div>
-				)}
+				{proposalSection}
 
 				{/* メッセージリスト */}
-				<ChatMessageList messages={messages} isStreaming={isStreaming} />
+				<ChatMessageList
+					messages={messages}
+					isStreaming={isStreaming}
+					hasProposal={hasVisibleProposal}
+				/>
 
 				{/* 入力エリア */}
 				<div className="border-t border-base-300 pt-3">
