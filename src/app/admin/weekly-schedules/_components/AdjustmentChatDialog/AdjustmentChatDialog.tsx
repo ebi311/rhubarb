@@ -1,7 +1,7 @@
 'use client';
 
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { buildProposalDisplayValues } from './buildProposalDisplayValues';
 import { ChatInput } from './ChatInput';
 import { ChatMessageList } from './ChatMessageList';
@@ -155,22 +155,24 @@ export const AdjustmentChatDialog = ({
 		onClose();
 	};
 
-	const hasVisibleProposal =
-		detectedProposal !== null && !isDismissed && proposalDisplayValues !== null;
+	let proposalMessageId: string | null = null;
+	let proposalSection: ReactNode = null;
 
-	const proposalMessageId = hasVisibleProposal ? proposalKey : null;
-	const proposalSection = hasVisibleProposal
-		? renderProposalSection({
-				detectedProposal,
-				proposalDisplayValues: proposalDisplayValues as NonNullable<
-					typeof proposalDisplayValues
-				>,
-				isStreaming,
-				isExecuting,
-				onConfirm: execute,
-				onDismiss: dismiss,
-			})
-		: null;
+	if (
+		detectedProposal !== null &&
+		!isDismissed &&
+		proposalDisplayValues !== null
+	) {
+		proposalMessageId = proposalKey;
+		proposalSection = renderProposalSection({
+			detectedProposal,
+			proposalDisplayValues,
+			isStreaming,
+			isExecuting,
+			onConfirm: execute,
+			onDismiss: dismiss,
+		});
+	}
 
 	if (!isOpen) return null;
 

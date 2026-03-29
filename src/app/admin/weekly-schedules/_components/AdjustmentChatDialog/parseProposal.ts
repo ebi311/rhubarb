@@ -77,15 +77,10 @@ export const parseProposalWithDiagnostic = (
 		return { proposal: null, failReason: extracted.failReason };
 	}
 
-	const parsedJson = (() => {
-		try {
-			return JSON.parse(extracted.jsonText) as unknown;
-		} catch {
-			return null;
-		}
-	})();
-
-	if (!parsedJson) {
+	let parsedJson: unknown;
+	try {
+		parsedJson = JSON.parse(extracted.jsonText);
+	} catch {
 		return { proposal: null, failReason: 'json_parse_error' };
 	}
 
