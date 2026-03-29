@@ -287,4 +287,23 @@ describe('parseProposal warning', () => {
 		expect(warnSpy).not.toHaveBeenCalled();
 		warnSpy.mockRestore();
 	});
+
+	it('empty_json_block の場合は console.warn を出さない', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const result = parseProposal('```json\n```', allowlist);
+		expect(result).toBeNull();
+		expect(warnSpy).not.toHaveBeenCalled();
+		warnSpy.mockRestore();
+	});
+
+	it('json_parse_error の場合は console.warn を出す', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const result = parseProposal('```json\nnot-valid-json\n```', allowlist);
+		expect(result).toBeNull();
+		expect(warnSpy).toHaveBeenCalledWith(
+			'[parseProposal] failed to parse proposal',
+			expect.objectContaining({ failReason: 'json_parse_error' }),
+		);
+		warnSpy.mockRestore();
+	});
 });

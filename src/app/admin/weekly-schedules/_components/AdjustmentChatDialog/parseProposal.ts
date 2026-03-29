@@ -10,6 +10,7 @@ export type ProposalAllowlist = {
 
 export type ParseProposalFailReason =
 	| 'no_json_block'
+	| 'empty_json_block'
 	| 'multiple_json_blocks'
 	| 'json_parse_error'
 	| 'schema_invalid'
@@ -32,8 +33,12 @@ const extractJsonCodeBlock = (
 	}
 
 	const jsonText = matches[0]?.[1] ?? null;
-	if (!jsonText) {
+	if (jsonText == null) {
+		// マッチしたが capture group が undefined (あり得ないケース)
 		return { jsonText: null, failReason: 'no_json_block' };
+	}
+	if (jsonText.trim().length === 0) {
+		return { jsonText: null, failReason: 'empty_json_block' };
 	}
 
 	return { jsonText, failReason: null };
@@ -109,7 +114,11 @@ export const parseProposal = (
 		return proposal;
 	}
 
-	if (failReason && failReason !== 'no_json_block') {
+	if (
+		failReason &&
+		failReason !== 'no_json_block' &&
+		failReason !== 'empty_json_block'
+	) {
 		console.warn('[parseProposal] failed to parse proposal', { failReason });
 	}
 
