@@ -56,7 +56,9 @@ const findLatestProposal = (
 
 type ProposalSectionProps = {
 	detectedProposal: NonNullable<ReturnType<typeof parseProposal>>;
-	proposalDisplayValues: ReturnType<typeof buildProposalDisplayValues>;
+	proposalDisplayValues: NonNullable<
+		ReturnType<typeof buildProposalDisplayValues>
+	>;
 	isStreaming: boolean;
 	isExecuting: boolean;
 	onConfirm: () => Promise<void>;
@@ -159,8 +161,10 @@ export const AdjustmentChatDialog = ({
 	const proposalMessageId = hasVisibleProposal ? proposalKey : null;
 	const proposalSection = hasVisibleProposal
 		? renderProposalSection({
-				detectedProposal: detectedProposal!,
-				proposalDisplayValues: proposalDisplayValues!,
+				detectedProposal,
+				proposalDisplayValues: proposalDisplayValues as NonNullable<
+					typeof proposalDisplayValues
+				>,
 				isStreaming,
 				isExecuting,
 				onConfirm: execute,
