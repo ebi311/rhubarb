@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
 	mockStreamText,
 	mockToUIMessageStreamResponse,
+	mockToTextStreamResponse,
 	mockConvertToModelMessages,
 	mockTool,
 	mockGetUser,
@@ -16,6 +17,7 @@ const {
 } = vi.hoisted(() => ({
 	mockStreamText: vi.fn(),
 	mockToUIMessageStreamResponse: vi.fn(),
+	mockToTextStreamResponse: vi.fn(),
 	mockConvertToModelMessages: vi.fn(),
 	mockTool: vi.fn((definition: unknown) => definition),
 	mockGetUser: vi.fn(),
@@ -137,8 +139,14 @@ describe('POST /api/chat/shift-adjustment', () => {
 				};
 			}),
 		);
+		mockToTextStreamResponse.mockReturnValue(
+			new Response('テストレスポンス', {
+				headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+			}),
+		);
 		mockStreamText.mockReturnValue({
 			toUIMessageStreamResponse: mockToUIMessageStreamResponse,
+			toTextStreamResponse: mockToTextStreamResponse,
 		});
 	});
 
@@ -157,7 +165,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(response.headers.get('Content-Type')).toBe(
 			'text/event-stream; charset=utf-8',
 		);
-		expect(mockToUIMessageStreamResponse).toHaveBeenCalledTimes(1);
+		expect(mockToTextStreamResponse).toHaveBeenCalledTimes(1);
 
 		expect(mockConvertToModelMessages).toHaveBeenCalledWith(
 			[{ role: 'user', content: 'スタッフAが休みになりました', parts: [] }],
@@ -166,7 +174,6 @@ describe('POST /api/chat/shift-adjustment', () => {
 					searchAvailableHelpers: expect.anything(),
 					processStaffAbsence: expect.anything(),
 					searchStaffs: expect.anything(),
-					proposeShiftChange: expect.anything(),
 				}),
 			}),
 		);
@@ -1076,6 +1083,18 @@ describe('POST /api/chat/shift-adjustment', () => {
 						messages: [
 							{ role: 'user', content: '明日9時に空いているヘルパーを探して' },
 						],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: 'physical-care',
+									date: '2026-03-16',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+						},
 					}),
 				},
 			);

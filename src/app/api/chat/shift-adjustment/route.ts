@@ -298,6 +298,27 @@ const fetchAdminStaff = async (
 	return { ok: true, staffData };
 };
 
+const buildTools = (
+	baseTools: {
+		searchAvailableHelpers: ReturnType<typeof createSearchAvailableHelpersTool>;
+		processStaffAbsence: ReturnType<typeof createProcessStaffAbsenceTool>;
+		searchStaffs: ReturnType<typeof createSearchStaffsTool>;
+	},
+	shifts: Array<{ id: string }> | undefined,
+) => {
+	// context.shifts が存在する場合のみ proposeShiftChange ツールを提供する。
+	// allowlist が空の状態で提供すると LLM が常に失敗し無限ループする恐れがあるため。
+	const shiftList = shifts ?? [];
+	if (shiftList.length === 0) {
+		return baseTools;
+	}
+
+	return {
+		...baseTools,
+		proposeShiftChange: createProposeShiftChangeTool(shiftList),
+	};
+};
+
 export const POST = async (request: Request): Promise<Response> => {
 	try {
 		// 認証チェック
@@ -365,16 +386,14 @@ export const POST = async (request: Request): Promise<Response> => {
 			supabase,
 			officeId: staffData.office_id,
 		});
-		const proposeShiftChangeTool = createProposeShiftChangeTool(
+		const tools = buildTools(
+			{
+				searchAvailableHelpers: searchAvailableHelpersTool,
+				processStaffAbsence: processStaffAbsenceTool,
+				searchStaffs: searchStaffsTool,
+			},
 			context?.shifts,
 		);
-
-		const tools = {
-			searchAvailableHelpers: searchAvailableHelpersTool,
-			processStaffAbsence: processStaffAbsenceTool,
-			searchStaffs: searchStaffsTool,
-			proposeShiftChange: proposeShiftChangeTool,
-		};
 
 		const modelMessages = await convertToModelMessages(
 			normalizeMessages(messages),
@@ -391,7 +410,16 @@ export const POST = async (request: Request): Promise<Response> => {
 			stopWhen: stepCountIs(5),
 		});
 
-		return result.toUIMessageStreamResponse();
+		// クライアントが UIMessage ストリームに対応している場合のみ UIMessage 形式で返す。
+		// 既存の TextStreamChatTransport との後方互換性のため、
+		// ヘッダーで明示的に指定された場合のみ UIMessage ストリームを返す。
+		const responseFormat = request.headers.get('x-ai-response-format');
+
+		if (responseFormat === 'uimessage') {
+			return result.toUIMessageStreamResponse();
+		}
+
+		return result.toTextStreamResponse();
 	} catch (error) {
 		console.error('Chat API error:', error);
 		// 内部エラーの詳細はクライアントに露出しない
