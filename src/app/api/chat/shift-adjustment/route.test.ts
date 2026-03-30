@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // vi.hoisted でモック関数を定義（ホイスティング対応）
 const {
 	mockStreamText,
-	mockToTextStreamResponse,
+	mockToUIMessageStreamResponse,
+	mockConvertToModelMessages,
+	mockTool,
 	mockGetUser,
 	mockSupabaseFrom,
 	mockCreateSearchAvailableHelpersTool,
@@ -13,7 +15,9 @@ const {
 	mockStepCountIs,
 } = vi.hoisted(() => ({
 	mockStreamText: vi.fn(),
-	mockToTextStreamResponse: vi.fn(),
+	mockToUIMessageStreamResponse: vi.fn(),
+	mockConvertToModelMessages: vi.fn(),
+	mockTool: vi.fn((definition: unknown) => definition),
 	mockGetUser: vi.fn(),
 	mockSupabaseFrom: vi.fn(),
 	mockCreateSearchAvailableHelpersTool: vi.fn(),
@@ -25,6 +29,8 @@ const {
 vi.mock('ai', () => ({
 	streamText: mockStreamText,
 	stepCountIs: mockStepCountIs,
+	convertToModelMessages: mockConvertToModelMessages,
+	tool: mockTool,
 }));
 
 vi.mock('@ai-sdk/google', () => ({
@@ -97,13 +103,42 @@ describe('POST /api/chat/shift-adjustment', () => {
 		});
 
 		// デフォルトのstreamTextモック
-		mockToTextStreamResponse.mockReturnValue(
+		mockToUIMessageStreamResponse.mockReturnValue(
 			new Response('テストレスポンス', {
-				headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+				headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+			}),
+		);
+		mockConvertToModelMessages.mockImplementation(async (messages: unknown[]) =>
+			messages.map((message) => {
+				const typedMessage = message as {
+					role: 'user' | 'assistant';
+					content?: string;
+					parts?: Array<{ type: string; text?: string }>;
+				};
+
+				if (!typedMessage.parts?.length) {
+					return {
+						role: typedMessage.role,
+						content: typedMessage.content ?? '',
+					};
+				}
+
+				const text = typedMessage.parts
+					.flatMap((part) =>
+						part.type === 'text' && typeof part.text === 'string'
+							? [part.text]
+							: [],
+					)
+					.join('');
+
+				return {
+					role: typedMessage.role,
+					content: text || typedMessage.content || '',
+				};
 			}),
 		);
 		mockStreamText.mockReturnValue({
-			toTextStreamResponse: mockToTextStreamResponse,
+			toUIMessageStreamResponse: mockToUIMessageStreamResponse,
 		});
 	});
 
@@ -120,7 +155,20 @@ describe('POST /api/chat/shift-adjustment', () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get('Content-Type')).toBe(
-			'text/plain; charset=utf-8',
+			'text/event-stream; charset=utf-8',
+		);
+		expect(mockToUIMessageStreamResponse).toHaveBeenCalledTimes(1);
+
+		expect(mockConvertToModelMessages).toHaveBeenCalledWith(
+			[{ role: 'user', content: 'スタッフAが休みになりました', parts: [] }],
+			expect.objectContaining({
+				tools: expect.objectContaining({
+					searchAvailableHelpers: expect.anything(),
+					processStaffAbsence: expect.anything(),
+					searchStaffs: expect.anything(),
+					proposeShiftChange: expect.anything(),
+				}),
+			}),
 		);
 
 		// streamText が正しい引数で呼ばれたことを確認
@@ -646,7 +694,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
-	it('SYSTEM_PROMPT に proposal の ```json 規約文を含める', async () => {
+	it('SYSTEM_PROMPT に proposeShiftChange tool 利用ルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -660,7 +708,16 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(response.status).toBe(200);
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
-				system: expect.stringContaining('```json コードブロック'),
+				system: expect.stringContaining(
+					'assistant の本文に JSON を直接書かず、必ず proposeShiftChange ツールを呼び出して返す',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'proposeShiftChange の入力は次のいずれか 1 つの形式に厳密に従う',
+				),
 			}),
 		);
 		expect(mockStreamText).toHaveBeenCalledWith(
@@ -678,72 +735,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 				system: expect.stringContaining('タイムゾーンオフセット必須'),
 			}),
 		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining('2026-03-16T09:00:00+09:00'),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining('2026-03-16T00:00:00Z'),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining('末尾 Z も可'),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining('reason は任意'),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining('不明なら省略'),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining('空文字は使わない'),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(
-					'存在しない JSON を参照する表現を使わない',
-				),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining('コードブロックを混在させない'),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(
-					'❌ 「上記のJSONを適用してください」（JSON未提示）',
-				),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(
-					'✅ 「今回は提案はありません。必要なら作成します」',
-				),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(
-					'✅ proposal を出す場合は \`\`\`json 1ブロックのみを出す',
-				),
-			}),
-		);
 	});
 
-	it('SYSTEM_PROMPT に proposal(JSON) は成功断言ではないルールを含める', async () => {
+	it('SYSTEM_PROMPT に proposeShiftChange は成功断言ではないルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -758,7 +752,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'proposal(JSON) の提示は成功断言ではありません',
+					'proposeShiftChange の呼び出しは成功断言ではありません',
 				),
 			}),
 		);
@@ -792,7 +786,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
-	it('SYSTEM_PROMPT に proposal 必須条件と情報不足時の質問許可ルールを含める', async () => {
+	it('SYSTEM_PROMPT に proposeShiftChange 必須条件と情報不足時の質問許可ルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -807,14 +801,14 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposal(JSON) を必ず出力し、省略してはならない',
+					'対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposeShiftChange の呼び出しは必須であり、省略してはならない',
 				),
 			}),
 		);
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'対象シフト（shiftId）が未特定など情報不足時は、proposal(JSON) を無理に出力せず、必要な確認質問のみを行ってよい',
+					'対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい',
 				),
 			}),
 		);
@@ -842,14 +836,14 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'対象シフト（shiftId）が未特定など情報不足時は、proposal(JSON) を無理に出力せず、必要な確認質問のみを行ってよい',
+					'対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい',
 				),
 			}),
 		);
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'proposal(JSON) 提示後は未確定であることを明示し、UI の確定操作（例: 確定ボタン）を案内する',
+					'proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する',
 				),
 			}),
 		);
@@ -1095,10 +1089,13 @@ describe('POST /api/chat/shift-adjustment', () => {
 						searchAvailableHelpers: expect.anything(),
 						processStaffAbsence: expect.anything(),
 						searchStaffs: expect.anything(),
+						proposeShiftChange: expect.anything(),
 					}),
 					stopWhen: expect.anything(),
 				}),
 			);
+			expect(mockConvertToModelMessages).toHaveBeenCalledTimes(1);
+			expect(mockStepCountIs).toHaveBeenCalledWith(5);
 		});
 
 		it('createSearchAvailableHelpersTool が正しい引数で呼ばれる', async () => {
@@ -1142,6 +1139,71 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect(mockCreateProcessStaffAbsenceTool).toHaveBeenCalledWith({
 				supabase: expect.anything(),
 				userId: 'test-user-id',
+			});
+		});
+
+		it('proposeShiftChange tool は context.shifts の shiftId allowlist を検証する', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '提案して' }],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2025-01-20',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+						},
+					}),
+				},
+			);
+
+			await POST(request);
+
+			const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+				tools?: {
+					proposeShiftChange?: {
+						execute?: (input: {
+							type: 'change_shift_staff';
+							shiftId: string;
+							toStaffId: string;
+						}) => Promise<unknown>;
+					};
+				};
+			};
+
+			expect(streamTextCall.tools?.proposeShiftChange).toBeDefined();
+			const execute = streamTextCall.tools?.proposeShiftChange?.execute;
+			expect(execute).toBeDefined();
+
+			await expect(
+				execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_2,
+					toStaffId: TEST_IDS.STAFF_1,
+				}),
+			).rejects.toThrow('Invalid shiftId');
+
+			await expect(
+				execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+				}),
+			).resolves.toEqual({
+				proposal: {
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+				},
 			});
 		});
 

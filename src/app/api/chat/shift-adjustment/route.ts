@@ -1,6 +1,7 @@
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
 import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
+import { AiChatMutationProposalSchema } from '@/models/aiChatMutationProposal';
 import { createJstDateStringSchema } from '@/models/valueObjects/jstDate';
 import {
 	ServiceTypeIdSchema,
@@ -8,7 +9,7 @@ import {
 } from '@/models/valueObjects/serviceTypeId';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { stepCountIs, streamText } from 'ai';
+import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -64,23 +65,6 @@ const ChatMessageSchema = z
 			path: ['parts'],
 		},
 	);
-
-// メッセージからテキストコンテンツを抽出
-const extractContent = (msg: z.infer<typeof ChatMessageSchema>): string => {
-	if (!msg.parts?.length) {
-		return msg.content ?? '';
-	}
-
-	const textFromParts = msg.parts
-		.flatMap((part) =>
-			part.type === 'text' && 'text' in part && typeof part.text === 'string'
-				? [part.text]
-				: [],
-		)
-		.join('');
-
-	return textFromParts || msg.content || '';
-};
 
 const SHIFT_CONTEXT_TIME_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
@@ -169,13 +153,16 @@ ${SERVICE_TYPE_LABELS_PROMPT}
   - 出力: { staffs: [{ id, name, role, serviceTypeIds }] }
   - processStaffAbsence と連携する場合、検索結果の id を staffId として使用してください
     - 例: { query: "田中" }
+- proposeShiftChange: シフト変更提案を登録します
+  - シフト変更の提案を返すときは assistant 本文に JSON を書かず、必ずこのツールを呼び出してください
+  - 入力は change_shift_staff または update_shift_time の形式に厳密に従ってください
 
 ## 制約
 - 提案は具体的かつ実行可能なものにする
 - 不明な点があれば確認を求める
 - スタッフや利用者の負担を考慮する
-- シフト変更の提案を出す場合は、必ず assistant メッセージ内に 1 つの \`\`\`json コードブロックを含める
-- JSON は次のいずれか 1 つの形式に厳密に従う
+- シフト変更の提案は assistant の本文に JSON を直接書かず、必ず proposeShiftChange ツールを呼び出して返す
+- proposeShiftChange の入力は次のいずれか 1 つの形式に厳密に従う
   - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>", "reason": "<任意の理由>" }
   - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>" }
   - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>", "reason": "<任意の理由>" }
@@ -184,19 +171,12 @@ ${SERVICE_TYPE_LABELS_PROMPT}
 - update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
   - 例1: 2026-03-16T09:00:00+09:00
   - 例2: 2026-03-16T00:00:00Z
-- proposal(JSON) を含めていない回答では、「上記のJSON」「このJSON」など、存在しない JSON を参照する表現を使わない
-- proposal(JSON) を含める回答では、\`\`\`json 以外のコードブロックを混在させない（parseProposal は1ブロック前提）
-- 参照表現の例:
-  - ❌ 「上記のJSONを適用してください」（JSON未提示）
-  - ✅ 「今回は提案はありません。必要なら作成します」
-  - ❌ \`\`\`ts ... \`\`\` と \`\`\`json ... \`\`\` を同時に出す
-  - ✅ proposal を出す場合は \`\`\`json 1ブロックのみを出す
 
-## proposal(JSON) と成功断言の区別（重要）
-- proposal(JSON) の提示は成功断言ではありません
-- 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposal(JSON) を必ず出力し、省略してはならない
-- ただし対象シフト（shiftId）が未特定など情報不足時は、proposal(JSON) を無理に出力せず、必要な確認質問のみを行ってよい
-- proposal(JSON) を提示した後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する
+## proposeShiftChange と成功断言の区別（重要）
+- proposeShiftChange の呼び出しは成功断言ではありません
+- 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposeShiftChange の呼び出しは必須であり、省略してはならない
+- ただし対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
+- proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する
 
 ## shiftId が不足している場合の対応（重要）
 - 「システム上で shiftId を確認してください」のような丸投げをしてはならない
@@ -204,9 +184,9 @@ ${SERVICE_TYPE_LABELS_PROMPT}
 
 ## 成功断言に関する厳格ルール（必ず遵守）
 - ツール未実行の状態で、処理が完了した・確定した・変更できた等の成功断言をしてはならない
-  - ただし対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposal(JSON) の提示は必須であり、省略してはならない
-  - 対象シフト（shiftId）が未特定など情報不足時は、proposal(JSON) を無理に出力せず、必要な確認質問のみを行ってよい
-  - proposal(JSON) 提示後は未確定であることを明示し、UI の確定操作（例: 確定ボタン）を案内する
+  - ただし対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposeShiftChange の呼び出しは必須であり、省略してはならない
+  - 対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
+  - proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する
 - ツール実行が失敗した場合、成功断言をしてはならない
   - 失敗した事実を必ず明示し、再実行（リトライ）または次に取るべき具体的アクションへ誘導する
 - ツール実行が成功した場合に限り、成功断言を許可する
@@ -244,6 +224,78 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 
 ## 現在のシフト情報
 ${shiftLines.join('\n')}${shiftSelectionPrompt}`;
+};
+
+const createProposeShiftChangeTool = (
+	shifts: Array<{ id: string }> | undefined,
+) => {
+	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
+	return tool({
+		description:
+			'シフト変更提案を登録します。shiftId は context.shifts に含まれる値のみ指定できます。',
+		inputSchema: AiChatMutationProposalSchema,
+		execute: async (proposal) => {
+			if (!allowlistedShiftIds.has(proposal.shiftId)) {
+				throw new Error(
+					'Invalid shiftId: shiftId is not in context.shifts allowlist',
+				);
+			}
+
+			return { proposal };
+		},
+	});
+};
+
+const normalizeMessages = (
+	messages: ChatMessage[],
+): Parameters<typeof convertToModelMessages>[0] =>
+	messages.map((m) => ({ ...m, parts: m.parts ?? [] })) as Parameters<
+		typeof convertToModelMessages
+	>[0];
+
+type AdminStaffResult =
+	| { ok: true; staffData: { office_id: string; role: 'admin' | 'helper' } }
+	| { ok: false; response: Response };
+
+const fetchAdminStaff = async (
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+	userId: string,
+): Promise<AdminStaffResult> => {
+	const { data: staffData, error: staffError } = await supabase
+		.from('staffs')
+		.select('office_id, role')
+		.eq('auth_user_id', userId)
+		.maybeSingle<{ office_id: string; role: 'admin' | 'helper' }>();
+
+	if (staffError) {
+		console.error('Failed to fetch staff:', staffError);
+		return {
+			ok: false,
+			response: NextResponse.json(
+				{ error: 'Failed to resolve staff context' },
+				{ status: 500 },
+			),
+		};
+	}
+
+	if (!staffData) {
+		return {
+			ok: false,
+			response: NextResponse.json(
+				{ error: 'Staff not found' },
+				{ status: 404 },
+			),
+		};
+	}
+
+	if (staffData.role !== 'admin') {
+		return {
+			ok: false,
+			response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }),
+		};
+	}
+
+	return { ok: true, staffData };
 };
 
 export const POST = async (request: Request): Promise<Response> => {
@@ -288,29 +340,12 @@ export const POST = async (request: Request): Promise<Response> => {
 			);
 		}
 
-		// スタッフの office_id と role を取得（Tool と認可で必要）
-		const { data: staffData, error: staffError } = await supabase
-			.from('staffs')
-			.select('office_id, role')
-			.eq('auth_user_id', user.id)
-			.maybeSingle<{ office_id: string; role: 'admin' | 'helper' }>();
-
-		if (staffError) {
-			console.error('Failed to fetch staff:', staffError);
-			return NextResponse.json(
-				{ error: 'Failed to resolve staff context' },
-				{ status: 500 },
-			);
+		// スタッフの office_id と role を取得 & 認可チェック
+		const staffResult = await fetchAdminStaff(supabase, user.id);
+		if (!staffResult.ok) {
+			return staffResult.response;
 		}
-
-		if (!staffData) {
-			return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
-		}
-
-		// 認可チェック: admin ロールのみ許可
-		if (staffData.role !== 'admin') {
-			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-		}
+		const { staffData } = staffResult;
 
 		const systemPrompt = SYSTEM_PROMPT + buildContextPrompt(context);
 
@@ -330,27 +365,33 @@ export const POST = async (request: Request): Promise<Response> => {
 			supabase,
 			officeId: staffData.office_id,
 		});
+		const proposeShiftChangeTool = createProposeShiftChangeTool(
+			context?.shifts,
+		);
 
-		// Vercel AI SDK の streamText を使用
-		// messages の型は streamText が受け入れる形式に変換
-		// v6: parts 配列または content から文字列を抽出
+		const tools = {
+			searchAvailableHelpers: searchAvailableHelpersTool,
+			processStaffAbsence: processStaffAbsenceTool,
+			searchStaffs: searchStaffsTool,
+			proposeShiftChange: proposeShiftChangeTool,
+		};
+
+		const modelMessages = await convertToModelMessages(
+			normalizeMessages(messages),
+			{
+				tools,
+			},
+		);
+
 		const result = streamText({
 			model: google('gemini-2.5-flash'),
 			system: systemPrompt,
-			messages: messages.map((m) => ({
-				role: m.role as 'user' | 'assistant',
-				content: extractContent(m),
-			})),
-			tools: {
-				searchAvailableHelpers: searchAvailableHelpersTool,
-				processStaffAbsence: processStaffAbsenceTool,
-				searchStaffs: searchStaffsTool,
-			},
-			stopWhen: stepCountIs(3),
+			messages: modelMessages,
+			tools,
+			stopWhen: stepCountIs(5),
 		});
 
-		// テキストストリームレスポンスを返す（TextStreamChatTransport 用）
-		return result.toTextStreamResponse();
+		return result.toUIMessageStreamResponse();
 	} catch (error) {
 		console.error('Chat API error:', error);
 		// 内部エラーの詳細はクライアントに露出しない
