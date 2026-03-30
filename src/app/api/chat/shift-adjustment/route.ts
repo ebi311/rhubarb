@@ -116,7 +116,41 @@ const SERVICE_TYPE_LABELS_PROMPT = Object.entries(ServiceTypeLabels)
 	.map(([serviceTypeId, label]) => `- ${serviceTypeId}: ${label}`)
 	.join('\n');
 
-const SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサポートするAIアシスタントです。
+// ===== レガシーモード（TextStreamChatTransport 向け）=====
+// x-ai-response-format: uimessage ヘッダーなし → 従来の JSON コードブロック形式
+
+const LEGACY_PROPOSAL_TOOL_PROMPT = `
+- proposeShiftChange ツールは利用できません
+- シフト変更の提案を出す場合は、必ず assistant メッセージ内に 1 つの \`\`\`json コードブロックを含める
+- JSON は次のいずれか 1 つの形式に厳密に従う
+  - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>", "reason": "<任意の理由>" }
+  - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>" }
+  - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>", "reason": "<任意の理由>" }
+  - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>" }
+- reason は任意。不明なら省略し、空文字は使わない（空白のみも不可）
+- update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
+
+## proposal(JSON) と成功断言の区別（重要）
+- proposal(JSON) の提示は成功断言ではありません
+- 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposal(JSON) の提示は必須であり、省略してはならない
+- ただし対象シフト（shiftId）が未特定など情報不足時は、proposal(JSON) を無理に出力せず、必要な確認質問のみを行ってよい
+- proposal(JSON) を提示した後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する`;
+
+// ===== UIMessage モード（新クライアント向け）=====
+// x-ai-response-format: uimessage ヘッダーあり → proposeShiftChange ツール使用
+
+const PROPOSAL_TOOL_PROMPT = `
+- proposeShiftChange: シフト変更提案を登録します
+  - シフト変更の提案を返すときは assistant 本文に JSON を書かず、必ずこのツールを呼び出してください
+  - 入力は change_shift_staff または update_shift_time の形式に厳密に従ってください
+
+## proposeShiftChange と成功断言の区別（重要）
+- proposeShiftChange の呼び出しは成功断言ではありません
+- 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposeShiftChange の呼び出しは必須であり、省略してはならない
+- ただし対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
+- proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する`;
+
+const BASE_SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサポートするAIアシスタントです。
 
 ## あなたの役割
 - スタッフの急な休み、利用者の予定変更などに対応したシフト調整の提案
@@ -152,15 +186,38 @@ ${SERVICE_TYPE_LABELS_PROMPT}
   - 入力: { query: "検索文字列" }
   - 出力: { staffs: [{ id, name, role, serviceTypeIds }] }
   - processStaffAbsence と連携する場合、検索結果の id を staffId として使用してください
-    - 例: { query: "田中" }
-- proposeShiftChange: シフト変更提案を登録します
-  - シフト変更の提案を返すときは assistant 本文に JSON を書かず、必ずこのツールを呼び出してください
-  - 入力は change_shift_staff または update_shift_time の形式に厳密に従ってください
+    - 例: { query: "田中" }`;
+
+const COMMON_CONSTRAINTS_PROMPT = `
 
 ## 制約
 - 提案は具体的かつ実行可能なものにする
 - 不明な点があれば確認を求める
-- スタッフや利用者の負担を考慮する
+- スタッフや利用者の負担を考慮する`;
+
+const SHIFT_ID_MISSING_PROMPT = `
+
+## shiftId が不足している場合の対応（重要）
+- 「システム上で shiftId を確認してください」のような丸投げをしてはならない
+- UI 上の候補（日時・利用者名・スタッフ名など）を示して対象特定を促すか、会話で必要情報を聞き返してください`;
+
+const SUCCESS_ASSERTION_PROMPT = `
+
+## 成功断言に関する厳格ルール（必ず遵守）
+- ツール未実行の状態で、処理が完了した・確定した・変更できた等の成功断言をしてはならない
+- ツール実行が失敗した場合、成功断言をしてはならない
+  - 失敗した事実を必ず明示し、再実行（リトライ）または次に取るべき具体的アクションへ誘導する
+- ツール実行が成功した場合に限り、成功断言を許可する
+
+日本語で丁寧に対応してください。`;
+
+// UIMessage モードか否かに応じてシステムプロンプトを切り替える
+const buildSystemPromptBase = (useProposalTool: boolean): string =>
+	BASE_SYSTEM_PROMPT +
+	(useProposalTool ? PROPOSAL_TOOL_PROMPT : LEGACY_PROPOSAL_TOOL_PROMPT) +
+	COMMON_CONSTRAINTS_PROMPT +
+	(useProposalTool
+		? `
 - シフト変更の提案は assistant の本文に JSON を直接書かず、必ず proposeShiftChange ツールを呼び出して返す
 - proposeShiftChange の入力は次のいずれか 1 つの形式に厳密に従う
   - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>", "reason": "<任意の理由>" }
@@ -170,28 +227,10 @@ ${SERVICE_TYPE_LABELS_PROMPT}
 - reason は任意。不明なら省略し、空文字は使わない（空白のみも不可）
 - update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
   - 例1: 2026-03-16T09:00:00+09:00
-  - 例2: 2026-03-16T00:00:00Z
-
-## proposeShiftChange と成功断言の区別（重要）
-- proposeShiftChange の呼び出しは成功断言ではありません
-- 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposeShiftChange の呼び出しは必須であり、省略してはならない
-- ただし対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
-- proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する
-
-## shiftId が不足している場合の対応（重要）
-- 「システム上で shiftId を確認してください」のような丸投げをしてはならない
-- UI 上の候補（日時・利用者名・スタッフ名など）を示して対象特定を促すか、会話で必要情報を聞き返してください
-
-## 成功断言に関する厳格ルール（必ず遵守）
-- ツール未実行の状態で、処理が完了した・確定した・変更できた等の成功断言をしてはならない
-  - ただし対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposeShiftChange の呼び出しは必須であり、省略してはならない
-  - 対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
-  - proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する
-- ツール実行が失敗した場合、成功断言をしてはならない
-  - 失敗した事実を必ず明示し、再実行（リトライ）または次に取るべき具体的アクションへ誘導する
-- ツール実行が成功した場合に限り、成功断言を許可する
-
-日本語で丁寧に対応してください。`;
+  - 例2: 2026-03-16T00:00:00Z`
+		: '') +
+	SHIFT_ID_MISSING_PROMPT +
+	SUCCESS_ASSERTION_PROMPT;
 
 const buildContextPrompt = (context: ChatRequest['context']): string => {
 	if (!context?.shifts?.length) {
@@ -237,7 +276,7 @@ const createProposeShiftChangeTool = (
 		execute: async (proposal) => {
 			if (!allowlistedShiftIds.has(proposal.shiftId)) {
 				throw new Error(
-					'Invalid shiftId: shiftId is not in context.shifts allowlist',
+					'シフトIDが不正です。候補に含まれているシフトから選択してください。',
 				);
 			}
 
@@ -305,11 +344,13 @@ const buildTools = (
 		searchStaffs: ReturnType<typeof createSearchStaffsTool>;
 	},
 	shifts: Array<{ id: string }> | undefined,
+	useProposalTool: boolean,
 ) => {
-	// context.shifts が存在する場合のみ proposeShiftChange ツールを提供する。
-	// allowlist が空の状態で提供すると LLM が常に失敗し無限ループする恐れがあるため。
+	// UIMessage モードかつ context.shifts が存在する場合のみ proposeShiftChange ツールを提供する。
+	// 1) レガシークライアントは JSON コードブロック方式を使うためツール不要
+	// 2) allowlist が空の状態で提供すると LLM が常に失敗し無限ループする恐れがあるため
 	const shiftList = shifts ?? [];
-	if (shiftList.length === 0) {
+	if (!useProposalTool || shiftList.length === 0) {
 		return baseTools;
 	}
 
@@ -368,7 +409,15 @@ export const POST = async (request: Request): Promise<Response> => {
 		}
 		const { staffData } = staffResult;
 
-		const systemPrompt = SYSTEM_PROMPT + buildContextPrompt(context);
+		// UIMessage モード判定: クライアントが UIMessage ストリームに対応している場合のみ
+		// proposeShiftChange ツールを有効にし、UIMessage ストリームで返す。
+		// 既存の TextStreamChatTransport 互換クライアントはヘッダーを送らないため、
+		// ヘッダーなし時は JSON コードブロック形式のレガシー動作を維持する。
+		const useProposalTool =
+			request.headers.get('x-ai-response-format') === 'uimessage';
+
+		const systemPrompt =
+			buildSystemPromptBase(useProposalTool) + buildContextPrompt(context);
 
 		// GEMINI_API_KEY を使用して Google AI プロバイダーを初期化
 		const google = createGoogleGenerativeAI({ apiKey });
@@ -393,6 +442,7 @@ export const POST = async (request: Request): Promise<Response> => {
 				searchStaffs: searchStaffsTool,
 			},
 			context?.shifts,
+			useProposalTool,
 		);
 
 		const modelMessages = await convertToModelMessages(
@@ -410,12 +460,7 @@ export const POST = async (request: Request): Promise<Response> => {
 			stopWhen: stepCountIs(5),
 		});
 
-		// クライアントが UIMessage ストリームに対応している場合のみ UIMessage 形式で返す。
-		// 既存の TextStreamChatTransport との後方互換性のため、
-		// ヘッダーで明示的に指定された場合のみ UIMessage ストリームを返す。
-		const responseFormat = request.headers.get('x-ai-response-format');
-
-		if (responseFormat === 'uimessage') {
+		if (useProposalTool) {
 			return result.toUIMessageStreamResponse();
 		}
 

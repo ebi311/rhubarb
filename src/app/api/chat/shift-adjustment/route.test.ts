@@ -187,6 +187,55 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('x-ai-response-format: uimessage ヘッダー指定時は UIMessage ストリームで返す', async () => {
+		const shiftId = TEST_IDS.SCHEDULE_1;
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ai-response-format': 'uimessage',
+			},
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: 'シフトを変更してください' }],
+				context: {
+					shifts: [
+						{
+							id: shiftId,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: 'physical-care',
+							date: '2026-03-16',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		// UIMessage モードでは toUIMessageStreamResponse が呼ばれる
+		expect(mockToUIMessageStreamResponse).toHaveBeenCalledTimes(1);
+		expect(mockToTextStreamResponse).not.toHaveBeenCalled();
+		// proposeShiftChange ツールが tools に含まれていること
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tools: expect.objectContaining({
+					proposeShiftChange: expect.anything(),
+				}),
+			}),
+		);
+		// proposeShiftChange 関連のプロンプト指示が system に含まれていること
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'assistant の本文に JSON を直接書かず、必ず proposeShiftChange ツールを呼び出して返す',
+				),
+			}),
+		);
+	});
+
 	it('assistant の parts に non-text が混在していても 400 にならず text のみを送る', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
@@ -704,7 +753,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 	it('SYSTEM_PROMPT に proposeShiftChange tool 利用ルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ai-response-format': 'uimessage',
+			},
 			body: JSON.stringify({
 				messages: [{ role: 'user', content: '提案してください' }],
 			}),
@@ -747,7 +799,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 	it('SYSTEM_PROMPT に proposeShiftChange は成功断言ではないルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ai-response-format': 'uimessage',
+			},
 			body: JSON.stringify({
 				messages: [{ role: 'user', content: '調整案を出して' }],
 			}),
@@ -796,7 +851,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 	it('SYSTEM_PROMPT に proposeShiftChange 必須条件と情報不足時の質問許可ルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ai-response-format': 'uimessage',
+			},
 			body: JSON.stringify({
 				messages: [{ role: 'user', content: '未確定時の対応を確認したい' }],
 			}),
@@ -824,7 +882,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 	it('SYSTEM_PROMPT にツール未実行時の成功断言禁止ルールを含める', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ai-response-format': 'uimessage',
+			},
 			body: JSON.stringify({
 				messages: [{ role: 'user', content: '対応を完了して' }],
 			}),
@@ -1078,7 +1139,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 				'http://localhost/api/chat/shift-adjustment',
 				{
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
 					body: JSON.stringify({
 						messages: [
 							{ role: 'user', content: '明日9時に空いているヘルパーを探して' },
@@ -1166,7 +1230,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 				'http://localhost/api/chat/shift-adjustment',
 				{
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
 					body: JSON.stringify({
 						messages: [{ role: 'user', content: '提案して' }],
 						context: {
@@ -1209,7 +1276,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 					shiftId: TEST_IDS.SCHEDULE_2,
 					toStaffId: TEST_IDS.STAFF_1,
 				}),
-			).rejects.toThrow('Invalid shiftId');
+			).rejects.toThrow('シフトIDが不正です');
 
 			await expect(
 				execute?.({
