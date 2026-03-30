@@ -184,8 +184,8 @@ ${SERVICE_TYPE_LABELS_PROMPT}
 - searchStaffs: スタッフを名前で検索します
   - スタッフIDがわからない場合に使用してください
   - 入力: { query: "検索文字列" }
-  - 出力: { staffs: [{ id, name, role, serviceTypeIds }] }
-  - processStaffAbsence と連携する場合、検索結果の id を staffId として使用してください
+  - 出力: { staffs: [{ staffId, name, role, serviceTypeIds }] }
+  - processStaffAbsence と連携する場合、検索結果の staffId をそのまま staffId として使用してください
     - 例: { query: "田中" }`;
 
 const COMMON_CONSTRAINTS_PROMPT = `
