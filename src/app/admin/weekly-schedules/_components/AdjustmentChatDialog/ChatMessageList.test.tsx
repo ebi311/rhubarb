@@ -88,10 +88,7 @@ describe('ChatMessageList', () => {
 			<ChatMessageList
 				messages={[
 					createMessage({
-						content: `
-\`\`\`json
-{ "type": "update_shift_time" }
-\`\`\``,
+						content: '```json\n{ "type": "update_shift_time" }\n```',
 					}),
 				]}
 			/>,
@@ -99,5 +96,46 @@ describe('ChatMessageList', () => {
 
 		expect(screen.queryByText(/```json/)).not.toBeInTheDocument();
 		expect(screen.getByText('（提案を生成しました）')).toBeInTheDocument();
+	});
+
+	it('proposalMessageId に一致するメッセージの JSON のみ内容を非表示にする', () => {
+		render(
+			<ChatMessageList
+				proposalMessageId={TEST_IDS.SCHEDULE_1}
+				messages={[
+					createMessage({
+						content: '```json\n{ "type": "update_shift_time" }\n```',
+					}),
+				]}
+			/>,
+		);
+
+		expect(
+			screen.queryByText('（提案を生成しました）'),
+		).not.toBeInTheDocument();
+	});
+
+	it('proposalMessageId が異なる他のメッセージは非表示にしない', () => {
+		render(
+			<ChatMessageList
+				proposalMessageId={TEST_IDS.SCHEDULE_1}
+				messages={[
+					// 現在の提案: 非表示
+					createMessage({
+						id: TEST_IDS.SCHEDULE_1,
+						content: '```json\n{ "type": "update_shift_time" }\n```',
+					}),
+					// 過去の提案（別 ID）: 表示が残る
+					createMessage({
+						id: TEST_IDS.SCHEDULE_2,
+						content: '```json\n{ "type": "change_shift_staff" }\n```',
+					}),
+				]}
+			/>,
+		);
+
+		// 現在の提案はプレースホルダーも表示されない
+		const placeholders = screen.queryAllByText('（提案を生成しました）');
+		expect(placeholders).toHaveLength(1); // 過去の提案は残る
 	});
 });

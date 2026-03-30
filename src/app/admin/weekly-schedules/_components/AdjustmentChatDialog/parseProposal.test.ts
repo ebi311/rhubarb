@@ -1,12 +1,22 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
-import { describe, expect, it } from 'vitest';
-import { parseProposal } from './parseProposal';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { parseProposal, parseProposalWithDiagnostic } from './parseProposal';
 
 describe('parseProposal', () => {
 	const allowlist = {
 		shiftIds: [TEST_IDS.SCHEDULE_1],
 		staffIds: [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2],
 	};
+
+	let warnSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		warnSpy.mockRestore();
+	});
 
 	it('assistant content から ```json ブロックを抽出して parse できる', () => {
 		const content = `以下が提案です。\n\n\`\`\`json
@@ -200,5 +210,107 @@ describe('parseProposal', () => {
 
 		const result = parseProposal(content, allowlist);
 		expect(result).toBeNull();
+	});
+});
+
+describe('parseProposalWithDiagnostic', () => {
+	const allowlist = {
+		shiftIds: [TEST_IDS.SCHEDULE_1],
+		staffIds: [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2],
+	};
+
+	it('no_json_block を返す', () => {
+		expect(
+			parseProposalWithDiagnostic('提案は文章のみです', allowlist),
+		).toEqual({
+			proposal: null,
+			failReason: 'no_json_block',
+		});
+	});
+
+	it('empty_json_block を返す', () => {
+		expect(parseProposalWithDiagnostic('```json\n```', allowlist)).toEqual({
+			proposal: null,
+			failReason: 'empty_json_block',
+		});
+	});
+
+	it('multiple_json_blocks を返す', () => {
+		const content = '```json\n{}\n```\n\n```json\n{}\n```';
+		expect(parseProposalWithDiagnostic(content, allowlist)).toEqual({
+			proposal: null,
+			failReason: 'multiple_json_blocks',
+		});
+	});
+
+	it('json_parse_error を返す', () => {
+		const content = '```json\n{ invalid json }\n```';
+		expect(parseProposalWithDiagnostic(content, allowlist)).toEqual({
+			proposal: null,
+			failReason: 'json_parse_error',
+		});
+	});
+
+	it('schema_invalid を返す', () => {
+		const content = `\`\`\`json
+{
+  "type": "update_shift_time",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "startAt": "not-date",
+  "endAt": "2026-03-16T10:00:00+09:00"
+}
+\`\`\``;
+		expect(parseProposalWithDiagnostic(content, allowlist)).toEqual({
+			proposal: null,
+			failReason: 'schema_invalid',
+		});
+	});
+
+	it('allowlist_rejected を返す', () => {
+		const content = `\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_4}"
+}
+\`\`\``;
+		expect(parseProposalWithDiagnostic(content, allowlist)).toEqual({
+			proposal: null,
+			failReason: 'allowlist_rejected',
+		});
+	});
+});
+
+describe('parseProposal warning', () => {
+	const allowlist = {
+		shiftIds: [TEST_IDS.SCHEDULE_1],
+		staffIds: [TEST_IDS.STAFF_1],
+	};
+
+	it('no_json_block の場合は console.warn を出さない', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const result = parseProposal('提案は文章のみです', allowlist);
+		expect(result).toBeNull();
+		expect(warnSpy).not.toHaveBeenCalled();
+		warnSpy.mockRestore();
+	});
+
+	it('empty_json_block の場合は console.warn を出さない', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const result = parseProposal('```json\n```', allowlist);
+		expect(result).toBeNull();
+		expect(warnSpy).not.toHaveBeenCalled();
+		warnSpy.mockRestore();
+	});
+
+	it('json_parse_error の場合は console.warn を出す', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const result = parseProposal('```json\nnot-valid-json\n```', allowlist);
+		expect(result).toBeNull();
+		expect(warnSpy).toHaveBeenCalledWith(
+			'[parseProposal] failed to parse proposal',
+			expect.objectContaining({ failReason: 'json_parse_error' }),
+		);
+		warnSpy.mockRestore();
 	});
 });

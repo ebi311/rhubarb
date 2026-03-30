@@ -6,11 +6,31 @@ import type { ChatMessage } from './useAdjustmentChat';
 type ChatMessageListProps = {
 	messages: ChatMessage[];
 	isStreaming?: boolean;
+	proposalMessageId?: string | null;
 };
 
 const PROPOSAL_PLACEHOLDER_TEXT = '（提案を生成しました）';
 const JSON_CODE_BLOCK_REGEX = /```json\s*[\s\S]*?\s*```/gi;
 const JSON_CODE_BLOCK_DETECT_REGEX = /```json\s*[\s\S]*?\s*```/i;
+
+const getAssistantContentWithoutJsonBlock = (content: string): string =>
+	content.replace(JSON_CODE_BLOCK_REGEX, '').trim();
+
+const shouldHideProposalPlaceholderMessage = (
+	message: ChatMessage,
+	proposalMessageId?: string | null,
+): boolean => {
+	if (!proposalMessageId || message.id !== proposalMessageId) {
+		return false;
+	}
+
+	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(message.content);
+	if (!hasJsonCodeBlock) {
+		return false;
+	}
+
+	return getAssistantContentWithoutJsonBlock(message.content).length === 0;
+};
 
 const getAssistantDisplayContent = (content: string): string | null => {
 	if (content.trim().length === 0) {
@@ -18,9 +38,7 @@ const getAssistantDisplayContent = (content: string): string | null => {
 	}
 
 	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(content);
-	const contentWithoutJsonBlock = content
-		.replace(JSON_CODE_BLOCK_REGEX, '')
-		.trim();
+	const contentWithoutJsonBlock = getAssistantContentWithoutJsonBlock(content);
 
 	if (contentWithoutJsonBlock.length > 0) {
 		return contentWithoutJsonBlock;
@@ -44,6 +62,7 @@ const getMessageDisplayContent = (message: ChatMessage): string | null => {
 export const ChatMessageList = ({
 	messages,
 	isStreaming = false,
+	proposalMessageId = null,
 }: ChatMessageListProps) => {
 	const endRef = useRef<HTMLDivElement>(null);
 	const prevMessageCountRef = useRef(0);
@@ -74,6 +93,13 @@ export const ChatMessageList = ({
 	return (
 		<div className="flex-1 space-y-4 overflow-y-auto p-4">
 			{messages.map((message) => {
+				if (
+					message.role === 'assistant' &&
+					shouldHideProposalPlaceholderMessage(message, proposalMessageId)
+				) {
+					return null;
+				}
+
 				const displayContent = getMessageDisplayContent(message);
 
 				return (

@@ -708,6 +708,39 @@ describe('POST /api/chat/shift-adjustment', () => {
 				system: expect.stringContaining('空文字は使わない'),
 			}),
 		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'存在しない JSON を参照する表現を使わない',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('コードブロックを混在させない'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'❌ 「上記のJSONを適用してください」（JSON未提示）',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'✅ 「今回は提案はありません。必要なら作成します」',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'✅ proposal を出す場合は \`\`\`json 1ブロックのみを出す',
+				),
+			}),
+		);
 	});
 
 	it('SYSTEM_PROMPT に proposal(JSON) は成功断言ではないルールを含める', async () => {

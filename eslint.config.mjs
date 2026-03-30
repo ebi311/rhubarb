@@ -13,6 +13,7 @@ const eslintConfig = defineConfig([
 		'build/**',
 		'next-env.d.ts',
 		'./scripts/**', // 追加: scripts ディレクトリ全体を無視
+		'./storybook-static/**', // 追加: storybook-static ディレクトリ全体を無視
 	]),
 	// `_` で始まる未使用の変数や引数を許可
 	{

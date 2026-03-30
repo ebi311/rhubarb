@@ -67,6 +67,18 @@ ${proposalJson}
 		},
 	],
 });
+const createJsonOnlyProposalMessage = (proposalJson: string) => ({
+	id: 'assistant-json-only',
+	role: 'assistant',
+	parts: [
+		{
+			type: 'text',
+			text: `\`\`\`json
+${proposalJson}
+\`\`\``,
+		},
+	],
+});
 
 describe('AdjustmentChatDialog', () => {
 	let mockSendMessage: Mock;
@@ -649,6 +661,89 @@ describe('AdjustmentChatDialog', () => {
 
 		expect(mockDismissProposal).not.toHaveBeenCalled();
 		expect(screen.getByText('担当者変更')).toBeInTheDocument();
+	});
+
+	it('提案カード表示中はチャット内プレースホルダを表示しない', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(`{
+  "type": "update_shift_time",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "startAt": "2026-02-24T10:00:00+09:00",
+  "endAt": "2026-02-24T11:00:00+09:00"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText('時間変更')).toBeInTheDocument();
+		expect(
+			screen.queryByText('（提案を生成しました）'),
+		).not.toBeInTheDocument();
+	});
+
+	it('提案をキャンセルした後はチャット内プレースホルダを表示する', async () => {
+		type UseProposalExecutionOptions = {
+			onDismiss?: () => void;
+		};
+		const user = userEvent.setup();
+
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createJsonOnlyProposalMessage(`{
+  \"type\": \"change_shift_staff\",
+  \"shiftId\": \"${TEST_IDS.SCHEDULE_1}\",
+  \"toStaffId\": \"${TEST_IDS.STAFF_2}\"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+		mockUseProposalExecution.mockImplementation(
+			(options: UseProposalExecutionOptions) => ({
+				isExecuting: false,
+				execute: mockExecuteProposal,
+				dismiss: () => {
+					options.onDismiss?.();
+					mockDismissProposal();
+				},
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText('担当者変更')).toBeInTheDocument();
+		expect(
+			screen.queryByText('（提案を生成しました）'),
+		).not.toBeInTheDocument();
+
+		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+		expect(screen.queryByText('担当者変更')).not.toBeInTheDocument();
+		expect(screen.getByText('（提案を生成しました）')).toBeInTheDocument();
 	});
 
 	it('detectedProposal の算出で reverse を呼ばずに最新 assistant を検出できる', () => {
