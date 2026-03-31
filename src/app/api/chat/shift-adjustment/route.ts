@@ -140,13 +140,13 @@ const LEGACY_PROPOSAL_TOOL_PROMPT = `
 // x-ai-response-format: uimessage ヘッダーあり → proposeShiftChange ツール使用
 
 const PROPOSAL_TOOL_PROMPT = `
-- proposeShiftChange: シフト変更提案を登録します
+- proposeShiftChange: シフト変更提案の内容を返却します（永続化は行いません）
   - シフト変更の提案を返すときは assistant 本文に JSON を書かず、必ずこのツールを呼び出してください
   - 入力は change_shift_staff または update_shift_time の形式に厳密に従ってください
 
 ## proposeShiftChange と成功断言の区別（重要）
 - proposeShiftChange の呼び出しは成功断言ではありません
-- 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposeShiftChange の呼び出しは必須であり、省略してはならない
+- 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposeShiftChange の呼び出し（ツール実行）は必須であり、省略してはならない
 - ただし対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
 - proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する`;
 
@@ -271,7 +271,7 @@ const createProposeShiftChangeTool = (
 	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
 	return tool({
 		description:
-			'シフト変更提案を登録します。shiftId は context.shifts に含まれる値のみ指定できます。',
+			'シフト変更提案の内容を返却します（永続化は行いません）。shiftId は context.shifts に含まれる値のみ指定できます。',
 		inputSchema: AiChatMutationProposalSchema,
 		execute: async (proposal) => {
 			if (!allowlistedShiftIds.has(proposal.shiftId)) {
@@ -413,11 +413,13 @@ export const POST = async (request: Request): Promise<Response> => {
 		// proposeShiftChange ツールを有効にし、UIMessage ストリームで返す。
 		// 既存の TextStreamChatTransport 互換クライアントはヘッダーを送らないため、
 		// ヘッダーなし時は JSON コードブロック形式のレガシー動作を維持する。
-		const useProposalTool =
+		// x-ai-response-format: uimessage ヘッダーで UIMessage ストリーム形式を要求
+		// （proposeShiftChange ツールの有無はさらに context.shifts の有無で決まる）
+		const useUIMessageStream =
 			request.headers.get('x-ai-response-format') === 'uimessage';
 
 		const systemPrompt =
-			buildSystemPromptBase(useProposalTool) + buildContextPrompt(context);
+			buildSystemPromptBase(useUIMessageStream) + buildContextPrompt(context);
 
 		// GEMINI_API_KEY を使用して Google AI プロバイダーを初期化
 		const google = createGoogleGenerativeAI({ apiKey });
@@ -442,7 +444,7 @@ export const POST = async (request: Request): Promise<Response> => {
 				searchStaffs: searchStaffsTool,
 			},
 			context?.shifts,
-			useProposalTool,
+			useUIMessageStream,
 		);
 
 		const modelMessages = await convertToModelMessages(
@@ -460,7 +462,7 @@ export const POST = async (request: Request): Promise<Response> => {
 			stopWhen: stepCountIs(5),
 		});
 
-		if (useProposalTool) {
+		if (useUIMessageStream) {
 			return result.toUIMessageStreamResponse();
 		}
 

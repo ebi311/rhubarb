@@ -866,7 +866,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、ツール未実行でも proposeShiftChange の呼び出しは必須であり、省略してはならない',
+					'対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposeShiftChange の呼び出し（ツール実行）は必須であり、省略してはならない',
 				),
 			}),
 		);
