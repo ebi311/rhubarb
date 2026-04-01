@@ -1,6 +1,6 @@
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import { useChat } from '@ai-sdk/react';
-import { TextStreamChatTransport, type UIMessage } from 'ai';
+import { DefaultChatTransport, type UIMessage } from 'ai';
 import { useCallback, useMemo } from 'react';
 
 export type ChatMessage = {
@@ -27,6 +27,7 @@ type UseAdjustmentChatOptions = {
 
 type UseAdjustmentChatReturn = {
 	messages: ChatMessage[];
+	rawMessages: UIMessage[];
 	isStreaming: boolean;
 	error: string | null;
 	sendMessage: (content: string) => Promise<void>;
@@ -58,8 +59,11 @@ export const useAdjustmentChat = ({
 	// transport を shiftContext に基づいて作成
 	const transport = useMemo(
 		() =>
-			new TextStreamChatTransport({
+			new DefaultChatTransport({
 				api: '/api/chat/shift-adjustment',
+				headers: {
+					'x-ai-response-format': 'uimessage',
+				},
 				body: {
 					context: {
 						shifts: [shiftContext],
@@ -108,6 +112,7 @@ export const useAdjustmentChat = ({
 
 	return {
 		messages,
+		rawMessages: sdkMessages,
 		isStreaming,
 		error: sdkError?.message ?? null,
 		sendMessage,
