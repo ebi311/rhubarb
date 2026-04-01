@@ -16,6 +16,7 @@ import { z } from 'zod';
 // AI SDK v6 の UIMessage 形式（parts 配列）をサポート
 const CHAT_MESSAGE_CONTENT_MAX_LENGTH = 10000;
 const CHAT_MESSAGE_PARTS_MAX_COUNT = 50;
+const NON_TEXT_PART_JSON_MAX_LENGTH = 20000;
 
 const TextPartSchema = z.object({
 	type: z.literal('text'),
@@ -29,7 +30,13 @@ const NonTextPartSchema = z
 	.passthrough()
 	.refine((part) => part.type !== 'text', {
 		message: "Part type must not be 'text'",
-	});
+	})
+	.refine(
+		(part) => JSON.stringify(part).length <= NON_TEXT_PART_JSON_MAX_LENGTH,
+		{
+			message: `Non-text part JSON size must be at most ${NON_TEXT_PART_JSON_MAX_LENGTH} characters`,
+		},
+	);
 
 const MessagePartSchema = z.union([TextPartSchema, NonTextPartSchema]);
 

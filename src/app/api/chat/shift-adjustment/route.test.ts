@@ -488,6 +488,35 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).not.toHaveBeenCalled();
 	});
 
+	it('non-text part の JSON サイズが上限を超える場合は 400 エラーを返す', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [
+					{
+						role: 'assistant',
+						parts: [
+							{
+								type: 'tool-searchStaffs',
+								toolCallId: 'call_too_large',
+								state: 'output-available',
+								output: {
+									payload: 'x'.repeat(20001),
+								},
+							},
+						],
+					},
+				],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(400);
+		expect(mockStreamText).not.toHaveBeenCalled();
+	});
+
 	it('messages が空の場合は 400 エラーを返す', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
