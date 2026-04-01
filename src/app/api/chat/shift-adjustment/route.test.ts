@@ -10,6 +10,9 @@ const {
 	mockTool,
 	mockGetUser,
 	mockSupabaseFrom,
+	mockShiftSelect,
+	mockShiftEq,
+	mockShiftMaybeSingle,
 	mockCreateSearchAvailableHelpersTool,
 	mockCreateProcessStaffAbsenceTool,
 	mockCreateSearchStaffsTool,
@@ -22,6 +25,9 @@ const {
 	mockTool: vi.fn((definition: unknown) => definition),
 	mockGetUser: vi.fn(),
 	mockSupabaseFrom: vi.fn(),
+	mockShiftSelect: vi.fn(),
+	mockShiftEq: vi.fn(),
+	mockShiftMaybeSingle: vi.fn(),
 	mockCreateSearchAvailableHelpersTool: vi.fn(),
 	mockCreateProcessStaffAbsenceTool: vi.fn(),
 	mockCreateSearchStaffsTool: vi.fn(),
@@ -91,7 +97,24 @@ describe('POST /api/chat/shift-adjustment', () => {
 			return { maybeSingle: mockStaffMaybeSingle };
 		});
 		mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
-		mockSupabaseFrom.mockReturnValue({ select: mockStaffSelect });
+
+		mockShiftMaybeSingle.mockResolvedValue({
+			data: { id: TEST_IDS.SCHEDULE_1 },
+			error: null,
+		});
+		mockShiftEq.mockReturnValue({ maybeSingle: mockShiftMaybeSingle });
+		mockShiftSelect.mockReturnValue({ eq: mockShiftEq });
+
+		mockSupabaseFrom.mockImplementation((table: string) => {
+			if (table === 'staffs') {
+				return { select: mockStaffSelect };
+			}
+			if (table === 'shifts') {
+				return { select: mockShiftSelect };
+			}
+
+			throw new Error('Unexpected table');
+		});
 
 		// Tool モックを返す
 		mockCreateSearchAvailableHelpersTool.mockReturnValue({
@@ -230,6 +253,47 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
+					'assistant の本文に JSON を直接書かず、必ず proposeShiftChange ツールを呼び出して返す',
+				),
+			}),
+		);
+	});
+
+	it('x-ai-response-format: uimessage かつ context.shifts が空でも UIMessage で返し、proposeShiftChange 関連指示は含めない', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ai-response-format': 'uimessage',
+			},
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '提案してください' }],
+				context: { shifts: [] },
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockToUIMessageStreamResponse).toHaveBeenCalledTimes(1);
+		expect(mockToTextStreamResponse).not.toHaveBeenCalled();
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tools: expect.not.objectContaining({
+					proposeShiftChange: expect.anything(),
+				}),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'proposeShiftChange ツールは利用できません',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.not.stringContaining(
 					'assistant の本文に JSON を直接書かず、必ず proposeShiftChange ツールを呼び出して返す',
 				),
 			}),
@@ -759,6 +823,18 @@ describe('POST /api/chat/shift-adjustment', () => {
 			},
 			body: JSON.stringify({
 				messages: [{ role: 'user', content: '提案してください' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							date: '2026-03-16',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+					],
+				},
 			}),
 		});
 
@@ -805,6 +881,18 @@ describe('POST /api/chat/shift-adjustment', () => {
 			},
 			body: JSON.stringify({
 				messages: [{ role: 'user', content: '調整案を出して' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							date: '2026-03-16',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+					],
+				},
 			}),
 		});
 
@@ -857,6 +945,18 @@ describe('POST /api/chat/shift-adjustment', () => {
 			},
 			body: JSON.stringify({
 				messages: [{ role: 'user', content: '未確定時の対応を確認したい' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							date: '2026-03-16',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+					],
+				},
 			}),
 		});
 
@@ -888,6 +988,18 @@ describe('POST /api/chat/shift-adjustment', () => {
 			},
 			body: JSON.stringify({
 				messages: [{ role: 'user', content: '対応を完了して' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							date: '2026-03-16',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+					],
+				},
 			}),
 		});
 
@@ -1291,6 +1403,65 @@ describe('POST /api/chat/shift-adjustment', () => {
 					toStaffId: TEST_IDS.STAFF_1,
 				},
 			});
+
+			expect(mockSupabaseFrom).toHaveBeenCalledWith('shifts');
+			expect(mockShiftSelect).toHaveBeenCalledWith('id');
+			expect(mockShiftEq).toHaveBeenCalledWith('id', TEST_IDS.SCHEDULE_1);
+		});
+
+		it('proposeShiftChange tool は shift がDBに存在しない場合エラーを返す', async () => {
+			mockShiftMaybeSingle.mockResolvedValue({ data: null, error: null });
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '提案して' }],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2025-01-20',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+						},
+					}),
+				},
+			);
+
+			await POST(request);
+
+			const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+				tools?: {
+					proposeShiftChange?: {
+						execute?: (input: {
+							type: 'change_shift_staff';
+							shiftId: string;
+							toStaffId: string;
+						}) => Promise<unknown>;
+					};
+				};
+			};
+
+			const execute = streamTextCall.tools?.proposeShiftChange?.execute;
+			await expect(
+				execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+				}),
+			).rejects.toThrow(
+				'指定されたシフトを確認できませんでした。対象シフトを確認して再度お試しください。',
+			);
 		});
 
 		it('スタッフが見つからない場合は 404 エラーを返す', async () => {
