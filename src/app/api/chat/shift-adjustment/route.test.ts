@@ -259,7 +259,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
-	it('x-ai-response-format: uimessage かつ context.shifts が空でも UIMessage で返し、proposeShiftChange 関連指示は含めない', async () => {
+	it('x-ai-response-format: uimessage かつ context.shifts が空なら、JSONコードブロック必須ではなく質問を促す指示を使う', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
 			headers: {
@@ -287,14 +287,21 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'proposeShiftChange ツールは利用できません',
+					'assistant 本文に JSON やコードブロックを出力してはならない',
 				),
 			}),
 		);
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.not.stringContaining(
-					'assistant の本文に JSON を直接書かず、必ず proposeShiftChange ツールを呼び出して返す',
+					'必ず assistant メッセージ内に 1 つの json コードブロックを含める',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'必要な情報をユーザーに質問して対象シフトを特定する',
 				),
 			}),
 		);

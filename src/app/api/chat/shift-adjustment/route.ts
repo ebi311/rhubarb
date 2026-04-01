@@ -156,6 +156,12 @@ const PROPOSAL_TOOL_PROMPT = `
 - 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposeShiftChange の呼び出し（ツール実行）は必須であり、省略してはならない
 - ただし対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
 - proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する`;
+const UI_MESSAGE_NO_PROPOSAL_PROMPT = `
+- proposeShiftChange ツールは利用できません
+- assistant 本文に JSON やコードブロックを出力してはならない
+- シフト変更の提案を行う前に、必要な情報をユーザーに質問して対象シフトを特定する
+- 対象シフト（shiftId）が未特定など情報不足時は、必要な確認質問のみを行う
+- proposeShiftChange が使えない前提で、確定操作前の候補案は自然文で簡潔に説明する`;
 
 const BASE_SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサポートするAIアシスタントです。
 
@@ -219,9 +225,16 @@ const SUCCESS_ASSERTION_PROMPT = `
 日本語で丁寧に対応してください。`;
 
 // UIMessage モードか否かに応じてシステムプロンプトを切り替える
-const buildSystemPromptBase = (useProposalTool: boolean): string =>
+const buildSystemPromptBase = (
+	useUIMessageStream: boolean,
+	useProposalTool: boolean,
+): string =>
 	BASE_SYSTEM_PROMPT +
-	(useProposalTool ? PROPOSAL_TOOL_PROMPT : LEGACY_PROPOSAL_TOOL_PROMPT) +
+	(useProposalTool
+		? PROPOSAL_TOOL_PROMPT
+		: useUIMessageStream
+			? UI_MESSAGE_NO_PROPOSAL_PROMPT
+			: LEGACY_PROPOSAL_TOOL_PROMPT) +
 	COMMON_CONSTRAINTS_PROMPT +
 	(useProposalTool
 		? `
@@ -482,7 +495,8 @@ const resolveStreamMode = (
 		useUIMessageStream,
 		useProposalTool,
 		systemPrompt:
-			buildSystemPromptBase(useProposalTool) + buildContextPrompt(context),
+			buildSystemPromptBase(useUIMessageStream, useProposalTool) +
+			buildContextPrompt(context),
 	};
 };
 
