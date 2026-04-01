@@ -281,11 +281,20 @@ const createProposeShiftChangeTool = (
 				);
 			}
 
-			const { data: shiftData } = await supabase
+			const { data: shiftData, error: shiftError } = await supabase
 				.from('shifts')
 				.select('id')
 				.eq('id', proposal.shiftId)
 				.maybeSingle<{ id: string }>();
+			if (shiftError) {
+				console.error(
+					'Failed to verify shift in proposeShiftChange tool',
+					shiftError,
+				);
+				throw new Error(
+					'対象シフトの確認中にエラーが発生しました。時間をおいて再度お試しください。',
+				);
+			}
 
 			if (!shiftData) {
 				throw new Error(

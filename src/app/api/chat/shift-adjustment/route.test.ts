@@ -1464,6 +1464,72 @@ describe('POST /api/chat/shift-adjustment', () => {
 			);
 		});
 
+		it('proposeShiftChange tool は shift 取得エラー時にログを残して汎用エラーを返す', async () => {
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined);
+			mockShiftMaybeSingle.mockResolvedValue({
+				data: null,
+				error: { message: 'network error' },
+			});
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '提案して' }],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2025-01-20',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+						},
+					}),
+				},
+			);
+
+			await POST(request);
+
+			const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+				tools?: {
+					proposeShiftChange?: {
+						execute?: (input: {
+							type: 'change_shift_staff';
+							shiftId: string;
+							toStaffId: string;
+						}) => Promise<unknown>;
+					};
+				};
+			};
+
+			const execute = streamTextCall.tools?.proposeShiftChange?.execute;
+			await expect(
+				execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+				}),
+			).rejects.toThrow(
+				'対象シフトの確認中にエラーが発生しました。時間をおいて再度お試しください。',
+			);
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				'Failed to verify shift in proposeShiftChange tool',
+				expect.objectContaining({ message: 'network error' }),
+			);
+			consoleErrorSpy.mockRestore();
+		});
+
 		it('スタッフが見つからない場合は 404 エラーを返す', async () => {
 			mockStaffMaybeSingle.mockResolvedValue({
 				data: null,
