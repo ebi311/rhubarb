@@ -16,6 +16,7 @@ import { z } from 'zod';
 // AI SDK v6 の UIMessage 形式（parts 配列）をサポート
 const CHAT_MESSAGE_CONTENT_MAX_LENGTH = 10000;
 const CHAT_MESSAGE_PARTS_MAX_COUNT = 50;
+const NON_TEXT_PART_JSON_MAX_LENGTH = 20000;
 
 const TextPartSchema = z.object({
 	type: z.literal('text'),
@@ -26,10 +27,16 @@ const NonTextPartSchema = z
 	.object({
 		type: z.string().min(1),
 	})
-	.strip()
+	.passthrough()
 	.refine((part) => part.type !== 'text', {
 		message: "Part type must not be 'text'",
-	});
+	})
+	.refine(
+		(part) => JSON.stringify(part).length <= NON_TEXT_PART_JSON_MAX_LENGTH,
+		{
+			message: `Non-text part JSON size must be at most ${NON_TEXT_PART_JSON_MAX_LENGTH} characters`,
+		},
+	);
 
 const MessagePartSchema = z.union([TextPartSchema, NonTextPartSchema]);
 
@@ -51,7 +58,7 @@ const ChatMessageSchema = z
 			}
 
 			const totalTextLength = message.parts.reduce((sum, part) => {
-				if (part.type !== 'text' || !('text' in part)) {
+				if (part.type !== 'text' || typeof part.text !== 'string') {
 					return sum;
 				}
 
@@ -149,6 +156,12 @@ const PROPOSAL_TOOL_PROMPT = `
 - 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposeShiftChange の呼び出し（ツール実行）は必須であり、省略してはならない
 - ただし対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
 - proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する`;
+const UI_MESSAGE_NO_PROPOSAL_PROMPT = `
+- proposeShiftChange ツールは利用できません
+- assistant 本文に JSON やコードブロックを出力してはならない
+- シフト変更の提案を行う前に、必要な情報をユーザーに質問して対象シフトを特定する
+- 対象シフト（shiftId）が未特定など情報不足時は、必要な確認質問のみを行う
+- proposeShiftChange が使えない前提で、確定操作前の候補案は自然文で簡潔に説明する`;
 
 const BASE_SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサポートするAIアシスタントです。
 
@@ -212,9 +225,16 @@ const SUCCESS_ASSERTION_PROMPT = `
 日本語で丁寧に対応してください。`;
 
 // UIMessage モードか否かに応じてシステムプロンプトを切り替える
-const buildSystemPromptBase = (useProposalTool: boolean): string =>
+const buildSystemPromptBase = (
+	useUIMessageStream: boolean,
+	useProposalTool: boolean,
+): string =>
 	BASE_SYSTEM_PROMPT +
-	(useProposalTool ? PROPOSAL_TOOL_PROMPT : LEGACY_PROPOSAL_TOOL_PROMPT) +
+	(useProposalTool
+		? PROPOSAL_TOOL_PROMPT
+		: useUIMessageStream
+			? UI_MESSAGE_NO_PROPOSAL_PROMPT
+			: LEGACY_PROPOSAL_TOOL_PROMPT) +
 	COMMON_CONSTRAINTS_PROMPT +
 	(useProposalTool
 		? `
@@ -266,6 +286,7 @@ ${shiftLines.join('\n')}${shiftSelectionPrompt}`;
 };
 
 const createProposeShiftChangeTool = (
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	shifts: Array<{ id: string }> | undefined,
 ) => {
 	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
@@ -277,6 +298,27 @@ const createProposeShiftChangeTool = (
 			if (!allowlistedShiftIds.has(proposal.shiftId)) {
 				throw new Error(
 					'シフトIDが不正です。候補に含まれているシフトから選択してください。',
+				);
+			}
+
+			const { data: shiftData, error: shiftError } = await supabase
+				.from('shifts')
+				.select('id')
+				.eq('id', proposal.shiftId)
+				.maybeSingle<{ id: string }>();
+			if (shiftError) {
+				console.error(
+					'Failed to verify shift in proposeShiftChange tool',
+					shiftError,
+				);
+				throw new Error(
+					'対象シフトの確認中にエラーが発生しました。時間をおいて再度お試しください。',
+				);
+			}
+
+			if (!shiftData) {
+				throw new Error(
+					'指定されたシフトを確認できませんでした。対象シフトを確認して再度お試しください。',
 				);
 			}
 
@@ -295,6 +337,85 @@ const normalizeMessages = (
 type AdminStaffResult =
 	| { ok: true; staffData: { office_id: string; role: 'admin' | 'helper' } }
 	| { ok: false; response: Response };
+
+type ParseChatRequestResult =
+	| { ok: true; data: ChatRequest }
+	| { ok: false; response: Response };
+
+type AuthenticatedUserResult =
+	| {
+			ok: true;
+			supabase: Awaited<ReturnType<typeof createSupabaseClient>>;
+			user: { id: string };
+	  }
+	| { ok: false; response: Response };
+
+const getAuthenticatedUser = async (): Promise<AuthenticatedUserResult> => {
+	const supabase = await createSupabaseClient();
+	const {
+		data: { user },
+		error: authError,
+	} = await supabase.auth.getUser();
+
+	if (authError || !user) {
+		return {
+			ok: false,
+			response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+		};
+	}
+
+	return { ok: true, supabase, user: { id: user.id } };
+};
+
+type ApiKeyResult =
+	| { ok: true; apiKey: string }
+	| { ok: false; response: Response };
+
+const getApiKey = (): ApiKeyResult => {
+	const apiKey = process.env.GEMINI_API_KEY;
+	if (!apiKey) {
+		console.error('GEMINI_API_KEY is not configured');
+		return {
+			ok: false,
+			response: NextResponse.json(
+				{ error: 'AI service is not configured' },
+				{ status: 500 },
+			),
+		};
+	}
+
+	return { ok: true, apiKey };
+};
+
+const parseChatRequest = async (
+	request: Request,
+): Promise<ParseChatRequestResult> => {
+	const body = await request.json().catch(() => null);
+
+	if (!body) {
+		return {
+			ok: false,
+			response: NextResponse.json(
+				{ error: 'Invalid JSON in request body' },
+				{ status: 400 },
+			),
+		};
+	}
+
+	const parseResult = ChatRequestSchema.safeParse(body);
+
+	if (!parseResult.success) {
+		return {
+			ok: false,
+			response: NextResponse.json(
+				{ error: 'Invalid request', issues: parseResult.error.issues },
+				{ status: 400 },
+			),
+		};
+	}
+
+	return { ok: true, data: parseResult.data };
+};
 
 const fetchAdminStaff = async (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
@@ -338,6 +459,7 @@ const fetchAdminStaff = async (
 };
 
 const buildTools = (
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	baseTools: {
 		searchAvailableHelpers: ReturnType<typeof createSearchAvailableHelpersTool>;
 		processStaffAbsence: ReturnType<typeof createProcessStaffAbsenceTool>;
@@ -356,117 +478,116 @@ const buildTools = (
 
 	return {
 		...baseTools,
-		proposeShiftChange: createProposeShiftChangeTool(shiftList),
+		proposeShiftChange: createProposeShiftChangeTool(supabase, shiftList),
 	};
+};
+
+const resolveStreamMode = (
+	request: Request,
+	context: ChatRequest['context'],
+) => {
+	const useUIMessageStream =
+		request.headers.get('x-ai-response-format') === 'uimessage';
+	const useProposalTool =
+		useUIMessageStream && (context?.shifts?.length ?? 0) > 0;
+
+	return {
+		useUIMessageStream,
+		useProposalTool,
+		systemPrompt:
+			buildSystemPromptBase(useUIMessageStream, useProposalTool) +
+			buildContextPrompt(context),
+	};
+};
+
+const toChatResponse = (
+	result: {
+		toUIMessageStreamResponse: () => Response;
+		toTextStreamResponse: () => Response;
+	},
+	useUIMessageStream: boolean,
+): Response => {
+	if (useUIMessageStream) {
+		return result.toUIMessageStreamResponse();
+	}
+
+	return result.toTextStreamResponse();
+};
+
+const handlePost = async (request: Request): Promise<Response> => {
+	const authResult = await getAuthenticatedUser();
+	if (!authResult.ok) {
+		return authResult.response;
+	}
+	const { supabase, user } = authResult;
+
+	const parsedRequest = await parseChatRequest(request);
+	if (!parsedRequest.ok) {
+		return parsedRequest.response;
+	}
+
+	const { messages, context } = parsedRequest.data;
+
+	const apiKeyResult = getApiKey();
+	if (!apiKeyResult.ok) {
+		return apiKeyResult.response;
+	}
+	const { apiKey } = apiKeyResult;
+
+	const staffResult = await fetchAdminStaff(supabase, user.id);
+	if (!staffResult.ok) {
+		return staffResult.response;
+	}
+	const { staffData } = staffResult;
+
+	const { useUIMessageStream, useProposalTool, systemPrompt } =
+		resolveStreamMode(request, context);
+
+	const google = createGoogleGenerativeAI({ apiKey });
+	const searchAvailableHelpersTool = createSearchAvailableHelpersTool({
+		supabase,
+		officeId: staffData.office_id,
+	});
+	const processStaffAbsenceTool = createProcessStaffAbsenceTool({
+		supabase,
+		userId: user.id,
+	});
+	const searchStaffsTool = createSearchStaffsTool({
+		supabase,
+		officeId: staffData.office_id,
+	});
+	const tools = buildTools(
+		supabase,
+		{
+			searchAvailableHelpers: searchAvailableHelpersTool,
+			processStaffAbsence: processStaffAbsenceTool,
+			searchStaffs: searchStaffsTool,
+		},
+		context?.shifts,
+		useProposalTool,
+	);
+
+	const modelMessages = await convertToModelMessages(
+		normalizeMessages(messages),
+		{
+			tools,
+		},
+	);
+
+	const result = streamText({
+		model: google('gemini-2.5-flash'),
+		system: systemPrompt,
+		messages: modelMessages,
+		tools,
+		stopWhen: stepCountIs(5),
+	});
+
+	return toChatResponse(result, useUIMessageStream);
 };
 
 export const POST = async (request: Request): Promise<Response> => {
 	try {
-		// 認証チェック
-		const supabase = await createSupabaseClient();
-		const {
-			data: { user },
-			error: authError,
-		} = await supabase.auth.getUser();
-
-		if (authError || !user) {
-			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-		}
-
-		const body = await request.json().catch(() => null);
-
-		if (!body) {
-			return NextResponse.json(
-				{ error: 'Invalid JSON in request body' },
-				{ status: 400 },
-			);
-		}
-
-		const parseResult = ChatRequestSchema.safeParse(body);
-
-		if (!parseResult.success) {
-			return NextResponse.json(
-				{ error: 'Invalid request', issues: parseResult.error.issues },
-				{ status: 400 },
-			);
-		}
-
-		const { messages, context } = parseResult.data;
-
-		const apiKey = process.env.GEMINI_API_KEY;
-		if (!apiKey) {
-			console.error('GEMINI_API_KEY is not configured');
-			return NextResponse.json(
-				{ error: 'AI service is not configured' },
-				{ status: 500 },
-			);
-		}
-
-		// スタッフの office_id と role を取得 & 認可チェック
-		const staffResult = await fetchAdminStaff(supabase, user.id);
-		if (!staffResult.ok) {
-			return staffResult.response;
-		}
-		const { staffData } = staffResult;
-
-		// UIMessage モード判定: クライアントが UIMessage ストリームに対応している場合のみ
-		// proposeShiftChange ツールを有効にし、UIMessage ストリームで返す。
-		// 既存の TextStreamChatTransport 互換クライアントはヘッダーを送らないため、
-		// ヘッダーなし時は JSON コードブロック形式のレガシー動作を維持する。
-		// x-ai-response-format: uimessage ヘッダーで UIMessage ストリーム形式を要求
-		// （proposeShiftChange ツールの有無はさらに context.shifts の有無で決まる）
-		const useUIMessageStream =
-			request.headers.get('x-ai-response-format') === 'uimessage';
-
-		const systemPrompt =
-			buildSystemPromptBase(useUIMessageStream) + buildContextPrompt(context);
-
-		// GEMINI_API_KEY を使用して Google AI プロバイダーを初期化
-		const google = createGoogleGenerativeAI({ apiKey });
-
-		// Tool を作成
-		const searchAvailableHelpersTool = createSearchAvailableHelpersTool({
-			supabase,
-			officeId: staffData.office_id,
-		});
-		const processStaffAbsenceTool = createProcessStaffAbsenceTool({
-			supabase,
-			userId: user.id,
-		});
-		const searchStaffsTool = createSearchStaffsTool({
-			supabase,
-			officeId: staffData.office_id,
-		});
-		const tools = buildTools(
-			{
-				searchAvailableHelpers: searchAvailableHelpersTool,
-				processStaffAbsence: processStaffAbsenceTool,
-				searchStaffs: searchStaffsTool,
-			},
-			context?.shifts,
-			useUIMessageStream,
-		);
-
-		const modelMessages = await convertToModelMessages(
-			normalizeMessages(messages),
-			{
-				tools,
-			},
-		);
-
-		const result = streamText({
-			model: google('gemini-2.5-flash'),
-			system: systemPrompt,
-			messages: modelMessages,
-			tools,
-			stopWhen: stepCountIs(5),
-		});
-
-		if (useUIMessageStream) {
-			return result.toUIMessageStreamResponse();
-		}
-
-		return result.toTextStreamResponse();
+		return await handlePost(request);
 	} catch (error) {
 		console.error('Chat API error:', error);
 		// 内部エラーの詳細はクライアントに露出しない
