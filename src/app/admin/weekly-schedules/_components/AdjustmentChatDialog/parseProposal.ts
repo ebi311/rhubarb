@@ -44,7 +44,7 @@ const extractJsonCodeBlock = (
 	return { jsonText, failReason: null };
 };
 
-const isAllowedProposal = (
+export const isAllowedProposal = (
 	proposal: AiChatMutationProposal,
 	allowlist: ProposalAllowlist,
 ): boolean => {
