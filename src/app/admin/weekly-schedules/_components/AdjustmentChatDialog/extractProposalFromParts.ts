@@ -6,20 +6,39 @@ import type { UIMessage } from 'ai';
 import { isAllowedProposal, type ProposalAllowlist } from './parseProposal';
 
 const PROPOSAL_TOOL_NAME = 'proposeShiftChange';
+const PROPOSAL_TOOL_PART_TYPE = 'tool-proposeShiftChange';
+
+type ProposalOutputPart = Extract<
+	UIMessage['parts'][number],
+	{ state: 'output-available'; output: unknown }
+>;
+
+const isOutputAvailablePart = (
+	part: UIMessage['parts'][number],
+): part is ProposalOutputPart => {
+	return (
+		'state' in part && part.state === 'output-available' && 'output' in part
+	);
+};
+
+const isProposalToolPart = (part: ProposalOutputPart): boolean => {
+	if (part.type === PROPOSAL_TOOL_PART_TYPE) {
+		return true;
+	}
+
+	if (part.type !== 'dynamic-tool') {
+		return false;
+	}
+
+	return part.toolName === PROPOSAL_TOOL_NAME;
+};
 
 export const extractProposalFromParts = (
 	parts: UIMessage['parts'],
 	allowlist: ProposalAllowlist,
 ): AiChatMutationProposal | null => {
 	for (const part of parts) {
-		if (part.type !== 'dynamic-tool') {
-			continue;
-		}
-
-		if (
-			part.toolName !== PROPOSAL_TOOL_NAME ||
-			part.state !== 'output-available'
-		) {
+		if (!isOutputAvailablePart(part) || !isProposalToolPart(part)) {
 			continue;
 		}
 
