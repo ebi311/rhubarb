@@ -45,12 +45,12 @@ export const extractProposalFromParts = (
 		const parsed = AiChatMutationProposalSchema.safeParse(part.output);
 		if (!parsed.success) {
 			console.warn('[extractProposalFromParts] schema validation failed');
-			return null;
+			continue;
 		}
 
 		if (!isAllowedProposal(parsed.data, allowlist)) {
 			console.warn('[extractProposalFromParts] allowlist rejected proposal');
-			return null;
+			continue;
 		}
 
 		return parsed.data;
