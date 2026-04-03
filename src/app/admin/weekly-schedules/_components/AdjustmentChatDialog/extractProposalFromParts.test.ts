@@ -156,6 +156,54 @@ describe('extractProposalFromParts', () => {
 		});
 	});
 
+	it('1つ目の tool-proposeShiftChange が schema NG でも 2つ目が OK なら proposal を返す', () => {
+		const parts: UIMessage['parts'] = [
+			createProposeShiftChangePart({
+				type: 'update_shift_time',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				startAt: 'invalid-date',
+				endAt: '2026-03-16T10:00:00+09:00',
+			}),
+			createProposeShiftChangePart({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+				reason: '修正済み提案',
+			}),
+		];
+
+		expect(extractProposalFromParts(parts, allowlist)).toEqual({
+			type: 'change_shift_staff',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			toStaffId: TEST_IDS.STAFF_2,
+			reason: '修正済み提案',
+		});
+	});
+
+	it('1つ目の tool-proposeShiftChange が allowlist NG でも 2つ目が OK なら proposal を返す', () => {
+		const parts: UIMessage['parts'] = [
+			createProposeShiftChangePart({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_4,
+				reason: 'allowlist 外のスタッフ',
+			}),
+			createProposeShiftChangePart({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+				reason: 'allowlist 内のスタッフ',
+			}),
+		];
+
+		expect(extractProposalFromParts(parts, allowlist)).toEqual({
+			type: 'change_shift_staff',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			toStaffId: TEST_IDS.STAFF_2,
+			reason: 'allowlist 内のスタッフ',
+		});
+	});
+
 	it('後方互換で dynamic-tool + proposeShiftChange を受け付ける', () => {
 		const parts: UIMessage['parts'] = [
 			createDynamicToolPart({
