@@ -24,6 +24,10 @@ const shouldHideProposalPlaceholderMessage = (
 		return false;
 	}
 
+	if (message.content.trim().length === 0) {
+		return true;
+	}
+
 	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(message.content);
 	if (!hasJsonCodeBlock) {
 		return false;
