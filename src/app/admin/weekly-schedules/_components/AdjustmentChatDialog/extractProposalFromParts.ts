@@ -33,6 +33,16 @@ const isProposalToolPart = (part: ProposalOutputPart): boolean => {
 	return part.toolName === PROPOSAL_TOOL_NAME;
 };
 
+const getPartLabel = (part: ProposalOutputPart): string => {
+	const toolName =
+		'toolName' in part && typeof part.toolName === 'string'
+			? part.toolName
+			: undefined;
+	return toolName
+		? `type=${part.type} toolName=${toolName}`
+		: `type=${part.type}`;
+};
+
 export const extractProposalFromParts = (
 	parts: UIMessage['parts'],
 	allowlist: ProposalAllowlist,
@@ -44,12 +54,17 @@ export const extractProposalFromParts = (
 
 		const parsed = AiChatMutationProposalSchema.safeParse(part.output);
 		if (!parsed.success) {
-			console.warn('[extractProposalFromParts] schema validation failed');
+			console.warn(
+				`[extractProposalFromParts] schema validation failed (${getPartLabel(part)}):`,
+				parsed.error.flatten().fieldErrors,
+			);
 			continue;
 		}
 
 		if (!isAllowedProposal(parsed.data, allowlist)) {
-			console.warn('[extractProposalFromParts] allowlist rejected proposal');
+			console.warn(
+				`[extractProposalFromParts] allowlist rejected proposal (${getPartLabel(part)})`,
+			);
 			continue;
 		}
 
