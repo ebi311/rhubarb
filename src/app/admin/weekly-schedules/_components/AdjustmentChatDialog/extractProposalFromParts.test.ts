@@ -1,9 +1,17 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
 import type { UIMessage } from 'ai';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { extractProposalFromParts } from './extractProposalFromParts';
 
 describe('extractProposalFromParts', () => {
+	beforeEach(() => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	const allowlist = {
 		shiftIds: [TEST_IDS.SCHEDULE_1],
 		staffIds: [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2],
