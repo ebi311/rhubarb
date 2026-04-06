@@ -43,12 +43,30 @@ const getPartLabel = (part: ProposalOutputPart): string => {
 		: `type=${part.type}`;
 };
 
+const getProposalWarnDetails = (proposal: AiChatMutationProposal) => {
+	if (proposal.type === 'change_shift_staff') {
+		return {
+			type: proposal.type,
+			shiftId: proposal.shiftId,
+			toStaffId: proposal.toStaffId,
+		};
+	}
+
+	return {
+		type: proposal.type,
+		shiftId: proposal.shiftId,
+		startAt: proposal.startAt,
+		endAt: proposal.endAt,
+	};
+};
+
 export const extractProposalFromParts = (
 	parts: UIMessage['parts'],
 	allowlist: ProposalAllowlist,
 ): AiChatMutationProposal | null => {
-	for (const part of parts) {
-		if (!isOutputAvailablePart(part) || !isProposalToolPart(part)) {
+	for (let index = parts.length - 1; index >= 0; index -= 1) {
+		const part = parts[index];
+		if (!part || !isOutputAvailablePart(part) || !isProposalToolPart(part)) {
 			continue;
 		}
 
@@ -64,6 +82,7 @@ export const extractProposalFromParts = (
 		if (!isAllowedProposal(parsed.data, allowlist)) {
 			console.warn(
 				`[extractProposalFromParts] allowlist rejected proposal (${getPartLabel(part)})`,
+				getProposalWarnDetails(parsed.data),
 			);
 			continue;
 		}

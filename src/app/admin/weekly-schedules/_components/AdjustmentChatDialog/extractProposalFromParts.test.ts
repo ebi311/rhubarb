@@ -212,6 +212,52 @@ describe('extractProposalFromParts', () => {
 		});
 	});
 
+	it('複数の有効 proposal がある場合は最後の proposal を返す', () => {
+		const parts: UIMessage['parts'] = [
+			createProposeShiftChangePart({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_1,
+				reason: '最初の提案',
+			}),
+			createProposeShiftChangePart({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+				reason: '最後の提案',
+			}),
+		];
+
+		expect(extractProposalFromParts(parts, allowlist)).toEqual({
+			type: 'change_shift_staff',
+			shiftId: TEST_IDS.SCHEDULE_1,
+			toStaffId: TEST_IDS.STAFF_2,
+			reason: '最後の提案',
+		});
+	});
+
+	it('allowlist reject 時の warn に part 情報と主要フィールドを含める', () => {
+		const warnSpy = vi.spyOn(console, 'warn');
+		const parts: UIMessage['parts'] = [
+			createProposeShiftChangePart({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_4,
+				reason: 'allowlist 外のスタッフ',
+			}),
+		];
+
+		extractProposalFromParts(parts, allowlist);
+
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining('type=tool-proposeShiftChange'),
+			expect.objectContaining({
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_4,
+			}),
+		);
+	});
+
 	it('後方互換で dynamic-tool + proposeShiftChange を受け付ける', () => {
 		const parts: UIMessage['parts'] = [
 			createDynamicToolPart({
