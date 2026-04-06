@@ -8,6 +8,9 @@ vi.mock('ai', () => ({
 	TextStreamChatTransport: class MockTextStreamChatTransport {
 		constructor() {}
 	},
+	DefaultChatTransport: class MockDefaultChatTransport {
+		constructor() {}
+	},
 }));
 
 // @ai-sdk/react のモック（Storybook環境でのESM互換性問題を回避）
