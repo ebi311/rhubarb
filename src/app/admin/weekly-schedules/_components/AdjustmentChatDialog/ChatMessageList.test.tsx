@@ -115,6 +115,22 @@ describe('ChatMessageList', () => {
 		).not.toBeInTheDocument();
 	});
 
+	it('proposalMessageId に一致し assistant content が空文字のときは行を非表示にする', () => {
+		render(
+			<ChatMessageList
+				proposalMessageId={TEST_IDS.SCHEDULE_1}
+				messages={[
+					createMessage({
+						id: TEST_IDS.SCHEDULE_1,
+						content: '',
+					}),
+				]}
+			/>,
+		);
+
+		expect(screen.queryByText('AIアシスタント')).not.toBeInTheDocument();
+	});
+
 	it('proposalMessageId が異なる他のメッセージは非表示にしない', () => {
 		render(
 			<ChatMessageList
