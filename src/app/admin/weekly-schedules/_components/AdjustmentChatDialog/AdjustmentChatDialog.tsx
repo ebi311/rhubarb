@@ -1,10 +1,12 @@
 'use client';
 
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
+import type { UIMessage } from 'ai';
 import { type ReactNode, useMemo, useState } from 'react';
 import { buildProposalDisplayValues } from './buildProposalDisplayValues';
 import { ChatInput } from './ChatInput';
 import { ChatMessageList } from './ChatMessageList';
+import { extractProposalFromParts } from './extractProposalFromParts';
 import { parseProposal } from './parseProposal';
 import { ProposalConfirmCard } from './ProposalConfirmCard';
 import type { ShiftContext } from './useAdjustmentChat';
@@ -23,14 +25,10 @@ type AdjustmentChatDialogProps = {
  * 最新 assistant に proposal が無い場合は null を返し、過去提案へはフォールバックしない。
  */
 const findLatestProposal = (
-	messages: Array<{ id: string; role: string; content: string }>,
+	messages: UIMessage[],
 	allowlist: Parameters<typeof parseProposal>[1],
 ) => {
-	let latestAssistantMessage: {
-		id: string;
-		role: string;
-		content: string;
-	} | null = null;
+	let latestAssistantMessage: UIMessage | null = null;
 
 	for (let index = messages.length - 1; index >= 0; index -= 1) {
 		const message = messages[index];
@@ -41,11 +39,32 @@ const findLatestProposal = (
 		}
 	}
 
-	if (!latestAssistantMessage?.content) {
+	if (!latestAssistantMessage) {
 		return null;
 	}
 
-	const proposal = parseProposal(latestAssistantMessage.content, allowlist);
+	const proposalFromTool = extractProposalFromParts(
+		latestAssistantMessage.parts,
+		allowlist,
+	);
+
+	if (proposalFromTool) {
+		return { messageId: latestAssistantMessage.id, proposal: proposalFromTool };
+	}
+
+	const textContent = latestAssistantMessage.parts
+		.filter(
+			(part): part is Extract<UIMessage['parts'][number], { type: 'text' }> =>
+				part.type === 'text',
+		)
+		.map((part) => part.text)
+		.join('');
+
+	if (!textContent) {
+		return null;
+	}
+
+	const proposal = parseProposal(textContent, allowlist);
 
 	if (!proposal) {
 		return null;
@@ -97,11 +116,10 @@ export const AdjustmentChatDialog = ({
 	staffOptions,
 	onClose,
 }: AdjustmentChatDialogProps) => {
-	const { messages, isStreaming, error, sendMessage, stop } = useAdjustmentChat(
-		{
+	const { messages, rawMessages, isStreaming, error, sendMessage, stop } =
+		useAdjustmentChat({
 			shiftContext,
-		},
-	);
+		});
 
 	const staffIdsAllowlist = useMemo(
 		() => staffOptions.map((staffOption) => staffOption.id),
@@ -117,14 +135,14 @@ export const AdjustmentChatDialog = ({
 
 	/** 最新の assistant メッセージ（id + parsed proposal）を返す */
 	const { detectedProposal, proposalKey } = useMemo(() => {
-		const result = findLatestProposal(messages, allowlist);
+		const result = findLatestProposal(rawMessages, allowlist);
 
 		return {
 			detectedProposal: result ? result.proposal : null,
 			// dismiss キーは「この assistant メッセージの id」で安定管理する
 			proposalKey: result ? result.messageId : null,
 		};
-	}, [messages, allowlist]);
+	}, [rawMessages, allowlist]);
 
 	const proposalDisplayValues = useMemo(() => {
 		if (!detectedProposal) {

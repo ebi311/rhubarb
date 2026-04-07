@@ -2,6 +2,7 @@ import type { ExecuteAiChatMutationResult } from '@/models/aiChatMutationProposa
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { UIMessage } from 'ai';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { AdjustmentChatDialog } from './AdjustmentChatDialog';
 
@@ -54,8 +55,8 @@ const createMockUseChatReturn = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const createProposalMessage = (proposalJson: string) => ({
-	id: 'assistant-1',
+const createProposalMessage = (proposalJson: string, id = 'assistant-1') => ({
+	id,
 	role: 'assistant',
 	parts: [
 		{
@@ -67,8 +68,11 @@ ${proposalJson}
 		},
 	],
 });
-const createJsonOnlyProposalMessage = (proposalJson: string) => ({
-	id: 'assistant-json-only',
+const createJsonOnlyProposalMessage = (
+	proposalJson: string,
+	id = 'assistant-json-only',
+) => ({
+	id,
 	role: 'assistant',
 	parts: [
 		{
@@ -77,6 +81,33 @@ const createJsonOnlyProposalMessage = (proposalJson: string) => ({
 ${proposalJson}
 \`\`\``,
 		},
+	],
+});
+
+const createToolProposeShiftChangePart = (
+	output: unknown,
+): UIMessage['parts'][number] => ({
+	type: 'tool-proposeShiftChange',
+	toolCallId: 'call_1',
+	state: 'output-available',
+	input: {},
+	output,
+});
+
+const createToolProposalAssistantMessage = ({
+	id,
+	output,
+	text,
+}: {
+	id: string;
+	output: unknown;
+	text?: string;
+}): UIMessage => ({
+	id,
+	role: 'assistant',
+	parts: [
+		...(text ? [{ type: 'text' as const, text }] : []),
+		createToolProposeShiftChangePart(output),
 	],
 });
 
@@ -333,6 +364,109 @@ describe('AdjustmentChatDialog', () => {
 		expect(
 			screen.getByText(/AI service is not configured/),
 		).toBeInTheDocument();
+	});
+
+	it('rawMessages に tool-proposeShiftChange の output-available があると ProposalConfirmCard を表示する', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createToolProposalAssistantMessage({
+						id: TEST_IDS.SCHEDULE_2,
+						output: {
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_2,
+						},
+					}),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText('担当者変更')).toBeInTheDocument();
+	});
+
+	it('tool-based と本文 JSON が両方ある場合は tool-based proposal を優先する', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createToolProposalAssistantMessage({
+						id: TEST_IDS.SCHEDULE_2,
+						text: `提案です
+\`\`\`json
+{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}
+\`\`\``,
+						output: {
+							type: 'update_shift_time',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							startAt: '2026-02-24T12:00:00+09:00',
+							endAt: '2026-02-24T13:00:00+09:00',
+						},
+					}),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText('時間変更')).toBeInTheDocument();
+		expect(screen.queryByText('担当者変更')).not.toBeInTheDocument();
+	});
+
+	it('tool-based proposal がない場合は parseProposal fallback で ProposalConfirmCard を表示する', () => {
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createJsonOnlyProposalMessage(
+						`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`,
+						TEST_IDS.SCHEDULE_2,
+					),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText('担当者変更')).toBeInTheDocument();
 	});
 
 	it('assistant の最新メッセージに提案 JSON があると ProposalConfirmCard を表示する', () => {

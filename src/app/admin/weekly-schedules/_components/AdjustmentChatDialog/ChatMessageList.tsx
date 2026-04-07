@@ -24,6 +24,10 @@ const shouldHideProposalPlaceholderMessage = (
 		return false;
 	}
 
+	if (message.content.trim().length === 0) {
+		return true;
+	}
+
 	const hasJsonCodeBlock = JSON_CODE_BLOCK_DETECT_REGEX.test(message.content);
 	if (!hasJsonCodeBlock) {
 		return false;
@@ -59,6 +63,32 @@ const getMessageDisplayContent = (message: ChatMessage): string | null => {
 	return message.content;
 };
 
+/**
+ * assistant メッセージを描画すべきかどうかを返す。
+ * - shouldHideProposalPlaceholderMessage が true の場合は非表示
+ * - ストリーミング中の最終メッセージ以外で displayContent が null の場合も非表示
+ *   (tool-only メッセージが loading dots を永続表示しないようにする)
+ */
+const shouldRenderMessage = (
+	message: ChatMessage,
+	displayContent: string | null,
+	proposalMessageId: string | null | undefined,
+	isStreaming: boolean,
+	isLastMessage: boolean,
+): boolean => {
+	if (shouldHideProposalPlaceholderMessage(message, proposalMessageId)) {
+		return false;
+	}
+	if (
+		message.role === 'assistant' &&
+		displayContent === null &&
+		!(isStreaming && isLastMessage)
+	) {
+		return false;
+	}
+	return true;
+};
+
 export const ChatMessageList = ({
 	messages,
 	isStreaming = false,
@@ -92,15 +122,21 @@ export const ChatMessageList = ({
 
 	return (
 		<div className="flex-1 space-y-4 overflow-y-auto p-4">
-			{messages.map((message) => {
+			{messages.map((message, index) => {
+				const displayContent = getMessageDisplayContent(message);
+				const isLastMessage = index === messages.length - 1;
+
 				if (
-					message.role === 'assistant' &&
-					shouldHideProposalPlaceholderMessage(message, proposalMessageId)
+					!shouldRenderMessage(
+						message,
+						displayContent,
+						proposalMessageId,
+						isStreaming,
+						isLastMessage,
+					)
 				) {
 					return null;
 				}
-
-				const displayContent = getMessageDisplayContent(message);
 
 				return (
 					<div
