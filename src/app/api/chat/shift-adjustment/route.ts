@@ -119,6 +119,102 @@ const ChatRequestSchema = z.object({
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
+type ChatErrorCode =
+	| 'allowlist_violation'
+	| 'shift_verification_failed'
+	| 'stream_error'
+	| 'unexpected_error';
+
+type LoggedChatError = Error & {
+	__logged?: boolean;
+	__errorCode?: ChatErrorCode;
+};
+
+type RequestLogContext = {
+	requestId: string;
+	userId?: string;
+	officeId?: string;
+	mode?: 'uimessage' | 'legacy';
+	useProposalTool?: boolean;
+	shiftsCount?: number;
+	shiftIds?: string[];
+	allowlistedShiftIdsSize?: number;
+};
+
+const getMaxShiftIdsInLog = (): number =>
+	process.env.AI_CHAT_VERBOSE_LOG === 'true' ? 10 : 3;
+
+const classifyError = (error: unknown): ChatErrorCode => {
+	if (
+		typeof error === 'object' &&
+		error !== null &&
+		'__errorCode' in error &&
+		typeof (error as { __errorCode?: unknown }).__errorCode === 'string'
+	) {
+		return (error as { __errorCode: ChatErrorCode }).__errorCode;
+	}
+
+	return 'unexpected_error';
+};
+
+const markLoggedError = (
+	error: unknown,
+	errorCode: ChatErrorCode,
+): LoggedChatError => {
+	if (error instanceof Error) {
+		const typedError = error as LoggedChatError;
+		typedError.__errorCode = typedError.__errorCode ?? errorCode;
+		typedError.__logged = true;
+		return typedError;
+	}
+
+	const wrappedError = new Error(
+		typeof error === 'string' ? error : 'Unknown error',
+	) as LoggedChatError;
+	wrappedError.__errorCode = errorCode;
+	wrappedError.__logged = true;
+
+	return wrappedError;
+};
+
+const logChatError = (
+	message: string,
+	error: unknown,
+	logContext: RequestLogContext,
+	extra: Partial<{
+		toolName: string;
+		proposalShiftId: string;
+	}> = {},
+): void => {
+	const errorMessage =
+		error instanceof Error
+			? error.message
+			: typeof error === 'string'
+				? error
+				: typeof error === 'object' &&
+					  error !== null &&
+					  'message' in error &&
+					  typeof (error as { message?: unknown }).message === 'string'
+					? (error as { message: string }).message
+					: 'Unknown error';
+
+	console.error(message, {
+		requestId: logContext.requestId,
+		errorType: classifyError(error),
+		message: errorMessage,
+		errorMessage,
+		userId: logContext.userId,
+		officeId: logContext.officeId,
+		mode: logContext.mode,
+		useProposalTool: logContext.useProposalTool,
+		shiftsCount: logContext.shiftsCount,
+		shiftIds: logContext.shiftIds?.slice(0, getMaxShiftIdsInLog()),
+		allowlistedShiftIdsSize: logContext.allowlistedShiftIdsSize,
+		toolName: extra.toolName,
+		proposalShiftId: extra.proposalShiftId,
+	});
+};
+
 const SERVICE_TYPE_LABELS_PROMPT = Object.entries(ServiceTypeLabels)
 	.map(([serviceTypeId, label]) => `- ${serviceTypeId}: ${label}`)
 	.join('\n');
@@ -288,17 +384,27 @@ ${shiftLines.join('\n')}${shiftSelectionPrompt}`;
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	shifts: Array<{ id: string }> | undefined,
+	logContext: RequestLogContext,
 ) => {
 	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
+	logContext.allowlistedShiftIdsSize = allowlistedShiftIds.size;
+
 	return tool({
 		description:
 			'シフト変更提案の内容を返却します（永続化は行いません）。shiftId は context.shifts に含まれる値のみ指定できます。',
 		inputSchema: AiChatMutationProposalSchema,
 		execute: async (proposal) => {
 			if (!allowlistedShiftIds.has(proposal.shiftId)) {
-				throw new Error(
+				const allowlistError = new Error(
 					'シフトIDが不正です。候補に含まれているシフトから選択してください。',
-				);
+				) as LoggedChatError;
+				allowlistError.__errorCode = 'allowlist_violation';
+				allowlistError.__logged = true;
+				logChatError('AI chat tool error', allowlistError, logContext, {
+					toolName: 'proposeShiftChange',
+					proposalShiftId: proposal.shiftId,
+				});
+				throw allowlistError;
 			}
 
 			const { data: shiftData, error: shiftError } = await supabase
@@ -307,19 +413,38 @@ const createProposeShiftChangeTool = (
 				.eq('id', proposal.shiftId)
 				.maybeSingle<{ id: string }>();
 			if (shiftError) {
-				console.error(
+				const verificationError = new Error(
+					'対象シフトの確認中にエラーが発生しました。時間をおいて再度お試しください。',
+				) as LoggedChatError;
+				verificationError.__errorCode = 'shift_verification_failed';
+				verificationError.__logged = true;
+				logChatError(
 					'Failed to verify shift in proposeShiftChange tool',
 					shiftError,
+					logContext,
+					{
+						toolName: 'proposeShiftChange',
+						proposalShiftId: proposal.shiftId,
+					},
 				);
-				throw new Error(
-					'対象シフトの確認中にエラーが発生しました。時間をおいて再度お試しください。',
-				);
+				throw verificationError;
 			}
 
 			if (!shiftData) {
-				throw new Error(
+				const shiftNotFoundError = new Error(
 					'指定されたシフトを確認できませんでした。対象シフトを確認して再度お試しください。',
+				) as LoggedChatError;
+				shiftNotFoundError.__logged = true;
+				logChatError(
+					'Shift not found in proposeShiftChange tool',
+					shiftNotFoundError,
+					logContext,
+					{
+						toolName: 'proposeShiftChange',
+						proposalShiftId: proposal.shiftId,
+					},
 				);
+				throw shiftNotFoundError;
 			}
 
 			return { proposal };
@@ -467,6 +592,7 @@ const buildTools = (
 	},
 	shifts: Array<{ id: string }> | undefined,
 	useProposalTool: boolean,
+	logContext: RequestLogContext,
 ) => {
 	// UIMessage モードかつ context.shifts が存在する場合のみ proposeShiftChange ツールを提供する。
 	// 1) レガシークライアントは JSON コードブロック方式を使うためツール不要
@@ -478,7 +604,11 @@ const buildTools = (
 
 	return {
 		...baseTools,
-		proposeShiftChange: createProposeShiftChangeTool(supabase, shiftList),
+		proposeShiftChange: createProposeShiftChangeTool(
+			supabase,
+			shiftList,
+			logContext,
+		),
 	};
 };
 
@@ -514,12 +644,16 @@ const toChatResponse = (
 	return result.toTextStreamResponse();
 };
 
-const handlePost = async (request: Request): Promise<Response> => {
+const handlePost = async (
+	request: Request,
+	logContext: RequestLogContext,
+): Promise<Response> => {
 	const authResult = await getAuthenticatedUser();
 	if (!authResult.ok) {
 		return authResult.response;
 	}
 	const { supabase, user } = authResult;
+	logContext.userId = user.id;
 
 	const parsedRequest = await parseChatRequest(request);
 	if (!parsedRequest.ok) {
@@ -527,6 +661,9 @@ const handlePost = async (request: Request): Promise<Response> => {
 	}
 
 	const { messages, context } = parsedRequest.data;
+	const shiftIds = (context?.shifts ?? []).map((shift) => shift.id);
+	logContext.shiftsCount = shiftIds.length;
+	logContext.shiftIds = shiftIds;
 
 	const apiKeyResult = getApiKey();
 	if (!apiKeyResult.ok) {
@@ -539,9 +676,12 @@ const handlePost = async (request: Request): Promise<Response> => {
 		return staffResult.response;
 	}
 	const { staffData } = staffResult;
+	logContext.officeId = staffData.office_id;
 
 	const { useUIMessageStream, useProposalTool, systemPrompt } =
 		resolveStreamMode(request, context);
+	logContext.mode = useUIMessageStream ? 'uimessage' : 'legacy';
+	logContext.useProposalTool = useProposalTool;
 
 	const google = createGoogleGenerativeAI({ apiKey });
 	const searchAvailableHelpersTool = createSearchAvailableHelpersTool({
@@ -565,6 +705,7 @@ const handlePost = async (request: Request): Promise<Response> => {
 		},
 		context?.shifts,
 		useProposalTool,
+		logContext,
 	);
 
 	const modelMessages = await convertToModelMessages(
@@ -580,16 +721,42 @@ const handlePost = async (request: Request): Promise<Response> => {
 		messages: modelMessages,
 		tools,
 		stopWhen: stepCountIs(5),
+		onError: ({ error }) => {
+			if (
+				typeof error === 'object' &&
+				error !== null &&
+				'__logged' in error &&
+				(error as { __logged?: boolean }).__logged === true
+			) {
+				return;
+			}
+
+			logChatError(
+				'AI chat stream error',
+				markLoggedError(error, 'stream_error'),
+				logContext,
+			);
+		},
 	});
 
 	return toChatResponse(result, useUIMessageStream);
 };
 
 export const POST = async (request: Request): Promise<Response> => {
+	const requestId =
+		request.headers.get('x-request-id') ??
+		request.headers.get('x-vercel-id') ??
+		crypto.randomUUID();
+	const logContext: RequestLogContext = { requestId };
+
 	try {
-		return await handlePost(request);
+		return await handlePost(request, logContext);
 	} catch (error) {
-		console.error('Chat API error:', error);
+		logChatError(
+			'Chat API error',
+			markLoggedError(error, 'unexpected_error'),
+			logContext,
+		);
 		// 内部エラーの詳細はクライアントに露出しない
 		return NextResponse.json(
 			{ error: 'Failed to process chat request' },
