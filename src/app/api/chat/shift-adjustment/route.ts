@@ -132,6 +132,8 @@ type LoggedChatError = Error & {
 
 type RequestLogContext = {
 	requestId: string;
+	endpoint?: string;
+	method?: string;
 	userId?: string;
 	officeId?: string;
 	mode?: 'uimessage' | 'legacy';
@@ -201,6 +203,8 @@ const logChatError = (
 
 	console.error(message, {
 		requestId: logContext.requestId,
+		endpoint: logContext.endpoint,
+		method: logContext.method,
 		errorType: classifyError(error),
 		message: errorMessage,
 		errorMessage,
@@ -214,6 +218,7 @@ const logChatError = (
 		toolName: extra.toolName,
 		proposalShiftId: extra.proposalShiftId,
 		shiftErrorCode: extra.shiftErrorCode,
+		stack: error instanceof Error ? error.stack : undefined,
 	});
 };
 
@@ -437,6 +442,7 @@ const createProposeShiftChangeTool = (
 				const shiftNotFoundError = new Error(
 					'指定されたシフトを確認できませんでした。対象シフトを確認して再度お試しください。',
 				) as LoggedChatError;
+				shiftNotFoundError.__errorCode = 'shift_verification_failed';
 				shiftNotFoundError.__logged = true;
 				logChatError(
 					'Shift not found in proposeShiftChange tool',
@@ -750,7 +756,11 @@ export const POST = async (request: Request): Promise<Response> => {
 		request.headers.get('x-request-id') ??
 		request.headers.get('x-vercel-id') ??
 		crypto.randomUUID();
-	const logContext: RequestLogContext = { requestId };
+	const logContext: RequestLogContext = {
+		requestId,
+		endpoint: '/api/chat/shift-adjustment',
+		method: request.method,
+	};
 
 	try {
 		return await handlePost(request, logContext);

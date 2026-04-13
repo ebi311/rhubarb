@@ -1503,6 +1503,8 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				expect.any(String),
 				expect.objectContaining({
+					endpoint: '/api/chat/shift-adjustment',
+					method: 'POST',
 					errorType: 'allowlist_violation',
 					toolName: 'proposeShiftChange',
 					proposalShiftId: TEST_IDS.SCHEDULE_2,
@@ -1570,6 +1572,8 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				expect.any(String),
 				expect.objectContaining({
+					endpoint: '/api/chat/shift-adjustment',
+					method: 'POST',
 					requestId,
 				}),
 			);
@@ -1639,6 +1643,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 		});
 
 		it('proposeShiftChange tool は shift がDBに存在しない場合エラーを返す', async () => {
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined);
 			mockShiftMaybeSingle.mockResolvedValue({ data: null, error: null });
 
 			const request = new Request(
@@ -1691,6 +1698,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 			).rejects.toThrow(
 				'指定されたシフトを確認できませんでした。対象シフトを確認して再度お試しください。',
 			);
+			expect(consoleErrorSpy.mock.calls.at(-1)?.[1]).toEqual(
+				expect.objectContaining({ errorType: 'shift_verification_failed' }),
+			);
+			consoleErrorSpy.mockRestore();
 		});
 
 		it('proposeShiftChange tool は shift 取得エラー時にログを残して汎用エラーを返す', async () => {
@@ -1755,9 +1766,12 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				'Failed to verify shift in proposeShiftChange tool',
 				expect.objectContaining({
+					endpoint: '/api/chat/shift-adjustment',
+					method: 'POST',
 					errorType: 'shift_verification_failed',
 					message:
 						'対象シフトの確認中にエラーが発生しました。時間をおいて再度お試しください。',
+					stack: expect.any(String),
 					shiftErrorCode: '57014',
 				}),
 			);
