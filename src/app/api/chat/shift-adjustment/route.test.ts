@@ -1699,7 +1699,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 				.mockImplementation(() => undefined);
 			mockShiftMaybeSingle.mockResolvedValue({
 				data: null,
-				error: { message: 'network error' },
+				error: { message: 'network error', code: '57014' },
 			});
 
 			const request = new Request(
@@ -1754,7 +1754,12 @@ describe('POST /api/chat/shift-adjustment', () => {
 			);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				'Failed to verify shift in proposeShiftChange tool',
-				expect.objectContaining({ message: 'network error' }),
+				expect.objectContaining({
+					errorType: 'shift_verification_failed',
+					message:
+						'対象シフトの確認中にエラーが発生しました。時間をおいて再度お試しください。',
+					shiftErrorCode: '57014',
+				}),
 			);
 			consoleErrorSpy.mockRestore();
 		});

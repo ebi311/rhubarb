@@ -184,6 +184,7 @@ const logChatError = (
 	extra: Partial<{
 		toolName: string;
 		proposalShiftId: string;
+		shiftErrorCode: string;
 	}> = {},
 ): void => {
 	const errorMessage =
@@ -212,6 +213,7 @@ const logChatError = (
 		allowlistedShiftIdsSize: logContext.allowlistedShiftIdsSize,
 		toolName: extra.toolName,
 		proposalShiftId: extra.proposalShiftId,
+		shiftErrorCode: extra.shiftErrorCode,
 	});
 };
 
@@ -420,11 +422,12 @@ const createProposeShiftChangeTool = (
 				verificationError.__logged = true;
 				logChatError(
 					'Failed to verify shift in proposeShiftChange tool',
-					shiftError,
+					verificationError,
 					logContext,
 					{
 						toolName: 'proposeShiftChange',
 						proposalShiftId: proposal.shiftId,
+						shiftErrorCode: shiftError.code,
 					},
 				);
 				throw verificationError;
