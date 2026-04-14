@@ -1,4 +1,4 @@
-import { TEST_IDS } from '@/test/helpers/testIds';
+import { TEST_IDS, createTestId } from '@/test/helpers/testIds';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // vi.hoisted でモック関数を定義（ホイスティング対応）
@@ -1512,6 +1512,182 @@ describe('POST /api/chat/shift-adjustment', () => {
 			);
 
 			consoleErrorSpy.mockRestore();
+		});
+
+		it('AI_CHAT_VERBOSE_LOG 未設定時、診断ログの shiftIds は最大 3 件に抑制される', async () => {
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined);
+
+			const previous = process.env.AI_CHAT_VERBOSE_LOG;
+			delete process.env.AI_CHAT_VERBOSE_LOG;
+
+			try {
+				const shifts = [
+					{
+						id: TEST_IDS.SCHEDULE_1,
+						clientId: TEST_IDS.CLIENT_1,
+						serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+						date: '2025-01-20',
+						startTime: '09:00',
+						endTime: '10:00',
+					},
+					...Array.from({ length: 9 }, () => ({
+						id: createTestId(),
+						clientId: TEST_IDS.CLIENT_1,
+						serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+						date: '2025-01-20',
+						startTime: '09:00',
+						endTime: '10:00',
+					})),
+				];
+
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '提案して' }],
+							context: { shifts },
+						}),
+					},
+				);
+
+				await POST(request);
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChange?: {
+							execute?: (input: {
+								type: 'change_shift_staff';
+								shiftId: string;
+								toStaffId: string;
+							}) => Promise<unknown>;
+						};
+					};
+				};
+
+				await expect(
+					streamTextCall.tools?.proposeShiftChange?.execute?.({
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_2,
+						toStaffId: TEST_IDS.STAFF_1,
+					}),
+				).rejects.toThrow('シフトIDが不正です');
+
+				const allowlistLog = consoleErrorSpy.mock.calls
+					.map((args) => args[1])
+					.find(
+						(payload) =>
+							typeof payload === 'object' &&
+							payload !== null &&
+							'errorType' in payload &&
+							(payload as { errorType?: unknown }).errorType ===
+								'allowlist_violation',
+					) as { shiftIds?: string[]; shiftsCount?: number } | undefined;
+
+				expect(allowlistLog?.shiftsCount).toBe(shifts.length);
+				expect(allowlistLog?.shiftIds).toHaveLength(3);
+			} finally {
+				if (previous === undefined) {
+					delete process.env.AI_CHAT_VERBOSE_LOG;
+				} else {
+					process.env.AI_CHAT_VERBOSE_LOG = previous;
+				}
+				consoleErrorSpy.mockRestore();
+			}
+		});
+
+		it('AI_CHAT_VERBOSE_LOG=true のとき、診断ログの shiftIds は最大 10 件まで出力される', async () => {
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined);
+
+			const previous = process.env.AI_CHAT_VERBOSE_LOG;
+			process.env.AI_CHAT_VERBOSE_LOG = 'true';
+
+			try {
+				const shifts = [
+					{
+						id: TEST_IDS.SCHEDULE_1,
+						clientId: TEST_IDS.CLIENT_1,
+						serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+						date: '2025-01-20',
+						startTime: '09:00',
+						endTime: '10:00',
+					},
+					...Array.from({ length: 9 }, () => ({
+						id: createTestId(),
+						clientId: TEST_IDS.CLIENT_1,
+						serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+						date: '2025-01-20',
+						startTime: '09:00',
+						endTime: '10:00',
+					})),
+				];
+
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '提案して' }],
+							context: { shifts },
+						}),
+					},
+				);
+
+				await POST(request);
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChange?: {
+							execute?: (input: {
+								type: 'change_shift_staff';
+								shiftId: string;
+								toStaffId: string;
+							}) => Promise<unknown>;
+						};
+					};
+				};
+
+				await expect(
+					streamTextCall.tools?.proposeShiftChange?.execute?.({
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_2,
+						toStaffId: TEST_IDS.STAFF_1,
+					}),
+				).rejects.toThrow('シフトIDが不正です');
+
+				const allowlistLog = consoleErrorSpy.mock.calls
+					.map((args) => args[1])
+					.find(
+						(payload) =>
+							typeof payload === 'object' &&
+							payload !== null &&
+							'errorType' in payload &&
+							(payload as { errorType?: unknown }).errorType ===
+								'allowlist_violation',
+					) as { shiftIds?: string[]; shiftsCount?: number } | undefined;
+
+				expect(allowlistLog?.shiftsCount).toBe(shifts.length);
+				expect(allowlistLog?.shiftIds).toHaveLength(10);
+			} finally {
+				if (previous === undefined) {
+					delete process.env.AI_CHAT_VERBOSE_LOG;
+				} else {
+					process.env.AI_CHAT_VERBOSE_LOG = previous;
+				}
+				consoleErrorSpy.mockRestore();
+			}
 		});
 
 		it('診断ログに requestId として x-request-id を含める', async () => {
