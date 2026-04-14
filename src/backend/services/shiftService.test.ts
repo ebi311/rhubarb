@@ -1861,8 +1861,8 @@ describe('ShiftService', () => {
 			const shiftId = TEST_IDS.SCHEDULE_1;
 			const newStaffId = TEST_IDS.STAFF_2;
 			const reason = '日時変更と再割当';
-			const newStartTime = new Date('2026-04-10T10:00:00+09:00');
-			const newEndTime = new Date('2026-04-10T11:00:00+09:00');
+			const newStartTime = new Date('2099-04-10T10:00:00+09:00');
+			const newEndTime = new Date('2099-04-10T11:00:00+09:00');
 			const adminStaff = createTestStaff({
 				auth_user_id: userId,
 				role: 'admin',
@@ -1872,14 +1872,14 @@ describe('ShiftService', () => {
 				id: shiftId,
 				client_id: TEST_IDS.CLIENT_1,
 				service_type_id: 'physical-care',
-				date: new Date('2026-04-10'),
+				date: new Date('2099-04-10'),
 				time: { start: { hour: 8, minute: 0 }, end: { hour: 9, minute: 0 } },
 			});
 			const conflictShift = createTestShift({
 				id: TEST_IDS.SCHEDULE_2,
 				status: 'scheduled',
 				staff_id: newStaffId,
-				date: new Date('2026-04-10'),
+				date: new Date('2099-04-10'),
 				time: {
 					start: { hour: 10, minute: 30 },
 					end: { hour: 11, minute: 30 },
@@ -1890,7 +1890,7 @@ describe('ShiftService', () => {
 				client_id: TEST_IDS.CLIENT_1,
 				service_type_id: 'physical-care',
 				staff_id: newStaffId,
-				date: new Date('2026-04-10'),
+				date: new Date('2099-04-10'),
 				time: { start: { hour: 10, minute: 0 }, end: { hour: 11, minute: 0 } },
 			});
 			const assignableStaff = createTestStaff({
@@ -1951,8 +1951,8 @@ describe('ShiftService', () => {
 			const shiftId = TEST_IDS.SCHEDULE_1;
 			const newStaffId = TEST_IDS.STAFF_2;
 			const reason = '日時変更と再割当';
-			const newStartTime = new Date('2026-04-10T10:00:00+09:00');
-			const newEndTime = new Date('2026-04-10T11:00:00+09:00');
+			const newStartTime = new Date('2099-04-10T10:00:00+09:00');
+			const newEndTime = new Date('2099-04-10T11:00:00+09:00');
 			const adminStaff = createTestStaff({
 				auth_user_id: userId,
 				role: 'admin',
@@ -1962,14 +1962,14 @@ describe('ShiftService', () => {
 				id: shiftId,
 				client_id: TEST_IDS.CLIENT_1,
 				service_type_id: 'physical-care',
-				date: new Date('2026-04-10'),
+				date: new Date('2099-04-10'),
 				time: { start: { hour: 8, minute: 0 }, end: { hour: 9, minute: 0 } },
 			});
 			const conflict1 = createTestShift({
 				id: TEST_IDS.SCHEDULE_2,
 				status: 'scheduled',
 				staff_id: newStaffId,
-				date: new Date('2026-04-10'),
+				date: new Date('2099-04-10'),
 				time: {
 					start: { hour: 10, minute: 15 },
 					end: { hour: 10, minute: 45 },
@@ -1979,7 +1979,7 @@ describe('ShiftService', () => {
 				id: createTestId(),
 				status: 'scheduled',
 				staff_id: newStaffId,
-				date: new Date('2026-04-10'),
+				date: new Date('2099-04-10'),
 				time: {
 					start: { hour: 10, minute: 30 },
 					end: { hour: 11, minute: 30 },
