@@ -51,6 +51,9 @@
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
+			"settings": {
+				"dev.containers.mountWaylandSocket": false
+			},
 			"extensions": [
 				"esbenp.prettier-vscode",
 				"1YiB.svelte-bundle",
