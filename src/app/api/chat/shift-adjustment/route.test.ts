@@ -1116,6 +1116,109 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('SYSTEM_PROMPT にツール未実行時の代替表現例を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '成功断言の言い換えを確認したい' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('「提案しました」'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'「確定するには“確定”を押してください」',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('「これから確定処理を実行します」'),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT にツール失敗時のメッセージ例を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '失敗時の例文を確認したい' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('「確定に失敗しました。理由: ○○」'),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT にツール成功時の更新サマリー推奨を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '成功時の報告内容を確認したい' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'更新対象（shiftId）・変更内容（日時/利用者/ヘルパー/サービス種別など）を簡潔に要約して伝える',
+				),
+			}),
+		);
+	});
+
+	it('uimessage かつ shifts が空でも成功断言禁止の強化文言を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ai-response-format': 'uimessage',
+			},
+			body: JSON.stringify({
+				messages: [
+					{ role: 'user', content: '対象未特定時の成功断言ルールを確認したい' },
+				],
+				context: { shifts: [] },
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'ツール未実行の状態で、処理が完了した・確定した・変更できた等の成功断言をしてはならない',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('「提案しました」'),
+			}),
+		);
+	});
+
 	it('複数シフトの場合は単一シフト向けの確認不要指示を含めない', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
