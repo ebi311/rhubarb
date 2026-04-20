@@ -632,6 +632,102 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('context.shifts が1件のとき system にその shiftId と単一シフト時の指示文を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: 'このシフトの調整をお願い' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							staffName: 'スタッフA',
+							clientName: '利用者A',
+							date: '2025-01-20',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+
+		const calls = mockStreamText.mock.calls.map(([arg]) => arg);
+		const systems = calls
+			.map((call) => call.system)
+			.filter((system): system is string => typeof system === 'string');
+		const substrings = [
+			`shiftId: ${TEST_IDS.SCHEDULE_1}`,
+			'shiftId は表示された値をそのまま使ってください',
+			'context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください',
+			'shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください',
+		];
+		const hasAll = (system: string) =>
+			substrings.every((substring) => system.includes(substring));
+
+		expect(systems.some((system) => hasAll(system))).toBe(true);
+	});
+
+	it('context.shifts が複数件のとき system にそれぞれの shiftId を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '候補シフトを確認したい' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							staffName: 'スタッフA',
+							clientName: '利用者A',
+							date: '2025-01-20',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+						{
+							id: TEST_IDS.SCHEDULE_2,
+							clientId: TEST_IDS.CLIENT_2,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_2,
+							staffName: 'スタッフB',
+							clientName: '利用者B',
+							date: '2025-01-21',
+							startTime: '11:00',
+							endTime: '12:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+
+		const calls = mockStreamText.mock.calls.map(([arg]) => arg);
+		const systems = calls
+			.map((call) => call.system)
+			.filter((system): system is string => typeof system === 'string');
+		const substrings = [
+			`shiftId: ${TEST_IDS.SCHEDULE_1}`,
+			`shiftId: ${TEST_IDS.SCHEDULE_2}`,
+			'shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください',
+			'日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください',
+		];
+		const hasAll = (system: string) =>
+			substrings.every((substring) => system.includes(substring));
+
+		expect(systems.some((system) => hasAll(system))).toBe(true);
+	});
+
 	it('context.shifts.date が YYYY-MM-DD 形式でない場合は 400 エラーを返す', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
