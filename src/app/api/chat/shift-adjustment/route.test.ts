@@ -658,25 +658,21 @@ describe('POST /api/chat/shift-adjustment', () => {
 		const response = await POST(request);
 
 		expect(response.status).toBe(200);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(`shiftId: ${TEST_IDS.SCHEDULE_1}`),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(
-					'shiftId は表示された値をそのまま使ってください',
-				),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(
-					'context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください',
-				),
-			}),
-		);
+
+		const calls = mockStreamText.mock.calls.map(([arg]) => arg);
+		const systems = calls
+			.map((call) => call.system)
+			.filter((system): system is string => typeof system === 'string');
+		const substrings = [
+			`shiftId: ${TEST_IDS.SCHEDULE_1}`,
+			'shiftId は表示された値をそのまま使ってください',
+			'context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください',
+			'shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください',
+		];
+		const hasAll = (system: string) =>
+			substrings.every((substring) => system.includes(substring));
+
+		expect(systems.some((system) => hasAll(system))).toBe(true);
 	});
 
 	it('context.shifts が複数件のとき system にそれぞれの shiftId を含める', async () => {
@@ -715,30 +711,21 @@ describe('POST /api/chat/shift-adjustment', () => {
 		const response = await POST(request);
 
 		expect(response.status).toBe(200);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(`shiftId: ${TEST_IDS.SCHEDULE_1}`),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(`shiftId: ${TEST_IDS.SCHEDULE_2}`),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(
-					'shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください',
-				),
-			}),
-		);
-		expect(mockStreamText).toHaveBeenCalledWith(
-			expect.objectContaining({
-				system: expect.stringContaining(
-					'日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください',
-				),
-			}),
-		);
+
+		const calls = mockStreamText.mock.calls.map(([arg]) => arg);
+		const systems = calls
+			.map((call) => call.system)
+			.filter((system): system is string => typeof system === 'string');
+		const substrings = [
+			`shiftId: ${TEST_IDS.SCHEDULE_1}`,
+			`shiftId: ${TEST_IDS.SCHEDULE_2}`,
+			'shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください',
+			'日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください',
+		];
+		const hasAll = (system: string) =>
+			substrings.every((substring) => system.includes(substring));
+
+		expect(systems.some((system) => hasAll(system))).toBe(true);
 	});
 
 	it('context.shifts.date が YYYY-MM-DD 形式でない場合は 400 エラーを返す', async () => {

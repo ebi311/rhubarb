@@ -376,6 +376,7 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 - context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
 - shiftId は表示された値をそのまま使ってください（推測・書き換え禁止）。
 - context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください。
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
 - startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
   例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
 - ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
