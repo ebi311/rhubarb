@@ -363,7 +363,7 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 	const shiftLines = context.shifts.map((s) => {
 		const serviceTypeLabel = ServiceTypeLabels[s.serviceTypeId];
 
-		return `- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (${serviceTypeLabel}（serviceTypeId: ${s.serviceTypeId}）, clientId: ${s.clientId})`;
+		return `- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (${serviceTypeLabel}（serviceTypeId: ${s.serviceTypeId}）, clientId: ${s.clientId}, shiftId: ${s.id})`;
 	});
 
 	const shiftSelectionPrompt =
@@ -374,13 +374,17 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 - context.shifts[0] が今回の対象シフトです。
 - このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
 - context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
+- shiftId は表示された値をそのまま使ってください（推測・書き換え禁止）。
+- context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください。
 - startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
   例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
 - ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
 			: `
 
 ## 対象シフトの確認（重要）
-- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。`;
+- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
+- 日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください。`;
 
 	return `
 
