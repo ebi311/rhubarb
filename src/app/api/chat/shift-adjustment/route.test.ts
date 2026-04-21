@@ -1719,6 +1719,42 @@ describe('POST /api/chat/shift-adjustment', () => {
 				startAt: '2026-03-16T09:00:00+09:00',
 				endAt: '2026-03-16T10:00:00+09:00',
 			});
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: null,
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: 'invalid',
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+					},
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
 		});
 
 		it('proposeShiftChange tool の allowlist 違反時に診断ログを構造化で出力する', async () => {
