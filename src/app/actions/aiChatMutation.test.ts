@@ -237,7 +237,10 @@ describe('executeAiChatMutationAction', () => {
 
 		expect(warnSpy).toHaveBeenCalledWith(
 			'[executeAiChatMutationAction] Validation failed',
-			expect.objectContaining({ userId: TEST_IDS.USER_1 }),
+			expect.not.objectContaining({
+				userId: expect.any(String),
+				shiftId: expect.any(String),
+			}),
 		);
 	});
 
@@ -257,11 +260,16 @@ describe('executeAiChatMutationAction', () => {
 		expect(warnSpy).toHaveBeenCalledWith(
 			'[executeAiChatMutationAction] ServiceError',
 			expect.objectContaining({
-				userId: TEST_IDS.USER_1,
 				status: 403,
 				message: 'Forbidden',
 				proposalType: 'change_shift_staff',
-				shiftId: TEST_IDS.SCHEDULE_1,
+			}),
+		);
+		expect(warnSpy).toHaveBeenCalledWith(
+			'[executeAiChatMutationAction] ServiceError',
+			expect.not.objectContaining({
+				userId: expect.any(String),
+				shiftId: expect.any(String),
 			}),
 		);
 	});

@@ -37,7 +37,6 @@ export const executeAiChatMutationAction = async (
 	if (!parsedInput.success) {
 		if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
 			console.warn('[executeAiChatMutationAction] Validation failed', {
-				userId: user.id,
 				issues: parsedInput.error.flatten(),
 			});
 		}
@@ -98,11 +97,9 @@ export const executeAiChatMutationAction = async (
 
 			if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
 				console.warn('[executeAiChatMutationAction] ServiceError', {
-					userId: user.id,
 					status: error.status,
 					message: error.message,
 					proposalType: parsedInput.data.proposal.type,
-					shiftId: parsedInput.data.proposal.shiftId,
 				});
 			}
 
