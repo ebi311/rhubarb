@@ -96,11 +96,7 @@ export const executeAiChatMutationAction = async (
 				return errorResult(error.message, error.status);
 			}
 
-			if (
-				process.env.NODE_ENV !== 'test' &&
-				process.env.VITEST !== 'true' &&
-				error.status !== 403
-			) {
+			if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
 				console.warn('[executeAiChatMutationAction] ServiceError', {
 					userId: user.id,
 					status: error.status,

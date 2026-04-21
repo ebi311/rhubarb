@@ -413,8 +413,8 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 		obj.change_shift_staff !== null
 	) {
 		return {
-			type: 'change_shift_staff',
 			...(obj.change_shift_staff as Record<string, unknown>),
+			type: 'change_shift_staff',
 		};
 	}
 
@@ -424,8 +424,8 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 		obj.update_shift_time !== null
 	) {
 		return {
-			type: 'update_shift_time',
 			...(obj.update_shift_time as Record<string, unknown>),
+			type: 'update_shift_time',
 		};
 	}
 

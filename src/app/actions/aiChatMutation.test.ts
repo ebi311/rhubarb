@@ -2,7 +2,15 @@ import { AiOperationLogService } from '@/backend/services/aiOperationLogService'
 import { ServiceError, ShiftService } from '@/backend/services/shiftService';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { createSupabaseClient } from '@/utils/supabase/server';
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+	type Mock,
+} from 'vitest';
 import { executeAiChatMutationAction } from './aiChatMutation';
 
 vi.mock('@/utils/supabase/server');
@@ -60,7 +68,6 @@ const validInput = {
 		staffIds: [TEST_IDS.STAFF_2],
 	},
 };
-
 const mockAuthUser = (userId: string) => {
 	mockSupabase.auth.getUser.mockResolvedValue({
 		data: { user: { id: userId } },
@@ -79,6 +86,10 @@ beforeEach(() => {
 	(AiOperationLogService as unknown as Mock).mockImplementation(function () {
 		return mockAiOperationLogService;
 	});
+});
+afterEach(() => {
+	vi.restoreAllMocks();
+	vi.unstubAllEnvs();
 });
 
 describe('executeAiChatMutationAction', () => {
@@ -207,5 +218,76 @@ describe('executeAiChatMutationAction', () => {
 		expect(result.status).toBe(403);
 		expect(result.error).toBe('Forbidden');
 		expect(mockAiOperationLogService.logSilently).not.toHaveBeenCalled();
+	});
+	it('Validation failed は非テスト環境で console.warn を出力する', async () => {
+		mockAuthUser(TEST_IDS.USER_1);
+		vi.stubEnv('NODE_ENV', 'development');
+		vi.stubEnv('VITEST', 'false');
+		const warnSpy = vi
+			.spyOn(console, 'warn')
+			.mockImplementation(() => undefined);
+
+		await executeAiChatMutationAction({
+			...validInput,
+			proposal: {
+				...validInput.proposal,
+				shiftId: 'invalid-uuid',
+			},
+		});
+
+		expect(warnSpy).toHaveBeenCalledWith(
+			'[executeAiChatMutationAction] Validation failed',
+			expect.objectContaining({ userId: TEST_IDS.USER_1 }),
+		);
+	});
+
+	it('ServiceError(403) は非テスト環境で console.warn を出力する', async () => {
+		mockAuthUser(TEST_IDS.USER_1);
+		mockShiftService.executeAiChatMutationProposal.mockRejectedValue(
+			new ServiceError(403, 'Forbidden'),
+		);
+		vi.stubEnv('NODE_ENV', 'development');
+		vi.stubEnv('VITEST', 'false');
+		const warnSpy = vi
+			.spyOn(console, 'warn')
+			.mockImplementation(() => undefined);
+
+		await executeAiChatMutationAction(validInput);
+
+		expect(warnSpy).toHaveBeenCalledWith(
+			'[executeAiChatMutationAction] ServiceError',
+			expect.objectContaining({
+				userId: TEST_IDS.USER_1,
+				status: 403,
+				message: 'Forbidden',
+				proposalType: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+			}),
+		);
+	});
+
+	it('process.env.VITEST が true のとき console.warn を抑止する', async () => {
+		mockAuthUser(TEST_IDS.USER_1);
+		vi.stubEnv('NODE_ENV', 'development');
+		vi.stubEnv('VITEST', 'true');
+		const warnSpy = vi
+			.spyOn(console, 'warn')
+			.mockImplementation(() => undefined);
+
+		await executeAiChatMutationAction({
+			...validInput,
+			proposal: {
+				...validInput.proposal,
+				shiftId: 'invalid-uuid',
+			},
+		});
+
+		mockShiftService.findActorOfficeId.mockResolvedValue(TEST_IDS.OFFICE_1);
+		mockShiftService.executeAiChatMutationProposal.mockRejectedValue(
+			new ServiceError(400, 'Proposal target shift is not allowed'),
+		);
+		await executeAiChatMutationAction(validInput);
+
+		expect(warnSpy).not.toHaveBeenCalled();
 	});
 });
