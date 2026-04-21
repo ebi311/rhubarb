@@ -252,7 +252,7 @@ const LEGACY_PROPOSAL_TOOL_PROMPT = `
 const PROPOSAL_TOOL_PROMPT = `
 - proposeShiftChange: シフト変更提案の内容を返却します（永続化は行いません）
   - シフト変更の提案を返すときは assistant 本文に JSON を書かず、必ずこのツールを呼び出してください
-  - 入力は change_shift_staff または update_shift_time の形式に厳密に従ってください
+  - 入力は次の JSON 例（type を含む形式）に厳密に従ってください
 
 ## proposeShiftChange と成功断言の区別（重要）
 - proposeShiftChange の呼び出しは成功断言ではありません
@@ -400,6 +400,38 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 ${shiftLines.join('\n')}${shiftSelectionPrompt}`;
 };
 
+const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
+	if (typeof input !== 'object' || input === null) {
+		return input;
+	}
+
+	const obj = input as Record<string, unknown>;
+
+	if (
+		'change_shift_staff' in obj &&
+		typeof obj.change_shift_staff === 'object' &&
+		obj.change_shift_staff !== null
+	) {
+		return {
+			type: 'change_shift_staff',
+			...(obj.change_shift_staff as Record<string, unknown>),
+		};
+	}
+
+	if (
+		'update_shift_time' in obj &&
+		typeof obj.update_shift_time === 'object' &&
+		obj.update_shift_time !== null
+	) {
+		return {
+			type: 'update_shift_time',
+			...(obj.update_shift_time as Record<string, unknown>),
+		};
+	}
+
+	return input;
+}, AiChatMutationProposalSchema);
+
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	shifts: Array<{ id: string }> | undefined,
@@ -411,7 +443,7 @@ const createProposeShiftChangeTool = (
 	return tool({
 		description:
 			'シフト変更提案の内容を返却します（永続化は行いません）。shiftId は context.shifts に含まれる値のみ指定できます。',
-		inputSchema: AiChatMutationProposalSchema,
+		inputSchema: ProposeShiftChangeToolInputSchema,
 		execute: async (proposal) => {
 			if (!allowlistedShiftIds.has(proposal.shiftId)) {
 				const allowlistError = new Error(
@@ -468,7 +500,7 @@ const createProposeShiftChangeTool = (
 				throw shiftNotFoundError;
 			}
 
-			return { proposal };
+			return proposal;
 		},
 	});
 };

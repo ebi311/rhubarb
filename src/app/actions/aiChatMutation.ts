@@ -35,6 +35,12 @@ export const executeAiChatMutationAction = async (
 
 	const parsedInput = ExecuteAiChatMutationInputSchema.safeParse(input);
 	if (!parsedInput.success) {
+		if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
+			console.warn('[executeAiChatMutationAction] Validation failed', {
+				userId: user.id,
+				issues: parsedInput.error.flatten(),
+			});
+		}
 		return errorResult('Validation failed', 400, parsedInput.error.flatten());
 	}
 
@@ -89,6 +95,21 @@ export const executeAiChatMutationAction = async (
 				logServerError(error);
 				return errorResult(error.message, error.status);
 			}
+
+			if (
+				process.env.NODE_ENV !== 'test' &&
+				process.env.VITEST !== 'true' &&
+				error.status !== 403
+			) {
+				console.warn('[executeAiChatMutationAction] ServiceError', {
+					userId: user.id,
+					status: error.status,
+					message: error.message,
+					proposalType: parsedInput.data.proposal.type,
+					shiftId: parsedInput.data.proposal.shiftId,
+				});
+			}
+
 			return errorResult(error.message, error.status, error.details);
 		}
 		logServerError(error);
