@@ -1,5 +1,5 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShiftDisplayRow } from '../ShiftTable';
@@ -180,6 +180,35 @@ describe('WeeklySchedulePage', () => {
 			expect(
 				screen.getByRole('dialog', { name: /シフト調整チャット/ }),
 			).toBeInTheDocument();
+		});
+
+		it('AIチャットは担当者変更ダイアログを閉じた後に開く', () => {
+			vi.useFakeTimers();
+			try {
+				render(
+					<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+				);
+
+				fireEvent.click(screen.getByRole('button', { name: '担当者を変更' }));
+				fireEvent.click(screen.getByRole('button', { name: 'AIに相談' }));
+
+				expect(
+					screen.queryByRole('heading', { name: '担当者を変更' }),
+				).not.toBeInTheDocument();
+				expect(
+					screen.queryByRole('dialog', { name: /シフト調整チャット/ }),
+				).not.toBeInTheDocument();
+
+				act(() => {
+					vi.runAllTimers();
+				});
+
+				expect(
+					screen.getByRole('dialog', { name: /シフト調整チャット/ }),
+				).toBeInTheDocument();
+			} finally {
+				vi.useRealTimers();
+			}
 		});
 
 		it('AIチャットには未保存編集ではなく初期シフトが渡される', async () => {

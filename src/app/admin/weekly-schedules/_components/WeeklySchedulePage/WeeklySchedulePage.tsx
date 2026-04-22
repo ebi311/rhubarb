@@ -5,7 +5,7 @@ import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AdjustmentChatDialog } from '../AdjustmentChatDialog';
 import type { ShiftContext } from '../AdjustmentChatDialog/useAdjustmentChat';
 import {
@@ -224,6 +224,7 @@ export const WeeklySchedulePage = ({
 		useState<string | undefined>();
 	const [chatDialogShift, setChatDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
+	const pendingAIChatShiftIdRef = useRef<string | null>(null);
 
 	const wizardShift = findShiftById(initialShifts, wizardShiftId);
 
@@ -300,10 +301,31 @@ export const WeeklySchedulePage = ({
 	};
 
 	const handleStartAIChatFromChangeDialog = (shiftId: string) => {
+		pendingAIChatShiftIdRef.current = shiftId;
 		setChangeDialogShift(null);
 		setWizardSuggestion(null);
-		setChatDialogShift(findShiftById(initialShifts, shiftId));
 	};
+
+	useEffect(() => {
+		if (changeDialogShift) {
+			return;
+		}
+
+		const pendingShiftId = pendingAIChatShiftIdRef.current;
+		if (!pendingShiftId) {
+			return;
+		}
+
+		pendingAIChatShiftIdRef.current = null;
+
+		const timerId = window.setTimeout(() => {
+			setChatDialogShift(findShiftById(initialShifts, pendingShiftId));
+		}, 0);
+
+		return () => {
+			window.clearTimeout(timerId);
+		};
+	}, [changeDialogShift, initialShifts]);
 
 	const hasShifts = initialShifts.length > 0;
 
