@@ -26,13 +26,54 @@ vi.mock('@/app/actions/weeklySchedules', () => ({
 	}),
 }));
 
+vi.mock('@/app/actions/shifts', () => ({
+	validateStaffAvailabilityAction: vi.fn().mockResolvedValue({
+		data: { available: true, conflictingShifts: [] },
+		error: null,
+		status: 200,
+	}),
+	updateShiftScheduleAction: vi.fn().mockResolvedValue({
+		data: { shiftId: 'shift-1' },
+		error: null,
+		status: 200,
+	}),
+}));
+
+vi.mock('../AdjustmentChatDialog', () => ({
+	AdjustmentChatDialog: ({
+		isOpen,
+		shiftContext,
+		onClose,
+	}: {
+		isOpen: boolean;
+		shiftContext: {
+			clientName: string;
+			staffName?: string;
+			date: string;
+			startTime: string;
+			endTime: string;
+		};
+		onClose: () => void;
+	}) =>
+		isOpen ? (
+			<div role="dialog" aria-label="シフト調整チャット">
+				<p>{shiftContext.clientName}</p>
+				<p>{shiftContext.staffName}</p>
+				<p>{`${shiftContext.date} ${shiftContext.startTime}〜${shiftContext.endTime}`}</p>
+				<button type="button" onClick={onClose}>
+					閉じる
+				</button>
+			</div>
+		) : null,
+}));
+
 describe('WeeklySchedulePage', () => {
 	const weekStartDate = new Date('2026-01-19T00:00:00');
 
 	const sampleShifts: ShiftDisplayRow[] = [
 		{
 			id: 'shift-1',
-			date: new Date('2026-01-19T00:00:00'),
+			date: new Date('2099-01-19T00:00:00'),
 			startTime: { hour: 9, minute: 0 },
 			endTime: { hour: 10, minute: 0 },
 			clientId: TEST_IDS.CLIENT_1,
@@ -127,12 +168,13 @@ describe('WeeklySchedulePage', () => {
 	});
 
 	describe('AdjustmentChatDialog 統合', () => {
-		it('AIに相談ボタンをクリックするとAdjustmentChatDialogが開く', async () => {
+		it('担当者変更ダイアログのAIに相談ボタンをクリックするとAdjustmentChatDialogが開く', async () => {
 			const user = userEvent.setup();
 			render(
 				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
 			);
 
+			await user.click(screen.getByRole('button', { name: '担当者を変更' }));
 			await user.click(screen.getByRole('button', { name: 'AIに相談' }));
 
 			expect(
@@ -140,19 +182,26 @@ describe('WeeklySchedulePage', () => {
 			).toBeInTheDocument();
 		});
 
-		it('AdjustmentChatDialogにシフトコンテキストが渡される', async () => {
+		it('AIチャットには未保存編集ではなく初期シフトが渡される', async () => {
 			const user = userEvent.setup();
 			render(
 				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
 			);
 
+			await user.click(screen.getByRole('button', { name: '担当者を変更' }));
+
+			await user.clear(screen.getByLabelText('開始'));
+			await user.type(screen.getByLabelText('開始'), '13:00');
+			await user.clear(screen.getByLabelText('終了'));
+			await user.type(screen.getByLabelText('終了'), '14:00');
+
 			await user.click(screen.getByRole('button', { name: 'AIに相談' }));
 
-			// ダイアログ内にシフトコンテキスト情報が表示される
-			const dialog = screen.getByRole('dialog');
+			const dialog = screen.getByRole('dialog', { name: /シフト調整チャット/ });
 			expect(dialog).toHaveTextContent('田中太郎');
 			expect(dialog).toHaveTextContent('山田花子');
-			expect(dialog).toHaveTextContent('2026-01-19');
+			expect(dialog).toHaveTextContent('2099-01-19 09:00〜10:00');
+			expect(dialog).not.toHaveTextContent('2099-01-19 13:00〜14:00');
 		});
 
 		it('AdjustmentChatDialogの閉じるボタンでダイアログが閉じる', async () => {
@@ -161,11 +210,12 @@ describe('WeeklySchedulePage', () => {
 				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
 			);
 
-			// ダイアログを開く
+			await user.click(screen.getByRole('button', { name: '担当者を変更' }));
 			await user.click(screen.getByRole('button', { name: 'AIに相談' }));
-			expect(screen.getByRole('dialog')).toBeInTheDocument();
+			expect(
+				screen.getByRole('dialog', { name: /シフト調整チャット/ }),
+			).toBeInTheDocument();
 
-			// 閉じるボタンをクリック
 			await user.click(screen.getByRole('button', { name: '閉じる' }));
 
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

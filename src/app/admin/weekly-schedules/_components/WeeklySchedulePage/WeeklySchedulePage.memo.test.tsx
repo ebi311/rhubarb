@@ -27,6 +27,19 @@ vi.mock('@/app/actions/weeklySchedules', () => ({
 	}),
 }));
 
+vi.mock('@/app/actions/shifts', () => ({
+	validateStaffAvailabilityAction: vi.fn().mockResolvedValue({
+		data: { available: true, conflictingShifts: [] },
+		error: null,
+		status: 200,
+	}),
+	updateShiftScheduleAction: vi.fn().mockResolvedValue({
+		data: { shiftId: 'shift-1' },
+		error: null,
+		status: 200,
+	}),
+}));
+
 vi.mock('../AdjustmentChatDialog', () => ({
 	AdjustmentChatDialog: ({
 		isOpen,
@@ -44,12 +57,12 @@ vi.mock('../AdjustmentChatDialog', () => ({
 }));
 
 describe('WeeklySchedulePage staffOptions', () => {
-	const weekStartDate = new Date('2026-01-19T00:00:00');
+	const weekStartDate = new Date('2099-01-19T00:00:00');
 
 	const sampleShifts: ShiftDisplayRow[] = [
 		{
 			id: 'shift-1',
-			date: new Date('2026-01-19T00:00:00'),
+			date: new Date('2099-01-19T00:00:00'),
 			startTime: { hour: 9, minute: 0 },
 			endTime: { hour: 10, minute: 0 },
 			clientId: TEST_IDS.CLIENT_1,
@@ -91,6 +104,7 @@ describe('WeeklySchedulePage staffOptions', () => {
 		const user = userEvent.setup();
 		render(<WeeklySchedulePage {...defaultProps} />);
 
+		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
 		await user.click(screen.getByRole('button', { name: 'AIに相談' }));
 		expect(screen.getByRole('dialog')).toBeInTheDocument();
 		expect(capturedStaffIds).toHaveLength(1);

@@ -138,7 +138,6 @@ const renderScheduleContent = ({
 	onAssignStaff,
 	onCancelShift,
 	onRestoreShift,
-	onAskAI,
 	onOpenCreateOneOffShiftDialog,
 	onGenerateFromEmpty,
 }: {
@@ -150,7 +149,6 @@ const renderScheduleContent = ({
 	onAssignStaff: (shift: ShiftDisplayRow) => void;
 	onCancelShift: (shift: ShiftDisplayRow) => void;
 	onRestoreShift: (shift: ShiftDisplayRow) => void;
-	onAskAI: (shift: ShiftDisplayRow) => void;
 	onOpenCreateOneOffShiftDialog: (dateStr: string, clientId?: string) => void;
 	onGenerateFromEmpty: () => Promise<void>;
 }) => {
@@ -171,7 +169,6 @@ const renderScheduleContent = ({
 				onAssignStaff={onAssignStaff}
 				onCancelShift={onCancelShift}
 				onRestoreShift={onRestoreShift}
-				onAskAI={onAskAI}
 			/>
 		);
 	}
@@ -274,10 +271,6 @@ export const WeeklySchedulePage = ({
 		setRestoreDialogShift(shift);
 	};
 
-	const handleAskAI = (shift: ShiftDisplayRow) => {
-		setChatDialogShift(shift);
-	};
-
 	const handleDialogSuccess = () => {
 		setChangeDialogShift(null);
 		setCancelDialogShift(null);
@@ -298,6 +291,18 @@ export const WeeklySchedulePage = ({
 
 		setWizardSuggestion(suggestion);
 		setChangeDialogShift(targetShift);
+	};
+
+	const handleStartAdjustmentFromChangeDialog = (shiftId: string) => {
+		setChangeDialogShift(null);
+		setWizardSuggestion(null);
+		setWizardShiftId(shiftId);
+	};
+
+	const handleStartAIChatFromChangeDialog = (shiftId: string) => {
+		setChangeDialogShift(null);
+		setWizardSuggestion(null);
+		setChatDialogShift(findShiftById(initialShifts, shiftId));
 	};
 
 	const hasShifts = initialShifts.length > 0;
@@ -334,7 +339,6 @@ export const WeeklySchedulePage = ({
 				onAssignStaff: handleAssignStaff,
 				onCancelShift: handleCancelShift,
 				onRestoreShift: handleRestoreShift,
-				onAskAI: handleAskAI,
 				onOpenCreateOneOffShiftDialog: handleOpenCreateOneOffShiftDialog,
 				onGenerateFromEmpty: handleGenerateFromEmpty,
 			})}
@@ -387,11 +391,8 @@ export const WeeklySchedulePage = ({
 							? wizardSuggestion
 							: undefined
 					}
-					onStartAdjustment={(shiftId) => {
-						setChangeDialogShift(null);
-						setWizardSuggestion(null);
-						setWizardShiftId(shiftId);
-					}}
+					onStartAdjustment={handleStartAdjustmentFromChangeDialog}
+					onStartAIChat={handleStartAIChatFromChangeDialog}
 				/>
 			)}
 

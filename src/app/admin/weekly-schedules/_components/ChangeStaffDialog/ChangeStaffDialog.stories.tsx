@@ -56,13 +56,17 @@ const mockStaffOptions: StaffPickerOption[] = [
 	},
 ];
 
+const mockShiftDate = new Date();
+mockShiftDate.setDate(mockShiftDate.getDate() + 30);
+mockShiftDate.setHours(0, 0, 0, 0);
+
 const mockShift = {
 	id: 'shift-1',
 	clientName: '田中太郎',
 	serviceTypeName: '生活援助',
-	date: new Date('2026-01-22'),
-	startTime: new Date('2026-01-22T09:00:00+09:00'),
-	endTime: new Date('2026-01-22T12:00:00+09:00'),
+	date: mockShiftDate,
+	startTime: new Date(mockShiftDate.getTime() + 9 * 60 * 60 * 1000),
+	endTime: new Date(mockShiftDate.getTime() + 12 * 60 * 60 * 1000),
 	currentStaffName: '佐藤次郎',
 	currentStaffId: 'staff-3',
 };
@@ -89,6 +93,15 @@ export const WithAdjustmentButton: Story = {
 		shift: mockShift,
 		staffOptions: mockStaffOptions,
 		onStartAdjustment: fn(),
+	},
+};
+
+export const WithAIChatButton: Story = {
+	args: {
+		isOpen: true,
+		shift: mockShift,
+		staffOptions: mockStaffOptions,
+		onStartAIChat: fn(),
 	},
 };
 
