@@ -1634,16 +1634,127 @@ describe('POST /api/chat/shift-adjustment', () => {
 					toStaffId: TEST_IDS.STAFF_1,
 				}),
 			).resolves.toEqual({
-				proposal: {
-					type: 'change_shift_staff',
-					shiftId: TEST_IDS.SCHEDULE_1,
-					toStaffId: TEST_IDS.STAFF_1,
-				},
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_1,
 			});
 
 			expect(mockSupabaseFrom).toHaveBeenCalledWith('shifts');
 			expect(mockShiftSelect).toHaveBeenCalledWith('id');
 			expect(mockShiftEq).toHaveBeenCalledWith('id', TEST_IDS.SCHEDULE_1);
+		});
+
+		it('proposeShiftChange tool の inputSchema はネスト形式も受け付ける', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '提案して' }],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2025-01-20',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+						},
+					}),
+				},
+			);
+
+			await POST(request);
+
+			const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+				tools?: {
+					proposeShiftChange?: {
+						inputSchema?: { parse: (input: unknown) => unknown };
+					};
+				};
+			};
+
+			const inputSchema = streamTextCall.tools?.proposeShiftChange
+				?.inputSchema as unknown as {
+				parse: (input: unknown) => unknown;
+			};
+
+			expect(inputSchema).toBeDefined();
+
+			expect(
+				inputSchema.parse({
+					change_shift_staff: {
+						type: 'update_shift_time',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+						reason: '欠勤対応',
+					},
+				}),
+			).toEqual({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_1,
+				reason: '欠勤対応',
+			});
+
+			expect(
+				inputSchema.parse({
+					update_shift_time: {
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toEqual({
+				type: 'update_shift_time',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				startAt: '2026-03-16T09:00:00+09:00',
+				endAt: '2026-03-16T10:00:00+09:00',
+			});
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: null,
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: 'invalid',
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+					},
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
 		});
 
 		it('proposeShiftChange tool の allowlist 違反時に診断ログを構造化で出力する', async () => {
