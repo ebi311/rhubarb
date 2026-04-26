@@ -151,28 +151,32 @@ export const ShiftTable = ({
 								<>
 									<span>{shift.staffName}</span>
 									{shift.status === 'scheduled' && (
-										<button
-											type="button"
-											className="btn btn-circle btn-ghost btn-xs"
-											onClick={() => onChangeStaff?.(shift)}
-											aria-label="担当者を変更"
-										>
-											<Icon name="edit" className="text-base" />
-										</button>
+										<>
+											<button
+												type="button"
+												className="btn btn-circle btn-ghost btn-xs"
+												onClick={() => onChangeStaff?.(shift)}
+												aria-label="担当者を変更"
+											>
+												<Icon name="edit" className="text-base" />
+											</button>
+										</>
 									)}
 								</>
 							) : (
 								<>
 									<span className="badge badge-warning">未割当</span>
 									{shift.status === 'scheduled' && (
-										<button
-											type="button"
-											className="btn btn-circle text-primary btn-ghost btn-xs"
-											onClick={() => onAssignStaff?.(shift)}
-											aria-label="担当者を割り当て"
-										>
-											<Icon name="person_add" className="text-base" />
-										</button>
+										<>
+											<button
+												type="button"
+												className="btn btn-circle text-primary btn-ghost btn-xs"
+												onClick={() => onAssignStaff?.(shift)}
+												aria-label="担当者を割り当て"
+											>
+												<Icon name="person_add" className="text-base" />
+											</button>
+										</>
 									)}
 								</>
 							)}

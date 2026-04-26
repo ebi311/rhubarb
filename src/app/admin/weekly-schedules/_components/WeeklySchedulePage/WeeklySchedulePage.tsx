@@ -5,7 +5,13 @@ import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AdjustmentChatDialog } from '../AdjustmentChatDialog';
+import type { ShiftContext } from '../AdjustmentChatDialog/useAdjustmentChat';
+import {
+	AdjustmentWizardDialog,
+	type AdjustmentWizardSuggestion,
+} from '../AdjustmentWizardDialog';
 import {
 	CancelShiftDialog,
 	type CancelShiftDialogShift,
@@ -22,7 +28,6 @@ import {
 	RestoreShiftDialog,
 	type RestoreShiftDialogShift,
 } from '../RestoreShiftDialog';
-import { ShiftAdjustmentDialog } from '../ShiftAdjustmentDialog';
 import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
 import { StaffWeeklyShiftGrid, WeeklyShiftGrid } from '../WeeklyShiftGrid';
@@ -88,6 +93,111 @@ const createRestoreShiftDialogShift = (
 	cancelCategory: shift.cancelCategory ?? undefined,
 });
 
+const findShiftById = (shifts: ShiftDisplayRow[], shiftId: string | null) => {
+	if (!shiftId) {
+		return null;
+	}
+
+	return shifts.find((shift) => shift.id === shiftId) ?? null;
+};
+
+const getReopenWizardShiftId = (
+	shifts: ShiftDisplayRow[],
+	shiftIds: string[],
+) => {
+	const reopenShiftId = shiftIds[0];
+	if (!reopenShiftId) {
+		return null;
+	}
+
+	return shifts.some((shift) => shift.id === reopenShiftId)
+		? reopenShiftId
+		: null;
+};
+
+const formatTimeStr = (time: { hour: number; minute: number }): string =>
+	`${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
+
+const createShiftContext = (shift: ShiftDisplayRow): ShiftContext => ({
+	id: shift.id,
+	clientId: shift.clientId,
+	serviceTypeId: shift.serviceTypeId,
+	clientName: shift.clientName,
+	staffName: shift.staffName ?? undefined,
+	date: formatJstDateString(shift.date),
+	startTime: formatTimeStr(shift.startTime),
+	endTime: formatTimeStr(shift.endTime),
+});
+
+const renderScheduleContent = ({
+	hasShifts,
+	viewMode,
+	shifts,
+	weekStartDate,
+	onChangeStaff,
+	onAssignStaff,
+	onCancelShift,
+	onRestoreShift,
+	onOpenCreateOneOffShiftDialog,
+	onGenerateFromEmpty,
+}: {
+	hasShifts: boolean;
+	viewMode: WeeklyViewMode;
+	shifts: ShiftDisplayRow[];
+	weekStartDate: Date;
+	onChangeStaff: (shift: ShiftDisplayRow) => void;
+	onAssignStaff: (shift: ShiftDisplayRow) => void;
+	onCancelShift: (shift: ShiftDisplayRow) => void;
+	onRestoreShift: (shift: ShiftDisplayRow) => void;
+	onOpenCreateOneOffShiftDialog: (dateStr: string, clientId?: string) => void;
+	onGenerateFromEmpty: () => Promise<void>;
+}) => {
+	if (!hasShifts) {
+		return (
+			<EmptyState
+				weekStartDate={weekStartDate}
+				onGenerate={onGenerateFromEmpty}
+			/>
+		);
+	}
+
+	if (viewMode === 'list') {
+		return (
+			<ShiftTable
+				shifts={shifts}
+				onChangeStaff={onChangeStaff}
+				onAssignStaff={onAssignStaff}
+				onCancelShift={onCancelShift}
+				onRestoreShift={onRestoreShift}
+			/>
+		);
+	}
+
+	if (viewMode === 'grid') {
+		return (
+			<WeeklyShiftGrid
+				shifts={shifts}
+				weekStartDate={weekStartDate}
+				onChangeStaff={onChangeStaff}
+				onAssignStaff={onAssignStaff}
+				onCancelShift={onCancelShift}
+				onRestoreShift={onRestoreShift}
+				onAddOneOffShift={onOpenCreateOneOffShiftDialog}
+			/>
+		);
+	}
+
+	return (
+		<StaffWeeklyShiftGrid
+			shifts={shifts}
+			weekStartDate={weekStartDate}
+			onChangeStaff={onChangeStaff}
+			onCancelShift={onCancelShift}
+			onRestoreShift={onRestoreShift}
+		/>
+	);
+};
+
 export const WeeklySchedulePage = ({
 	weekStartDate,
 	initialShifts,
@@ -104,12 +214,19 @@ export const WeeklySchedulePage = ({
 	const [restoreDialogShift, setRestoreDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
 	const [isCreateOneOffOpen, setIsCreateOneOffOpen] = useState(false);
-	const [isShiftAdjustmentOpen, setIsShiftAdjustmentOpen] = useState(false);
+	const [wizardShiftId, setWizardShiftId] = useState<string | null>(null);
+	const [wizardSuggestion, setWizardSuggestion] =
+		useState<AdjustmentWizardSuggestion | null>(null);
 	const [createOneOffDefaultDateStr, setCreateOneOffDefaultDateStr] = useState<
 		string | undefined
 	>();
 	const [createOneOffDefaultClientId, setCreateOneOffDefaultClientId] =
 		useState<string | undefined>();
+	const [chatDialogShift, setChatDialogShift] =
+		useState<ShiftDisplayRow | null>(null);
+	const pendingAIChatShiftIdRef = useRef<string | null>(null);
+
+	const wizardShift = findShiftById(initialShifts, wizardShiftId);
 
 	const handleOpenCreateOneOffShiftDialog = (
 		defaultDateStr: string,
@@ -159,8 +276,57 @@ export const WeeklySchedulePage = ({
 		setChangeDialogShift(null);
 		setCancelDialogShift(null);
 		setRestoreDialogShift(null);
+		setWizardSuggestion(null);
 		router.refresh();
 	};
+
+	const handleWizardAssigned = (suggestion: AdjustmentWizardSuggestion) => {
+		setWizardShiftId(null);
+
+		const targetShift =
+			initialShifts.find((shift) => shift.id === suggestion.shiftId) ?? null;
+		if (!targetShift) {
+			setWizardSuggestion(null);
+			return;
+		}
+
+		setWizardSuggestion(suggestion);
+		setChangeDialogShift(targetShift);
+	};
+
+	const handleStartAdjustmentFromChangeDialog = (shiftId: string) => {
+		setChangeDialogShift(null);
+		setWizardSuggestion(null);
+		setWizardShiftId(shiftId);
+	};
+
+	const handleStartAIChatFromChangeDialog = (shiftId: string) => {
+		pendingAIChatShiftIdRef.current = shiftId;
+		setChangeDialogShift(null);
+		setWizardSuggestion(null);
+	};
+
+	useEffect(() => {
+		if (changeDialogShift) {
+			pendingAIChatShiftIdRef.current = null;
+			return;
+		}
+
+		const pendingShiftId = pendingAIChatShiftIdRef.current;
+		if (!pendingShiftId) {
+			return;
+		}
+
+		pendingAIChatShiftIdRef.current = null;
+
+		const timerId = window.setTimeout(() => {
+			setChatDialogShift(findShiftById(initialShifts, pendingShiftId));
+		}, 0);
+
+		return () => {
+			window.clearTimeout(timerId);
+		};
+	}, [changeDialogShift, initialShifts]);
 
 	const hasShifts = initialShifts.length > 0;
 
@@ -172,13 +338,6 @@ export const WeeklySchedulePage = ({
 					onWeekChange={handleWeekChange}
 				/>
 				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						className="btn btn-outline"
-						onClick={() => setIsShiftAdjustmentOpen(true)}
-					>
-						調整相談
-					</button>
 					<WeeklyViewToggleButton
 						currentView={viewMode}
 						onViewChange={setViewMode}
@@ -194,42 +353,18 @@ export const WeeklySchedulePage = ({
 				</div>
 			</div>
 
-			{hasShifts ? (
-				viewMode === 'list' ? (
-					<ShiftTable
-						shifts={initialShifts}
-						onChangeStaff={handleChangeStaff}
-						onAssignStaff={handleAssignStaff}
-						onCancelShift={handleCancelShift}
-						onRestoreShift={handleRestoreShift}
-					/>
-				) : viewMode === 'grid' ? (
-					<WeeklyShiftGrid
-						shifts={initialShifts}
-						weekStartDate={weekStartDate}
-						onChangeStaff={handleChangeStaff}
-						onAssignStaff={handleAssignStaff}
-						onCancelShift={handleCancelShift}
-						onRestoreShift={handleRestoreShift}
-						onAddOneOffShift={(dateStr, clientId) =>
-							handleOpenCreateOneOffShiftDialog(dateStr, clientId)
-						}
-					/>
-				) : (
-					<StaffWeeklyShiftGrid
-						shifts={initialShifts}
-						weekStartDate={weekStartDate}
-						onChangeStaff={handleChangeStaff}
-						onCancelShift={handleCancelShift}
-						onRestoreShift={handleRestoreShift}
-					/>
-				)
-			) : (
-				<EmptyState
-					weekStartDate={weekStartDate}
-					onGenerate={handleGenerateFromEmpty}
-				/>
-			)}
+			{renderScheduleContent({
+				hasShifts,
+				viewMode,
+				shifts: initialShifts,
+				weekStartDate,
+				onChangeStaff: handleChangeStaff,
+				onAssignStaff: handleAssignStaff,
+				onCancelShift: handleCancelShift,
+				onRestoreShift: handleRestoreShift,
+				onOpenCreateOneOffShiftDialog: handleOpenCreateOneOffShiftDialog,
+				onGenerateFromEmpty: handleGenerateFromEmpty,
+			})}
 
 			<CreateOneOffShiftDialog
 				isOpen={isCreateOneOffOpen}
@@ -241,21 +376,46 @@ export const WeeklySchedulePage = ({
 				onClose={() => setIsCreateOneOffOpen(false)}
 			/>
 
-			<ShiftAdjustmentDialog
-				isOpen={isShiftAdjustmentOpen}
-				weekStartDate={weekStartDate}
-				staffOptions={staffOptions}
-				shifts={initialShifts}
-				onClose={() => setIsShiftAdjustmentOpen(false)}
-			/>
+			{wizardShift && (
+				<AdjustmentWizardDialog
+					key={wizardShift.id}
+					isOpen={true}
+					shiftId={wizardShift.id}
+					initialStartTime={shiftToDateTime(
+						wizardShift.date,
+						wizardShift.startTime,
+					)}
+					initialEndTime={shiftToDateTime(
+						wizardShift.date,
+						wizardShift.endTime,
+					)}
+					onClose={() => {
+						setWizardShiftId(null);
+					}}
+					onAssigned={handleWizardAssigned}
+					onCascadeReopen={(shiftIds) => {
+						setWizardShiftId(getReopenWizardShiftId(initialShifts, shiftIds));
+					}}
+				/>
+			)}
 
 			{changeDialogShift && (
 				<ChangeStaffDialog
 					isOpen={!!changeDialogShift}
 					shift={createChangeStaffDialogShift(changeDialogShift)}
 					staffOptions={staffOptions}
-					onClose={() => setChangeDialogShift(null)}
+					onClose={() => {
+						setChangeDialogShift(null);
+						setWizardSuggestion(null);
+					}}
 					onSuccess={handleDialogSuccess}
+					initialSuggestion={
+						wizardSuggestion?.shiftId === changeDialogShift.id
+							? wizardSuggestion
+							: undefined
+					}
+					onStartAdjustment={handleStartAdjustmentFromChangeDialog}
+					onStartAIChat={handleStartAIChatFromChangeDialog}
 				/>
 			)}
 
@@ -274,6 +434,15 @@ export const WeeklySchedulePage = ({
 					shift={createRestoreShiftDialogShift(restoreDialogShift)}
 					onClose={() => setRestoreDialogShift(null)}
 					onSuccess={handleDialogSuccess}
+				/>
+			)}
+
+			{chatDialogShift && (
+				<AdjustmentChatDialog
+					isOpen={!!chatDialogShift}
+					shiftContext={createShiftContext(chatDialogShift)}
+					staffOptions={staffOptions}
+					onClose={() => setChatDialogShift(null)}
 				/>
 			)}
 		</div>

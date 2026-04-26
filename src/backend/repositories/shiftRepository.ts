@@ -1,6 +1,7 @@
 import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import { Shift, ShiftSchema } from '@/models/shift';
+import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
 	getJstDateOnly,
 	getJstHours,
@@ -8,6 +9,18 @@ import {
 	setJstTime,
 } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
+
+/**
+ * findPastAssignedStaffIdsByClient で使用する取得上限の係数
+ * Supabase が DISTINCT ON をサポートしないため、多めに取得して重複排除する
+ */
+const FETCH_LIMIT_MULTIPLIER = 5;
+
+/**
+ * findPastAssignedStaffIdsByClient での最大取得件数
+ * 過剰なデータ取得を防ぐための上限
+ */
+const MAX_FETCH_LIMIT = 100;
 
 type ShiftRow = Database['public']['Tables']['shifts']['Row'];
 type ShiftInsert = Database['public']['Tables']['shifts']['Insert'];
@@ -23,6 +36,8 @@ export interface ShiftFilters {
 	staffId?: string;
 	clientId?: string;
 	status?: Shift['status'];
+	/** 指定したステータスを除外する */
+	excludeStatus?: Shift['status'];
 }
 
 export class ShiftRepository {
@@ -116,6 +131,7 @@ export class ShiftRepository {
 		query = applyIf(query, filters.staffId, (q, v) => q.eq('staff_id', v));
 		query = applyIf(query, filters.clientId, (q, v) => q.eq('client_id', v));
 		query = applyIf(query, filters.status, (q, v) => q.eq('status', v));
+		query = applyIf(query, filters.excludeStatus, (q, v) => q.neq('status', v));
 
 		const { data, error } = await query.order('start_time');
 		if (error) throw error;
@@ -238,14 +254,14 @@ export class ShiftRepository {
 	 */
 	async updateStaffAssignment(
 		shiftId: string,
-		staffId: string,
+		staffId: string | null,
 		notes?: string,
 	): Promise<void> {
 		const { error } = await this.supabase
 			.from('shifts')
 			.update({
 				staff_id: staffId,
-				is_unassigned: false,
+				is_unassigned: staffId === null,
 				notes,
 				updated_at: new Date().toISOString(),
 			})
@@ -425,5 +441,98 @@ export class ShiftRepository {
 		const { data, error } = await query.order('start_time');
 		if (error) throw error;
 		return (data ?? []).map((row) => this.toDomain(row));
+	}
+
+	/**
+	 * ヘルパー欠勤時に影響を受けるシフトを取得する
+	 * 指定期間内で staff_id が一致し、status が scheduled または confirmed のシフトを返す
+	 */
+	async findAffectedShiftsByAbsence(
+		staffId: string,
+		startDate: Date,
+		endDate: Date,
+		officeId: string,
+	): Promise<Shift[]> {
+		// scheduled または confirmed のステータスのみを対象
+		// startDate と今日（JST）の大きい方を下限として使用
+		// これにより、startDate が過去の場合でも過去シフトは取得されない
+		const today = getJstDateOnly(new Date());
+		const effectiveStartDate =
+			startDate.getTime() > today.getTime() ? startDate : today;
+
+		// scheduled と confirmed のみを対象（.in() で絞り込み）
+		const query = this.supabase
+			.from('shifts')
+			.select('*, clients!inner(office_id)')
+			.eq('clients.office_id', officeId)
+			.eq('staff_id', staffId)
+			.gte('start_time', setJstTime(effectiveStartDate, 0, 0).toISOString())
+			.lte('start_time', setJstTime(endDate, 23, 59).toISOString())
+			.in('status', ['scheduled', 'confirmed']);
+
+		const { data, error } = await query.order('start_time');
+		if (error) throw error;
+		return (data ?? []).map((row) => this.toDomain(row));
+	}
+
+	/**
+	 * 過去に指定クライアント・サービス種別で担当したシフトのスタッフIDを取得する
+	 * canceled を除外し、end_time < 現在時刻（アプリサーバ） の実績を対象にする
+	 * 直近担当優先順（重複排除済み）
+	 *
+	 * @param clientId クライアントID
+	 * @param officeId 事業所ID
+	 * @param serviceTypeId サービス種別ID
+	 * @param limit 最大取得数（デフォルト10、最大 MAX_FETCH_LIMIT）
+	 * @returns スタッフIDの配列（重複排除済み、直近担当優先順、min(limit, MAX_FETCH_LIMIT) 件まで）
+	 */
+	async findPastAssignedStaffIdsByClient(
+		clientId: string,
+		officeId: string,
+		serviceTypeId: ServiceTypeId,
+		limit: number = 10,
+	): Promise<string[]> {
+		// canceled を除外し、end_time < 現在時刻（アプリサーバ） の実績を対象
+		// start_time 降順（直近優先）で取得し、アプリ側で重複排除
+		// Supabase は DISTINCT ON をサポートしないため、多めに取得して重複排除
+		// limit が不正な値（NaN, Infinity, 0以下）の場合は 1 として扱う
+		// effectiveLimit も MAX_FETCH_LIMIT でキャップして一貫性を保つ
+		const effectiveLimit = Math.min(
+			Number.isFinite(limit) && Number.isInteger(limit)
+				? Math.max(1, limit)
+				: 1,
+			MAX_FETCH_LIMIT,
+		);
+		const fetchLimit = Math.min(
+			effectiveLimit * FETCH_LIMIT_MULTIPLIER,
+			MAX_FETCH_LIMIT,
+		);
+
+		const { data, error } = await this.supabase
+			.from('shifts')
+			.select('staff_id, clients!inner(office_id)')
+			.eq('clients.office_id', officeId)
+			.eq('client_id', clientId)
+			.eq('service_type_id', serviceTypeId)
+			.neq('status', 'canceled')
+			.lt('end_time', new Date().toISOString())
+			.not('staff_id', 'is', null)
+			.order('start_time', { ascending: false })
+			.limit(fetchLimit);
+
+		if (error) throw error;
+
+		// 順序を保持しながら重複排除（直近優先）
+		const seen = new Set<string>();
+		const uniqueStaffIds: string[] = [];
+		for (const row of data ?? []) {
+			const staffId = row.staff_id as string;
+			if (!seen.has(staffId)) {
+				seen.add(staffId);
+				uniqueStaffIds.push(staffId);
+				if (uniqueStaffIds.length >= effectiveLimit) break;
+			}
+		}
+		return uniqueStaffIds;
 	}
 }

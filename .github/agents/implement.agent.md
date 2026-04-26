@@ -23,7 +23,6 @@ tools:
     search/searchResults,
     search/textSearch,
     search/usages,
-    search/searchSubagent,
     github/add_comment_to_pending_review,
     github/add_issue_comment,
     github/create_branch,
@@ -46,7 +45,7 @@ tools:
     github/update_pull_request_branch,
     todo,
   ]
-model: Claude Opus 4.5 (copilot)
+model: gpt-5.3-codex
 ---
 
 あなたは TDD の原則に従って実装を行うエージェントです。指定された計画に基づき、テストを先に書いてから最小限の実装を行います。
@@ -60,7 +59,36 @@ model: Claude Opus 4.5 (copilot)
   - `What changed`（何を変えたかを3〜8行で）
   - `Commands run`（実行したコマンド。無ければ「なし」）
   - `Next`（次にやる1〜3手）
+- 最終メッセージの末尾に、機械可読な **Handoff JSON**（共通スキーマ）を `json` コードブロックで **1つだけ** 付ける。
+  - `payload` 目安: `changedFiles`, `commandsRun`, `testsRun`, `nextSteps`
+  - 変更点の説明は人間向け本文に書き、`payload` は次工程に必要な最小情報だけにする。
+- `next` は **任意の提案**（書けるときだけ）。次の agent を最終決定するのは orchestrator。
 - 実行が中断/キャンセル/タイムアウトしそうな場合は、無理に完走せず、**どこまでできたか**と**続きの最短手順**を返して終了する。
+
+### Handoff JSON（共通スキーマ）
+
+最終出力の末尾に、以下の形で 1 つだけ付ける。
+
+```json
+{
+	"handoffVersion": 1,
+	"agent": "implement",
+	"status": "ok | partial | blocked",
+	"summary": "1〜3行で要約",
+	"artifactPaths": ["workspace-relative/path"],
+	"payload": {
+		"changedFiles": ["(任意) 変更したファイルパス"],
+		"commandsRun": ["(任意) 実行したコマンド"],
+		"testsRun": ["(任意) 実行したテスト"],
+		"nextSteps": ["(任意) 次の1〜3手"]
+	},
+	"questions": ["(任意) 次に進むための確認"],
+	"next": {
+		"agent": "review",
+		"prompt": "次のエージェントに渡す短い依頼文（レビュー観点・関連パスを含む）"
+	}
+}
+```
 
 ## 手順 (#tool:todo)
 
@@ -75,6 +103,12 @@ model: Claude Opus 4.5 (copilot)
 9. 必要に応じてドキュメントを更新する
 10. 実装内容を説明する
 11. レビューによる修正依頼があれば対応する。その場合は、新しいブランチは作成せず、同じブランチで対応する
+
+## PR レビュー指摘を受けて実装する場合
+
+- 共通ルールは `.github/agents/pr-review-thread-fragment.md` を参照する。
+- orchestrator / review agent から渡された **未解決 review thread の指摘だけ** を実装対象にする。
+- implement agent 自身は PR コメント取得、thread の resolve、re-review リクエストを行わない。
 
 ## テスト修正の原則
 
@@ -138,6 +172,16 @@ model: Claude Opus 4.5 (copilot)
 - コンポーネントは 本体 + テスト + Storybook + index.ts をセットで作成
 - `pnpm format` をコミット前に実行する
 
+### 再指摘防止: 実装前チェック
+
+- 既存定数を再利用できる箇所は新規定義せず、既存定数（例: `STAFF_SHIFT_INTERVAL_MINUTES`）を優先して使用する。
+- 500 エラー時の `details` はクライアント返却時にマスクし、内部情報を露出させない。
+- 同一処理内で同じ対象に対する二重更新を行わない（更新責務を一箇所に集約する）。
+- `new Date()` などの暗黙フォールバックを禁止し、必須値欠落時は fail-fast で明示的に失敗させる。
+- Action 実行結果のハンドリングは `useActionResultHandler` に統一する。
+- React の `key` は一意性を必ず担保し、index など衝突しうる値を安易に使わない。
+- README / Docs 変更時はコードフェンス（開始・終了・言語指定）の整合を確認する。
+
 ## ツール
 
 - Supabase 関連の操作（利用可能なツールがある場合）
@@ -150,3 +194,4 @@ model: Claude Opus 4.5 (copilot)
 - `create-story` - Storybook の Story を実装する際のテンプレートと注意点
 - `create-vitest` - コンポーネントテストのテンプレート
 - `code-implement` - 実装時の注意
+- `pr-review-guard` - PR 前の再指摘防止チェック（提出前に確認）

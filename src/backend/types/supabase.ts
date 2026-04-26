@@ -34,6 +34,53 @@ export type Database = {
 	};
 	public: {
 		Tables: {
+			ai_operation_logs: {
+				Row: {
+					actor_user_id: string;
+					created_at: string;
+					id: string;
+					office_id: string;
+					operation_type: string;
+					proposal: Json | null;
+					request: Json | null;
+					result: Json | null;
+					source: string;
+					targets: Json;
+				};
+				Insert: {
+					actor_user_id: string;
+					created_at?: string;
+					id?: string;
+					office_id: string;
+					operation_type: string;
+					proposal?: Json | null;
+					request?: Json | null;
+					result?: Json | null;
+					source: string;
+					targets: Json;
+				};
+				Update: {
+					actor_user_id?: string;
+					created_at?: string;
+					id?: string;
+					office_id?: string;
+					operation_type?: string;
+					proposal?: Json | null;
+					request?: Json | null;
+					result?: Json | null;
+					source?: string;
+					targets?: Json;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'ai_operation_logs_office_id_fkey';
+						columns: ['office_id'];
+						isOneToOne: false;
+						referencedRelation: 'offices';
+						referencedColumns: ['id'];
+					},
+				];
+			};
 			basic_schedule_staff_assignments: {
 				Row: {
 					basic_schedule_id: string;
@@ -421,6 +468,7 @@ export type Database = {
 					created_at: string;
 					email: string | null;
 					id: string;
+					kana: string | null;
 					name: string;
 					note: string | null;
 					office_id: string;
@@ -432,6 +480,7 @@ export type Database = {
 					created_at?: string;
 					email?: string | null;
 					id?: string;
+					kana?: string | null;
 					name: string;
 					note?: string | null;
 					office_id: string;
@@ -443,6 +492,7 @@ export type Database = {
 					created_at?: string;
 					email?: string | null;
 					id?: string;
+					kana?: string | null;
 					name?: string;
 					note?: string | null;
 					office_id?: string;

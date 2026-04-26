@@ -1,4 +1,5 @@
 import type { Database } from '@/backend/types/supabase';
+import { TEST_IDS } from '@/test/helpers/testIds';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StaffRepository } from './staffRepository';
@@ -6,16 +7,17 @@ import { StaffRepository } from './staffRepository';
 describe('StaffRepository', () => {
 	let supabase: SupabaseClient<Database>;
 	let repository: StaffRepository;
-	const officeId = '019b179f-c74d-75ef-a328-55a8f65a0d8a';
+	const officeId = TEST_IDS.OFFICE_1;
 	const serviceTypeIds = {
 		one: 'physical-care',
 		two: 'life-support',
 		three: 'commute-support',
 	};
 	const baseStaffRow = {
-		id: '019b1aaf-0000-4000-8000-000000000001',
+		id: TEST_IDS.STAFF_1,
 		office_id: officeId,
 		name: '管理者A',
+		kana: null as string | null,
 		role: 'admin' as const,
 		email: 'admin@example.com',
 		note: null as string | null,
@@ -38,7 +40,7 @@ describe('StaffRepository', () => {
 				baseStaffRow,
 				{
 					...baseStaffRow,
-					id: '019b1aaf-0000-4000-8000-000000000002',
+					id: TEST_IDS.STAFF_2,
 					name: 'ヘルパーB',
 					role: 'helper' as const,
 					email: 'helper@example.com',
@@ -160,7 +162,8 @@ describe('StaffRepository', () => {
 		it('スタッフを作成しサービス区分を設定できる', async () => {
 			const insertRow = {
 				...baseStaffRow,
-				id: '019b1aaf-0000-4000-8000-000000000099',
+				id: TEST_IDS.STAFF_4,
+				kana: 'しんきすたっふ',
 				note: 'メモ',
 			};
 			const mockInsert = vi.fn().mockReturnThis();
@@ -193,6 +196,7 @@ describe('StaffRepository', () => {
 			const input = {
 				office_id: officeId,
 				name: '新規スタッフ',
+				kana: 'しんきすたっふ',
 				role: 'helper' as const,
 				email: 'new@example.com',
 				note: 'メモ',
@@ -204,6 +208,7 @@ describe('StaffRepository', () => {
 			expect(mockInsert).toHaveBeenCalledWith({
 				office_id: input.office_id,
 				name: input.name,
+				kana: input.kana,
 				role: input.role,
 				email: input.email,
 				note: input.note,
@@ -220,6 +225,56 @@ describe('StaffRepository', () => {
 				serviceTypeIds.two,
 			]);
 		});
+
+		it('kanaがnullの場合はnullとして保存される', async () => {
+			const insertRow = {
+				...baseStaffRow,
+				id: TEST_IDS.STAFF_4,
+				kana: null,
+			};
+			const mockInsert = vi.fn().mockReturnThis();
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: insertRow, error: null });
+
+			const mockAbilityDelete = vi.fn().mockReturnThis();
+			const mockAbilityEq = vi.fn().mockResolvedValue({ error: null });
+			const mockAbilityInsert = vi.fn().mockResolvedValue({ error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { insert: mockInsert };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return {
+						delete: mockAbilityDelete,
+						insert: mockAbilityInsert,
+					};
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockInsert.mockReturnValue({ select: mockSelect });
+			mockSelect.mockReturnValue({ single: mockSingle });
+			mockAbilityDelete.mockReturnValue({ eq: mockAbilityEq });
+
+			const input = {
+				office_id: officeId,
+				name: '新規スタッフ',
+				kana: null,
+				role: 'helper' as const,
+				email: null,
+				note: null,
+				service_type_ids: [],
+			};
+
+			await repository.create(input);
+
+			expect(mockInsert).toHaveBeenCalledWith(
+				expect.objectContaining({ kana: null }),
+			);
+		});
 	});
 
 	describe('update', () => {
@@ -227,6 +282,7 @@ describe('StaffRepository', () => {
 			const updatedRow = {
 				...baseStaffRow,
 				name: '更新後スタッフ',
+				kana: 'こうしんごすたっふ',
 				email: 'updated@example.com',
 				note: '更新されたメモ',
 			};
@@ -262,6 +318,7 @@ describe('StaffRepository', () => {
 
 			const result = await repository.update(baseStaffRow.id, {
 				name: '更新後スタッフ',
+				kana: 'こうしんごすたっふ',
 				email: 'updated@example.com',
 				note: '更新されたメモ',
 				service_type_ids: [serviceTypeIds.three],
@@ -269,6 +326,7 @@ describe('StaffRepository', () => {
 
 			expect(mockUpdate).toHaveBeenCalledWith({
 				name: '更新後スタッフ',
+				kana: 'こうしんごすたっふ',
 				email: 'updated@example.com',
 				note: '更新されたメモ',
 			});
@@ -277,6 +335,52 @@ describe('StaffRepository', () => {
 			]);
 			expect(result.name).toBe('更新後スタッフ');
 			expect(result.service_type_ids).toEqual([serviceTypeIds.three]);
+		});
+
+		it('kanaがnullの場合はnullとして更新される', async () => {
+			const updatedRow = {
+				...baseStaffRow,
+				kana: null,
+			};
+
+			const mockUpdate = vi.fn().mockReturnThis();
+			const mockEq = vi.fn().mockReturnThis();
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockSingle = vi
+				.fn()
+				.mockResolvedValue({ data: updatedRow, error: null });
+
+			const mockAbilityDelete = vi.fn().mockReturnThis();
+			const mockAbilityEq = vi.fn().mockResolvedValue({ error: null });
+			const mockAbilityInsert = vi.fn().mockResolvedValue({ error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { update: mockUpdate };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return {
+						delete: mockAbilityDelete,
+						insert: mockAbilityInsert,
+					};
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockUpdate.mockReturnValue({ eq: mockEq });
+			mockEq.mockReturnValue({ select: mockSelect });
+			mockSelect.mockReturnValue({ single: mockSingle });
+			mockAbilityDelete.mockReturnValue({ eq: mockAbilityEq });
+
+			await repository.update(baseStaffRow.id, {
+				name: '管理者A',
+				kana: null,
+				service_type_ids: [],
+			});
+
+			expect(mockUpdate).toHaveBeenCalledWith(
+				expect.objectContaining({ kana: null }),
+			);
 		});
 	});
 
@@ -298,6 +402,170 @@ describe('StaffRepository', () => {
 
 			expect(mockDelete).toHaveBeenCalled();
 			expect(mockEq).toHaveBeenCalledWith('id', baseStaffRow.id);
+		});
+	});
+
+	describe('searchByNameOrKana', () => {
+		it('名前でケースインセンシティブ検索ができる', async () => {
+			const staffRows = [
+				{ ...baseStaffRow, kana: 'かんりしゃえー' },
+				{
+					...baseStaffRow,
+					id: TEST_IDS.STAFF_2,
+					name: '山田花子',
+					kana: 'やまだはなこ',
+					role: 'helper' as const,
+				},
+			];
+			const abilityRows = [
+				{ staff_id: staffRows[0].id, service_type_id: serviceTypeIds.one },
+				{ staff_id: staffRows[1].id, service_type_id: serviceTypeIds.two },
+			];
+
+			const mockStaffSelect = vi.fn().mockReturnThis();
+			const mockStaffEq = vi.fn().mockReturnThis();
+			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+
+			const mockAbilitySelect = vi.fn().mockReturnThis();
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: abilityRows, error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockStaffSelect };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return { select: mockAbilitySelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+			mockStaffEq.mockReturnValue({ or: mockStaffOr });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
+
+			mockAbilitySelect.mockReturnValue({ in: mockAbilityIn });
+
+			const result = await repository.searchByNameOrKana(officeId, '山田', 10);
+
+			expect(result).toHaveLength(2);
+			expect(mockStaffOr).toHaveBeenCalledWith(
+				'name.ilike.%山田%,kana.ilike.%山田%',
+			);
+			expect(mockStaffLimit).toHaveBeenCalledWith(10);
+		});
+
+		it('kanaでひらがな検索ができる', async () => {
+			const staffRows = [
+				{
+					...baseStaffRow,
+					id: TEST_IDS.STAFF_3,
+					name: '田中太郎',
+					kana: 'たなかたろう',
+					role: 'helper' as const,
+				},
+			];
+			const abilityRows = [
+				{ staff_id: staffRows[0].id, service_type_id: serviceTypeIds.one },
+			];
+
+			const mockStaffSelect = vi.fn().mockReturnThis();
+			const mockStaffEq = vi.fn().mockReturnThis();
+			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+
+			const mockAbilitySelect = vi.fn().mockReturnThis();
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: abilityRows, error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockStaffSelect };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return { select: mockAbilitySelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+			mockStaffEq.mockReturnValue({ or: mockStaffOr });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
+
+			mockAbilitySelect.mockReturnValue({ in: mockAbilityIn });
+
+			const result = await repository.searchByNameOrKana(
+				officeId,
+				'たなか',
+				10,
+			);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].name).toBe('田中太郎');
+			expect(mockStaffOr).toHaveBeenCalledWith(
+				'name.ilike.%たなか%,kana.ilike.%たなか%',
+			);
+		});
+
+		it('上限件数を指定できる', async () => {
+			const mockStaffSelect = vi.fn().mockReturnThis();
+			const mockStaffEq = vi.fn().mockReturnThis();
+			const mockStaffOr = vi.fn().mockReturnThis();
+			const mockStaffOrder = vi.fn().mockReturnThis();
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockStaffSelect };
+				}
+				if (table === 'staff_service_type_abilities') {
+					return {
+						select: vi.fn().mockReturnValue({
+							in: vi.fn().mockResolvedValue({ data: [], error: null }),
+						}),
+					};
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockStaffSelect.mockReturnValue({ eq: mockStaffEq });
+			mockStaffEq.mockReturnValue({ or: mockStaffOr });
+			mockStaffOr.mockReturnValue({ order: mockStaffOrder });
+			mockStaffOrder.mockReturnValue({ limit: mockStaffLimit });
+
+			await repository.searchByNameOrKana(officeId, 'test', 5);
+
+			expect(mockStaffLimit).toHaveBeenCalledWith(5);
+		});
+
+		it('空文字クエリの場合は空配列を返す（全件ヒット防止）', async () => {
+			// safeQuery が空文字になるケース（空文字、特殊文字のみ）
+			const result = await repository.searchByNameOrKana(officeId, '', 10);
+
+			expect(result).toEqual([]);
+			// DB にはアクセスしない
+			expect(supabase.from).not.toHaveBeenCalled();
+		});
+
+		it('特殊文字のみの場合は空配列を返す', async () => {
+			// PostgREST 構文インジェクション対策で除去される文字のみ
+			const result = await repository.searchByNameOrKana(officeId, '()', 10);
+
+			expect(result).toEqual([]);
+			expect(supabase.from).not.toHaveBeenCalled();
 		});
 	});
 });

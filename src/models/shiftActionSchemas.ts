@@ -165,6 +165,101 @@ export type ChangeShiftStaffOutput = z.infer<
 	typeof ChangeShiftStaffOutputSchema
 >;
 
+const ConflictingShiftDateSchema = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/, 'date は YYYY-MM-DD 形式で指定してください')
+	.refine(
+		(value) => {
+			try {
+				return formatJstDateString(parseJstDateString(value)) === value;
+			} catch {
+				return false;
+			}
+		},
+		{ message: 'date が不正です' },
+	);
+
+export const ConflictingShiftSchema = z.object({
+	shiftId: z.string().uuid(),
+	clientName: z.string(),
+	date: ConflictingShiftDateSchema,
+	startTime: TimeValueSchema,
+	endTime: TimeValueSchema,
+});
+export type ConflictingShift = z.infer<typeof ConflictingShiftSchema>;
+
+// backward compatibility
+export const ConflictingShiftForCandidateSchema = ConflictingShiftSchema;
+export type ConflictingShiftForCandidate = ConflictingShift;
+
+export const CandidateStaffSchema = z.object({
+	staffId: z.string().uuid(),
+	staffName: z.string(),
+	conflictingShifts: z.array(ConflictingShiftSchema),
+});
+export type CandidateStaff = z.infer<typeof CandidateStaffSchema>;
+
+export const SuggestCandidateStaffForShiftInputSchema = z.object({
+	shiftId: z.string().uuid(),
+});
+export type SuggestCandidateStaffForShiftInput = z.infer<
+	typeof SuggestCandidateStaffForShiftInputSchema
+>;
+
+export const SuggestCandidateStaffForShiftOutputSchema = z.object({
+	candidates: z.array(CandidateStaffSchema),
+});
+export type SuggestCandidateStaffForShiftOutput = z.infer<
+	typeof SuggestCandidateStaffForShiftOutputSchema
+>;
+
+export const SuggestCandidateStaffForShiftWithNewDatetimeInputSchema = z
+	.object({
+		shiftId: z.string().uuid(),
+		newStartTime: z.coerce.date(),
+		newEndTime: z.coerce.date(),
+	})
+	.refine((data) => data.newEndTime.getTime() > data.newStartTime.getTime(), {
+		message: 'newEndTime は newStartTime より後の時刻を指定してください',
+		path: ['newEndTime'],
+	});
+export type SuggestCandidateStaffForShiftWithNewDatetimeInput = z.infer<
+	typeof SuggestCandidateStaffForShiftWithNewDatetimeInputSchema
+>;
+
+export const AssignStaffWithCascadeInputSchema = z.object({
+	shiftId: z.string().uuid(),
+	newStaffId: z.string().uuid(),
+	reason: z.string().optional(),
+});
+export type AssignStaffWithCascadeInput = z.infer<
+	typeof AssignStaffWithCascadeInputSchema
+>;
+
+export const AssignStaffWithCascadeOutputSchema = z.object({
+	updatedShift: ShiftRecordSchema,
+	cascadeUnassignedShiftIds: z.array(z.string().uuid()),
+});
+export type AssignStaffWithCascadeOutput = z.infer<
+	typeof AssignStaffWithCascadeOutputSchema
+>;
+
+export const UpdateDatetimeAndAssignWithCascadeInputSchema = z
+	.object({
+		shiftId: z.string().uuid(),
+		newStaffId: z.string().uuid(),
+		newStartTime: z.coerce.date(),
+		newEndTime: z.coerce.date(),
+		reason: z.string().optional(),
+	})
+	.refine((data) => data.newEndTime.getTime() > data.newStartTime.getTime(), {
+		message: 'newEndTime は newStartTime より後の時刻を指定してください',
+		path: ['newEndTime'],
+	});
+export type UpdateDatetimeAndAssignWithCascadeInput = z.infer<
+	typeof UpdateDatetimeAndAssignWithCascadeInputSchema
+>;
+
 // cancelShiftAction の入力スキーマ
 export const CancelShiftCategorySchema = z.enum(['client', 'staff', 'other']);
 

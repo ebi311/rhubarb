@@ -1,6 +1,6 @@
 ---
 name: code-implement
-describe: React コンポーネントを作成するときのガイドライン
+description: React コンポーネントを作成するときのガイドライン
 ---
 
 ## 型安全性
@@ -22,6 +22,10 @@ export type Customer = z.infer<typeof CustomerSchema>;
 export const CUSTOMER_STATE_LABELS: Record<CustomerState, string> = { ... };
 export const CUSTOMER_STATE_COLORS: Record<CustomerState, string> = { ... };
 ```
+
+## eslint ルール
+
+- `// eslint-disable-*` は原則禁止。やむを得ない場合は、開発者に **なぜルールを無効化する必要があるのか** を説明し、許可を得ること。
 
 ## 複雑性回避
 
@@ -107,7 +111,11 @@ const MyComponent: FC<Props> = ({ prop }) => {
 };
 ```
 
--
+### フォーム
+
+- フォームは、`react-hook-form` を使用して実装する
+- ただし、コントロールの数が２つ程度の簡単なフォームは、`useState` 等で実装しても良い
+- 参照: `.github/skills/create-react-component-vitest/SKILL.md`
 
 ## Git コミット規則
 

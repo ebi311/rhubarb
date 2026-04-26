@@ -19,6 +19,11 @@
 		"ghcr.io/devcontainers/features/docker-in-docker:2": {
 			"version": "latest",
 			"enableNonRootDocker": "true"
+		},
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": false,
+			"installOhMyZsh": false,
+			"configureZshAsDefaultShell": false
 		}
 	},
 
@@ -46,6 +51,9 @@
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
+			"settings": {
+				"dev.containers.mountWaylandSocket": false
+			},
 			"extensions": [
 				"esbenp.prettier-vscode",
 				"1YiB.svelte-bundle",
@@ -67,6 +75,9 @@
 				"streetsidesoftware.code-spell-checker"
 			]
 		}
+	},
+	"remoteEnv": {
+		"GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
 	}
 
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.

@@ -182,4 +182,13 @@ describe('ShiftTable', () => {
 
 		expect(onAssignStaff).toHaveBeenCalledWith(shift);
 	});
+
+	it('一覧表にはAIに相談ボタンが表示されない', () => {
+		const shifts = [createShift({ status: 'scheduled' })];
+		render(<ShiftTable shifts={shifts} />);
+
+		expect(
+			screen.queryByRole('button', { name: 'AIに相談' }),
+		).not.toBeInTheDocument();
+	});
 });

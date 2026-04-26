@@ -16,6 +16,7 @@ type StaffUpdate = Database['public']['Tables']['staffs']['Update'];
 type StaffCreateParams = {
 	office_id: string;
 	name: string;
+	kana?: string | null;
 	role: UserRole;
 	email?: string | null;
 	note?: string | null;
@@ -24,6 +25,7 @@ type StaffCreateParams = {
 
 type StaffUpdateParams = {
 	name?: string;
+	kana?: string | null;
 	role?: UserRole;
 	email?: string | null;
 	note?: string | null;
@@ -94,6 +96,7 @@ export class StaffRepository {
 	private buildUpdatePayload(input: StaffUpdateParams): StaffUpdate {
 		const payload: StaffUpdate = {};
 		if (typeof input.name !== 'undefined') payload.name = input.name;
+		if (typeof input.kana !== 'undefined') payload.kana = input.kana ?? null;
 		if (typeof input.role !== 'undefined') payload.role = input.role;
 		if (typeof input.email !== 'undefined') payload.email = input.email ?? null;
 		if (typeof input.note !== 'undefined') payload.note = input.note ?? null;
@@ -143,6 +146,7 @@ export class StaffRepository {
 		const payload: StaffInsert = {
 			office_id: input.office_id,
 			name: input.name,
+			kana: input.kana ?? null,
 			role: input.role,
 			email: input.email ?? null,
 			note: input.note ?? null,
@@ -224,5 +228,37 @@ export class StaffRepository {
 			.eq('id', id);
 
 		if (error) throw error;
+	}
+
+	/**
+	 * 名前またはかな（kana）でケースインセンシティブ検索
+	 * DB 側で or + ilike + limit を使用してフィルタリング
+	 */
+	async searchByNameOrKana(
+		officeId: string,
+		query: string,
+		limit: number,
+	): Promise<StaffWithServiceTypes[]> {
+		// PostgREST 構文インジェクション対策: 特殊文字を除去
+		const safeQuery = query.replace(/[(),]/g, '');
+
+		// 空文字の場合は全件ヒット防止のため空配列を返す
+		if (safeQuery === '') {
+			return [];
+		}
+
+		const { data, error } = await this.supabase
+			.from('staffs')
+			.select('*')
+			.eq('office_id', officeId)
+			.or(`name.ilike.%${safeQuery}%,kana.ilike.%${safeQuery}%`)
+			.order('name', { ascending: true })
+			.limit(limit);
+		if (error) throw error;
+		const rows = data ?? [];
+		const map = await this.fetchServiceTypeMap(rows.map((row) => row.id));
+		return rows.map((row) =>
+			this.toDomainWithServiceTypes(row, map[row.id] ?? []),
+		);
 	}
 }

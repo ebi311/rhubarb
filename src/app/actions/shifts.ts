@@ -3,23 +3,35 @@
 import { ServiceError, ShiftService } from '@/backend/services/shiftService';
 import type { Shift } from '@/models/shift';
 import type {
+	AssignStaffWithCascadeInput,
+	AssignStaffWithCascadeOutput,
 	CancelShiftInput,
 	ChangeShiftStaffInput,
 	ChangeShiftStaffOutput,
 	CreateOneOffShiftActionInput,
 	RestoreShiftInput,
 	ShiftRecord,
+	SuggestCandidateStaffForShiftInput,
+	SuggestCandidateStaffForShiftOutput,
+	SuggestCandidateStaffForShiftWithNewDatetimeInput,
+	UpdateDatetimeAndAssignWithCascadeInput,
 	UpdateShiftScheduleActionInput,
 	UpdateShiftScheduleOutput,
 	ValidateStaffAvailabilityInput,
 	ValidateStaffAvailabilityOutput,
 } from '@/models/shiftActionSchemas';
 import {
+	AssignStaffWithCascadeInputSchema,
+	AssignStaffWithCascadeOutputSchema,
 	CancelShiftInputSchema,
 	ChangeShiftStaffInputSchema,
 	CreateOneOffShiftInputSchema,
 	RestoreShiftInputSchema,
 	ShiftRecordSchema,
+	SuggestCandidateStaffForShiftInputSchema,
+	SuggestCandidateStaffForShiftOutputSchema,
+	SuggestCandidateStaffForShiftWithNewDatetimeInputSchema,
+	UpdateDatetimeAndAssignWithCascadeInputSchema,
 	UpdateShiftScheduleInputSchema,
 	UpdateShiftScheduleOutputSchema,
 	ValidateStaffAvailabilityInputSchema,
@@ -45,6 +57,7 @@ const handleServiceError = <T>(error: unknown): ActionResult<T> => {
 	if (error instanceof ServiceError) {
 		if (error.status >= 500) {
 			logServerError(error);
+			return errorResult<T>(error.message, error.status);
 		}
 		return errorResult<T>(error.message, error.status, error.details);
 	}
@@ -124,6 +137,119 @@ export const updateShiftScheduleAction = async (
 		return successResult(UpdateShiftScheduleOutputSchema.parse(result));
 	} catch (err) {
 		return handleServiceError<UpdateShiftScheduleOutput>(err);
+	}
+};
+
+/**
+ * シフトの候補スタッフを提案する
+ */
+export const suggestCandidateStaffForShiftAction = async (
+	input: SuggestCandidateStaffForShiftInput,
+): Promise<ActionResult<SuggestCandidateStaffForShiftOutput>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput = SuggestCandidateStaffForShiftInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		const result = await service.suggestCandidateStaffForShift(
+			user.id,
+			parsedInput.data.shiftId,
+		);
+		return successResult(
+			SuggestCandidateStaffForShiftOutputSchema.parse(result),
+		);
+	} catch (err) {
+		return handleServiceError<SuggestCandidateStaffForShiftOutput>(err);
+	}
+};
+
+/**
+ * シフトへスタッフを割り当て、競合シフトを連鎖解除する
+ */
+export const assignStaffWithCascadeUnassignAction = async (
+	input: AssignStaffWithCascadeInput,
+): Promise<ActionResult<AssignStaffWithCascadeOutput>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput = AssignStaffWithCascadeInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		const result = await service.assignStaffWithCascadeUnassign(
+			user.id,
+			parsedInput.data.shiftId,
+			parsedInput.data.newStaffId,
+			parsedInput.data.reason,
+		);
+		return successResult(AssignStaffWithCascadeOutputSchema.parse(result));
+	} catch (err) {
+		return handleServiceError<AssignStaffWithCascadeOutput>(err);
+	}
+};
+
+/**
+ * 新しい日時でシフト候補スタッフを提案する
+ */
+export const suggestCandidateStaffForShiftWithNewDatetimeAction = async (
+	input: SuggestCandidateStaffForShiftWithNewDatetimeInput,
+): Promise<ActionResult<SuggestCandidateStaffForShiftOutput>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput =
+		SuggestCandidateStaffForShiftWithNewDatetimeInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		const result = await service.suggestCandidateStaffForShiftWithNewDatetime(
+			user.id,
+			parsedInput.data,
+		);
+		return successResult(
+			SuggestCandidateStaffForShiftOutputSchema.parse(result),
+		);
+	} catch (err) {
+		return handleServiceError<SuggestCandidateStaffForShiftOutput>(err);
+	}
+};
+
+/**
+ * シフト日時変更と担当再割当を行い、競合シフトを連鎖解除する
+ */
+export const updateDatetimeAndAssignWithCascadeUnassignAction = async (
+	input: UpdateDatetimeAndAssignWithCascadeInput,
+): Promise<ActionResult<AssignStaffWithCascadeOutput>> => {
+	const { supabase, user, error } = await getAuthUser();
+	if (error || !user) return errorResult('Unauthorized', 401);
+
+	const parsedInput =
+		UpdateDatetimeAndAssignWithCascadeInputSchema.safeParse(input);
+	if (!parsedInput.success) {
+		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+	}
+
+	const service = new ShiftService(supabase);
+	try {
+		const result =
+			await service.updateShiftScheduleAndAssignWithCascadeUnassign(
+				user.id,
+				parsedInput.data,
+			);
+		return successResult(AssignStaffWithCascadeOutputSchema.parse(result));
+	} catch (err) {
+		return handleServiceError<AssignStaffWithCascadeOutput>(err);
 	}
 };
 

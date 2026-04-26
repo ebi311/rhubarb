@@ -1,8 +1,8 @@
 import { Database } from '@/backend/types/supabase';
 import { ClientStaffAssignmentSchema } from '@/models/clientStaffAssignment';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
-import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 
 const ClientStaffAssignmentLinkSchema = ClientStaffAssignmentSchema.pick({
 	client_id: true,
@@ -61,5 +61,31 @@ export class ClientStaffAssignmentRepository {
 				service_type_id: row.service_type_id,
 			})),
 		);
+	}
+
+	/**
+	 * 指定クライアント・サービス種別に割当可能なスタッフIDを取得する
+	 *
+	 * @param officeId 事業所ID
+	 * @param clientId クライアントID
+	 * @param serviceTypeId サービス種別ID
+	 * @returns スタッフIDの配列
+	 */
+	async findAssignedStaffIdsByClient(
+		officeId: string,
+		clientId: string,
+		serviceTypeId: ServiceTypeId,
+	): Promise<string[]> {
+		const { data, error } = await this.supabase
+			.from('client_staff_assignments')
+			.select('staff_id, clients!inner(office_id), staffs!inner(office_id)')
+			.eq('clients.office_id', officeId)
+			.eq('staffs.office_id', officeId)
+			.eq('client_id', clientId)
+			.eq('service_type_id', serviceTypeId);
+
+		if (error) throw error;
+
+		return (data ?? []).map((row) => row.staff_id);
 	}
 }

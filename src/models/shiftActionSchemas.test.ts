@@ -2,7 +2,10 @@ import { createTestId, TEST_IDS } from '@/test/helpers/testIds';
 import { formatJstDateString, toJstTimeStr } from '@/utils/date';
 import { describe, expect, it } from 'vitest';
 import {
+	ConflictingShiftSchema,
 	CreateOneOffShiftInputSchema,
+	SuggestCandidateStaffForShiftWithNewDatetimeInputSchema,
+	UpdateDatetimeAndAssignWithCascadeInputSchema,
 	UpdateShiftScheduleInputSchema,
 } from './shiftActionSchemas';
 
@@ -210,6 +213,67 @@ describe('UpdateShiftScheduleInputSchema', () => {
 		if (invalidStaff.success) return;
 		expect(invalidStaff.error.issues.some((i) => i.path[0] === 'staffId')).toBe(
 			true,
+		);
+	});
+});
+
+describe('ConflictingShiftSchema', () => {
+	it('date は YYYY-MM-DD 形式のみ許可する', () => {
+		const base = {
+			shiftId: TEST_IDS.SCHEDULE_1,
+			clientName: 'テスト利用者',
+			startTime: { hour: 9, minute: 0 },
+			endTime: { hour: 10, minute: 0 },
+		} as const;
+
+		const valid = ConflictingShiftSchema.safeParse({
+			...base,
+			date: '2026-02-19',
+		});
+		expect(valid.success).toBe(true);
+
+		const invalidFormat = ConflictingShiftSchema.safeParse({
+			...base,
+			date: '2026/02/19',
+		});
+		expect(invalidFormat.success).toBe(false);
+
+		const invalidDate = ConflictingShiftSchema.safeParse({
+			...base,
+			date: '2026-02-30',
+		});
+		expect(invalidDate.success).toBe(false);
+	});
+});
+
+describe('new datetime refine messages', () => {
+	it('候補スタッフ提案の日時入力で終了時刻が開始時刻以前なら日本語メッセージを返す', () => {
+		const result =
+			SuggestCandidateStaffForShiftWithNewDatetimeInputSchema.safeParse({
+				shiftId: createTestId(),
+				newStartTime: '2026-02-19T10:00:00+09:00',
+				newEndTime: '2026-02-19T10:00:00+09:00',
+			});
+
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.issues[0]?.message).toBe(
+			'newEndTime は newStartTime より後の時刻を指定してください',
+		);
+	});
+
+	it('日時変更+担当者変更入力で終了時刻が開始時刻以前なら日本語メッセージを返す', () => {
+		const result = UpdateDatetimeAndAssignWithCascadeInputSchema.safeParse({
+			shiftId: createTestId(),
+			newStaffId: TEST_IDS.STAFF_1,
+			newStartTime: '2026-02-19T10:00:00+09:00',
+			newEndTime: '2026-02-19T10:00:00+09:00',
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.issues[0]?.message).toBe(
+			'newEndTime は newStartTime より後の時刻を指定してください',
 		);
 	});
 });

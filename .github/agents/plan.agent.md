@@ -22,7 +22,6 @@ tools:
     search/searchResults,
     search/textSearch,
     search/usages,
-    search/searchSubagent,
     web/fetch,
     web/githubRepo,
     github/add_comment_to_pending_review,
@@ -68,7 +67,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: GPT-5.2 (copilot)
+model: claude-sonnet-4.6
 ---
 
 与えられたイシューの実装計画を立ててください。
@@ -81,7 +80,35 @@ model: GPT-5.2 (copilot)
   - `Plan`（チェック可能な手順）
   - `Open questions`（不明点があれば最大2つ）
   - `Next`（次にやる1手）
+- 最終メッセージの末尾に、機械可読な **Handoff JSON**（共通スキーマ）を `json` コードブロックで **1つだけ** 付ける。
+  - `payload` 目安: `planOutline`, `phaseBreakdown`（必要なら）, `openQuestions`
+  - 計画が長い場合は `docs/tasks/plan-*.md` に落として `artifactPaths` にそのパスを入れる（ユーザーが明示依頼していない場合は、まずチャットに要約を返す）。
+- `next` は **任意の提案**（書けるときだけ）。次の agent を最終決定するのは orchestrator。
 - ドキュメント作成（`docs/tasks/plan-*.md` など）は、ユーザーから明示依頼がある場合か、運用上どうしても必要な場合に限る。迷う場合は **まずチャットに計画を返す**。
+
+### Handoff JSON（共通スキーマ）
+
+最終出力の末尾に、以下の形で 1 つだけ付ける。
+
+```json
+{
+	"handoffVersion": 1,
+	"agent": "plan",
+	"status": "ok | partial | blocked",
+	"summary": "1〜3行で要約",
+	"artifactPaths": ["workspace-relative/path"],
+	"payload": {
+		"planOutline": ["(任意) 箇条書きの計画概要"],
+		"phaseBreakdown": ["(任意) Phase 分割の見出し"],
+		"openQuestions": ["(任意) 未確定点"]
+	},
+	"questions": ["(任意) 次に進むための確認"],
+	"next": {
+		"agent": "implement",
+		"prompt": "次のエージェントに渡す短い依頼文（計画要点・作業範囲・参照パスを含む）"
+	}
+}
+```
 
 ## 手順 (#tool:todo)
 
@@ -94,7 +121,7 @@ model: GPT-5.2 (copilot)
 ## ツール
 
 - #tool:ms-vscode.vscode-websearchforcopilot/websearch: ウェブ検索
-- #tool:github/\*: GitHub 操作用ツール全般
+- GitHub 操作用ツール全般
 
 ## 参照すべき Skill
 
