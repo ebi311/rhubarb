@@ -25,11 +25,14 @@ sudo apt update
 sudo apt install python3 -y
 sudo apt install python3-pip -y
 
-sudo pnpm exec playwright install-deps  
+pnpm exec playwright install-deps  
 
 # .zshrc に環境変数を追加
 echo 'export GH_PAGER=""' >> ~/.zshrc
 echo 'export PAGER=""' >> ~/.zshrc
+
+# ~ の owner を node に変更
+sudo chown -R node:node /home/node
 
 # post-create-custom.sh ファイルが存在する場合、それを実行
 if [ -f ".devcontainer/post-create-custom.sh" ]; then
