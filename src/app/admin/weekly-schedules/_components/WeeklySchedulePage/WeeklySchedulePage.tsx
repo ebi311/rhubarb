@@ -308,6 +308,7 @@ export const WeeklySchedulePage = ({
 
 	useEffect(() => {
 		if (changeDialogShift) {
+			pendingAIChatShiftIdRef.current = null;
 			return;
 		}
 

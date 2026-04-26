@@ -211,6 +211,51 @@ describe('WeeklySchedulePage', () => {
 			}
 		});
 
+		it('AI相談後に別シフトの担当者変更ダイアログを開き直した場合、通常クローズでAIチャットは開かない', () => {
+			vi.useFakeTimers();
+			try {
+				const secondShift: ShiftDisplayRow = {
+					...sampleShifts[0],
+					id: 'shift-2',
+					clientId: TEST_IDS.CLIENT_2,
+					clientName: '鈴木一郎',
+				};
+
+				render(
+					<WeeklySchedulePage
+						{...defaultProps}
+						initialShifts={[...sampleShifts, secondShift]}
+					/>,
+				);
+
+				const changeButtons = () =>
+					screen.getAllByRole('button', { name: '担当者を変更' });
+
+				fireEvent.click(changeButtons()[0]);
+
+				act(() => {
+					fireEvent.click(screen.getByRole('button', { name: 'AIに相談' }));
+					fireEvent.click(changeButtons()[1]);
+				});
+
+				expect(
+					screen.getByRole('heading', { name: '担当者を変更' }),
+				).toBeInTheDocument();
+
+				fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+				act(() => {
+					vi.runAllTimers();
+				});
+
+				expect(
+					screen.queryByRole('dialog', { name: /シフト調整チャット/ }),
+				).not.toBeInTheDocument();
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
 		it('AIチャットには未保存編集ではなく初期シフトが渡される', async () => {
 			const user = userEvent.setup();
 			render(
