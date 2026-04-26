@@ -26,6 +26,7 @@ type ChangeStaffDialogProps = {
 	onClose: () => void;
 	onSuccess?: () => void;
 	onStartAdjustment?: (shiftId: string) => void;
+	onStartAIChat?: (shiftId: string) => void;
 	initialSuggestion?: AdjustmentWizardSuggestion;
 };
 
@@ -36,6 +37,7 @@ export const ChangeStaffDialog = ({
 	onClose,
 	onSuccess,
 	onStartAdjustment,
+	onStartAIChat,
 	initialSuggestion,
 }: ChangeStaffDialogProps) => {
 	const inputIdBase = useId();
@@ -204,12 +206,23 @@ export const ChangeStaffDialog = ({
 								type="button"
 								className="btn btn-outline btn-sm"
 								onClick={() => {
-									onClose();
 									onStartAdjustment(shift.id);
 								}}
 								disabled={isInteractionLocked}
 							>
 								調整相談
+							</button>
+						)}
+						{onStartAIChat && !isPastShift && (
+							<button
+								type="button"
+								className="btn btn-outline btn-sm"
+								onClick={() => {
+									onStartAIChat(shift.id);
+								}}
+								disabled={isSubmitting}
+							>
+								AIに相談
 							</button>
 						)}
 						<button

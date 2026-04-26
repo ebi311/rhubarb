@@ -5,7 +5,7 @@ import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AdjustmentChatDialog } from '../AdjustmentChatDialog';
 import type { ShiftContext } from '../AdjustmentChatDialog/useAdjustmentChat';
 import {
@@ -138,7 +138,6 @@ const renderScheduleContent = ({
 	onAssignStaff,
 	onCancelShift,
 	onRestoreShift,
-	onAskAI,
 	onOpenCreateOneOffShiftDialog,
 	onGenerateFromEmpty,
 }: {
@@ -150,7 +149,6 @@ const renderScheduleContent = ({
 	onAssignStaff: (shift: ShiftDisplayRow) => void;
 	onCancelShift: (shift: ShiftDisplayRow) => void;
 	onRestoreShift: (shift: ShiftDisplayRow) => void;
-	onAskAI: (shift: ShiftDisplayRow) => void;
 	onOpenCreateOneOffShiftDialog: (dateStr: string, clientId?: string) => void;
 	onGenerateFromEmpty: () => Promise<void>;
 }) => {
@@ -171,7 +169,6 @@ const renderScheduleContent = ({
 				onAssignStaff={onAssignStaff}
 				onCancelShift={onCancelShift}
 				onRestoreShift={onRestoreShift}
-				onAskAI={onAskAI}
 			/>
 		);
 	}
@@ -227,6 +224,7 @@ export const WeeklySchedulePage = ({
 		useState<string | undefined>();
 	const [chatDialogShift, setChatDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
+	const pendingAIChatShiftIdRef = useRef<string | null>(null);
 
 	const wizardShift = findShiftById(initialShifts, wizardShiftId);
 
@@ -274,10 +272,6 @@ export const WeeklySchedulePage = ({
 		setRestoreDialogShift(shift);
 	};
 
-	const handleAskAI = (shift: ShiftDisplayRow) => {
-		setChatDialogShift(shift);
-	};
-
 	const handleDialogSuccess = () => {
 		setChangeDialogShift(null);
 		setCancelDialogShift(null);
@@ -299,6 +293,40 @@ export const WeeklySchedulePage = ({
 		setWizardSuggestion(suggestion);
 		setChangeDialogShift(targetShift);
 	};
+
+	const handleStartAdjustmentFromChangeDialog = (shiftId: string) => {
+		setChangeDialogShift(null);
+		setWizardSuggestion(null);
+		setWizardShiftId(shiftId);
+	};
+
+	const handleStartAIChatFromChangeDialog = (shiftId: string) => {
+		pendingAIChatShiftIdRef.current = shiftId;
+		setChangeDialogShift(null);
+		setWizardSuggestion(null);
+	};
+
+	useEffect(() => {
+		if (changeDialogShift) {
+			pendingAIChatShiftIdRef.current = null;
+			return;
+		}
+
+		const pendingShiftId = pendingAIChatShiftIdRef.current;
+		if (!pendingShiftId) {
+			return;
+		}
+
+		pendingAIChatShiftIdRef.current = null;
+
+		const timerId = window.setTimeout(() => {
+			setChatDialogShift(findShiftById(initialShifts, pendingShiftId));
+		}, 0);
+
+		return () => {
+			window.clearTimeout(timerId);
+		};
+	}, [changeDialogShift, initialShifts]);
 
 	const hasShifts = initialShifts.length > 0;
 
@@ -334,7 +362,6 @@ export const WeeklySchedulePage = ({
 				onAssignStaff: handleAssignStaff,
 				onCancelShift: handleCancelShift,
 				onRestoreShift: handleRestoreShift,
-				onAskAI: handleAskAI,
 				onOpenCreateOneOffShiftDialog: handleOpenCreateOneOffShiftDialog,
 				onGenerateFromEmpty: handleGenerateFromEmpty,
 			})}
@@ -387,11 +414,8 @@ export const WeeklySchedulePage = ({
 							? wizardSuggestion
 							: undefined
 					}
-					onStartAdjustment={(shiftId) => {
-						setChangeDialogShift(null);
-						setWizardSuggestion(null);
-						setWizardShiftId(shiftId);
-					}}
+					onStartAdjustment={handleStartAdjustmentFromChangeDialog}
+					onStartAIChat={handleStartAIChatFromChangeDialog}
 				/>
 			)}
 

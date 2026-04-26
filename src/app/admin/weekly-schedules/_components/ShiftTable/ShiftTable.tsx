@@ -32,7 +32,6 @@ export interface ShiftTableProps {
 	onAssignStaff?: (shift: ShiftDisplayRow) => void;
 	onCancelShift?: (shift: ShiftDisplayRow) => void;
 	onRestoreShift?: (shift: ShiftDisplayRow) => void;
-	onAskAI?: (shift: ShiftDisplayRow) => void;
 }
 
 const formatTime = (time: { hour: number; minute: number }): string => {
@@ -82,7 +81,6 @@ export const ShiftTable = ({
 	onAssignStaff,
 	onCancelShift,
 	onRestoreShift,
-	onAskAI,
 }: ShiftTableProps) => {
 	if (loading) {
 		return (
@@ -162,14 +160,6 @@ export const ShiftTable = ({
 											>
 												<Icon name="edit" className="text-base" />
 											</button>
-											<button
-												type="button"
-												className="btn btn-circle text-secondary btn-ghost btn-xs"
-												onClick={() => onAskAI?.(shift)}
-												aria-label="AIに相談"
-											>
-												<Icon name="chat" className="text-base" />
-											</button>
 										</>
 									)}
 								</>
@@ -185,14 +175,6 @@ export const ShiftTable = ({
 												aria-label="担当者を割り当て"
 											>
 												<Icon name="person_add" className="text-base" />
-											</button>
-											<button
-												type="button"
-												className="btn btn-circle text-secondary btn-ghost btn-xs"
-												onClick={() => onAskAI?.(shift)}
-												aria-label="AIに相談"
-											>
-												<Icon name="chat" className="text-base" />
 											</button>
 										</>
 									)}
