@@ -252,7 +252,7 @@ const LEGACY_PROPOSAL_TOOL_PROMPT = `
 const PROPOSAL_TOOL_PROMPT = `
 - proposeShiftChange: シフト変更提案の内容を返却します（永続化は行いません）
   - シフト変更の提案を返すときは assistant 本文に JSON を書かず、必ずこのツールを呼び出してください
-  - 入力は change_shift_staff または update_shift_time の形式に厳密に従ってください
+  - 入力は次の JSON 例（type を含む形式）に厳密に従ってください
 
 ## proposeShiftChange と成功断言の区別（重要）
 - proposeShiftChange の呼び出しは成功断言ではありません
@@ -321,9 +321,16 @@ const SUCCESS_ASSERTION_PROMPT = `
 
 ## 成功断言に関する厳格ルール（必ず遵守）
 - ツール未実行の状態で、処理が完了した・確定した・変更できた等の成功断言をしてはならない
+  - 特に proposeShiftChange の提案段階では、確定完了を断言せず未確定であることを明示する
+  - 成功断言の代わりに、次のような表現を使う
+    - 「提案しました」
+    - 「確定するには“確定”を押してください」
+    - 「これから確定処理を実行します」
 - ツール実行が失敗した場合、成功断言をしてはならない
   - 失敗した事実を必ず明示し、再実行（リトライ）または次に取るべき具体的アクションへ誘導する
+  - 例: 「確定に失敗しました。理由: ○○」
 - ツール実行が成功した場合に限り、成功断言を許可する
+  - 成功時は、更新対象（shiftId）・変更内容（日時/利用者/ヘルパー/サービス種別など）を簡潔に要約して伝える
 
 日本語で丁寧に対応してください。`;
 
@@ -363,7 +370,7 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 	const shiftLines = context.shifts.map((s) => {
 		const serviceTypeLabel = ServiceTypeLabels[s.serviceTypeId];
 
-		return `- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (${serviceTypeLabel}（serviceTypeId: ${s.serviceTypeId}）, clientId: ${s.clientId})`;
+		return `- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (${serviceTypeLabel}（serviceTypeId: ${s.serviceTypeId}）, clientId: ${s.clientId}, shiftId: ${s.id})`;
 	});
 
 	const shiftSelectionPrompt =
@@ -374,19 +381,65 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 - context.shifts[0] が今回の対象シフトです。
 - このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
 - context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
+- shiftId は表示された値をそのまま使ってください（推測・書き換え禁止）。
+- context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください。
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
 - startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
   例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
 - ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
 			: `
 
 ## 対象シフトの確認（重要）
-- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。`;
+- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
+- 日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください。`;
 
 	return `
 
 ## 現在のシフト情報
 ${shiftLines.join('\n')}${shiftSelectionPrompt}`;
 };
+
+const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
+	if (typeof input !== 'object' || input === null) {
+		return input;
+	}
+
+	const obj = input as Record<string, unknown>;
+	const hasChangeShiftStaffKey = 'change_shift_staff' in obj;
+	const hasUpdateShiftTimeKey = 'update_shift_time' in obj;
+
+	if (hasChangeShiftStaffKey && hasUpdateShiftTimeKey) {
+		return {
+			type: '__ambiguous_nested_tool_input__',
+		};
+	}
+
+	const hasChangeShiftStaff =
+		hasChangeShiftStaffKey &&
+		typeof obj.change_shift_staff === 'object' &&
+		obj.change_shift_staff !== null;
+	const hasUpdateShiftTime =
+		hasUpdateShiftTimeKey &&
+		typeof obj.update_shift_time === 'object' &&
+		obj.update_shift_time !== null;
+
+	if (hasChangeShiftStaff) {
+		return {
+			...(obj.change_shift_staff as Record<string, unknown>),
+			type: 'change_shift_staff',
+		};
+	}
+
+	if (hasUpdateShiftTime) {
+		return {
+			...(obj.update_shift_time as Record<string, unknown>),
+			type: 'update_shift_time',
+		};
+	}
+
+	return input;
+}, AiChatMutationProposalSchema);
 
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
@@ -399,7 +452,7 @@ const createProposeShiftChangeTool = (
 	return tool({
 		description:
 			'シフト変更提案の内容を返却します（永続化は行いません）。shiftId は context.shifts に含まれる値のみ指定できます。',
-		inputSchema: AiChatMutationProposalSchema,
+		inputSchema: ProposeShiftChangeToolInputSchema,
 		execute: async (proposal) => {
 			if (!allowlistedShiftIds.has(proposal.shiftId)) {
 				const allowlistError = new Error(
@@ -456,7 +509,7 @@ const createProposeShiftChangeTool = (
 				throw shiftNotFoundError;
 			}
 
-			return { proposal };
+			return proposal;
 		},
 	});
 };

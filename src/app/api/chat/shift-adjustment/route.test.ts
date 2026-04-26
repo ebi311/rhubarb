@@ -632,6 +632,102 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('context.shifts が1件のとき system にその shiftId と単一シフト時の指示文を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: 'このシフトの調整をお願い' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							staffName: 'スタッフA',
+							clientName: '利用者A',
+							date: '2025-01-20',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+
+		const calls = mockStreamText.mock.calls.map(([arg]) => arg);
+		const systems = calls
+			.map((call) => call.system)
+			.filter((system): system is string => typeof system === 'string');
+		const substrings = [
+			`shiftId: ${TEST_IDS.SCHEDULE_1}`,
+			'shiftId は表示された値をそのまま使ってください',
+			'context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください',
+			'shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください',
+		];
+		const hasAll = (system: string) =>
+			substrings.every((substring) => system.includes(substring));
+
+		expect(systems.some((system) => hasAll(system))).toBe(true);
+	});
+
+	it('context.shifts が複数件のとき system にそれぞれの shiftId を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '候補シフトを確認したい' }],
+				context: {
+					shifts: [
+						{
+							id: TEST_IDS.SCHEDULE_1,
+							clientId: TEST_IDS.CLIENT_1,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+							staffName: 'スタッフA',
+							clientName: '利用者A',
+							date: '2025-01-20',
+							startTime: '09:00',
+							endTime: '10:00',
+						},
+						{
+							id: TEST_IDS.SCHEDULE_2,
+							clientId: TEST_IDS.CLIENT_2,
+							serviceTypeId: TEST_IDS.SERVICE_TYPE_2,
+							staffName: 'スタッフB',
+							clientName: '利用者B',
+							date: '2025-01-21',
+							startTime: '11:00',
+							endTime: '12:00',
+						},
+					],
+				},
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+
+		const calls = mockStreamText.mock.calls.map(([arg]) => arg);
+		const systems = calls
+			.map((call) => call.system)
+			.filter((system): system is string => typeof system === 'string');
+		const substrings = [
+			`shiftId: ${TEST_IDS.SCHEDULE_1}`,
+			`shiftId: ${TEST_IDS.SCHEDULE_2}`,
+			'shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください',
+			'日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください',
+		];
+		const hasAll = (system: string) =>
+			substrings.every((substring) => system.includes(substring));
+
+		expect(systems.some((system) => hasAll(system))).toBe(true);
+	});
+
 	it('context.shifts.date が YYYY-MM-DD 形式でない場合は 400 エラーを返す', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
@@ -1116,6 +1212,109 @@ describe('POST /api/chat/shift-adjustment', () => {
 		);
 	});
 
+	it('SYSTEM_PROMPT にツール未実行時の代替表現例を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '成功断言の言い換えを確認したい' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('「提案しました」'),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'「確定するには“確定”を押してください」',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('「これから確定処理を実行します」'),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT にツール失敗時のメッセージ例を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '失敗時の例文を確認したい' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('「確定に失敗しました。理由: ○○」'),
+			}),
+		);
+	});
+
+	it('SYSTEM_PROMPT にツール成功時の更新サマリー推奨を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				messages: [{ role: 'user', content: '成功時の報告内容を確認したい' }],
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'更新対象（shiftId）・変更内容（日時/利用者/ヘルパー/サービス種別など）を簡潔に要約して伝える',
+				),
+			}),
+		);
+	});
+
+	it('uimessage かつ shifts が空でも成功断言禁止の強化文言を含める', async () => {
+		const request = new Request('http://localhost/api/chat/shift-adjustment', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ai-response-format': 'uimessage',
+			},
+			body: JSON.stringify({
+				messages: [
+					{ role: 'user', content: '対象未特定時の成功断言ルールを確認したい' },
+				],
+				context: { shifts: [] },
+			}),
+		});
+
+		const response = await POST(request);
+
+		expect(response.status).toBe(200);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining(
+					'ツール未実行の状態で、処理が完了した・確定した・変更できた等の成功断言をしてはならない',
+				),
+			}),
+		);
+		expect(mockStreamText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				system: expect.stringContaining('「提案しました」'),
+			}),
+		);
+	});
+
 	it('複数シフトの場合は単一シフト向けの確認不要指示を含めない', async () => {
 		const request = new Request('http://localhost/api/chat/shift-adjustment', {
 			method: 'POST',
@@ -1435,16 +1634,127 @@ describe('POST /api/chat/shift-adjustment', () => {
 					toStaffId: TEST_IDS.STAFF_1,
 				}),
 			).resolves.toEqual({
-				proposal: {
-					type: 'change_shift_staff',
-					shiftId: TEST_IDS.SCHEDULE_1,
-					toStaffId: TEST_IDS.STAFF_1,
-				},
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_1,
 			});
 
 			expect(mockSupabaseFrom).toHaveBeenCalledWith('shifts');
 			expect(mockShiftSelect).toHaveBeenCalledWith('id');
 			expect(mockShiftEq).toHaveBeenCalledWith('id', TEST_IDS.SCHEDULE_1);
+		});
+
+		it('proposeShiftChange tool の inputSchema はネスト形式も受け付ける', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '提案して' }],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2025-01-20',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+						},
+					}),
+				},
+			);
+
+			await POST(request);
+
+			const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+				tools?: {
+					proposeShiftChange?: {
+						inputSchema?: { parse: (input: unknown) => unknown };
+					};
+				};
+			};
+
+			const inputSchema = streamTextCall.tools?.proposeShiftChange
+				?.inputSchema as unknown as {
+				parse: (input: unknown) => unknown;
+			};
+
+			expect(inputSchema).toBeDefined();
+
+			expect(
+				inputSchema.parse({
+					change_shift_staff: {
+						type: 'update_shift_time',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+						reason: '欠勤対応',
+					},
+				}),
+			).toEqual({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_1,
+				reason: '欠勤対応',
+			});
+
+			expect(
+				inputSchema.parse({
+					update_shift_time: {
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toEqual({
+				type: 'update_shift_time',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				startAt: '2026-03-16T09:00:00+09:00',
+				endAt: '2026-03-16T10:00:00+09:00',
+			});
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: null,
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: 'invalid',
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
+
+			expect(() =>
+				inputSchema.parse({
+					change_shift_staff: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+					},
+					update_shift_time: {
+						shiftId: TEST_IDS.SCHEDULE_1,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+					},
+				}),
+			).toThrow();
 		});
 
 		it('proposeShiftChange tool の allowlist 違反時に診断ログを構造化で出力する', async () => {
