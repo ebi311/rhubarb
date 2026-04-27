@@ -400,14 +400,33 @@ const buildContextPrompt = (context: ChatRequest['context']): string => {
 ${shiftLines.join('\n')}${shiftSelectionPrompt}`;
 };
 
+const isRecord = (input: unknown): input is Record<string, unknown> =>
+	typeof input === 'object' && input !== null;
+
+const hasNestedToolInput = (
+	input: Record<string, unknown>,
+	key: string,
+): boolean => key in input && isRecord(input[key]);
+
+const normalizeNestedToolInput = (
+	input: Record<string, unknown>,
+	key: string,
+	type: string,
+): Record<string, unknown> | null =>
+	hasNestedToolInput(input, key)
+		? {
+				...(input[key] as Record<string, unknown>),
+				type,
+			}
+		: null;
+
 const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
-	if (typeof input !== 'object' || input === null) {
+	if (!isRecord(input)) {
 		return input;
 	}
 
-	const obj = input as Record<string, unknown>;
-	const hasChangeShiftStaffKey = 'change_shift_staff' in obj;
-	const hasUpdateShiftTimeKey = 'update_shift_time' in obj;
+	const hasChangeShiftStaffKey = 'change_shift_staff' in input;
+	const hasUpdateShiftTimeKey = 'update_shift_time' in input;
 
 	if (hasChangeShiftStaffKey && hasUpdateShiftTimeKey) {
 		return {
@@ -415,27 +434,24 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 		};
 	}
 
-	const hasChangeShiftStaff =
-		hasChangeShiftStaffKey &&
-		typeof obj.change_shift_staff === 'object' &&
-		obj.change_shift_staff !== null;
-	const hasUpdateShiftTime =
-		hasUpdateShiftTimeKey &&
-		typeof obj.update_shift_time === 'object' &&
-		obj.update_shift_time !== null;
+	const changeShiftStaffInput = normalizeNestedToolInput(
+		input,
+		'change_shift_staff',
+		'change_shift_staff',
+	);
 
-	if (hasChangeShiftStaff) {
-		return {
-			...(obj.change_shift_staff as Record<string, unknown>),
-			type: 'change_shift_staff',
-		};
+	if (changeShiftStaffInput) {
+		return changeShiftStaffInput;
 	}
 
-	if (hasUpdateShiftTime) {
-		return {
-			...(obj.update_shift_time as Record<string, unknown>),
-			type: 'update_shift_time',
-		};
+	const updateShiftTimeInput = normalizeNestedToolInput(
+		input,
+		'update_shift_time',
+		'update_shift_time',
+	);
+
+	if (updateShiftTimeInput) {
+		return updateShiftTimeInput;
 	}
 
 	return input;

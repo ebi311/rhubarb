@@ -189,7 +189,7 @@ export const ShiftTable = ({
 							</span>
 							<Icon
 								name={STATUS_ICON_NAMES[shift.status]}
-								className={classNames('lg:!hidden', {
+								className={classNames('lg:hidden!', {
 									'text-success':
 										shift.status === 'confirmed' ||
 										shift.status === 'completed',

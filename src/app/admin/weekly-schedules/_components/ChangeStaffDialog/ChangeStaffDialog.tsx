@@ -30,6 +30,73 @@ type ChangeStaffDialogProps = {
 	initialSuggestion?: AdjustmentWizardSuggestion;
 };
 
+type ChangeStaffDialogActionsProps = {
+	shiftId: string;
+	selectedStaffId: string | null;
+	isInteractionLocked: boolean;
+	isSubmitting: boolean;
+	isPastShift: boolean;
+	onClose: () => void;
+	onStartAdjustment?: (shiftId: string) => void;
+	onStartAIChat?: (shiftId: string) => void;
+	handleSubmit: () => void;
+};
+
+const ChangeStaffDialogActions = ({
+	shiftId,
+	selectedStaffId,
+	isInteractionLocked,
+	isSubmitting,
+	isPastShift,
+	onClose,
+	onStartAdjustment,
+	onStartAIChat,
+	handleSubmit,
+}: ChangeStaffDialogActionsProps) => (
+	<div className="modal-action">
+		{onStartAdjustment && (
+			<button
+				type="button"
+				className="btn btn-outline btn-sm"
+				onClick={() => {
+					onStartAdjustment(shiftId);
+				}}
+				disabled={isInteractionLocked}
+			>
+				調整相談
+			</button>
+		)}
+		{onStartAIChat && !isPastShift && (
+			<button
+				type="button"
+				className="btn btn-outline btn-sm"
+				onClick={() => {
+					onStartAIChat(shiftId);
+				}}
+				disabled={isSubmitting}
+			>
+				AIに相談
+			</button>
+		)}
+		<button
+			type="button"
+			className="btn btn-ghost"
+			onClick={onClose}
+			disabled={isSubmitting}
+		>
+			キャンセル
+		</button>
+		<button
+			type="button"
+			className="btn btn-primary"
+			onClick={handleSubmit}
+			disabled={!selectedStaffId || isInteractionLocked}
+		>
+			{isSubmitting ? '変更中...' : '変更'}
+		</button>
+	</div>
+);
+
 export const ChangeStaffDialog = ({
 	isOpen,
 	shift,
@@ -200,48 +267,17 @@ export const ChangeStaffDialog = ({
 						</div>
 					</div>
 
-					<div className="modal-action">
-						{onStartAdjustment && (
-							<button
-								type="button"
-								className="btn btn-outline btn-sm"
-								onClick={() => {
-									onStartAdjustment(shift.id);
-								}}
-								disabled={isInteractionLocked}
-							>
-								調整相談
-							</button>
-						)}
-						{onStartAIChat && !isPastShift && (
-							<button
-								type="button"
-								className="btn btn-outline btn-sm"
-								onClick={() => {
-									onStartAIChat(shift.id);
-								}}
-								disabled={isSubmitting}
-							>
-								AIに相談
-							</button>
-						)}
-						<button
-							type="button"
-							className="btn btn-ghost"
-							onClick={onClose}
-							disabled={isSubmitting}
-						>
-							キャンセル
-						</button>
-						<button
-							type="button"
-							className="btn btn-primary"
-							onClick={handleSubmit}
-							disabled={!selectedStaffId || isInteractionLocked}
-						>
-							{isSubmitting ? '変更中...' : '変更'}
-						</button>
-					</div>
+					<ChangeStaffDialogActions
+						shiftId={shift.id}
+						selectedStaffId={selectedStaffId}
+						isInteractionLocked={isInteractionLocked}
+						isSubmitting={isSubmitting}
+						isPastShift={isPastShift}
+						onClose={onClose}
+						onStartAdjustment={onStartAdjustment}
+						onStartAIChat={onStartAIChat}
+						handleSubmit={handleSubmit}
+					/>
 				</div>
 			</div>
 

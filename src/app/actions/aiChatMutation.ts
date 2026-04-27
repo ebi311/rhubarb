@@ -2,7 +2,10 @@
 
 import { AiOperationLogService } from '@/backend/services/aiOperationLogService';
 import { ServiceError, ShiftService } from '@/backend/services/shiftService';
-import type { ExecuteAiChatMutationResult } from '@/models/aiChatMutationProposal';
+import type {
+	ExecuteAiChatMutationInput,
+	ExecuteAiChatMutationResult,
+} from '@/models/aiChatMutationProposal';
 import {
 	ExecuteAiChatMutationInputSchema,
 	ExecuteAiChatMutationResultSchema,
@@ -27,6 +30,54 @@ const getAuthUser = async () => {
 const shouldSkipAuditLog = (status: number): boolean =>
 	status === 401 || status === 403;
 
+const isTestRuntime = (): boolean =>
+	process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+const handleServiceError = async (
+	error: ServiceError,
+	service: ShiftService,
+	aiOperationLogService: AiOperationLogService,
+	userId: string,
+	request: ExecuteAiChatMutationInput,
+): Promise<ActionResult<ExecuteAiChatMutationResult>> => {
+	const actorOfficeId = !shouldSkipAuditLog(error.status)
+		? await service.findActorOfficeId(userId).catch(() => null)
+		: null;
+
+	if (actorOfficeId) {
+		await aiOperationLogService.logSilently({
+			office_id: actorOfficeId,
+			actor_user_id: userId,
+			operation_type: request.proposal.type,
+			targets: {
+				shiftId: request.proposal.shiftId,
+			},
+			proposal: request.proposal,
+			request,
+			result: {
+				status: 'error',
+				error: error.message,
+				errorStatus: error.status,
+			},
+		});
+	}
+
+	if (error.status >= 500) {
+		logServerError(error);
+		return errorResult(error.message, error.status);
+	}
+
+	if (!isTestRuntime()) {
+		console.warn('[executeAiChatMutationAction] ServiceError', {
+			status: error.status,
+			message: error.message,
+			proposalType: request.proposal.type,
+		});
+	}
+
+	return errorResult(error.message, error.status, error.details);
+};
+
 export const executeAiChatMutationAction = async (
 	input: unknown,
 ): Promise<ActionResult<ExecuteAiChatMutationResult>> => {
@@ -35,7 +86,7 @@ export const executeAiChatMutationAction = async (
 
 	const parsedInput = ExecuteAiChatMutationInputSchema.safeParse(input);
 	if (!parsedInput.success) {
-		if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
+		if (!isTestRuntime()) {
 			console.warn('[executeAiChatMutationAction] Validation failed', {
 				issues: parsedInput.error.flatten(),
 			});
@@ -68,42 +119,13 @@ export const executeAiChatMutationAction = async (
 		return successResult(ExecuteAiChatMutationResultSchema.parse(result));
 	} catch (error) {
 		if (error instanceof ServiceError) {
-			const actorOfficeId = !shouldSkipAuditLog(error.status)
-				? await service.findActorOfficeId(user.id).catch(() => null)
-				: null;
-
-			if (actorOfficeId) {
-				await aiOperationLogService.logSilently({
-					office_id: actorOfficeId,
-					actor_user_id: user.id,
-					operation_type: parsedInput.data.proposal.type,
-					targets: {
-						shiftId: parsedInput.data.proposal.shiftId,
-					},
-					proposal: parsedInput.data.proposal,
-					request: parsedInput.data,
-					result: {
-						status: 'error',
-						error: error.message,
-						errorStatus: error.status,
-					},
-				});
-			}
-
-			if (error.status >= 500) {
-				logServerError(error);
-				return errorResult(error.message, error.status);
-			}
-
-			if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
-				console.warn('[executeAiChatMutationAction] ServiceError', {
-					status: error.status,
-					message: error.message,
-					proposalType: parsedInput.data.proposal.type,
-				});
-			}
-
-			return errorResult(error.message, error.status, error.details);
+			return handleServiceError(
+				error,
+				service,
+				aiOperationLogService,
+				user.id,
+				parsedInput.data,
+			);
 		}
 		logServerError(error);
 		throw error;
