@@ -65,6 +65,14 @@ const resolveName = (
 	return value;
 };
 
+const resolveStaffName = (shift: ShiftWithNames): string => {
+	if (shift.staff_id === null) {
+		return '未割当';
+	}
+
+	return resolveName(shift, 'staff_name', 'staffName');
+};
+
 export const createGetShiftsTool = (
 	options: CreateGetShiftsToolOptions,
 ): Tool<GetShiftsParameters, GetShiftsResult> => {
@@ -92,7 +100,7 @@ export const createGetShiftsTool = (
 					clientId: shift.client_id,
 					clientName: resolveName(shift, 'client_name', 'clientName'),
 					staffId: shift.staff_id ?? null,
-					staffName: resolveName(shift, 'staff_name', 'staffName'),
+					staffName: resolveStaffName(shift),
 					serviceType: shift.service_type_id,
 					startAt: setJstTime(
 						shift.date,

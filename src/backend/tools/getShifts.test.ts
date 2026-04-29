@@ -107,6 +107,47 @@ describe('getShifts tool', () => {
 		});
 	});
 
+	it('未割当シフト（staff_id=null）でも取得できる', async () => {
+		mockList.mockResolvedValueOnce([
+			{
+				id: TEST_IDS.SCHEDULE_1,
+				client_id: TEST_IDS.CLIENT_1,
+				client_name: '利用者A',
+				service_type_id: 'life-support',
+				staff_id: null,
+				staff_name: undefined,
+				date: new Date('2026-02-25T00:00:00+09:00'),
+				time: {
+					start: { hour: 9, minute: 0 },
+					end: { hour: 10, minute: 0 },
+				},
+				status: 'scheduled',
+				is_unassigned: true,
+				created_at: new Date('2026-02-24T00:00:00+09:00'),
+				updated_at: new Date('2026-02-24T00:00:00+09:00'),
+			},
+		]);
+
+		const tool = createGetShiftsTool({ supabase: mockSupabase });
+		const result = await tool.execute!({ date: '2026-02-25' }, baseToolOptions);
+
+		expect(result).toEqual({
+			shifts: [
+				{
+					id: TEST_IDS.SCHEDULE_1,
+					clientId: TEST_IDS.CLIENT_1,
+					clientName: '利用者A',
+					staffId: null,
+					staffName: '未割当',
+					serviceType: 'life-support',
+					startAt: '2026-02-25T00:00:00.000Z',
+					endAt: '2026-02-25T01:00:00.000Z',
+					status: 'scheduled',
+				},
+			],
+		});
+	});
+
 	it('options.experimental_context.officeId がない場合はエラー', async () => {
 		const tool = createGetShiftsTool({ supabase: mockSupabase });
 
