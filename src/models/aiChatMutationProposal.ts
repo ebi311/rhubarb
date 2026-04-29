@@ -46,7 +46,7 @@ export const AiChatMutationProposalSchema = z.discriminatedUnion('type', [
 
 export const ProposalAllowlistSchema = z.object({
 	shiftIds: z.array(z.uuid()).min(1).max(ALLOWLIST_MAX_SHIFT_IDS),
-	staffIds: z.array(z.uuid()).max(ALLOWLIST_MAX_STAFF_IDS).optional(),
+	staffIds: z.array(z.uuid()).min(1).max(ALLOWLIST_MAX_STAFF_IDS).optional(),
 });
 
 export const ExecuteAiChatMutationInputSchema = z
@@ -64,14 +64,6 @@ export const ExecuteAiChatMutationInputSchema = z
 				});
 				return;
 			}
-
-			if (input.allowlist.staffIds.length === 0) {
-				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
-					message: 'allowlist.staffIds must not be empty',
-					path: ['allowlist', 'staffIds'],
-				});
-			}
 		}
 	});
 
@@ -79,6 +71,44 @@ export const ExecuteAiChatMutationResultSchema = z.object({
 	type: AiChatMutationProposalTypeSchema,
 	shiftId: z.uuid(),
 	officeId: z.uuid(),
+});
+
+// 1回のAI実行で受け付ける提案件数の上限
+export const BATCH_PROPOSAL_MAX_COUNT = 20;
+
+export const AiChatMutationBatchProposalSchema = z.object({
+	proposals: z
+		.array(AiChatMutationProposalSchema)
+		.min(1)
+		.max(BATCH_PROPOSAL_MAX_COUNT),
+});
+
+export const ExecuteAiChatMutationBatchInputSchema = z
+	.object({
+		proposals: AiChatMutationBatchProposalSchema.shape.proposals,
+		allowlist: ProposalAllowlistSchema,
+	})
+	.superRefine((input, ctx) => {
+		const hasChangeShiftStaffProposal = input.proposals.some(
+			(proposal) => proposal.type === 'change_shift_staff',
+		);
+
+		if (!hasChangeShiftStaffProposal) {
+			return;
+		}
+
+		if (input.allowlist.staffIds === undefined) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: 'allowlist.staffIds is required',
+				path: ['allowlist', 'staffIds'],
+			});
+			return;
+		}
+	});
+
+export const ExecuteAiChatMutationBatchResultSchema = z.object({
+	results: z.array(ExecuteAiChatMutationResultSchema),
 });
 
 export type AiChatMutationProposal = z.infer<
@@ -93,4 +123,16 @@ export type ExecuteAiChatMutationInput = z.infer<
 
 export type ExecuteAiChatMutationResult = z.infer<
 	typeof ExecuteAiChatMutationResultSchema
+>;
+
+export type AiChatMutationBatchProposal = z.infer<
+	typeof AiChatMutationBatchProposalSchema
+>;
+
+export type ExecuteAiChatMutationBatchInput = z.infer<
+	typeof ExecuteAiChatMutationBatchInputSchema
+>;
+
+export type ExecuteAiChatMutationBatchResult = z.infer<
+	typeof ExecuteAiChatMutationBatchResultSchema
 >;
