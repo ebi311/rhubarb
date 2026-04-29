@@ -27,6 +27,7 @@ import {
 } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { v7 as randomUUID } from 'uuid';
+import { ZodError } from 'zod';
 
 export class ServiceError extends Error {
 	constructor(
@@ -381,15 +382,33 @@ export class ShiftService {
 		proposals: AiChatMutationProposal[],
 		allowlist: ProposalAllowlist,
 	): Promise<ExecuteAiChatMutationBatchResult> {
-		ExecuteAiChatMutationBatchInputSchema.parse({ proposals, allowlist });
+		let parsedInput: {
+			proposals: AiChatMutationProposal[];
+			allowlist: ProposalAllowlist;
+		};
+
+		try {
+			parsedInput = ExecuteAiChatMutationBatchInputSchema.parse({
+				proposals,
+				allowlist,
+			});
+		} catch (error) {
+			if (error instanceof ZodError) {
+				throw new ServiceError(400, 'Invalid ai chat mutation batch input', {
+					issues: error.issues,
+				});
+			}
+
+			throw error;
+		}
 
 		const results: ExecuteAiChatMutationResult[] = [];
 
-		for (const proposal of proposals) {
+		for (const proposal of parsedInput.proposals) {
 			const result = await this.executeAiChatMutationProposal(
 				userId,
 				proposal,
-				allowlist,
+				parsedInput.allowlist,
 			);
 			results.push(result);
 		}
