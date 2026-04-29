@@ -46,7 +46,7 @@ export const AiChatMutationProposalSchema = z.discriminatedUnion('type', [
 
 export const ProposalAllowlistSchema = z.object({
 	shiftIds: z.array(z.uuid()).min(1).max(ALLOWLIST_MAX_SHIFT_IDS),
-	staffIds: z.array(z.uuid()).min(1).max(ALLOWLIST_MAX_STAFF_IDS).optional(),
+	staffIds: z.array(z.uuid()).max(ALLOWLIST_MAX_STAFF_IDS).optional(),
 });
 
 export const ExecuteAiChatMutationInputSchema = z
@@ -56,7 +56,10 @@ export const ExecuteAiChatMutationInputSchema = z
 	})
 	.superRefine((input, ctx) => {
 		if (input.proposal.type === 'change_shift_staff') {
-			if (input.allowlist.staffIds === undefined) {
+			if (
+				input.allowlist.staffIds === undefined ||
+				input.allowlist.staffIds.length === 0
+			) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
 					message: 'allowlist.staffIds is required',
@@ -97,7 +100,10 @@ export const ExecuteAiChatMutationBatchInputSchema = z
 			return;
 		}
 
-		if (input.allowlist.staffIds === undefined) {
+		if (
+			input.allowlist.staffIds === undefined ||
+			input.allowlist.staffIds.length === 0
+		) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				message: 'allowlist.staffIds is required',
