@@ -6,6 +6,7 @@ import { Database } from '@/backend/types/supabase';
 import {
 	ExecuteAiChatMutationBatchInputSchema,
 	type AiChatMutationProposal,
+	type ExecuteAiChatMutationBatchInput,
 	type ExecuteAiChatMutationBatchResult,
 	type ExecuteAiChatMutationResult,
 	type ProposalAllowlist,
@@ -382,10 +383,7 @@ export class ShiftService {
 		proposals: AiChatMutationProposal[],
 		allowlist: ProposalAllowlist,
 	): Promise<ExecuteAiChatMutationBatchResult> {
-		let parsedInput: {
-			proposals: AiChatMutationProposal[];
-			allowlist: ProposalAllowlist;
-		};
+		let parsedInput: ExecuteAiChatMutationBatchInput;
 
 		try {
 			parsedInput = ExecuteAiChatMutationBatchInputSchema.parse({
@@ -393,6 +391,7 @@ export class ShiftService {
 				allowlist,
 			});
 		} catch (error) {
+			// Action以外からの呼び出しでも一貫したエラー境界を保つための防御。
 			if (error instanceof ZodError) {
 				throw new ServiceError(400, 'Invalid ai chat mutation batch input', {
 					issues: error.issues,

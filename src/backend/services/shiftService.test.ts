@@ -3048,6 +3048,9 @@ describe('ShiftService', () => {
 			).rejects.toMatchObject({
 				name: 'ServiceError',
 				status: 400,
+				details: expect.objectContaining({
+					issues: expect.any(Array),
+				}),
 			});
 			expect(proposalSpy).not.toHaveBeenCalled();
 		});
