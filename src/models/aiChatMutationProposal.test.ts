@@ -361,6 +361,25 @@ describe('ExecuteAiChatMutationBatchInputSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
+	it('update_shift_time のみ + allowlist.staffIds 空配列の正常系を受け入れる', () => {
+		const result = ExecuteAiChatMutationBatchInputSchema.safeParse({
+			proposals: [
+				{
+					type: 'update_shift_time',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					startAt: '2026-03-16T09:00:00+09:00',
+					endAt: '2026-03-16T10:00:00+09:00',
+				},
+			],
+			allowlist: {
+				shiftIds: [TEST_IDS.SCHEDULE_1],
+				staffIds: [],
+			},
+		});
+
+		expect(result.success).toBe(true);
+	});
+
 	it('change_shift_staff を含む場合は allowlist.staffIds が必須', () => {
 		const result = ExecuteAiChatMutationBatchInputSchema.safeParse({
 			proposals: [
