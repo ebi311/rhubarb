@@ -6,7 +6,10 @@ import { TimestampSchema } from '@/models/valueObjects/timestamp';
 
 export const AiOperationLogSourceSchema = z.literal('ai_chat');
 
-export const AiOperationTypeSchema = AiChatMutationProposalTypeSchema;
+export const AiOperationTypeSchema = z.union([
+	AiChatMutationProposalTypeSchema,
+	z.literal('batch_mutation'),
+]);
 
 // Json (Supabase) は null を含むため、nullable() は不要
 const JsonValueSchema: z.ZodType<Json> = z.lazy(() =>
