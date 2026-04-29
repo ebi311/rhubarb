@@ -1,4 +1,7 @@
-import { ShiftRepository } from '@/backend/repositories/shiftRepository';
+import {
+	ShiftRepository,
+	type ShiftWithNames,
+} from '@/backend/repositories/shiftRepository';
 import { Database } from '@/backend/types/supabase';
 import { setJstTime } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -22,7 +25,7 @@ export type GetShiftsResult = {
 		clientId: string;
 		clientName: string;
 		staffId: string | null;
-		staffName: string | null;
+		staffName: string;
 		serviceType: string;
 		startAt: string;
 		endAt: string;
@@ -49,6 +52,19 @@ const resolveOfficeId = (context: unknown): string => {
 	return context.officeId;
 };
 
+const resolveName = (
+	shift: ShiftWithNames,
+	key: 'client_name' | 'staff_name',
+	label: 'clientName' | 'staffName',
+): string => {
+	const value = shift[key];
+	if (typeof value !== 'string' || value.length === 0) {
+		throw new Error(`${label} is required for shift ${shift.id}`);
+	}
+
+	return value;
+};
+
 export const createGetShiftsTool = (
 	options: CreateGetShiftsToolOptions,
 ): Tool<GetShiftsParameters, GetShiftsResult> => {
@@ -61,9 +77,9 @@ export const createGetShiftsTool = (
 		inputSchema: GetShiftsParametersSchema,
 		execute: async (
 			params: GetShiftsParameters,
-			toolOptions: ToolExecutionOptions & { context?: unknown },
+			toolOptions: ToolExecutionOptions,
 		): Promise<GetShiftsResult> => {
-			const officeId = resolveOfficeId(toolOptions.context);
+			const officeId = resolveOfficeId(toolOptions.experimental_context);
 			const shifts = await repository.list({
 				officeId,
 				date: params.date,
@@ -74,9 +90,9 @@ export const createGetShiftsTool = (
 				shifts: shifts.map((shift) => ({
 					id: shift.id,
 					clientId: shift.client_id,
-					clientName: '不明',
+					clientName: resolveName(shift, 'client_name', 'clientName'),
 					staffId: shift.staff_id ?? null,
-					staffName: shift.staff_id ? '不明' : null,
+					staffName: resolveName(shift, 'staff_name', 'staffName'),
 					serviceType: shift.service_type_id,
 					startAt: setJstTime(
 						shift.date,

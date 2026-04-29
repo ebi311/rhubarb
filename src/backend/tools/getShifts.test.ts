@@ -24,7 +24,7 @@ describe('getShifts tool', () => {
 		toolCallId: 'test-call-id',
 		messages: [],
 		abortSignal: new AbortController().signal,
-		context: { officeId: TEST_IDS.OFFICE_1 },
+		experimental_context: { officeId: TEST_IDS.OFFICE_1 },
 	};
 
 	beforeEach(() => {
@@ -51,8 +51,10 @@ describe('getShifts tool', () => {
 			{
 				id: TEST_IDS.SCHEDULE_1,
 				client_id: TEST_IDS.CLIENT_1,
+				client_name: '利用者A',
 				service_type_id: 'life-support',
 				staff_id: TEST_IDS.STAFF_1,
+				staff_name: 'ヘルパーA',
 				date: new Date('2026-02-25T00:00:00+09:00'),
 				time: {
 					start: { hour: 9, minute: 0 },
@@ -81,9 +83,9 @@ describe('getShifts tool', () => {
 				{
 					id: TEST_IDS.SCHEDULE_1,
 					clientId: TEST_IDS.CLIENT_1,
-					clientName: '不明',
+					clientName: '利用者A',
 					staffId: TEST_IDS.STAFF_1,
-					staffName: '不明',
+					staffName: 'ヘルパーA',
 					serviceType: 'life-support',
 					startAt: '2026-02-25T00:00:00.000Z',
 					endAt: '2026-02-25T01:00:00.000Z',
@@ -105,16 +107,29 @@ describe('getShifts tool', () => {
 		});
 	});
 
-	it('options.context.officeId がない場合はエラー', async () => {
+	it('options.experimental_context.officeId がない場合はエラー', async () => {
 		const tool = createGetShiftsTool({ supabase: mockSupabase });
 
 		const toolOptionsWithoutOffice = {
 			...baseToolOptions,
-			context: {},
-		} as ToolExecutionOptions & { context?: { officeId?: string } };
+			experimental_context: {},
+		} as ToolExecutionOptions;
 
 		await expect(
 			tool.execute!({ date: '2026-02-25' }, toolOptionsWithoutOffice),
+		).rejects.toThrow('officeId is required in tool context');
+	});
+
+	it('options.experimental_context.officeId が空文字の場合はエラー', async () => {
+		const tool = createGetShiftsTool({ supabase: mockSupabase });
+
+		const toolOptionsWithEmptyOffice = {
+			...baseToolOptions,
+			experimental_context: { officeId: '' },
+		} as ToolExecutionOptions;
+
+		await expect(
+			tool.execute!({ date: '2026-02-25' }, toolOptionsWithEmptyOffice),
 		).rejects.toThrow('officeId is required in tool context');
 	});
 });
