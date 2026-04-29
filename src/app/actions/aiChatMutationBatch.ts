@@ -89,7 +89,7 @@ const handleServiceError = async (
 };
 
 export const executeAiChatMutationBatchAction = async (
-	input: ExecuteAiChatMutationBatchInput,
+	input: unknown,
 ): Promise<ActionResult<ExecuteAiChatMutationBatchResult>> => {
 	const { supabase, user, error } = await getCurrentUser();
 	if (error || user == null) return errorResult('Unauthorized', 401);
@@ -122,7 +122,9 @@ export const executeAiChatMutationBatchAction = async (
 
 		const [firstResult] = result.results;
 		if (firstResult === undefined) {
-			return errorResult('No mutation result found', 500);
+			const noResultError = new Error('No mutation result found');
+			logServerError(noResultError);
+			return errorResult(noResultError.message, 500);
 		}
 
 		await aiOperationLogService.logSilently({

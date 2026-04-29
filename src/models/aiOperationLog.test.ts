@@ -26,6 +26,18 @@ describe('AiOperationLogSchema', () => {
 		}
 	});
 
+	it('operation_type に batch_mutation を許容する', () => {
+		const result = AiOperationLogInputSchema.safeParse({
+			office_id: TEST_IDS.OFFICE_1,
+			actor_user_id: TEST_IDS.USER_1,
+			source: 'ai_chat',
+			operation_type: 'batch_mutation',
+			targets: { shiftIds: [TEST_IDS.SCHEDULE_1] },
+		});
+
+		expect(result.success).toBe(true);
+	});
+
 	it('proposal/request/result に null を許容する', () => {
 		const result = AiOperationLogSchema.safeParse({
 			id: TEST_IDS.SCHEDULE_1,

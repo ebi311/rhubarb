@@ -2,8 +2,17 @@ import { AiOperationLogService } from '@/backend/services/aiOperationLogService'
 import { ServiceError, ShiftService } from '@/backend/services/shiftService';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { createSupabaseClient } from '@/utils/supabase/server';
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+	type Mock,
+} from 'vitest';
 import { executeAiChatMutationBatchAction } from './aiChatMutationBatch';
+import { logServerError } from './utils/actionResult';
 
 vi.mock('@/utils/supabase/server');
 vi.mock('@/backend/services/shiftService', async () => {
@@ -22,6 +31,15 @@ vi.mock('@/backend/services/aiOperationLogService', async () => {
 	return {
 		...actual,
 		AiOperationLogService: vi.fn(),
+	};
+});
+vi.mock('./utils/actionResult', async () => {
+	const actual = await vi.importActual<typeof import('./utils/actionResult')>(
+		'./utils/actionResult',
+	);
+	return {
+		...actual,
+		logServerError: vi.fn(),
 	};
 });
 
@@ -88,6 +106,11 @@ beforeEach(() => {
 	(AiOperationLogService as unknown as Mock).mockImplementation(function () {
 		return mockAiOperationLogService;
 	});
+});
+
+afterEach(() => {
+	vi.restoreAllMocks();
+	vi.unstubAllEnvs();
 });
 
 describe('executeAiChatMutationBatchAction', () => {
@@ -207,5 +230,25 @@ describe('executeAiChatMutationBatchAction', () => {
 
 		expect(result.status).toBe(409);
 		expect(result.error).toBe('Batch contains conflicting proposal');
+	});
+
+	it('results が空の場合は500を返し、logServerErrorを呼ぶ', async () => {
+		mockAuthUser(TEST_IDS.USER_1);
+		mockShiftService.executeAiChatMutationBatchProposal.mockResolvedValue({
+			results: [],
+		});
+
+		const result = await executeAiChatMutationBatchAction(validInput);
+
+		expect(result).toEqual({
+			data: null,
+			error: 'No mutation result found',
+			status: 500,
+		});
+		expect(logServerError).toHaveBeenCalledTimes(1);
+		expect(logServerError).toHaveBeenCalledWith(
+			expect.objectContaining({ message: 'No mutation result found' }),
+		);
+		expect(mockAiOperationLogService.logSilently).not.toHaveBeenCalled();
 	});
 });
