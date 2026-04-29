@@ -38,6 +38,18 @@ describe('AiOperationLogSchema', () => {
 		expect(result.success).toBe(true);
 	});
 
+	it('operation_type が無効値の場合はエラー', () => {
+		const result = AiOperationLogInputSchema.safeParse({
+			office_id: TEST_IDS.OFFICE_1,
+			actor_user_id: TEST_IDS.USER_1,
+			source: 'ai_chat',
+			operation_type: 'invalid_operation_type',
+			targets: { shiftIds: [TEST_IDS.SCHEDULE_1] },
+		});
+
+		expect(result.success).toBe(false);
+	});
+
 	it('proposal/request/result に null を許容する', () => {
 		const result = AiOperationLogSchema.safeParse({
 			id: TEST_IDS.SCHEDULE_1,

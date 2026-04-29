@@ -232,6 +232,36 @@ describe('executeAiChatMutationBatchAction', () => {
 		expect(result.error).toBe('Batch contains conflicting proposal');
 	});
 
+	it('ServiceError(500) は details をマスクし、エラーログと監査ログを記録する', async () => {
+		mockAuthUser(TEST_IDS.USER_1);
+		mockShiftService.findActorOfficeId.mockResolvedValue(TEST_IDS.OFFICE_1);
+		mockShiftService.executeAiChatMutationBatchProposal.mockRejectedValue(
+			new ServiceError(500, 'Internal server error', {
+				detail: 'sensitive internal detail',
+			}),
+		);
+
+		const result = await executeAiChatMutationBatchAction(validInput);
+
+		expect(result.status).toBe(500);
+		expect(result.error).toBe('Internal server error');
+		expect(result.data).toBeNull();
+		expect(result.details).toBeUndefined();
+		expect(logServerError).toHaveBeenCalledTimes(1);
+		expect(logServerError).toHaveBeenCalledWith(expect.any(ServiceError));
+		expect(mockAiOperationLogService.logSilently).toHaveBeenCalledTimes(1);
+		expect(mockAiOperationLogService.logSilently).toHaveBeenCalledWith(
+			expect.objectContaining({
+				office_id: TEST_IDS.OFFICE_1,
+				result: {
+					status: 'error',
+					error: 'Internal server error',
+					errorStatus: 500,
+				},
+			}),
+		);
+	});
+
 	it('results が空の場合は500を返し、logServerErrorを呼ぶ', async () => {
 		mockAuthUser(TEST_IDS.USER_1);
 		mockShiftService.executeAiChatMutationBatchProposal.mockResolvedValue({

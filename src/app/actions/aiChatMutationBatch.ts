@@ -11,31 +11,19 @@ import {
 	ExecuteAiChatMutationBatchInputSchema,
 	ExecuteAiChatMutationBatchResultSchema,
 } from '@/models/aiChatMutationProposal';
-import { createSupabaseClient } from '@/utils/supabase/server';
-import { ZodError } from 'zod';
 import {
 	ActionResult,
 	errorResult,
 	logServerError,
 	successResult,
 } from './utils/actionResult';
+import {
+	getAuthUser,
+	isTestRuntime,
+	shouldSkipAuditLog,
+} from './utils/aiActionHelpers';
 
 const BATCH_OPERATION_TYPE = 'batch_mutation';
-
-const getCurrentUser = async () => {
-	const supabase = await createSupabaseClient();
-	const {
-		data: { user },
-		error,
-	} = await supabase.auth.getUser();
-	return { supabase, user, error } as const;
-};
-
-const shouldSkipAuditLog = (status: number): boolean =>
-	status === 401 || status === 403;
-
-const isTestRuntime = (): boolean =>
-	process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
 const extractUniqueShiftIds = (
 	proposals: AiChatMutationProposal[],
@@ -91,24 +79,20 @@ const handleServiceError = async (
 export const executeAiChatMutationBatchAction = async (
 	input: unknown,
 ): Promise<ActionResult<ExecuteAiChatMutationBatchResult>> => {
-	const { supabase, user, error } = await getCurrentUser();
+	const { supabase, user, error } = await getAuthUser();
 	if (error || user == null) return errorResult('Unauthorized', 401);
 
-	let parsedInput: ExecuteAiChatMutationBatchInput;
-	try {
-		parsedInput = ExecuteAiChatMutationBatchInputSchema.parse(input);
-	} catch (error) {
-		if (error instanceof ZodError) {
-			if (isTestRuntime() === false) {
-				console.warn('[executeAiChatMutationBatchAction] Validation failed', {
-					issues: error.flatten(),
-				});
-			}
-			return errorResult('Validation failed', 400, error.flatten());
+	const parsed = ExecuteAiChatMutationBatchInputSchema.safeParse(input);
+	if (!parsed.success) {
+		if (isTestRuntime() === false) {
+			console.warn('[executeAiChatMutationBatchAction] Validation failed', {
+				issues: parsed.error.flatten(),
+			});
 		}
-		logServerError(error);
-		throw error;
+		return errorResult('Validation failed', 400, parsed.error.flatten());
 	}
+
+	const request = parsed.data;
 
 	const service = new ShiftService(supabase);
 	const aiOperationLogService = new AiOperationLogService();
@@ -116,8 +100,8 @@ export const executeAiChatMutationBatchAction = async (
 	try {
 		const result = await service.executeAiChatMutationBatchProposal(
 			user.id,
-			parsedInput.proposals,
-			parsedInput.allowlist,
+			request.proposals,
+			request.allowlist,
 		);
 
 		const [firstResult] = result.results;
@@ -132,12 +116,12 @@ export const executeAiChatMutationBatchAction = async (
 			actor_user_id: user.id,
 			operation_type: BATCH_OPERATION_TYPE,
 			targets: {
-				shiftIds: extractUniqueShiftIds(parsedInput.proposals),
+				shiftIds: extractUniqueShiftIds(request.proposals),
 			},
 			proposal: {
-				proposals: parsedInput.proposals,
+				proposals: request.proposals,
 			},
-			request: parsedInput,
+			request,
 			result: {
 				status: 'success',
 			},
@@ -151,7 +135,7 @@ export const executeAiChatMutationBatchAction = async (
 				service,
 				aiOperationLogService,
 				user.id,
-				parsedInput,
+				request,
 			);
 		}
 		logServerError(error);
