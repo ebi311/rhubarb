@@ -44,7 +44,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: claude-sonnet-4.6
+model: gemini-3-flash
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。
