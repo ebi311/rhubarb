@@ -27,6 +27,7 @@ type ShiftInsert = Database['public']['Tables']['shifts']['Insert'];
 
 export interface ShiftFilters {
 	officeId?: string;
+	date?: string;
 	startDate?: Date;
 	endDate?: Date;
 	/** 日時レンジの開始（gte で適用） */
@@ -116,6 +117,11 @@ export class ShiftRepository {
 		) => (value !== undefined ? apply(query, value) : query);
 
 		let query = baseQuery;
+		query = applyIf(query, filters.date, (q, date) =>
+			q
+				.gte('start_time', `${date}T00:00:00+09:00`)
+				.lte('start_time', `${date}T23:59:59+09:00`),
+		);
 		query = applyIf(query, filters.startDate, (q, d) =>
 			q.gte('start_time', setJstTime(d, 0, 0).toISOString()),
 		);
