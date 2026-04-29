@@ -12,6 +12,7 @@ import {
 	type Mock,
 } from 'vitest';
 import { executeAiChatMutationAction } from './aiChatMutation';
+import { logServerError } from './utils/actionResult';
 
 vi.mock('@/utils/supabase/server');
 vi.mock('@/backend/services/shiftService', async () => {
@@ -30,6 +31,15 @@ vi.mock('@/backend/services/aiOperationLogService', async () => {
 	return {
 		...actual,
 		AiOperationLogService: vi.fn(),
+	};
+});
+vi.mock('./utils/actionResult', async () => {
+	const actual = await vi.importActual<typeof import('./utils/actionResult')>(
+		'./utils/actionResult',
+	);
+	return {
+		...actual,
+		logServerError: vi.fn(),
 	};
 });
 
@@ -201,6 +211,36 @@ describe('executeAiChatMutationAction', () => {
 					status: 'error',
 					error: 'Proposal target staff is not allowed',
 					errorStatus: 400,
+				},
+			}),
+		);
+	});
+
+	it('ServiceError(500) は details をマスクし、エラーログと監査ログを記録する', async () => {
+		mockAuthUser(TEST_IDS.USER_1);
+		mockShiftService.findActorOfficeId.mockResolvedValue(TEST_IDS.OFFICE_1);
+		mockShiftService.executeAiChatMutationProposal.mockRejectedValue(
+			new ServiceError(500, 'Internal server error', {
+				detail: 'sensitive internal detail',
+			}),
+		);
+
+		const result = await executeAiChatMutationAction(validInput);
+
+		expect(result.status).toBe(500);
+		expect(result.error).toBe('Internal server error');
+		expect(result.data).toBeNull();
+		expect(result.details).toBeUndefined();
+		expect(logServerError).toHaveBeenCalledTimes(1);
+		expect(logServerError).toHaveBeenCalledWith(expect.any(ServiceError));
+		expect(mockAiOperationLogService.logSilently).toHaveBeenCalledTimes(1);
+		expect(mockAiOperationLogService.logSilently).toHaveBeenCalledWith(
+			expect.objectContaining({
+				office_id: TEST_IDS.OFFICE_1,
+				result: {
+					status: 'error',
+					error: 'Internal server error',
+					errorStatus: 500,
 				},
 			}),
 		);

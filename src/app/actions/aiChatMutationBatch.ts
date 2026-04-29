@@ -36,9 +36,9 @@ const handleServiceError = async (
 	userId: string,
 	request: ExecuteAiChatMutationBatchInput,
 ): Promise<ActionResult<ExecuteAiChatMutationBatchResult>> => {
-	const actorOfficeId = shouldSkipAuditLog(error.status)
-		? null
-		: await service.findActorOfficeId(userId).catch(() => null);
+	const actorOfficeId = !shouldSkipAuditLog(error.status)
+		? await service.findActorOfficeId(userId).catch(() => null)
+		: null;
 
 	if (actorOfficeId) {
 		await aiOperationLogService.logSilently({
@@ -65,7 +65,7 @@ const handleServiceError = async (
 		return errorResult(error.message, error.status);
 	}
 
-	if (isTestRuntime() === false) {
+	if (!isTestRuntime()) {
 		console.warn('[executeAiChatMutationBatchAction] ServiceError', {
 			status: error.status,
 			message: error.message,
@@ -80,11 +80,11 @@ export const executeAiChatMutationBatchAction = async (
 	input: unknown,
 ): Promise<ActionResult<ExecuteAiChatMutationBatchResult>> => {
 	const { supabase, user, error } = await getAuthUser();
-	if (error || user == null) return errorResult('Unauthorized', 401);
+	if (error || !user) return errorResult('Unauthorized', 401);
 
 	const parsed = ExecuteAiChatMutationBatchInputSchema.safeParse(input);
 	if (!parsed.success) {
-		if (isTestRuntime() === false) {
+		if (!isTestRuntime()) {
 			console.warn('[executeAiChatMutationBatchAction] Validation failed', {
 				issues: parsed.error.flatten(),
 			});
