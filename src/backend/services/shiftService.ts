@@ -4,7 +4,9 @@ import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import {
+	ExecuteAiChatMutationBatchInputSchema,
 	type AiChatMutationProposal,
+	type ExecuteAiChatMutationBatchResult,
 	type ExecuteAiChatMutationResult,
 	type ProposalAllowlist,
 } from '@/models/aiChatMutationProposal';
@@ -372,6 +374,27 @@ export class ShiftService {
 			adminOfficeId: adminStaff.office_id,
 			shift,
 		});
+	}
+
+	async executeAiChatMutationBatchProposal(
+		userId: string,
+		proposals: AiChatMutationProposal[],
+		allowlist: ProposalAllowlist,
+	): Promise<ExecuteAiChatMutationBatchResult> {
+		ExecuteAiChatMutationBatchInputSchema.parse({ proposals, allowlist });
+
+		const results: ExecuteAiChatMutationResult[] = [];
+
+		for (const proposal of proposals) {
+			const result = await this.executeAiChatMutationProposal(
+				userId,
+				proposal,
+				allowlist,
+			);
+			results.push(result);
+		}
+
+		return { results };
 	}
 
 	private async executeChangeShiftStaffProposal(params: {
