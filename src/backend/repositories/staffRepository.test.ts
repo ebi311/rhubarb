@@ -433,6 +433,18 @@ describe('StaffRepository', () => {
 		it('スペースのみは空文字になる', () => {
 			expect(normalizeSearchQuery('   ')).toBe('');
 		});
+
+		it('% を除去する', () => {
+			expect(normalizeSearchQuery('%テスト')).toBe('テスト');
+		});
+
+		it('_ を除去する', () => {
+			expect(normalizeSearchQuery('テスト_A')).toBe('テストA');
+		});
+
+		it('% のみの場合は空文字になる', () => {
+			expect(normalizeSearchQuery('%')).toBe('');
+		});
 	});
 
 	describe('compactQuery', () => {
@@ -612,6 +624,13 @@ describe('StaffRepository', () => {
 			expect(supabase.from).not.toHaveBeenCalled();
 		});
 
+		it('% のみの場合は空配列を返す（LIKE ワイルドカード除去）', async () => {
+			const result = await repository.searchByNameOrKana(officeId, '%', 10);
+
+			expect(result).toEqual([]);
+			expect(supabase.from).not.toHaveBeenCalled();
+		});
+
 		it('空白のみ入力は空配列を返す（全角スペース含む）', async () => {
 			// スペースのみ入力は normalizeSearchQuery で空文字になる
 			const result1 = await repository.searchByNameOrKana(officeId, '   ', 10);
@@ -761,7 +780,7 @@ describe('StaffRepository', () => {
 			);
 
 			expect(result).toHaveLength(1);
-			// _searchWith は1回しか呼ばれない（コンパクト再検索なし）
+			// searchWith は1回しか呼ばれない（コンパクト再検索なし）
 			expect(mockStaffLimit).toHaveBeenCalledTimes(1);
 		});
 

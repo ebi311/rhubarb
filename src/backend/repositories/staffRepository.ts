@@ -35,6 +35,7 @@ type StaffUpdateParams = {
 /**
  * 検索クエリを正規化する純粋関数
  * - 括弧・コンマ除去（PostgREST 構文インジェクション対策）
+ * - LIKE ワイルドカード（%・_）除去（PostgREST の ilike ではバックスラッシュエスケープが効かないため除去）
  * - 全角スペース → 半角スペース
  * - 連続スペース → 単一スペース
  * - 前後トリム
@@ -42,6 +43,7 @@ type StaffUpdateParams = {
 export const normalizeSearchQuery = (query: string): string => {
 	return query
 		.replace(/[(),]/g, '') // 括弧とコンマ除去
+		.replace(/[%_]/g, '') // LIKE ワイルドカード除去
 		.replace(/\u3000/g, ' ') // 全角スペース → 半角スペース
 		.replace(/\s+/g, ' ') // 連続スペース → 単一スペース
 		.trim();
@@ -50,6 +52,9 @@ export const normalizeSearchQuery = (query: string): string => {
 /**
  * スペースを完全除去するクエリ圧縮関数
  * 「ヘルパー 10」→「ヘルパー10」のようなフォールバック検索に使用
+ *
+ * @internal テスト用にエクスポートされているが、直接呼び出しは非推奨。
+ * searchByNameOrKana 内部でのみ使用すること。
  */
 export const compactQuery = (query: string): string => {
 	return query.replace(/\s+/g, '');
@@ -272,17 +277,17 @@ export class StaffRepository {
 		const compact = compactQuery(normalized);
 
 		// 正規化済みクエリで検索
-		const results = await this._searchWith(officeId, normalized, limit);
+		const results = await this.searchWith(officeId, normalized, limit);
 
 		// 0件 かつ スペースが含まれていた場合はコンパクトクエリで再検索
-		if (results.length === 0 && compact !== normalized) {
-			return this._searchWith(officeId, compact, limit);
+		if (results.length === 0 && normalized.includes(' ')) {
+			return this.searchWith(officeId, compact, limit);
 		}
 
 		return results;
 	}
 
-	private async _searchWith(
+	private async searchWith(
 		officeId: string,
 		query: string,
 		limit: number,
