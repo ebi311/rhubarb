@@ -2,7 +2,11 @@ import type { Database } from '@/backend/types/supabase';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StaffRepository } from './staffRepository';
+import {
+	StaffRepository,
+	compactQuery,
+	normalizeSearchQuery,
+} from './staffRepository';
 
 describe('StaffRepository', () => {
 	let supabase: SupabaseClient<Database>;
@@ -405,6 +409,46 @@ describe('StaffRepository', () => {
 		});
 	});
 
+	describe('normalizeSearchQuery', () => {
+		it('括弧とコンマを除去する', () => {
+			expect(normalizeSearchQuery('テスト(A),B')).toBe('テストAB');
+		});
+
+		it('全角スペースを半角スペースに変換する', () => {
+			expect(normalizeSearchQuery('ヘルパー　10')).toBe('ヘルパー 10');
+		});
+
+		it('連続スペースを単一スペースに圧縮する', () => {
+			expect(normalizeSearchQuery('ヘルパー  10')).toBe('ヘルパー 10');
+		});
+
+		it('前後のスペースをトリムする', () => {
+			expect(normalizeSearchQuery('  テスト  ')).toBe('テスト');
+		});
+
+		it('空文字はそのまま返す', () => {
+			expect(normalizeSearchQuery('')).toBe('');
+		});
+
+		it('スペースのみは空文字になる', () => {
+			expect(normalizeSearchQuery('   ')).toBe('');
+		});
+	});
+
+	describe('compactQuery', () => {
+		it('スペースを完全除去する', () => {
+			expect(compactQuery('ヘルパー 10')).toBe('ヘルパー10');
+		});
+
+		it('連続スペースも完全除去する', () => {
+			expect(compactQuery('ヘルパー  10  号')).toBe('ヘルパー10号');
+		});
+
+		it('スペースなし文字列はそのまま返す', () => {
+			expect(compactQuery('ヘルパー10')).toBe('ヘルパー10');
+		});
+	});
+
 	describe('searchByNameOrKana', () => {
 		it('名前でケースインセンシティブ検索ができる', async () => {
 			const staffRows = [
@@ -567,5 +611,161 @@ describe('StaffRepository', () => {
 			expect(result).toEqual([]);
 			expect(supabase.from).not.toHaveBeenCalled();
 		});
+
+		it('空白のみ入力は空配列を返す（全角スペース含む）', async () => {
+			// スペースのみ入力は normalizeSearchQuery で空文字になる
+			const result1 = await repository.searchByNameOrKana(officeId, '   ', 10);
+			const result2 = await repository.searchByNameOrKana(officeId, '　　', 10); // 全角スペースのみ
+
+			expect(result1).toEqual([]);
+			expect(result2).toEqual([]);
+			expect(supabase.from).not.toHaveBeenCalled();
+		});
+
+		/**
+		 * ヘルパー用共通モックセットアップ（検索チェーン）
+		 * first call: スペースありクエリで0件, second call: スペースなしクエリで結果あり
+		 */
+		it('半角スペースあり → スペースなしのDB名前にヒット（コンパクト再検索）', async () => {
+			const helperRow = {
+				...baseStaffRow,
+				id: TEST_IDS.STAFF_2,
+				name: 'ヘルパー10',
+				kana: null,
+				role: 'helper' as const,
+			};
+
+			// 1回目の検索（"ヘルパー 10"）は0件、2回目（"ヘルパー10"）は1件
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValueOnce({ data: [], error: null })
+				.mockResolvedValueOnce({ data: [helperRow], error: null });
+			const mockStaffOrder = vi.fn().mockReturnValue({ limit: mockStaffLimit });
+			const mockStaffOr = vi.fn().mockReturnValue({ order: mockStaffOrder });
+			const mockStaffEq = vi.fn().mockReturnValue({ or: mockStaffOr });
+			const mockStaffSelect = vi.fn().mockReturnValue({ eq: mockStaffEq });
+
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+			const mockAbilitySelect = vi.fn().mockReturnValue({ in: mockAbilityIn });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') return { select: mockStaffSelect };
+				if (table === 'staff_service_type_abilities')
+					return { select: mockAbilitySelect };
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			const result = await repository.searchByNameOrKana(
+				officeId,
+				'ヘルパー 10',
+				10,
+			);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].name).toBe('ヘルパー10');
+			// 1回目: 正規化クエリ, 2回目: コンパクトクエリ
+			expect(mockStaffOr).toHaveBeenNthCalledWith(
+				1,
+				'name.ilike.%ヘルパー 10%,kana.ilike.%ヘルパー 10%',
+			);
+			expect(mockStaffOr).toHaveBeenNthCalledWith(
+				2,
+				'name.ilike.%ヘルパー10%,kana.ilike.%ヘルパー10%',
+			);
+		});
+
+		it('全角スペースあり → スペースなしのDB名前にヒット（コンパクト再検索）', async () => {
+			const helperRow = {
+				...baseStaffRow,
+				id: TEST_IDS.STAFF_2,
+				name: 'ヘルパー10',
+				kana: null,
+				role: 'helper' as const,
+			};
+
+			// 1回目（"ヘルパー 10" に正規化）は0件、2回目（"ヘルパー10"）は1件
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValueOnce({ data: [], error: null })
+				.mockResolvedValueOnce({ data: [helperRow], error: null });
+			const mockStaffOrder = vi.fn().mockReturnValue({ limit: mockStaffLimit });
+			const mockStaffOr = vi.fn().mockReturnValue({ order: mockStaffOrder });
+			const mockStaffEq = vi.fn().mockReturnValue({ or: mockStaffOr });
+			const mockStaffSelect = vi.fn().mockReturnValue({ eq: mockStaffEq });
+
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+			const mockAbilitySelect = vi.fn().mockReturnValue({ in: mockAbilityIn });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') return { select: mockStaffSelect };
+				if (table === 'staff_service_type_abilities')
+					return { select: mockAbilitySelect };
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			// 全角スペースを含むクエリ
+			const result = await repository.searchByNameOrKana(
+				officeId,
+				'ヘルパー\u300010', // 全角スペース
+				10,
+			);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].name).toBe('ヘルパー10');
+			// 全角スペースは半角スペースに正規化されてから検索される
+			expect(mockStaffOr).toHaveBeenNthCalledWith(
+				1,
+				'name.ilike.%ヘルパー 10%,kana.ilike.%ヘルパー 10%',
+			);
+		});
+
+		it('通常の正規化クエリで見つかる場合はコンパクト再検索しない', async () => {
+			const staffRows = [
+				{
+					...baseStaffRow,
+					id: TEST_IDS.STAFF_2,
+					name: 'ヘルパー 10',
+					kana: null,
+					role: 'helper' as const,
+				},
+			];
+
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+			const mockStaffOrder = vi.fn().mockReturnValue({ limit: mockStaffLimit });
+			const mockStaffOr = vi.fn().mockReturnValue({ order: mockStaffOrder });
+			const mockStaffEq = vi.fn().mockReturnValue({ or: mockStaffOr });
+			const mockStaffSelect = vi.fn().mockReturnValue({ eq: mockStaffEq });
+
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+			const mockAbilitySelect = vi.fn().mockReturnValue({ in: mockAbilityIn });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') return { select: mockStaffSelect };
+				if (table === 'staff_service_type_abilities')
+					return { select: mockAbilitySelect };
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			const result = await repository.searchByNameOrKana(
+				officeId,
+				'ヘルパー 10',
+				10,
+			);
+
+			expect(result).toHaveLength(1);
+			// _searchWith は1回しか呼ばれない（コンパクト再検索なし）
+			expect(mockStaffLimit).toHaveBeenCalledTimes(1);
+		});
+
+		// Known limitation: スペースなし入力でDB側にスペースありの名前がある場合はヒットしない
+		// 例: query="ヘルパー10", DB name="ヘルパー 10" → ヒットしない（仕様上許容）
 	});
 });
