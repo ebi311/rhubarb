@@ -1,0 +1,1 @@
+export { BatchProposalConfirmCard } from './BatchProposalConfirmCard';

@@ -1,6 +1,7 @@
 import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import { Shift, ShiftSchema } from '@/models/shift';
+import { isValidJstDateString } from '@/models/valueObjects/jstDate';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
 	addJstDays,
@@ -62,6 +63,8 @@ export interface ShiftFilters {
 	status?: Shift['status'];
 	/** 指定したステータスを除外する */
 	excludeStatus?: Shift['status'];
+	/** true の場合、clients.name・staffs.name を JOIN する */
+	includeNames?: boolean;
 }
 
 export class ShiftRepository {
@@ -135,12 +138,22 @@ export class ShiftRepository {
 	}
 
 	async list(filters: ShiftFilters = {}): Promise<ShiftWithNames[]> {
+		if (filters.date !== undefined && !isValidJstDateString(filters.date)) {
+			throw new Error(`ShiftRepository.list: 無効な date 値 "${filters.date}"`);
+		}
+
 		// officeId フィルタ対応: clients テーブルを join して office_id でフィルタ
+		// includeNames: true の場合のみ name フィールドも JOIN する
 		const baseQuery = filters.officeId
-			? this.supabase
-					.from('shifts')
-					.select('*, clients!inner(name, office_id), staffs(name)')
-					.eq('clients.office_id', filters.officeId)
+			? filters.includeNames
+				? this.supabase
+						.from('shifts')
+						.select('*, clients!inner(name, office_id), staffs(name)')
+						.eq('clients.office_id', filters.officeId)
+				: this.supabase
+						.from('shifts')
+						.select('*, clients!inner(office_id)')
+						.eq('clients.office_id', filters.officeId)
 			: this.supabase.from('shifts').select('*');
 		type Query = typeof baseQuery;
 

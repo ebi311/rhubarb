@@ -3,7 +3,7 @@
 import { generateWeeklyShiftsAction } from '@/app/actions/weeklySchedules';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
-import { formatJstDateString, getJstDateOnly } from '@/utils/date';
+import { addJstDays, formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AdjustmentChatDialog } from '../AdjustmentChatDialog';
@@ -23,6 +23,7 @@ import {
 import { CreateOneOffShiftButton } from '../CreateOneOffShiftButton';
 import { CreateOneOffShiftDialog } from '../CreateOneOffShiftDialog';
 import { EmptyState } from '../EmptyState';
+import { FlexibleAdjustmentChatDialog } from '../FlexibleAdjustmentChatDialog';
 import { GenerateButton, type GenerateResult } from '../GenerateButton';
 import {
 	RestoreShiftDialog,
@@ -129,6 +130,19 @@ const createShiftContext = (shift: ShiftDisplayRow): ShiftContext => ({
 	endTime: formatTimeStr(shift.endTime),
 });
 
+const buildWeekRange = (weekStartDate: Date) => ({
+	startDate: formatJstDateString(weekStartDate),
+	endDate: formatJstDateString(addJstDays(weekStartDate, 6)),
+});
+
+const getUniqueShiftIds = (shifts: ShiftDisplayRow[]): string[] => [
+	...new Set(shifts.map((shift) => shift.id)),
+];
+
+const getUniqueStaffIds = (staffOptions: StaffPickerOption[]): string[] => [
+	...new Set(staffOptions.map((staffOption) => staffOption.id)),
+];
+
 const renderScheduleContent = ({
 	hasShifts,
 	viewMode,
@@ -224,6 +238,7 @@ export const WeeklySchedulePage = ({
 		useState<string | undefined>();
 	const [chatDialogShift, setChatDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
+	const [isFlexibleChatOpen, setIsFlexibleChatOpen] = useState(false);
 	const pendingAIChatShiftIdRef = useRef<string | null>(null);
 
 	const wizardShift = findShiftById(initialShifts, wizardShiftId);
@@ -329,6 +344,11 @@ export const WeeklySchedulePage = ({
 	}, [changeDialogShift, initialShifts]);
 
 	const hasShifts = initialShifts.length > 0;
+	const flexibleWeekRange = buildWeekRange(weekStartDate);
+	const flexibleAllowlist = {
+		shiftIds: getUniqueShiftIds(initialShifts),
+		staffIds: getUniqueStaffIds(staffOptions),
+	};
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -338,6 +358,13 @@ export const WeeklySchedulePage = ({
 					onWeekChange={handleWeekChange}
 				/>
 				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						className="btn btn-outline btn-sm"
+						onClick={() => setIsFlexibleChatOpen(true)}
+					>
+						AIアシスタント
+					</button>
 					<WeeklyViewToggleButton
 						currentView={viewMode}
 						onViewChange={setViewMode}
@@ -445,6 +472,13 @@ export const WeeklySchedulePage = ({
 					onClose={() => setChatDialogShift(null)}
 				/>
 			)}
+
+			<FlexibleAdjustmentChatDialog
+				isOpen={isFlexibleChatOpen}
+				weekRange={flexibleWeekRange}
+				allowlist={flexibleAllowlist}
+				onClose={() => setIsFlexibleChatOpen(false)}
+			/>
 		</div>
 	);
 };

@@ -2,6 +2,7 @@ import {
 	ShiftRepository,
 	type ShiftWithNames,
 } from '@/backend/repositories/shiftRepository';
+import { isValidDate } from '@/backend/tools/_shared/dateValidation';
 import { Database } from '@/backend/types/supabase';
 import { setJstTime } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -13,6 +14,7 @@ export const GetShiftsParametersSchema = z.object({
 	date: z
 		.string()
 		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.refine(isValidDate, { message: '実在する日付を指定してください' })
 		.describe('YYYY-MM-DD 形式の日付'),
 	staffId: z.uuid().optional().describe('絞り込むスタッフID（省略可）'),
 });
@@ -91,6 +93,7 @@ export const createGetShiftsTool = (
 			const shifts = await repository.list({
 				officeId,
 				date: params.date,
+				includeNames: true,
 				...(params.staffId ? { staffId: params.staffId } : {}),
 			});
 

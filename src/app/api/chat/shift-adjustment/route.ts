@@ -1,12 +1,18 @@
+import { ShiftRepository } from '@/backend/repositories/shiftRepository';
+import { createGetShiftsTool } from '@/backend/tools/getShifts';
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
 import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
-import { AiChatMutationProposalSchema } from '@/models/aiChatMutationProposal';
+import {
+	AiChatMutationBatchProposalSchema,
+	AiChatMutationProposalSchema,
+} from '@/models/aiChatMutationProposal';
 import { createJstDateStringSchema } from '@/models/valueObjects/jstDate';
 import {
 	ServiceTypeIdSchema,
 	ServiceTypeLabels,
 } from '@/models/valueObjects/serviceTypeId';
+import { parseJstDateString } from '@/utils/date';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai';
@@ -107,13 +113,47 @@ const ShiftContextItemSchema = z
 		},
 	);
 
+const WeekRangeSchema = z
+	.object({
+		startDate: createJstDateStringSchema({
+			formatMessage: 'startDate must be in YYYY-MM-DD format',
+			invalidDateMessage: 'startDate must be a valid date',
+		}),
+		endDate: createJstDateStringSchema({
+			formatMessage: 'endDate must be in YYYY-MM-DD format',
+			invalidDateMessage: 'endDate must be a valid date',
+		}),
+	})
+	.refine(
+		(weekRange) =>
+			parseJstDateString(weekRange.startDate) <=
+			parseJstDateString(weekRange.endDate),
+		{
+			message: 'startDate must be earlier than or equal to endDate',
+			path: ['endDate'],
+		},
+	);
+
+const ChatContextSchema = z
+	.object({
+		mode: z.enum(['single', 'flexible']).default('single'),
+		shifts: z.array(ShiftContextItemSchema).max(10).optional(),
+		staffIds: z.array(z.uuid()).max(500).optional(),
+		weekRange: WeekRangeSchema.optional(),
+	})
+	.superRefine((context, ctx) => {
+		if (context.mode === 'flexible' && !context.weekRange) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: 'weekRange is required in flexible mode',
+				path: ['weekRange'],
+			});
+		}
+	});
+
 const ChatRequestSchema = z.object({
 	messages: z.array(ChatMessageSchema).min(1).max(50),
-	context: z
-		.object({
-			shifts: z.array(ShiftContextItemSchema).max(10).optional(),
-		})
-		.optional(),
+	context: ChatContextSchema.optional(),
 });
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
@@ -259,6 +299,18 @@ const PROPOSAL_TOOL_PROMPT = `
 - 対象シフト（shiftId）が特定でき、シフト変更の提案を提示する段階では、proposeShiftChange の呼び出し（ツール実行）は必須であり、省略してはならない
 - ただし対象シフト（shiftId）が未特定など情報不足時は、proposeShiftChange を無理に呼び出さず、必要な確認質問のみを行ってよい
 - proposeShiftChange 呼び出し後は、まだ未確定であることを明示し、UI の確定操作（例: 確定ボタン）で確定するよう案内する`;
+const BATCH_PROPOSAL_TOOL_PROMPT = `
+- getShifts: 指定した日付のシフト一覧を取得します
+  - 入力: { "date": "YYYY-MM-DD", "staffId": "<任意のスタッフID>" }
+  - 調整対象期間内の状況確認に使用してください
+- proposeShiftChanges: 複数のシフト変更提案をまとめて返却します（永続化は行いません）
+  - シフト変更の提案を返すときは assistant 本文に JSON を書かず、必ずこのツールを呼び出してください
+  - 1件だけ提案する場合でも proposals 配列で返してください
+
+## proposeShiftChanges と成功断言の区別（重要）
+- proposeShiftChanges の呼び出しは成功断言ではありません
+- 必要な情報が揃ったら、変更件数に応じて proposeShiftChanges を呼び出してください
+- 提案後は、まだ未確定であることを明示し、UI の確定操作で確定するよう案内してください`;
 const UI_MESSAGE_NO_PROPOSAL_PROMPT = `
 - proposeShiftChange ツールは利用できません
 - assistant 本文に JSON やコードブロックを出力してはならない
@@ -335,18 +387,22 @@ const SUCCESS_ASSERTION_PROMPT = `
 日本語で丁寧に対応してください。`;
 
 // UIMessage モードか否かに応じてシステムプロンプトを切り替える
+type ProposalToolMode = 'none' | 'single' | 'batch';
+
 const buildSystemPromptBase = (
 	useUIMessageStream: boolean,
-	useProposalTool: boolean,
+	proposalToolMode: ProposalToolMode,
 ): string =>
 	BASE_SYSTEM_PROMPT +
-	(useProposalTool
+	(proposalToolMode === 'single'
 		? PROPOSAL_TOOL_PROMPT
-		: useUIMessageStream
-			? UI_MESSAGE_NO_PROPOSAL_PROMPT
-			: LEGACY_PROPOSAL_TOOL_PROMPT) +
+		: proposalToolMode === 'batch'
+			? BATCH_PROPOSAL_TOOL_PROMPT
+			: useUIMessageStream
+				? UI_MESSAGE_NO_PROPOSAL_PROMPT
+				: LEGACY_PROPOSAL_TOOL_PROMPT) +
 	COMMON_CONSTRAINTS_PROMPT +
-	(useProposalTool
+	(proposalToolMode === 'single'
 		? `
 - シフト変更の提案は assistant の本文に JSON を直接書かず、必ず proposeShiftChange ツールを呼び出して返す
 - proposeShiftChange の入力は次のいずれか 1 つの形式に厳密に従う
@@ -358,11 +414,31 @@ const buildSystemPromptBase = (
 - update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
   - 例1: 2026-03-16T09:00:00+09:00
   - 例2: 2026-03-16T00:00:00Z`
-		: '') +
+		: proposalToolMode === 'batch'
+			? `
+- シフト変更の提案は assistant の本文に JSON を直接書かず、必ず proposeShiftChanges ツールを呼び出して返す
+- proposeShiftChanges の入力は { "proposals": [...] } 形式に厳密に従う
+- proposals の各要素は次のいずれか 1 つの形式に厳密に従う
+  - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>", "reason": "<任意の理由>" }
+  - { "type": "change_shift_staff", "shiftId": "<UUID>", "toStaffId": "<UUID>" }
+  - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>", "reason": "<任意の理由>" }
+  - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>" }
+- reason は任意。不明なら省略し、空文字は使わない（空白のみも不可）
+- update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）`
+			: '') +
 	SHIFT_ID_MISSING_PROMPT +
 	SUCCESS_ASSERTION_PROMPT;
 
 const buildContextPrompt = (context: ChatRequest['context']): string => {
+	if (context?.mode === 'flexible' && context.weekRange) {
+		return `
+
+## 調整対象期間
+- ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください
+- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください`;
+	}
+
 	if (!context?.shifts?.length) {
 		return '';
 	}
@@ -530,6 +606,88 @@ const createProposeShiftChangeTool = (
 	});
 };
 
+type FlexibleAllowlist = {
+	shiftIds: string[];
+	staffIds: string[];
+};
+
+const isAllowedBatchProposal = (
+	allowlist: FlexibleAllowlist,
+): ((proposal: z.infer<typeof AiChatMutationProposalSchema>) => boolean) => {
+	const shiftIds = new Set(allowlist.shiftIds);
+	const staffIds = new Set(allowlist.staffIds);
+
+	return (proposal) => {
+		if (!shiftIds.has(proposal.shiftId)) {
+			return false;
+		}
+
+		if (proposal.type === 'change_shift_staff') {
+			return staffIds.has(proposal.toStaffId);
+		}
+
+		return true;
+	};
+};
+
+const createProposeShiftChangesTool = (
+	allowlist: FlexibleAllowlist,
+	logContext: RequestLogContext,
+) => {
+	const isAllowedProposal = isAllowedBatchProposal(allowlist);
+	logContext.allowlistedShiftIdsSize = allowlist.shiftIds.length;
+
+	return tool({
+		description:
+			'複数のシフト変更をまとめて提案します。1件だけでも proposals 配列で返してください。',
+		inputSchema: AiChatMutationBatchProposalSchema,
+		execute: async (proposal) => {
+			const invalidProposal = proposal.proposals.find(
+				(candidate) => !isAllowedProposal(candidate),
+			);
+
+			if (!invalidProposal) {
+				return proposal;
+			}
+
+			const allowlistError = new Error(
+				'提案に許可されていないシフトまたはスタッフが含まれています。',
+			) as LoggedChatError;
+			allowlistError.__errorCode = 'allowlist_violation';
+			allowlistError.__logged = true;
+			logChatError('AI chat tool error', allowlistError, logContext, {
+				toolName: 'proposeShiftChanges',
+				proposalShiftId: invalidProposal.shiftId,
+			});
+			throw allowlistError;
+		},
+	});
+};
+
+const buildFlexibleAllowlist = async (
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+	officeId: string,
+	weekRange: z.infer<typeof WeekRangeSchema>,
+): Promise<FlexibleAllowlist> => {
+	const shiftRepository = new ShiftRepository(supabase);
+	const shifts = await shiftRepository.list({
+		officeId,
+		startDate: parseJstDateString(weekRange.startDate),
+		endDate: parseJstDateString(weekRange.endDate),
+	});
+
+	return {
+		shiftIds: [...new Set(shifts.map((shift) => shift.id))],
+		staffIds: [
+			...new Set(
+				shifts
+					.map((shift) => shift.staff_id)
+					.filter((staffId): staffId is string => staffId !== null),
+			),
+		],
+	};
+};
+
 const normalizeMessages = (
 	messages: ChatMessage[],
 ): Parameters<typeof convertToModelMessages>[0] =>
@@ -668,15 +826,28 @@ const buildTools = (
 		processStaffAbsence: ReturnType<typeof createProcessStaffAbsenceTool>;
 		searchStaffs: ReturnType<typeof createSearchStaffsTool>;
 	},
-	shifts: Array<{ id: string }> | undefined,
-	useProposalTool: boolean,
+	context: ChatRequest['context'],
+	proposalToolMode: ProposalToolMode,
+	flexibleAllowlist: FlexibleAllowlist | null,
 	logContext: RequestLogContext,
 ) => {
-	// UIMessage モードかつ context.shifts が存在する場合のみ proposeShiftChange ツールを提供する。
-	// 1) レガシークライアントは JSON コードブロック方式を使うためツール不要
-	// 2) allowlist が空の状態で提供すると LLM が常に失敗し無限ループする恐れがあるため
-	const shiftList = shifts ?? [];
-	if (!useProposalTool || shiftList.length === 0) {
+	if (context?.mode === 'flexible') {
+		return {
+			...baseTools,
+			getShifts: createGetShiftsTool({ supabase }),
+			...(proposalToolMode === 'batch' && flexibleAllowlist
+				? {
+						proposeShiftChanges: createProposeShiftChangesTool(
+							flexibleAllowlist,
+							logContext,
+						),
+					}
+				: {}),
+		};
+	}
+
+	const shiftList = context?.shifts ?? [];
+	if (proposalToolMode !== 'single' || shiftList.length === 0) {
 		return baseTools;
 	}
 
@@ -690,20 +861,54 @@ const buildTools = (
 	};
 };
 
+const hasFlexibleProposalTargets = (
+	context: ChatRequest['context'],
+	flexibleAllowlist: FlexibleAllowlist | null,
+): boolean =>
+	context?.mode === 'flexible' && (flexibleAllowlist?.shiftIds.length ?? 0) > 0;
+
+const hasSingleProposalTargets = (context: ChatRequest['context']): boolean =>
+	(context?.shifts?.length ?? 0) > 0;
+
+const resolveProposalToolMode = (
+	useUIMessageStream: boolean,
+	context: ChatRequest['context'],
+	flexibleAllowlist: FlexibleAllowlist | null,
+): ProposalToolMode => {
+	if (!useUIMessageStream) {
+		return 'none';
+	}
+
+	if (hasFlexibleProposalTargets(context, flexibleAllowlist)) {
+		return 'batch';
+	}
+
+	if (hasSingleProposalTargets(context)) {
+		return 'single';
+	}
+
+	return 'none';
+};
+
 const resolveStreamMode = (
 	request: Request,
 	context: ChatRequest['context'],
+	flexibleAllowlist: FlexibleAllowlist | null,
 ) => {
 	const useUIMessageStream =
 		request.headers.get('x-ai-response-format') === 'uimessage';
-	const useProposalTool =
-		useUIMessageStream && (context?.shifts?.length ?? 0) > 0;
+	const proposalToolMode = resolveProposalToolMode(
+		useUIMessageStream,
+		context,
+		flexibleAllowlist,
+	);
 
 	return {
 		useUIMessageStream,
-		useProposalTool,
+		proposalToolMode,
+		useProposalTool: proposalToolMode !== 'none',
 		systemPrompt:
-			buildSystemPromptBase(useUIMessageStream, useProposalTool) +
+			buildSystemPromptBase(useUIMessageStream, proposalToolMode) +
 			buildContextPrompt(context),
 	};
 };
@@ -722,6 +927,45 @@ const toChatResponse = (
 	return result.toTextStreamResponse();
 };
 
+const resolveFlexibleAllowlist = async (
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+	officeId: string,
+	context: ChatRequest['context'],
+): Promise<FlexibleAllowlist | null> => {
+	if (context?.mode !== 'flexible' || !context.weekRange) {
+		return null;
+	}
+
+	return buildFlexibleAllowlist(supabase, officeId, context.weekRange);
+};
+
+const resolveShiftIds = (
+	context: ChatRequest['context'],
+	flexibleAllowlist: FlexibleAllowlist | null,
+): string[] =>
+	context?.mode === 'flexible'
+		? (flexibleAllowlist?.shiftIds ?? [])
+		: (context?.shifts ?? []).map((shift) => shift.id);
+
+const createBaseTools = (
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+	userId: string,
+	officeId: string,
+) => ({
+	searchAvailableHelpers: createSearchAvailableHelpersTool({
+		supabase,
+		officeId,
+	}),
+	processStaffAbsence: createProcessStaffAbsenceTool({
+		supabase,
+		userId,
+	}),
+	searchStaffs: createSearchStaffsTool({
+		supabase,
+		officeId,
+	}),
+});
+
 const handlePost = async (
 	request: Request,
 	logContext: RequestLogContext,
@@ -739,9 +983,6 @@ const handlePost = async (
 	}
 
 	const { messages, context } = parsedRequest.data;
-	const shiftIds = (context?.shifts ?? []).map((shift) => shift.id);
-	logContext.shiftsCount = shiftIds.length;
-	logContext.shiftIds = shiftIds;
 
 	const apiKeyResult = getApiKey();
 	if (!apiKeyResult.ok) {
@@ -756,33 +997,32 @@ const handlePost = async (
 	const { staffData } = staffResult;
 	logContext.officeId = staffData.office_id;
 
-	const { useUIMessageStream, useProposalTool, systemPrompt } =
-		resolveStreamMode(request, context);
+	const flexibleAllowlist = await resolveFlexibleAllowlist(
+		supabase,
+		staffData.office_id,
+		context,
+	);
+	const shiftIds = resolveShiftIds(context, flexibleAllowlist);
+	logContext.shiftsCount = shiftIds.length;
+	logContext.shiftIds = shiftIds;
+
+	const {
+		useUIMessageStream,
+		useProposalTool,
+		proposalToolMode,
+		systemPrompt,
+	} = resolveStreamMode(request, context, flexibleAllowlist);
 	logContext.mode = useUIMessageStream ? 'uimessage' : 'legacy';
 	logContext.useProposalTool = useProposalTool;
 
 	const google = createGoogleGenerativeAI({ apiKey });
-	const searchAvailableHelpersTool = createSearchAvailableHelpersTool({
-		supabase,
-		officeId: staffData.office_id,
-	});
-	const processStaffAbsenceTool = createProcessStaffAbsenceTool({
-		supabase,
-		userId: user.id,
-	});
-	const searchStaffsTool = createSearchStaffsTool({
-		supabase,
-		officeId: staffData.office_id,
-	});
+	const baseTools = createBaseTools(supabase, user.id, staffData.office_id);
 	const tools = buildTools(
 		supabase,
-		{
-			searchAvailableHelpers: searchAvailableHelpersTool,
-			processStaffAbsence: processStaffAbsenceTool,
-			searchStaffs: searchStaffsTool,
-		},
-		context?.shifts,
-		useProposalTool,
+		baseTools,
+		context,
+		proposalToolMode,
+		flexibleAllowlist,
 		logContext,
 	);
 
@@ -798,6 +1038,7 @@ const handlePost = async (
 		system: systemPrompt,
 		messages: modelMessages,
 		tools,
+		experimental_context: { officeId: staffData.office_id },
 		stopWhen: stepCountIs(5),
 		onError: ({ error }) => {
 			if (

@@ -48,8 +48,11 @@ const findLatestProposal = (
 		allowlist,
 	);
 
-	if (proposalFromTool) {
-		return { messageId: latestAssistantMessage.id, proposal: proposalFromTool };
+	if (proposalFromTool?.type === 'single') {
+		return {
+			messageId: latestAssistantMessage.id,
+			proposal: proposalFromTool.proposal,
+		};
 	}
 
 	const textContent = latestAssistantMessage.parts
@@ -118,7 +121,10 @@ export const AdjustmentChatDialog = ({
 }: AdjustmentChatDialogProps) => {
 	const { messages, rawMessages, isStreaming, error, sendMessage, stop } =
 		useAdjustmentChat({
-			shiftContext,
+			context: {
+				mode: 'single',
+				shifts: [shiftContext],
+			},
 		});
 
 	const staffIdsAllowlist = useMemo(

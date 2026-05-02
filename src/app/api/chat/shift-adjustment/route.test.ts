@@ -16,6 +16,8 @@ const {
 	mockCreateSearchAvailableHelpersTool,
 	mockCreateProcessStaffAbsenceTool,
 	mockCreateSearchStaffsTool,
+	mockCreateGetShiftsTool,
+	mockShiftRepositoryList,
 	mockStepCountIs,
 } = vi.hoisted(() => ({
 	mockStreamText: vi.fn(),
@@ -31,6 +33,8 @@ const {
 	mockCreateSearchAvailableHelpersTool: vi.fn(),
 	mockCreateProcessStaffAbsenceTool: vi.fn(),
 	mockCreateSearchStaffsTool: vi.fn(),
+	mockCreateGetShiftsTool: vi.fn(),
+	mockShiftRepositoryList: vi.fn(),
 	mockStepCountIs: vi.fn((n: number) => ({ type: 'stepCountIs', count: n })),
 }));
 
@@ -64,6 +68,18 @@ vi.mock('@/backend/tools/processStaffAbsence', () => ({
 
 vi.mock('@/backend/tools/searchStaffs', () => ({
 	createSearchStaffsTool: mockCreateSearchStaffsTool,
+}));
+
+vi.mock('@/backend/tools/getShifts', () => ({
+	createGetShiftsTool: mockCreateGetShiftsTool,
+}));
+
+vi.mock('@/backend/repositories/shiftRepository', () => ({
+	ShiftRepository: function MockShiftRepository() {
+		return {
+			list: mockShiftRepositoryList,
+		};
+	},
 }));
 
 // 環境変数のモック
@@ -128,6 +144,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 		mockCreateSearchStaffsTool.mockReturnValue({
 			description: 'mock search staffs tool',
 		});
+		mockCreateGetShiftsTool.mockReturnValue({
+			description: 'mock get shifts tool',
+		});
+		mockShiftRepositoryList.mockResolvedValue([]);
 
 		// デフォルトのstreamTextモック
 		mockToUIMessageStreamResponse.mockReturnValue(
@@ -1483,6 +1503,149 @@ describe('POST /api/chat/shift-adjustment', () => {
 	});
 
 	describe('Tool integration', () => {
+		it('flexible モードでは getShifts と proposeShiftChanges が利用できる', async () => {
+			mockShiftRepositoryList.mockResolvedValue([
+				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+			]);
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '週次で調整したい' }],
+						context: {
+							mode: 'flexible',
+							weekRange: {
+								startDate: '2026-03-16',
+								endDate: '2026-03-22',
+							},
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockCreateGetShiftsTool).toHaveBeenCalledWith({
+				supabase: expect.anything(),
+			});
+			expect(mockShiftRepositoryList).toHaveBeenCalledWith(
+				expect.objectContaining({
+					officeId: TEST_IDS.OFFICE_1,
+					startDate: expect.any(Date),
+					endDate: expect.any(Date),
+				}),
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					experimental_context: { officeId: TEST_IDS.OFFICE_1 },
+					tools: expect.objectContaining({
+						getShifts: expect.anything(),
+						proposeShiftChanges: expect.anything(),
+					}),
+				}),
+			);
+
+			const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+				tools?: {
+					proposeShiftChanges?: {
+						inputSchema?: { parse: (input: unknown) => unknown };
+					};
+				};
+			};
+			const parse =
+				streamTextCall.tools?.proposeShiftChanges?.inputSchema?.parse;
+			expect(parse).toBeDefined();
+			expect(
+				parse?.({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_1,
+						},
+					],
+				}),
+			).toEqual({
+				proposals: [
+					{
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+					},
+				],
+			});
+		});
+
+		it('single モードでは getShifts / proposeShiftChanges を追加しない', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '単発で提案して' }],
+						context: {
+							mode: 'single',
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2026-03-16',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockCreateGetShiftsTool).not.toHaveBeenCalled();
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tools: expect.not.objectContaining({
+						getShifts: expect.anything(),
+						proposeShiftChanges: expect.anything(),
+					}),
+				}),
+			);
+		});
+
+		it('flexible モードで weekRange がない場合は 400 を返す', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '週次で調整したい' }],
+						context: { mode: 'flexible' },
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(400);
+			expect(mockStreamText).not.toHaveBeenCalled();
+		});
 		it('streamText に tools と stopWhen が渡される', async () => {
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',

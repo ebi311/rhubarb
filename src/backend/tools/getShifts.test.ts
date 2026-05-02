@@ -46,6 +46,13 @@ describe('getShifts tool', () => {
 		expect(result.success).toBe(false);
 	});
 
+	it('存在しない日付（2026-02-31）を拒否する', () => {
+		const result = GetShiftsParametersSchema.safeParse({
+			date: '2026-02-31',
+		});
+		expect(result.success).toBe(false);
+	});
+
 	it('execute が ShiftRepository.list を呼び出して結果を返す', async () => {
 		mockList.mockResolvedValueOnce([
 			{
@@ -77,6 +84,7 @@ describe('getShifts tool', () => {
 			officeId: TEST_IDS.OFFICE_1,
 			date: '2026-02-25',
 			staffId: TEST_IDS.STAFF_1,
+			includeNames: true,
 		});
 		expect(result).toEqual({
 			shifts: [
@@ -104,6 +112,7 @@ describe('getShifts tool', () => {
 		expect(mockList).toHaveBeenCalledWith({
 			officeId: TEST_IDS.OFFICE_1,
 			date: '2026-02-25',
+			includeNames: true,
 		});
 	});
 
