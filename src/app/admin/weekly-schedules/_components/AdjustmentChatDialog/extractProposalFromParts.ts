@@ -1,12 +1,16 @@
 import {
+	AiChatMutationBatchProposalSchema,
 	AiChatMutationProposalSchema,
+	type AiChatMutationBatchProposal,
 	type AiChatMutationProposal,
 } from '@/models/aiChatMutationProposal';
 import type { UIMessage } from 'ai';
 import { isAllowedProposal, type ProposalAllowlist } from './parseProposal';
 
-const PROPOSAL_TOOL_NAME = 'proposeShiftChange';
-const PROPOSAL_TOOL_PART_TYPE = 'tool-proposeShiftChange';
+const SINGLE_PROPOSAL_TOOL_NAME = 'proposeShiftChange';
+const SINGLE_PROPOSAL_TOOL_PART_TYPE = 'tool-proposeShiftChange';
+const BATCH_PROPOSAL_TOOL_NAME = 'proposeShiftChanges';
+const BATCH_PROPOSAL_TOOL_PART_TYPE = 'tool-proposeShiftChanges';
 
 type ProposalOutputPart = Extract<
 	UIMessage['parts'][number],
@@ -21,16 +25,32 @@ const isOutputAvailablePart = (
 	);
 };
 
-const isProposalToolPart = (part: ProposalOutputPart): boolean => {
-	if (part.type === PROPOSAL_TOOL_PART_TYPE) {
-		return true;
+type ExtractedProposal =
+	| { type: 'single'; proposal: AiChatMutationProposal }
+	| { type: 'batch'; proposal: AiChatMutationBatchProposal };
+
+const getToolIdentity = (part: ProposalOutputPart) => {
+	if (part.type === SINGLE_PROPOSAL_TOOL_PART_TYPE) {
+		return 'single';
+	}
+
+	if (part.type === BATCH_PROPOSAL_TOOL_PART_TYPE) {
+		return 'batch';
 	}
 
 	if (part.type !== 'dynamic-tool') {
-		return false;
+		return null;
 	}
 
-	return part.toolName === PROPOSAL_TOOL_NAME;
+	if (part.toolName === SINGLE_PROPOSAL_TOOL_NAME) {
+		return 'single';
+	}
+
+	if (part.toolName === BATCH_PROPOSAL_TOOL_NAME) {
+		return 'batch';
+	}
+
+	return null;
 };
 
 const getPartLabel = (part: ProposalOutputPart): string => {
@@ -60,17 +80,51 @@ const getProposalWarnDetails = (proposal: AiChatMutationProposal) => {
 	};
 };
 
+const isAllowedBatchProposal = (
+	proposal: AiChatMutationBatchProposal,
+	allowlist: ProposalAllowlist,
+): boolean =>
+	proposal.proposals.every((candidate) =>
+		isAllowedProposal(candidate, allowlist),
+	);
+
 export const extractProposalFromParts = (
 	parts: UIMessage['parts'],
 	allowlist: ProposalAllowlist,
-): AiChatMutationProposal | null => {
+): ExtractedProposal | null => {
 	for (let index = parts.length - 1; index >= 0; index -= 1) {
 		const part = parts[index];
-		if (!part || !isOutputAvailablePart(part) || !isProposalToolPart(part)) {
+		if (!part || !isOutputAvailablePart(part)) {
 			continue;
 		}
 
-		const parsed = AiChatMutationProposalSchema.safeParse(part.output);
+		const toolIdentity = getToolIdentity(part);
+		if (!toolIdentity) {
+			continue;
+		}
+
+		if (toolIdentity === 'single') {
+			const parsed = AiChatMutationProposalSchema.safeParse(part.output);
+			if (!parsed.success) {
+				console.warn(
+					`[extractProposalFromParts] schema validation failed (${getPartLabel(part)}):`,
+					parsed.error.flatten().fieldErrors,
+				);
+				continue;
+			}
+
+			if (!isAllowedProposal(parsed.data, allowlist)) {
+				console.warn(
+					`[extractProposalFromParts] allowlist rejected proposal (${getPartLabel(part)})`,
+					getProposalWarnDetails(parsed.data),
+				);
+				continue;
+			}
+
+			return { type: 'single', proposal: parsed.data };
+		}
+
+		const parsed = AiChatMutationBatchProposalSchema.safeParse(part.output);
 		if (!parsed.success) {
 			console.warn(
 				`[extractProposalFromParts] schema validation failed (${getPartLabel(part)}):`,
@@ -79,16 +133,18 @@ export const extractProposalFromParts = (
 			continue;
 		}
 
-		if (!isAllowedProposal(parsed.data, allowlist)) {
+		if (!isAllowedBatchProposal(parsed.data, allowlist)) {
 			console.warn(
 				`[extractProposalFromParts] allowlist rejected proposal (${getPartLabel(part)})`,
-				getProposalWarnDetails(parsed.data),
+				parsed.data.proposals.map(getProposalWarnDetails),
 			);
 			continue;
 		}
 
-		return parsed.data;
+		return { type: 'batch', proposal: parsed.data };
 	}
 
 	return null;
 };
+
+export type { ExtractedProposal };

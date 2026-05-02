@@ -49,10 +49,13 @@ describe('extractProposalFromParts', () => {
 		];
 
 		expect(extractProposalFromParts(parts, allowlist)).toEqual({
-			type: 'change_shift_staff',
-			shiftId: TEST_IDS.SCHEDULE_1,
-			toStaffId: TEST_IDS.STAFF_2,
-			reason: '欠勤対応',
+			type: 'single',
+			proposal: {
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+				reason: '欠勤対応',
+			},
 		});
 	});
 
@@ -68,11 +71,14 @@ describe('extractProposalFromParts', () => {
 		];
 
 		expect(extractProposalFromParts(parts, allowlist)).toEqual({
-			type: 'update_shift_time',
-			shiftId: TEST_IDS.SCHEDULE_1,
-			startAt: '2026-03-16T09:00:00+09:00',
-			endAt: '2026-03-16T10:00:00+09:00',
-			reason: '利用者都合',
+			type: 'single',
+			proposal: {
+				type: 'update_shift_time',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				startAt: '2026-03-16T09:00:00+09:00',
+				endAt: '2026-03-16T10:00:00+09:00',
+				reason: '利用者都合',
+			},
 		});
 	});
 
@@ -158,9 +164,12 @@ describe('extractProposalFromParts', () => {
 		];
 
 		expect(extractProposalFromParts(parts, allowlist)).toEqual({
-			type: 'change_shift_staff',
-			shiftId: TEST_IDS.SCHEDULE_1,
-			toStaffId: TEST_IDS.STAFF_2,
+			type: 'single',
+			proposal: {
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+			},
 		});
 	});
 
@@ -181,10 +190,13 @@ describe('extractProposalFromParts', () => {
 		];
 
 		expect(extractProposalFromParts(parts, allowlist)).toEqual({
-			type: 'change_shift_staff',
-			shiftId: TEST_IDS.SCHEDULE_1,
-			toStaffId: TEST_IDS.STAFF_2,
-			reason: '修正済み提案',
+			type: 'single',
+			proposal: {
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+				reason: '修正済み提案',
+			},
 		});
 	});
 
@@ -205,10 +217,13 @@ describe('extractProposalFromParts', () => {
 		];
 
 		expect(extractProposalFromParts(parts, allowlist)).toEqual({
-			type: 'change_shift_staff',
-			shiftId: TEST_IDS.SCHEDULE_1,
-			toStaffId: TEST_IDS.STAFF_2,
-			reason: 'allowlist 内のスタッフ',
+			type: 'single',
+			proposal: {
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+				reason: 'allowlist 内のスタッフ',
+			},
 		});
 	});
 
@@ -229,10 +244,13 @@ describe('extractProposalFromParts', () => {
 		];
 
 		expect(extractProposalFromParts(parts, allowlist)).toEqual({
-			type: 'change_shift_staff',
-			shiftId: TEST_IDS.SCHEDULE_1,
-			toStaffId: TEST_IDS.STAFF_2,
-			reason: '最後の提案',
+			type: 'single',
+			proposal: {
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+				reason: '最後の提案',
+			},
 		});
 	});
 
@@ -268,9 +286,47 @@ describe('extractProposalFromParts', () => {
 		];
 
 		expect(extractProposalFromParts(parts, allowlist)).toEqual({
-			type: 'change_shift_staff',
-			shiftId: TEST_IDS.SCHEDULE_1,
-			toStaffId: TEST_IDS.STAFF_2,
+			type: 'single',
+			proposal: {
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_2,
+			},
+		});
+	});
+
+	it('tool-proposeShiftChanges の output から batch proposal を返す', () => {
+		const parts: UIMessage['parts'] = [
+			{
+				type: 'tool-proposeShiftChanges',
+				toolCallId: 'call_1',
+				state: 'output-available',
+				input: {},
+				output: {
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_2,
+							reason: '一括調整',
+						},
+					],
+				},
+			},
+		];
+
+		expect(extractProposalFromParts(parts, allowlist)).toEqual({
+			type: 'batch',
+			proposal: {
+				proposals: [
+					{
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_2,
+						reason: '一括調整',
+					},
+				],
+			},
 		});
 	});
 });

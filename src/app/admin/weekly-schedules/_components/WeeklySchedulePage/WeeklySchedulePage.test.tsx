@@ -67,6 +67,26 @@ vi.mock('../AdjustmentChatDialog', () => ({
 		) : null,
 }));
 
+vi.mock('../FlexibleAdjustmentChatDialog', () => ({
+	FlexibleAdjustmentChatDialog: ({
+		isOpen,
+		weekRange,
+		onClose,
+	}: {
+		isOpen: boolean;
+		weekRange: { startDate: string; endDate: string };
+		onClose: () => void;
+	}) =>
+		isOpen ? (
+			<div role="dialog" aria-label="AIアシスタント">
+				<p>{`${weekRange.startDate}〜${weekRange.endDate}`}</p>
+				<button type="button" onClick={onClose}>
+					閉じる
+				</button>
+			</div>
+		) : null,
+}));
+
 describe('WeeklySchedulePage', () => {
 	const weekStartDate = new Date('2026-01-19T00:00:00');
 
@@ -111,6 +131,14 @@ describe('WeeklySchedulePage', () => {
 
 		expect(
 			screen.getByRole('button', { name: /シフトを生成/ }),
+		).toBeInTheDocument();
+	});
+
+	it('AIアシスタントボタンが表示される', () => {
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		expect(
+			screen.getByRole('button', { name: 'AIアシスタント' }),
 		).toBeInTheDocument();
 	});
 
@@ -293,6 +321,23 @@ describe('WeeklySchedulePage', () => {
 			await user.click(screen.getByRole('button', { name: '閉じる' }));
 
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		});
+	});
+
+	describe('FlexibleAdjustmentChatDialog 統合', () => {
+		it('AIアシスタントボタンを押すと flexible ダイアログが開く', async () => {
+			const user = userEvent.setup();
+
+			render(
+				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+			);
+
+			await user.click(screen.getByRole('button', { name: 'AIアシスタント' }));
+
+			expect(
+				screen.getByRole('dialog', { name: 'AIアシスタント' }),
+			).toBeInTheDocument();
+			expect(screen.getByText('2026-01-19〜2026-01-25')).toBeInTheDocument();
 		});
 	});
 });

@@ -32,6 +32,34 @@ type StaffUpdateParams = {
 	service_type_ids: string[];
 };
 
+/**
+ * 検索クエリを正規化する純粋関数
+ * - 括弧・コンマ除去（PostgREST 構文インジェクション対策）
+ * - LIKE ワイルドカード（%・_）除去（PostgREST の ilike ではバックスラッシュエスケープが効かないため除去）
+ * - 全角スペース → 半角スペース
+ * - 連続スペース → 単一スペース
+ * - 前後トリム
+ */
+export const normalizeSearchQuery = (query: string): string => {
+	return query
+		.replace(/[(),]/g, '') // 括弧とコンマ除去
+		.replace(/[%_]/g, '') // LIKE ワイルドカード除去
+		.replace(/\u3000/g, ' ') // 全角スペース → 半角スペース
+		.replace(/\s+/g, ' ') // 連続スペース → 単一スペース
+		.trim();
+};
+
+/**
+ * スペースを完全除去するクエリ圧縮関数
+ * 「ヘルパー 10」→「ヘルパー10」のようなフォールバック検索に使用
+ *
+ * @internal テスト用にエクスポートされているが、直接呼び出しは非推奨。
+ * searchByNameOrKana 内部でのみ使用すること。
+ */
+export const compactQuery = (query: string): string => {
+	return query.replace(/\s+/g, '');
+};
+
 export class StaffRepository {
 	constructor(private supabase: SupabaseClient<Database>) {}
 
@@ -239,19 +267,36 @@ export class StaffRepository {
 		query: string,
 		limit: number,
 	): Promise<StaffWithServiceTypes[]> {
-		// PostgREST 構文インジェクション対策: 特殊文字を除去
-		const safeQuery = query.replace(/[(),]/g, '');
+		const normalized = normalizeSearchQuery(query);
 
 		// 空文字の場合は全件ヒット防止のため空配列を返す
-		if (safeQuery === '') {
+		if (normalized === '') {
 			return [];
 		}
 
+		const compact = compactQuery(normalized);
+
+		// 正規化済みクエリで検索
+		const results = await this.searchWith(officeId, normalized, limit);
+
+		// 0件 かつ スペースが含まれていた場合はコンパクトクエリで再検索
+		if (results.length === 0 && normalized.includes(' ')) {
+			return this.searchWith(officeId, compact, limit);
+		}
+
+		return results;
+	}
+
+	private async searchWith(
+		officeId: string,
+		query: string,
+		limit: number,
+	): Promise<StaffWithServiceTypes[]> {
 		const { data, error } = await this.supabase
 			.from('staffs')
 			.select('*')
 			.eq('office_id', officeId)
-			.or(`name.ilike.%${safeQuery}%,kana.ilike.%${safeQuery}%`)
+			.or(`name.ilike.%${query}%,kana.ilike.%${query}%`)
 			.order('name', { ascending: true })
 			.limit(limit);
 		if (error) throw error;

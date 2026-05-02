@@ -56,6 +56,10 @@ vi.mock('../AdjustmentChatDialog', () => ({
 	},
 }));
 
+vi.mock('../FlexibleAdjustmentChatDialog', () => ({
+	FlexibleAdjustmentChatDialog: () => null,
+}));
+
 describe('WeeklySchedulePage staffOptions', () => {
 	const weekStartDate = new Date('2099-01-19T00:00:00');
 

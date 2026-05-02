@@ -3,12 +3,13 @@
 import { AiOperationLogService } from '@/backend/services/aiOperationLogService';
 import { ServiceError, ShiftService } from '@/backend/services/shiftService';
 import type {
-	ExecuteAiChatMutationInput,
-	ExecuteAiChatMutationResult,
+	AiChatMutationProposal,
+	ExecuteAiChatMutationBatchInput,
+	ExecuteAiChatMutationBatchResult,
 } from '@/models/aiChatMutationProposal';
 import {
-	ExecuteAiChatMutationInputSchema,
-	ExecuteAiChatMutationResultSchema,
+	ExecuteAiChatMutationBatchInputSchema,
+	ExecuteAiChatMutationBatchResultSchema,
 } from '@/models/aiChatMutationProposal';
 import {
 	ActionResult,
@@ -22,13 +23,19 @@ import {
 	shouldSkipAuditLog,
 } from './utils/aiActionHelpers';
 
+const BATCH_OPERATION_TYPE = 'batch_mutation';
+
+const extractUniqueShiftIds = (
+	proposals: AiChatMutationProposal[],
+): string[] => [...new Set(proposals.map((proposal) => proposal.shiftId))];
+
 const handleServiceError = async (
 	error: ServiceError,
 	service: ShiftService,
 	aiOperationLogService: AiOperationLogService,
 	userId: string,
-	request: ExecuteAiChatMutationInput,
-): Promise<ActionResult<ExecuteAiChatMutationResult>> => {
+	request: ExecuteAiChatMutationBatchInput,
+): Promise<ActionResult<ExecuteAiChatMutationBatchResult>> => {
 	const actorOfficeId = !shouldSkipAuditLog(error.status)
 		? await service.findActorOfficeId(userId).catch(() => null)
 		: null;
@@ -37,11 +44,13 @@ const handleServiceError = async (
 		await aiOperationLogService.logSilently({
 			office_id: actorOfficeId,
 			actor_user_id: userId,
-			operation_type: request.proposal.type,
+			operation_type: BATCH_OPERATION_TYPE,
 			targets: {
-				shiftId: request.proposal.shiftId,
+				shiftIds: extractUniqueShiftIds(request.proposals),
 			},
-			proposal: request.proposal,
+			proposal: {
+				proposals: request.proposals,
+			},
 			request,
 			result: {
 				status: 'error',
@@ -57,55 +66,68 @@ const handleServiceError = async (
 	}
 
 	if (!isTestRuntime()) {
-		console.warn('[executeAiChatMutationAction] ServiceError', {
+		console.warn('[executeAiChatMutationBatchAction] ServiceError', {
 			status: error.status,
 			message: error.message,
-			proposalType: request.proposal.type,
+			proposalCount: request.proposals.length,
 		});
 	}
 
 	return errorResult(error.message, error.status, error.details);
 };
 
-export const executeAiChatMutationAction = async (
+export const executeAiChatMutationBatchAction = async (
 	input: unknown,
-): Promise<ActionResult<ExecuteAiChatMutationResult>> => {
+): Promise<ActionResult<ExecuteAiChatMutationBatchResult>> => {
 	const { supabase, user, error } = await getAuthUser();
 	if (error || !user) return errorResult('Unauthorized', 401);
 
-	const parsedInput = ExecuteAiChatMutationInputSchema.safeParse(input);
-	if (!parsedInput.success) {
+	const parsed = ExecuteAiChatMutationBatchInputSchema.safeParse(input);
+	if (!parsed.success) {
 		if (!isTestRuntime()) {
-			console.warn('[executeAiChatMutationAction] Validation failed', {
-				issues: parsedInput.error.flatten(),
+			console.warn('[executeAiChatMutationBatchAction] Validation failed', {
+				issues: parsed.error.flatten(),
 			});
 		}
-		return errorResult('Validation failed', 400, parsedInput.error.flatten());
+		return errorResult('Validation failed', 400, parsed.error.flatten());
 	}
+
+	const request = parsed.data;
 
 	const service = new ShiftService(supabase);
 	const aiOperationLogService = new AiOperationLogService();
 
 	try {
-		const result = await service.executeAiChatMutationProposal(
+		const result = await service.executeAiChatMutationBatchProposal(
 			user.id,
-			parsedInput.data.proposal,
-			parsedInput.data.allowlist,
+			request.proposals,
+			request.allowlist,
 		);
 
+		const [firstResult] = result.results;
+		if (firstResult === undefined) {
+			const noResultError = new Error('No mutation result found');
+			logServerError(noResultError);
+			return errorResult(noResultError.message, 500);
+		}
+
 		await aiOperationLogService.logSilently({
-			office_id: result.officeId,
+			office_id: firstResult.officeId,
 			actor_user_id: user.id,
-			operation_type: result.type,
+			operation_type: BATCH_OPERATION_TYPE,
 			targets: {
-				shiftId: result.shiftId,
+				shiftIds: extractUniqueShiftIds(request.proposals),
 			},
-			proposal: parsedInput.data.proposal,
-			request: parsedInput.data,
-			result: { status: 'success' },
+			proposal: {
+				proposals: request.proposals,
+			},
+			request,
+			result: {
+				status: 'success',
+			},
 		});
 
-		return successResult(ExecuteAiChatMutationResultSchema.parse(result));
+		return successResult(ExecuteAiChatMutationBatchResultSchema.parse(result));
 	} catch (error) {
 		if (error instanceof ServiceError) {
 			return handleServiceError(
@@ -113,7 +135,7 @@ export const executeAiChatMutationAction = async (
 				service,
 				aiOperationLogService,
 				user.id,
-				parsedInput.data,
+				request,
 			);
 		}
 		logServerError(error);

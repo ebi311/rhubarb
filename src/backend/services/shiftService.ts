@@ -4,7 +4,10 @@ import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
 import {
+	ExecuteAiChatMutationBatchInputSchema,
 	type AiChatMutationProposal,
+	type ExecuteAiChatMutationBatchInput,
+	type ExecuteAiChatMutationBatchResult,
 	type ExecuteAiChatMutationResult,
 	type ProposalAllowlist,
 } from '@/models/aiChatMutationProposal';
@@ -25,6 +28,7 @@ import {
 } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { v7 as randomUUID } from 'uuid';
+import { ZodError } from 'zod';
 
 export class ServiceError extends Error {
 	constructor(
@@ -372,6 +376,43 @@ export class ShiftService {
 			adminOfficeId: adminStaff.office_id,
 			shift,
 		});
+	}
+
+	async executeAiChatMutationBatchProposal(
+		userId: string,
+		proposals: AiChatMutationProposal[],
+		allowlist: ProposalAllowlist,
+	): Promise<ExecuteAiChatMutationBatchResult> {
+		let parsedInput: ExecuteAiChatMutationBatchInput;
+
+		try {
+			parsedInput = ExecuteAiChatMutationBatchInputSchema.parse({
+				proposals,
+				allowlist,
+			});
+		} catch (error) {
+			// Action以外からの呼び出しでも一貫したエラー境界を保つための防御。
+			if (error instanceof ZodError) {
+				throw new ServiceError(400, 'Invalid ai chat mutation batch input', {
+					issues: error.issues,
+				});
+			}
+
+			throw error;
+		}
+
+		const results: ExecuteAiChatMutationResult[] = [];
+
+		for (const proposal of parsedInput.proposals) {
+			const result = await this.executeAiChatMutationProposal(
+				userId,
+				proposal,
+				parsedInput.allowlist,
+			);
+			results.push(result);
+		}
+
+		return { results };
 	}
 
 	private async executeChangeShiftStaffProposal(params: {

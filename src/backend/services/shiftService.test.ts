@@ -2,6 +2,10 @@ import { ServiceUserRepository } from '@/backend/repositories/serviceUserReposit
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { Database } from '@/backend/types/supabase';
+import {
+	BATCH_PROPOSAL_MAX_COUNT,
+	type AiChatMutationProposal,
+} from '@/models/aiChatMutationProposal';
 import { ServiceUser } from '@/models/serviceUser';
 import { Shift } from '@/models/shift';
 import { Staff, StaffWithServiceTypes } from '@/models/staff';
@@ -17,7 +21,7 @@ import {
 	Mocked,
 	vi,
 } from 'vitest';
-import { ShiftService } from './shiftService';
+import { ServiceError, ShiftService } from './shiftService';
 
 const createMockStaffRepository = (): Mocked<StaffRepository> => {
 	return {
@@ -2901,6 +2905,154 @@ describe('ShiftService', () => {
 				shiftId,
 				officeId: TEST_IDS.OFFICE_1,
 			});
+		});
+	});
+
+	describe('executeAiChatMutationBatchProposal', () => {
+		const userId = TEST_IDS.USER_1;
+		const shiftId1 = TEST_IDS.SCHEDULE_1;
+		const shiftId2 = TEST_IDS.SCHEDULE_2;
+		const allowlist = {
+			shiftIds: [shiftId1, shiftId2],
+			staffIds: [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2],
+		};
+		const proposals: AiChatMutationProposal[] = [
+			{
+				type: 'change_shift_staff',
+				shiftId: shiftId1,
+				toStaffId: TEST_IDS.STAFF_1,
+			},
+			{
+				type: 'update_shift_time',
+				shiftId: shiftId2,
+				startAt: '2030-05-11T10:00:00+09:00',
+				endAt: '2030-05-11T11:00:00+09:00',
+			},
+		];
+
+		it('should execute proposals sequentially and return all results', async () => {
+			const firstResult = {
+				type: 'change_shift_staff' as const,
+				shiftId: shiftId1,
+				officeId: TEST_IDS.OFFICE_1,
+			};
+			const secondResult = {
+				type: 'update_shift_time' as const,
+				shiftId: shiftId2,
+				officeId: TEST_IDS.OFFICE_1,
+			};
+			const callOrder: string[] = [];
+			const proposalSpy = vi
+				.spyOn(service, 'executeAiChatMutationProposal')
+				.mockImplementationOnce(async () => {
+					callOrder.push('first');
+					return firstResult;
+				})
+				.mockImplementationOnce(async () => {
+					callOrder.push('second');
+					return secondResult;
+				});
+
+			const result = await service.executeAiChatMutationBatchProposal(
+				userId,
+				proposals,
+				allowlist,
+			);
+
+			expect(proposalSpy).toHaveBeenNthCalledWith(
+				1,
+				userId,
+				proposals[0],
+				allowlist,
+			);
+			expect(proposalSpy).toHaveBeenNthCalledWith(
+				2,
+				userId,
+				proposals[1],
+				allowlist,
+			);
+			expect(callOrder).toEqual(['first', 'second']);
+			expect(result).toEqual({ results: [firstResult, secondResult] });
+		});
+
+		it('should use normalized proposal values from schema parse', async () => {
+			const proposalSpy = vi
+				.spyOn(service, 'executeAiChatMutationProposal')
+				.mockResolvedValue({
+					type: 'update_shift_time',
+					shiftId: shiftId2,
+					officeId: TEST_IDS.OFFICE_1,
+				});
+
+			await service.executeAiChatMutationBatchProposal(
+				userId,
+				[
+					{
+						type: 'update_shift_time',
+						shiftId: shiftId2,
+						startAt: '2030-05-11T10:00:00+09:00',
+						endAt: '2030-05-11T11:00:00+09:00',
+						reason: '  日時変更  ',
+					},
+				],
+				{ shiftIds: [shiftId2] },
+			);
+
+			expect(proposalSpy).toHaveBeenCalledWith(
+				userId,
+				expect.objectContaining({ reason: '日時変更' }),
+				expect.objectContaining({ shiftIds: [shiftId2] }),
+			);
+		});
+
+		it('should fail fast when a proposal execution throws ServiceError', async () => {
+			const firstResult = {
+				type: 'change_shift_staff' as const,
+				shiftId: shiftId1,
+				officeId: TEST_IDS.OFFICE_1,
+			};
+			const serviceError = new ServiceError(400, 'failed');
+			const proposalSpy = vi
+				.spyOn(service, 'executeAiChatMutationProposal')
+				.mockResolvedValueOnce(firstResult)
+				.mockRejectedValueOnce(serviceError);
+
+			await expect(
+				service.executeAiChatMutationBatchProposal(
+					userId,
+					proposals,
+					allowlist,
+				),
+			).rejects.toThrow(serviceError);
+			expect(proposalSpy).toHaveBeenCalledTimes(2);
+		});
+
+		it('should throw ServiceError with status 400 when schema validation fails', async () => {
+			const tooManyProposals: AiChatMutationProposal[] = Array.from(
+				{ length: BATCH_PROPOSAL_MAX_COUNT + 1 },
+				() => ({
+					type: 'update_shift_time' as const,
+					shiftId: createTestId(),
+					startAt: '2030-05-11T10:00:00+09:00',
+					endAt: '2030-05-11T11:00:00+09:00',
+				}),
+			);
+			const proposalSpy = vi.spyOn(service, 'executeAiChatMutationProposal');
+
+			await expect(
+				service.executeAiChatMutationBatchProposal(
+					userId,
+					tooManyProposals,
+					allowlist,
+				),
+			).rejects.toMatchObject({
+				name: 'ServiceError',
+				status: 400,
+				details: expect.objectContaining({
+					issues: expect.any(Array),
+				}),
+			});
+			expect(proposalSpy).not.toHaveBeenCalled();
 		});
 	});
 });

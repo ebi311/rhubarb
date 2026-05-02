@@ -41,6 +41,85 @@ describe('ShiftRepository', () => {
 		repository = new ShiftRepository(mockSupabase);
 	});
 
+	describe('list', () => {
+		it('date フィルタは JST 当日00:00以上〜翌日00:00未満で絞り込む', async () => {
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.list({ date: '2026-02-25' });
+
+			expect(mockSupabase._mockQuery.gte).toHaveBeenCalledWith(
+				'start_time',
+				'2026-02-25T00:00:00+09:00',
+			);
+			expect(mockSupabase._mockQuery.lt).toHaveBeenCalledWith(
+				'start_time',
+				'2026-02-26T00:00:00+09:00',
+			);
+			expect(mockSupabase._mockQuery.lte).not.toHaveBeenCalledWith(
+				'start_time',
+				'2026-02-25T23:59:59+09:00',
+			);
+		});
+
+		it('officeId + includeNames: true で name/office_id を JOIN する', async () => {
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.list({
+				officeId: TEST_IDS.OFFICE_1,
+				date: '2026-02-25',
+				includeNames: true,
+			});
+
+			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith(
+				'*, clients!inner(name, office_id), staffs(name)',
+			);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'clients.office_id',
+				TEST_IDS.OFFICE_1,
+			);
+			expect(mockSupabase._mockQuery.gte).toHaveBeenCalledWith(
+				'start_time',
+				'2026-02-25T00:00:00+09:00',
+			);
+			expect(mockSupabase._mockQuery.lt).toHaveBeenCalledWith(
+				'start_time',
+				'2026-02-26T00:00:00+09:00',
+			);
+		});
+
+		it('officeId のみ指定（includeNames 省略）→ clients!inner(office_id) のみ JOIN する', async () => {
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: [],
+				error: null,
+			});
+
+			await repository.list({
+				officeId: TEST_IDS.OFFICE_1,
+				date: '2026-02-25',
+			});
+
+			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith(
+				'*, clients!inner(office_id)',
+			);
+			expect(mockSupabase._mockQuery.eq).toHaveBeenCalledWith(
+				'clients.office_id',
+				TEST_IDS.OFFICE_1,
+			);
+		});
+
+		it('date に存在しない日付（2026-02-31）を渡した場合は Error をスロー', async () => {
+			await expect(repository.list({ date: '2026-02-31' })).rejects.toThrow(
+				'ShiftRepository.list: 無効な date 値 "2026-02-31"',
+			);
+		});
+	});
+
 	describe('updateStaffAssignment', () => {
 		it('should update staff_id and notes', async () => {
 			const shiftId = 'shift-1';

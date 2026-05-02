@@ -131,6 +131,10 @@ vi.mock('../AdjustmentWizardDialog', () => ({
 		) : null,
 }));
 
+vi.mock('../FlexibleAdjustmentChatDialog', () => ({
+	FlexibleAdjustmentChatDialog: () => null,
+}));
+
 import type { ShiftDisplayRow } from '../ShiftTable';
 import {
 	WeeklySchedulePage,

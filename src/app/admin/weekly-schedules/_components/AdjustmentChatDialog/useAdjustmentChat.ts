@@ -21,8 +21,24 @@ export type ShiftContext = {
 	endTime: string;
 };
 
+export type SingleChatContext = {
+	mode: 'single';
+	shifts: ShiftContext[];
+	staffIds?: string[];
+};
+
+export type FlexibleChatContext = {
+	mode: 'flexible';
+	weekRange: {
+		startDate: string;
+		endDate: string;
+	};
+};
+
+export type ChatContextOptions = SingleChatContext | FlexibleChatContext;
+
 type UseAdjustmentChatOptions = {
-	shiftContext: ShiftContext;
+	context: ChatContextOptions;
 };
 
 type UseAdjustmentChatReturn = {
@@ -54,9 +70,8 @@ const convertToChatMessage = (msg: UIMessage): ChatMessage => ({
 });
 
 export const useAdjustmentChat = ({
-	shiftContext,
+	context,
 }: UseAdjustmentChatOptions): UseAdjustmentChatReturn => {
-	// transport を shiftContext に基づいて作成
 	const transport = useMemo(
 		() =>
 			new DefaultChatTransport({
@@ -65,12 +80,10 @@ export const useAdjustmentChat = ({
 					'x-ai-response-format': 'uimessage',
 				},
 				body: {
-					context: {
-						shifts: [shiftContext],
-					},
+					context,
 				},
 			}),
-		[shiftContext],
+		[context],
 	);
 
 	const {

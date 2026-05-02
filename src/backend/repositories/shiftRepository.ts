@@ -1,11 +1,15 @@
 import { STAFF_SHIFT_INTERVAL_MINUTES } from '@/backend/constants';
 import { Database } from '@/backend/types/supabase';
 import { Shift, ShiftSchema } from '@/models/shift';
+import { isValidJstDateString } from '@/models/valueObjects/jstDate';
 import type { ServiceTypeId } from '@/models/valueObjects/serviceTypeId';
 import {
+	addJstDays,
+	formatJstDateString,
 	getJstDateOnly,
 	getJstHours,
 	getJstMinutes,
+	parseJstDateString,
 	setJstTime,
 } from '@/utils/date';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -24,9 +28,30 @@ const MAX_FETCH_LIMIT = 100;
 
 type ShiftRow = Database['public']['Tables']['shifts']['Row'];
 type ShiftInsert = Database['public']['Tables']['shifts']['Insert'];
+type ShiftListRow = ShiftRow & {
+	clients?:
+		| Pick<Database['public']['Tables']['clients']['Row'], 'name' | 'office_id'>
+		| Array<
+				Pick<
+					Database['public']['Tables']['clients']['Row'],
+					'name' | 'office_id'
+				>
+		  >
+		| null;
+	staffs?:
+		| Pick<Database['public']['Tables']['staffs']['Row'], 'name'>
+		| Array<Pick<Database['public']['Tables']['staffs']['Row'], 'name'>>
+		| null;
+};
+
+export type ShiftWithNames = Shift & {
+	client_name?: string;
+	staff_name?: string;
+};
 
 export interface ShiftFilters {
 	officeId?: string;
+	date?: string;
 	startDate?: Date;
 	endDate?: Date;
 	/** 日時レンジの開始（gte で適用） */
@@ -38,6 +63,8 @@ export interface ShiftFilters {
 	status?: Shift['status'];
 	/** 指定したステータスを除外する */
 	excludeStatus?: Shift['status'];
+	/** true の場合、clients.name・staffs.name を JOIN する */
+	includeNames?: boolean;
 }
 
 export class ShiftRepository {
@@ -98,13 +125,35 @@ export class ShiftRepository {
 		};
 	}
 
-	async list(filters: ShiftFilters = {}): Promise<Shift[]> {
+	private extractNameFromRelation(
+		relation: { name: string } | Array<{ name: string }> | null | undefined,
+	): string | undefined {
+		if (!relation) return undefined;
+
+		if (Array.isArray(relation)) {
+			return relation[0]?.name;
+		}
+
+		return relation.name;
+	}
+
+	async list(filters: ShiftFilters = {}): Promise<ShiftWithNames[]> {
+		if (filters.date !== undefined && !isValidJstDateString(filters.date)) {
+			throw new Error(`ShiftRepository.list: 無効な date 値 "${filters.date}"`);
+		}
+
 		// officeId フィルタ対応: clients テーブルを join して office_id でフィルタ
+		// includeNames: true の場合のみ name フィールドも JOIN する
 		const baseQuery = filters.officeId
-			? this.supabase
-					.from('shifts')
-					.select('*, clients!inner(office_id)')
-					.eq('clients.office_id', filters.officeId)
+			? filters.includeNames
+				? this.supabase
+						.from('shifts')
+						.select('*, clients!inner(name, office_id), staffs(name)')
+						.eq('clients.office_id', filters.officeId)
+				: this.supabase
+						.from('shifts')
+						.select('*, clients!inner(office_id)')
+						.eq('clients.office_id', filters.officeId)
 			: this.supabase.from('shifts').select('*');
 		type Query = typeof baseQuery;
 
@@ -116,6 +165,14 @@ export class ShiftRepository {
 		) => (value !== undefined ? apply(query, value) : query);
 
 		let query = baseQuery;
+		query = applyIf(query, filters.date, (q, date) => {
+			const nextDate = formatJstDateString(
+				addJstDays(parseJstDateString(date), 1),
+			);
+			return q
+				.gte('start_time', `${date}T00:00:00+09:00`)
+				.lt('start_time', `${nextDate}T00:00:00+09:00`);
+		});
 		query = applyIf(query, filters.startDate, (q, d) =>
 			q.gte('start_time', setJstTime(d, 0, 0).toISOString()),
 		);
@@ -135,7 +192,19 @@ export class ShiftRepository {
 
 		const { data, error } = await query.order('start_time');
 		if (error) throw error;
-		return (data ?? []).map((row) => this.toDomain(row));
+
+		return (data ?? []).map((row) => {
+			const listRow = row as ShiftListRow;
+			const shift = this.toDomain(listRow);
+			const clientName = this.extractNameFromRelation(listRow.clients);
+			const staffName = this.extractNameFromRelation(listRow.staffs);
+
+			return {
+				...shift,
+				...(clientName ? { client_name: clientName } : {}),
+				...(staffName ? { staff_name: staffName } : {}),
+			};
+		});
 	}
 
 	async findById(id: string): Promise<Shift | null> {
