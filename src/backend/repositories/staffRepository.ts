@@ -286,8 +286,9 @@ export class StaffRepository {
 
 		// フォールバック2（Issue #170）: スペースなし入力 → 数字境界スペースありDB
 		// 例: "ヘルパー05" → "ヘルパー 05"
-		const withDigitSpaces = compact.replace(/([^\d\s])(\d)/g, '$1 $2');
-		if (results.length === 0 && withDigitSpaces !== compact) {
+		// known limitation: digit→非数字境界（例: "05ヘルパー"）は未対応
+		const withDigitSpaces = normalized.replace(/([^\d\s])(\d)/g, '$1 $2');
+		if (results.length === 0 && withDigitSpaces !== normalized) {
 			return this.searchWith(officeId, withDigitSpaces, limit);
 		}
 
