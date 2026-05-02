@@ -784,7 +784,145 @@ describe('StaffRepository', () => {
 			expect(mockStaffLimit).toHaveBeenCalledTimes(1);
 		});
 
-		// Known limitation: スペースなし入力でDB側にスペースありの名前がある場合はヒットしない
-		// 例: query="ヘルパー10", DB name="ヘルパー 10" → ヒットしない（仕様上許容）
+		it('スペースなし入力「ヘルパー05」→ DB「ヘルパー 05」にヒット（数字境界スペース挿入フォールバック）', async () => {
+			const helperRow = {
+				...baseStaffRow,
+				id: TEST_IDS.STAFF_2,
+				name: 'ヘルパー 05',
+				kana: null,
+				role: 'helper' as const,
+			};
+
+			// 1回目の検索（"ヘルパー05"）は0件、2回目（"ヘルパー 05"）は1件
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValueOnce({ data: [], error: null })
+				.mockResolvedValueOnce({ data: [helperRow], error: null });
+			const mockStaffOrder = vi.fn().mockReturnValue({ limit: mockStaffLimit });
+			const mockStaffOr = vi.fn().mockReturnValue({ order: mockStaffOrder });
+			const mockStaffEq = vi.fn().mockReturnValue({ or: mockStaffOr });
+			const mockStaffSelect = vi.fn().mockReturnValue({ eq: mockStaffEq });
+
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+			const mockAbilitySelect = vi.fn().mockReturnValue({ in: mockAbilityIn });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') return { select: mockStaffSelect };
+				if (table === 'staff_service_type_abilities')
+					return { select: mockAbilitySelect };
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			const result = await repository.searchByNameOrKana(
+				officeId,
+				'ヘルパー05',
+				10,
+			);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].name).toBe('ヘルパー 05');
+			// 1回目: コンパクト（スペースなし）クエリ, 2回目: 数字境界スペース挿入クエリ
+			expect(mockStaffOr).toHaveBeenNthCalledWith(
+				1,
+				'name.ilike.%ヘルパー05%,kana.ilike.%ヘルパー05%',
+			);
+			expect(mockStaffOr).toHaveBeenNthCalledWith(
+				2,
+				'name.ilike.%ヘルパー 05%,kana.ilike.%ヘルパー 05%',
+			);
+		});
+
+		it('スペースなし入力「ヘルパー10」→ DB「ヘルパー 10」にヒット（数字境界スペース挿入フォールバック）', async () => {
+			const helperRow = {
+				...baseStaffRow,
+				id: TEST_IDS.STAFF_3,
+				name: 'ヘルパー 10',
+				kana: null,
+				role: 'helper' as const,
+			};
+
+			// 1回目の検索（"ヘルパー10"）は0件、2回目（"ヘルパー 10"）は1件
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValueOnce({ data: [], error: null })
+				.mockResolvedValueOnce({ data: [helperRow], error: null });
+			const mockStaffOrder = vi.fn().mockReturnValue({ limit: mockStaffLimit });
+			const mockStaffOr = vi.fn().mockReturnValue({ order: mockStaffOrder });
+			const mockStaffEq = vi.fn().mockReturnValue({ or: mockStaffOr });
+			const mockStaffSelect = vi.fn().mockReturnValue({ eq: mockStaffEq });
+
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+			const mockAbilitySelect = vi.fn().mockReturnValue({ in: mockAbilityIn });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') return { select: mockStaffSelect };
+				if (table === 'staff_service_type_abilities')
+					return { select: mockAbilitySelect };
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			const result = await repository.searchByNameOrKana(
+				officeId,
+				'ヘルパー10',
+				10,
+			);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].name).toBe('ヘルパー 10');
+			expect(mockStaffOr).toHaveBeenNthCalledWith(
+				1,
+				'name.ilike.%ヘルパー10%,kana.ilike.%ヘルパー10%',
+			);
+			expect(mockStaffOr).toHaveBeenNthCalledWith(
+				2,
+				'name.ilike.%ヘルパー 10%,kana.ilike.%ヘルパー 10%',
+			);
+		});
+
+		it('数字境界なし入力「山田太郎」はフォールバックなし（searchWith 1回のみ）', async () => {
+			const staffRows = [
+				{
+					...baseStaffRow,
+					id: TEST_IDS.STAFF_2,
+					name: '山田太郎',
+					kana: null,
+					role: 'helper' as const,
+				},
+			];
+
+			const mockStaffLimit = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+			const mockStaffOrder = vi.fn().mockReturnValue({ limit: mockStaffLimit });
+			const mockStaffOr = vi.fn().mockReturnValue({ order: mockStaffOrder });
+			const mockStaffEq = vi.fn().mockReturnValue({ or: mockStaffOr });
+			const mockStaffSelect = vi.fn().mockReturnValue({ eq: mockStaffEq });
+
+			const mockAbilityIn = vi
+				.fn()
+				.mockResolvedValue({ data: [], error: null });
+			const mockAbilitySelect = vi.fn().mockReturnValue({ in: mockAbilityIn });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') return { select: mockStaffSelect };
+				if (table === 'staff_service_type_abilities')
+					return { select: mockAbilitySelect };
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			const result = await repository.searchByNameOrKana(
+				officeId,
+				'山田太郎',
+				10,
+			);
+
+			expect(result).toHaveLength(1);
+			// フォールバックなし: searchWith は1回のみ
+			expect(mockStaffOr).toHaveBeenCalledTimes(1);
+		});
 	});
 });
