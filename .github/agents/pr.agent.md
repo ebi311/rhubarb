@@ -106,69 +106,13 @@ model: gemini-3-flash
 
 ## Copilot レビュー対応フロー
 
-共通ルールは `.github/agents/pr-review-thread-fragment.md` を参照する。
+共通ルール・参考コマンド・必須フローは `.github/agents/pr-review-thread-fragment.md` を唯一の正として参照する。
 
-### PR作成後・Push後の re-review リクエスト
-
-Copilot の自動 re-review がトリガーされない場合、以下のコマンドで明示的にリクエストする：
-
-```bash
-gh api repos/{owner}/{repo}/pulls/{pr_number}/requested_reviewers \
-  -X POST \
-  -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
-```
-
-### レビューコメントのポーリング
-
-PR作成後または Push 後、新しいレビューコメントを検出するためにポーリングを実施する（30秒間隔、最大10分）。取得対象は **未解決 (`isResolved == false`) の review thread のみ** とする：
-
-```bash
-# 未解決 review thread の最新コメントを取得
-gh api graphql -f query='query($owner:String!, $repo:String!, $pr:Int!) {
-  repository(owner:$owner, name:$repo) {
-    pullRequest(number:$pr) {
-      headRefOid
-      reviewThreads(first:100) {
-        nodes {
-          id
-          isResolved
-          isOutdated
-          comments(last:1) {
-            nodes {
-              id
-              body
-              path
-              line
-              createdAt
-            }
-          }
-        }
-      }
-    }
-  }
-}' -f owner='{owner}' -f repo='{repo}' -F pr={pr_number} \
-| jq '.data.repository.pullRequest.reviewThreads.nodes
-  | map(select(.isResolved == false))'
-```
-
-### 未解決コメントの確認と解決
-
-```bash
-# 未解決スレッド数を確認
-gh api graphql -f query='{ repository(owner: "{owner}", name: "{repo}") { pullRequest(number: {pr_number}) { reviewThreads(first: 30) { nodes { isResolved } } } } }' | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
-```
-
+- PR 作成後 / Push 後の re-review リクエスト手順は fragment に従う。
+- レビューコメントのポーリング条件（30秒間隔・最大10分、未解決 thread のみ）も fragment に従う。
 - `resolved` の thread は課題一覧に含めない。
-- review thread の `resolved` 操作は、この agent 単独では行わない。修正 push 済み、または却下/後続 Issue 化の説明が PR 上で明示された場合に限り、別フェーズで実行する。
-
-### 必須フロー（推奨ではなく運用ルール）
-
-PR 作成後または Push 後は、**必ず**以下のフローを実行する。任意・省略は不可。
-
-1. **PR作成時**: `gh pr create` → Copilot レビュアー追加 → **即座に** 未解決 thread のみを対象にポーリング開始（30秒間隔・最大10分）
-2. **修正 Push 時**: `git push` → re-review リクエスト → **即座に** 未解決 thread のみを対象にポーリング開始（30秒間隔・最大10分）
-3. **コメント検出時**: 指摘内容を評価 → 修正実施 → テスト実行 → Push → 2に戻る
-4. **未解決 0件**: マージ準備完了
+- review thread の `resolved` 操作は、この agent 単独では行わない。修正 push 済み、または却下/後続 Issue 化の説明が PR 上で明示された場合に限る。
+- 最終出力の `Commands` や Handoff JSON には、fragment に基づく実行コマンドや運用手順を必要に応じて含める。
 
 ## Notes
 
