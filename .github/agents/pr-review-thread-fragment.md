@@ -6,6 +6,7 @@
 - `implement agent` は渡された未解決 thread の指摘だけを実装対象にする。PR 操作は行わない。
 - `pr agent` は PR 作成、Copilot reviewer 追加、re-review リクエスト、ポーリング手順の実行または提示を担当する。
 - thread を `resolved` にしてよいのは、修正 push 済み、または却下/後続 Issue 化の説明が PR 上で明示された場合だけ。
+- 最後のコメント本文に `... in this pull request and generated no comments.` が含まれる場合は、そのレビュー結果を **「指摘なし」** として扱う。
 
 ## PR コメント対応で必ず渡す情報
 
@@ -62,6 +63,7 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/requested_reviewers \
 - PR 作成後または Push 後は、新しいレビューコメントを検出するために **30秒間隔・最大10分** でポーリングする。
 - 取得対象は **未解決 (`isResolved == false`) の review thread のみ**。
 - 必要に応じて `Commands` や handoff に、実行した/実行すべきポーリング手順を明示する。
+- ただし最後のコメント本文に `... in this pull request and generated no comments.` が含まれる場合は、新規の指摘として扱わない。
 
 ### 未解決 thread 数の確認
 

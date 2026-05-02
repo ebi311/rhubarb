@@ -38,6 +38,7 @@ model: claude-sonnet-4.6
 - PR コメント対応では、REST の review/comment API をそのまま列挙せず、GraphQL の `reviewThreads` を使って **未解決 (`isResolved == false`) の thread のみ** を対象にする。
 - `resolved` の thread を implement/review に渡してはいけない。既に解決済みの指摘は「現在対応すべき課題」ではない。
 - 未解決 thread であっても、**内容の妥当性は別途 review agent が批判的に判断する**。未解決というだけで修正対象に確定しない。
+- 最後のコメント本文に `... in this pull request and generated no comments.` が含まれる場合は、review thread 取得結果に現れても **指摘なし** として扱い、plan / implement に渡さない。
 - thread を `resolved` にしてよいのは、以下のいずれかを満たす場合だけ:
   - 修正が push 済みで、対象 thread に対応完了と判断できる場合
   - 却下理由または後続 Issue 化の方針を PR 上で明示した場合
@@ -337,6 +338,7 @@ PR の要件:
 - `resolved` の thread は findings に含めない。
 - 取得と評価だけを行い、thread の resolve/unresolve や PR 返信は行わない。
 - 未解決 thread であっても、妥当でない指摘は `dismissedFindings` に分ける。
+- 最後のコメント本文に `... in this pull request and generated no comments.` が含まれる場合は、指摘なしとして扱う。
 
 出力は以下の2部構成にしてください。
 1) 人間向け: あなたの通常の見出し構成（空出力は禁止）

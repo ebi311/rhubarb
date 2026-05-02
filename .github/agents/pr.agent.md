@@ -111,6 +111,7 @@ model: gemini-3-flash
 - PR 作成後 / Push 後の re-review リクエスト手順は fragment に従う。
 - レビューコメントのポーリング条件（30秒間隔・最大10分、未解決 thread のみ）も fragment に従う。
 - `resolved` の thread は課題一覧に含めない。
+- 最後のコメント本文に `... in this pull request and generated no comments.` が含まれる場合は、指摘なしとして扱う。
 - review thread の `resolved` 操作は、この agent 単独では行わない。修正 push 済み、または却下/後続 Issue 化の説明が PR 上で明示された場合に限る。
 - 最終出力の `Commands` や Handoff JSON には、fragment に基づく実行コマンドや運用手順を必要に応じて含める。
 

@@ -105,6 +105,7 @@ model: gemini-2.5-pro
 - `resolved` の thread は findings に含めない。
 - この agent は thread の resolve/unresolve、PR への返信、re-review リクエストを行わない。必要なアクションは orchestrator 経由で plan / implement / pr agent に委譲する。
 - 未解決 thread であっても、その指摘内容が不正確・過剰・前提誤りなら、`dismissedFindings` に根拠付きで振り分ける。未解決であること自体は「妥当な修正要求」を意味しない。
+- 最後のコメント本文に `... in this pull request and generated no comments.` が含まれる場合は、そのレビュー結果を **指摘なし** とみなし、findings に含めない。
 
 ## レビュー観点
 
