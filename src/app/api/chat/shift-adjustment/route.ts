@@ -429,8 +429,20 @@ const buildSystemPromptBase = (
 	SHIFT_ID_MISSING_PROMPT +
 	SUCCESS_ASSERTION_PROMPT;
 
-const buildContextPrompt = (context: ChatRequest['context']): string => {
+const buildContextPrompt = (
+	context: ChatRequest['context'],
+	proposalToolMode: ProposalToolMode,
+): string => {
 	if (context?.mode === 'flexible' && context.weekRange) {
+		if (proposalToolMode === 'none') {
+			return `
+
+## 調整対象期間
+- ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
+- この期間にはシフトが登録されていないため、シフト変更の提案はできません
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください`;
+		}
+
 		return `
 
 ## 調整対象期間
@@ -909,7 +921,7 @@ const resolveStreamMode = (
 		useProposalTool: proposalToolMode !== 'none',
 		systemPrompt:
 			buildSystemPromptBase(useUIMessageStream, proposalToolMode) +
-			buildContextPrompt(context),
+			buildContextPrompt(context, proposalToolMode),
 	};
 };
 
