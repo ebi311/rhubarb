@@ -432,9 +432,10 @@ const buildSystemPromptBase = (
 const buildContextPrompt = (
 	context: ChatRequest['context'],
 	proposalToolMode: ProposalToolMode,
+	flexibleShiftsEmpty: boolean = false,
 ): string => {
 	if (context?.mode === 'flexible' && context.weekRange) {
-		if (proposalToolMode === 'none') {
+		if (flexibleShiftsEmpty) {
 			return `
 
 ## 調整対象期間
@@ -921,7 +922,11 @@ const resolveStreamMode = (
 		useProposalTool: proposalToolMode !== 'none',
 		systemPrompt:
 			buildSystemPromptBase(useUIMessageStream, proposalToolMode) +
-			buildContextPrompt(context, proposalToolMode),
+			buildContextPrompt(
+				context,
+				proposalToolMode,
+				(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
+			),
 	};
 };
 
