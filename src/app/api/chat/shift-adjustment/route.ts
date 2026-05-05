@@ -689,18 +689,22 @@ const buildFlexibleAllowlist = async (
 	const shiftRepository = new ShiftRepository(supabase);
 	const staffRepository = new StaffRepository(supabase);
 
-	const [shifts, allStaffIds] = await Promise.all([
+	const [shifts, allStaffs] = await Promise.all([
 		shiftRepository.list({
 			officeId,
 			startDate: parseJstDateString(weekRange.startDate),
 			endDate: parseJstDateString(weekRange.endDate),
 		}),
-		staffRepository.listIdsByOffice(officeId),
+		staffRepository.listByOffice(officeId),
 	]);
+
+	const assignableStaffIds = allStaffs
+		.filter((s) => s.service_type_ids.length > 0)
+		.map((s) => s.id);
 
 	return {
 		shiftIds: [...new Set(shifts.map((shift) => shift.id))],
-		staffIds: [...new Set(allStaffIds)],
+		staffIds: [...new Set(assignableStaffIds)],
 	};
 };
 
@@ -907,12 +911,10 @@ const resolveProposalToolMode = (
 };
 
 const resolveStreamMode = (
-	request: Request,
+	useUIMessageStream: boolean,
 	context: ChatRequest['context'],
 	flexibleAllowlist: FlexibleAllowlist | null,
 ) => {
-	const useUIMessageStream =
-		request.headers.get('x-ai-response-format') === 'uimessage';
 	const proposalToolMode = resolveProposalToolMode(
 		useUIMessageStream,
 		context,
@@ -951,8 +953,13 @@ const resolveFlexibleAllowlist = async (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	officeId: string,
 	context: ChatRequest['context'],
+	useUIMessageStream: boolean,
 ): Promise<FlexibleAllowlist | null> => {
-	if (context?.mode !== 'flexible' || !context.weekRange) {
+	if (
+		!useUIMessageStream ||
+		context?.mode !== 'flexible' ||
+		!context.weekRange
+	) {
 		return null;
 	}
 
@@ -1017,21 +1024,24 @@ const handlePost = async (
 	const { staffData } = staffResult;
 	logContext.officeId = staffData.office_id;
 
+	const useUIMessageStream =
+		request.headers.get('x-ai-response-format') === 'uimessage';
+
 	const flexibleAllowlist = await resolveFlexibleAllowlist(
 		supabase,
 		staffData.office_id,
 		context,
+		useUIMessageStream,
 	);
 	const shiftIds = resolveShiftIds(context, flexibleAllowlist);
 	logContext.shiftsCount = shiftIds.length;
 	logContext.shiftIds = shiftIds;
 
-	const {
+	const { useProposalTool, proposalToolMode, systemPrompt } = resolveStreamMode(
 		useUIMessageStream,
-		useProposalTool,
-		proposalToolMode,
-		systemPrompt,
-	} = resolveStreamMode(request, context, flexibleAllowlist);
+		context,
+		flexibleAllowlist,
+	);
 	logContext.mode = useUIMessageStream ? 'uimessage' : 'legacy';
 	logContext.useProposalTool = useProposalTool;
 

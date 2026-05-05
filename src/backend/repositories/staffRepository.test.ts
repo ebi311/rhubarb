@@ -123,6 +123,7 @@ describe('StaffRepository', () => {
 			const result = await repository.listIdsByOffice(officeId);
 
 			expect(result).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);
+			expect(mockSelect).toHaveBeenCalledWith('id');
 			expect(mockEq).toHaveBeenCalledWith('office_id', officeId);
 		});
 
@@ -150,6 +151,7 @@ describe('StaffRepository', () => {
 			expect(result[0]).toBe(TEST_IDS.STAFF_1);
 			// OFFICE_2 のスタッフ (STAFF_2) は含まれない
 			expect(result).not.toContain(TEST_IDS.STAFF_2);
+			expect(mockSelect).toHaveBeenCalledWith('id');
 		});
 
 		it('Supabase error 時に例外を throw する', async () => {
@@ -171,6 +173,7 @@ describe('StaffRepository', () => {
 			await expect(repository.listIdsByOffice(officeId)).rejects.toThrow(
 				'DB error',
 			);
+			expect(mockSelect).toHaveBeenCalledWith('id');
 		});
 
 		it('スタッフが0件なら空配列を返す', async () => {
@@ -189,6 +192,7 @@ describe('StaffRepository', () => {
 			const result = await repository.listIdsByOffice(officeId);
 
 			expect(result).toEqual([]);
+			expect(mockSelect).toHaveBeenCalledWith('id');
 		});
 	});
 
