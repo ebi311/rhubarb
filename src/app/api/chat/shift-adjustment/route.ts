@@ -698,6 +698,9 @@ const buildFlexibleAllowlist = async (
 		staffRepository.listByOffice(officeId),
 	]);
 
+	// allowlist は「週全体の変更候補スタッフ」の粗いフィルタ。
+	// シフトごとの service_type_id 照合は行わない（週内に複数の service_type が混在するため一意に決まらない）。
+	// service_type_id の精密バリデーションは確定時の ensureStaffAssignableForShift が担当する 2段設計。
 	const assignableStaffIds = allStaffs
 		.filter((s) => s.role === 'helper' && s.service_type_ids.length > 0)
 		.map((s) => s.id);
