@@ -431,7 +431,6 @@ const buildSystemPromptBase = (
 
 const buildContextPrompt = (
 	context: ChatRequest['context'],
-	proposalToolMode: ProposalToolMode,
 	flexibleShiftsEmpty: boolean = false,
 ): string => {
 	if (context?.mode === 'flexible' && context.weekRange) {
@@ -924,7 +923,6 @@ const resolveStreamMode = (
 			buildSystemPromptBase(useUIMessageStream, proposalToolMode) +
 			buildContextPrompt(
 				context,
-				proposalToolMode,
 				(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
 			),
 	};
