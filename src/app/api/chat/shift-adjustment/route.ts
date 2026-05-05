@@ -689,18 +689,18 @@ const buildFlexibleAllowlist = async (
 	const shiftRepository = new ShiftRepository(supabase);
 	const staffRepository = new StaffRepository(supabase);
 
-	const [shifts, allStaff] = await Promise.all([
+	const [shifts, allStaffIds] = await Promise.all([
 		shiftRepository.list({
 			officeId,
 			startDate: parseJstDateString(weekRange.startDate),
 			endDate: parseJstDateString(weekRange.endDate),
 		}),
-		staffRepository.listByOffice(officeId),
+		staffRepository.listIdsByOffice(officeId),
 	]);
 
 	return {
 		shiftIds: [...new Set(shifts.map((shift) => shift.id))],
-		staffIds: allStaff.map((staff) => staff.id),
+		staffIds: [...new Set(allStaffIds)],
 	};
 };
 

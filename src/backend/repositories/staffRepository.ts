@@ -131,6 +131,16 @@ export class StaffRepository {
 		return payload;
 	}
 
+	async listIdsByOffice(officeId: string): Promise<string[]> {
+		const { data, error } = await this.supabase
+			.from('staffs')
+			.select('id')
+			.eq('office_id', officeId)
+			.order('name', { ascending: true });
+		if (error) throw error;
+		return (data ?? []).map((row) => row.id);
+	}
+
 	async listByOffice(officeId: string): Promise<StaffWithServiceTypes[]> {
 		const { data, error } = await this.supabase
 			.from('staffs')

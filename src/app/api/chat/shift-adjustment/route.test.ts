@@ -87,7 +87,7 @@ vi.mock('@/backend/repositories/shiftRepository', () => ({
 vi.mock('@/backend/repositories/staffRepository', () => ({
 	StaffRepository: function MockStaffRepository() {
 		return {
-			listByOffice: mockStaffRepositoryListByOffice,
+			listIdsByOffice: mockStaffRepositoryListByOffice,
 		};
 	},
 }));
@@ -1518,9 +1518,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 			mockShiftRepositoryList.mockResolvedValue([
 				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 			]);
-			mockStaffRepositoryListByOffice.mockResolvedValue([
-				{ id: TEST_IDS.STAFF_1 },
-			]);
+			mockStaffRepositoryListByOffice.mockResolvedValue([TEST_IDS.STAFF_1]);
 
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
@@ -2610,9 +2608,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 			mockShiftRepositoryList.mockResolvedValue([
 				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 			]);
-			mockStaffRepositoryListByOffice.mockResolvedValue([
-				{ id: TEST_IDS.STAFF_1 },
-			]);
+			mockStaffRepositoryListByOffice.mockResolvedValue([TEST_IDS.STAFF_1]);
 
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
@@ -2649,9 +2645,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 			mockShiftRepositoryList.mockResolvedValue([
 				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 			]);
-			mockStaffRepositoryListByOffice.mockResolvedValue([
-				{ id: TEST_IDS.STAFF_1 },
-			]);
+			mockStaffRepositoryListByOffice.mockResolvedValue([TEST_IDS.STAFF_1]);
 
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
@@ -2712,8 +2706,8 @@ describe('POST /api/chat/shift-adjustment', () => {
 					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 				]);
 				mockStaffRepositoryListByOffice.mockResolvedValue([
-					{ id: TEST_IDS.STAFF_1 },
-					{ id: TEST_IDS.STAFF_2 },
+					TEST_IDS.STAFF_1,
+					TEST_IDS.STAFF_2,
 				]);
 
 				await POST(buildFlexibleRequest());
@@ -2755,9 +2749,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 				mockShiftRepositoryList.mockResolvedValue([
 					{ id: TEST_IDS.SCHEDULE_1, staff_id: null },
 				]);
-				mockStaffRepositoryListByOffice.mockResolvedValue([
-					{ id: TEST_IDS.STAFF_1 },
-				]);
+				mockStaffRepositoryListByOffice.mockResolvedValue([TEST_IDS.STAFF_1]);
 
 				await POST(buildFlexibleRequest());
 
@@ -2771,7 +2763,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 				const execute = streamTextCall.tools?.proposeShiftChanges?.execute;
 				expect(execute).toBeDefined();
 
-				// listByOffice 由来の STAFF_1 は staffIds に含まれるため通る
+				// listIdsByOffice 由来の STAFF_1 は staffIds に含まれるため通る
 				await expect(
 					execute?.({
 						proposals: [
@@ -2793,12 +2785,12 @@ describe('POST /api/chat/shift-adjustment', () => {
 				});
 			});
 
-			it('staffRepository.listByOffice が 0件のとき staffIds は空（proposeShiftChanges が弾く）', async () => {
+			it('staffRepository.listIdsByOffice が 0件のとき staffIds は空（proposeShiftChanges が弾く）', async () => {
 				// STAFF_1 はシフト割当あり
 				mockShiftRepositoryList.mockResolvedValue([
 					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 				]);
-				// しかし listByOffice が空 → staffIds も空
+				// しかし listIdsByOffice が空 → staffIds も空
 				mockStaffRepositoryListByOffice.mockResolvedValue([]);
 
 				await POST(buildFlexibleRequest());
