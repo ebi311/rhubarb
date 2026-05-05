@@ -432,6 +432,7 @@ const buildSystemPromptBase = (
 const buildContextPrompt = (
 	context: ChatRequest['context'],
 	flexibleShiftsEmpty: boolean = false,
+	showProposalGuide: boolean = false,
 ): string => {
 	if (context?.mode === 'flexible' && context.weekRange) {
 		if (flexibleShiftsEmpty) {
@@ -447,8 +448,11 @@ const buildContextPrompt = (
 
 ## 調整対象期間
 - ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
-- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください
-- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください`;
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください${
+			showProposalGuide
+				? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください'
+				: ''
+		}`;
 	}
 
 	if (!context?.shifts?.length) {
@@ -924,6 +928,7 @@ const resolveStreamMode = (
 			buildContextPrompt(
 				context,
 				(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
+				proposalToolMode === 'batch',
 			),
 	};
 };
