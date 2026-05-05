@@ -18,6 +18,7 @@ const {
 	mockCreateSearchStaffsTool,
 	mockCreateGetShiftsTool,
 	mockShiftRepositoryList,
+	mockStaffRepositoryListByOffice,
 	mockStepCountIs,
 } = vi.hoisted(() => ({
 	mockStreamText: vi.fn(),
@@ -35,6 +36,7 @@ const {
 	mockCreateSearchStaffsTool: vi.fn(),
 	mockCreateGetShiftsTool: vi.fn(),
 	mockShiftRepositoryList: vi.fn(),
+	mockStaffRepositoryListByOffice: vi.fn(),
 	mockStepCountIs: vi.fn((n: number) => ({ type: 'stepCountIs', count: n })),
 }));
 
@@ -78,6 +80,14 @@ vi.mock('@/backend/repositories/shiftRepository', () => ({
 	ShiftRepository: function MockShiftRepository() {
 		return {
 			list: mockShiftRepositoryList,
+		};
+	},
+}));
+
+vi.mock('@/backend/repositories/staffRepository', () => ({
+	StaffRepository: function MockStaffRepository() {
+		return {
+			listByOffice: mockStaffRepositoryListByOffice,
 		};
 	},
 }));
@@ -148,6 +158,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 			description: 'mock get shifts tool',
 		});
 		mockShiftRepositoryList.mockResolvedValue([]);
+		mockStaffRepositoryListByOffice.mockResolvedValue([]);
 
 		// デフォルトのstreamTextモック
 		mockToUIMessageStreamResponse.mockReturnValue(
@@ -1507,6 +1518,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 			mockShiftRepositoryList.mockResolvedValue([
 				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 			]);
+			mockStaffRepositoryListByOffice.mockResolvedValue([
+				{ id: TEST_IDS.STAFF_1 },
+			]);
 
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
@@ -2596,6 +2610,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 			mockShiftRepositoryList.mockResolvedValue([
 				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 			]);
+			mockStaffRepositoryListByOffice.mockResolvedValue([
+				{ id: TEST_IDS.STAFF_1 },
+			]);
 
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
@@ -2632,6 +2649,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 			mockShiftRepositoryList.mockResolvedValue([
 				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 			]);
+			mockStaffRepositoryListByOffice.mockResolvedValue([
+				{ id: TEST_IDS.STAFF_1 },
+			]);
 
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
@@ -2662,6 +2682,150 @@ describe('POST /api/chat/shift-adjustment', () => {
 					system: expect.not.stringContaining('proposeShiftChanges'),
 				}),
 			);
+		});
+		describe('buildFlexibleAllowlist / staffIds', () => {
+			const buildFlexibleRequest = (overrides?: {
+				startDate?: string;
+				endDate?: string;
+			}) =>
+				new Request('http://localhost/api/chat/shift-adjustment', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '週次調整' }],
+						context: {
+							mode: 'flexible',
+							weekRange: {
+								startDate: overrides?.startDate ?? '2026-03-16',
+								endDate: overrides?.endDate ?? '2026-03-22',
+							},
+						},
+					}),
+				});
+
+			it('週内シフト未割当スタッフも staffIds に含まれる（オフィス全スタッフが対象）', async () => {
+				// STAFF_1 はシフト割当あり、STAFF_2 は週内シフトなし
+				mockShiftRepositoryList.mockResolvedValue([
+					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+				]);
+				mockStaffRepositoryListByOffice.mockResolvedValue([
+					{ id: TEST_IDS.STAFF_1 },
+					{ id: TEST_IDS.STAFF_2 },
+				]);
+
+				await POST(buildFlexibleRequest());
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChanges?: {
+							execute?: (input: unknown) => Promise<unknown>;
+						};
+					};
+				};
+				const execute = streamTextCall.tools?.proposeShiftChanges?.execute;
+				expect(execute).toBeDefined();
+
+				// STAFF_2 は週内シフトなしだが allowlist に含まれるため通る
+				await expect(
+					execute?.({
+						proposals: [
+							{
+								type: 'change_shift_staff',
+								shiftId: TEST_IDS.SCHEDULE_1,
+								toStaffId: TEST_IDS.STAFF_2,
+							},
+						],
+					}),
+				).resolves.toEqual({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_2,
+						},
+					],
+				});
+			});
+
+			it('週内シフトに staff_id が null でもオフィスのスタッフが staffIds に含まれる', async () => {
+				// シフトはあるが staff_id=null（未割当）
+				mockShiftRepositoryList.mockResolvedValue([
+					{ id: TEST_IDS.SCHEDULE_1, staff_id: null },
+				]);
+				mockStaffRepositoryListByOffice.mockResolvedValue([
+					{ id: TEST_IDS.STAFF_1 },
+				]);
+
+				await POST(buildFlexibleRequest());
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChanges?: {
+							execute?: (input: unknown) => Promise<unknown>;
+						};
+					};
+				};
+				const execute = streamTextCall.tools?.proposeShiftChanges?.execute;
+				expect(execute).toBeDefined();
+
+				// listByOffice 由来の STAFF_1 は staffIds に含まれるため通る
+				await expect(
+					execute?.({
+						proposals: [
+							{
+								type: 'change_shift_staff',
+								shiftId: TEST_IDS.SCHEDULE_1,
+								toStaffId: TEST_IDS.STAFF_1,
+							},
+						],
+					}),
+				).resolves.toEqual({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_1,
+						},
+					],
+				});
+			});
+
+			it('staffRepository.listByOffice が 0件のとき staffIds は空（proposeShiftChanges が弾く）', async () => {
+				// STAFF_1 はシフト割当あり
+				mockShiftRepositoryList.mockResolvedValue([
+					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+				]);
+				// しかし listByOffice が空 → staffIds も空
+				mockStaffRepositoryListByOffice.mockResolvedValue([]);
+
+				await POST(buildFlexibleRequest());
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChanges?: {
+							execute?: (input: unknown) => Promise<unknown>;
+						};
+					};
+				};
+				const execute = streamTextCall.tools?.proposeShiftChanges?.execute;
+				expect(execute).toBeDefined();
+
+				// staffIds が空なので STAFF_1 への提案も拒否される
+				await expect(
+					execute?.({
+						proposals: [
+							{
+								type: 'change_shift_staff',
+								shiftId: TEST_IDS.SCHEDULE_1,
+								toStaffId: TEST_IDS.STAFF_1,
+							},
+						],
+					}),
+				).rejects.toThrow('許可されていないシフトまたはスタッフ');
+			});
 		});
 	});
 });

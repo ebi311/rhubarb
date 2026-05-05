@@ -1,4 +1,5 @@
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
+import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { createGetShiftsTool } from '@/backend/tools/getShifts';
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
@@ -686,21 +687,20 @@ const buildFlexibleAllowlist = async (
 	weekRange: z.infer<typeof WeekRangeSchema>,
 ): Promise<FlexibleAllowlist> => {
 	const shiftRepository = new ShiftRepository(supabase);
-	const shifts = await shiftRepository.list({
-		officeId,
-		startDate: parseJstDateString(weekRange.startDate),
-		endDate: parseJstDateString(weekRange.endDate),
-	});
+	const staffRepository = new StaffRepository(supabase);
+
+	const [shifts, allStaff] = await Promise.all([
+		shiftRepository.list({
+			officeId,
+			startDate: parseJstDateString(weekRange.startDate),
+			endDate: parseJstDateString(weekRange.endDate),
+		}),
+		staffRepository.listByOffice(officeId),
+	]);
 
 	return {
 		shiftIds: [...new Set(shifts.map((shift) => shift.id))],
-		staffIds: [
-			...new Set(
-				shifts
-					.map((shift) => shift.staff_id)
-					.filter((staffId): staffId is string => staffId !== null),
-			),
-		],
+		staffIds: allStaff.map((staff) => staff.id),
 	};
 };
 
