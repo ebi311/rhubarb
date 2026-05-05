@@ -699,7 +699,7 @@ const buildFlexibleAllowlist = async (
 	]);
 
 	const assignableStaffIds = allStaffs
-		.filter((s) => s.service_type_ids.length > 0)
+		.filter((s) => s.role === 'helper' && s.service_type_ids.length > 0)
 		.map((s) => s.id);
 
 	return {
@@ -929,7 +929,9 @@ const resolveStreamMode = (
 			buildSystemPromptBase(useUIMessageStream, proposalToolMode) +
 			buildContextPrompt(
 				context,
-				(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
+				useUIMessageStream &&
+					context?.mode === 'flexible' &&
+					(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
 				proposalToolMode === 'batch',
 			),
 	};

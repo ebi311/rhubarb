@@ -2692,6 +2692,51 @@ describe('POST /api/chat/shift-adjustment', () => {
 				}),
 			);
 		});
+
+		it('Legacy モード（x-ai-response-format なし）flexible でシフトがある場合、system prompt に「シフトが登録されていない」が含まれない', async () => {
+			// !useUIMessageStream のとき flexibleAllowlist は null だが
+			// flexibleShiftsEmpty は false になるべき（Thread D）
+			mockShiftRepositoryList.mockResolvedValue([
+				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+			]);
+			mockStaffRepositoryListByOffice.mockResolvedValue([
+				{
+					id: TEST_IDS.STAFF_1,
+					service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
+				},
+			]);
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						// x-ai-response-format なし → useUIMessageStream=false
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '週次で調整したい' }],
+						context: {
+							mode: 'flexible',
+							weekRange: {
+								startDate: '2026-03-16',
+								endDate: '2026-03-22',
+							},
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.not.stringContaining('シフトが登録されていない'),
+				}),
+			);
+		});
+
 		describe('buildFlexibleAllowlist / staffIds', () => {
 			const buildFlexibleRequest = (overrides?: {
 				startDate?: string;
@@ -2723,10 +2768,12 @@ describe('POST /api/chat/shift-adjustment', () => {
 				mockStaffRepositoryListByOffice.mockResolvedValue([
 					{
 						id: TEST_IDS.STAFF_1,
+						role: 'helper',
 						service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
 					},
 					{
 						id: TEST_IDS.STAFF_2,
+						role: 'helper',
 						service_type_ids: [TEST_IDS.SERVICE_TYPE_2],
 					},
 				]);
@@ -2773,6 +2820,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 				mockStaffRepositoryListByOffice.mockResolvedValue([
 					{
 						id: TEST_IDS.STAFF_1,
+						role: 'helper',
 						service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
 					},
 				]);
@@ -2853,6 +2901,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 				mockStaffRepositoryListByOffice.mockResolvedValue([
 					{
 						id: TEST_IDS.STAFF_1,
+						role: 'helper',
 						service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
 					},
 					{
@@ -2944,6 +2993,71 @@ describe('POST /api/chat/shift-adjustment', () => {
 				await POST(legacyFlexibleRequest);
 
 				expect(mockStaffRepositoryListByOffice).not.toHaveBeenCalled();
+			});
+
+			it('role=admin かつ service_type_ids ありのスタッフは staffIds に含まれない', async () => {
+				// STAFF_1 は helper（許可）、STAFF_2 は admin（除外）
+				mockShiftRepositoryList.mockResolvedValue([
+					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+				]);
+				mockStaffRepositoryListByOffice.mockResolvedValue([
+					{
+						id: TEST_IDS.STAFF_1,
+						role: 'helper',
+						service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
+					},
+					{
+						id: TEST_IDS.STAFF_2,
+						role: 'admin',
+						service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
+					},
+				]);
+
+				await POST(buildFlexibleRequest());
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChanges?: {
+							execute?: (input: unknown) => Promise<unknown>;
+						};
+					};
+				};
+				const execute = streamTextCall.tools?.proposeShiftChanges?.execute;
+				expect(execute).toBeDefined();
+
+				// admin は service_type_ids ありでも staffIds に含まれないため拒否される
+				await expect(
+					execute?.({
+						proposals: [
+							{
+								type: 'change_shift_staff',
+								shiftId: TEST_IDS.SCHEDULE_1,
+								toStaffId: TEST_IDS.STAFF_2,
+							},
+						],
+					}),
+				).rejects.toThrow('許可されていないシフトまたはスタッフ');
+
+				// helper は許可される
+				await expect(
+					execute?.({
+						proposals: [
+							{
+								type: 'change_shift_staff',
+								shiftId: TEST_IDS.SCHEDULE_1,
+								toStaffId: TEST_IDS.STAFF_1,
+							},
+						],
+					}),
+				).resolves.toEqual({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_1,
+						},
+					],
+				});
 			});
 		});
 	});
