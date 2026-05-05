@@ -135,8 +135,7 @@ export class StaffRepository {
 		const { data, error } = await this.supabase
 			.from('staffs')
 			.select('id')
-			.eq('office_id', officeId)
-			.order('name', { ascending: true });
+			.eq('office_id', officeId);
 		if (error) throw error;
 		return (data ?? []).map((row) => row.id);
 	}

@@ -102,6 +102,96 @@ describe('StaffRepository', () => {
 		});
 	});
 
+	describe('listIdsByOffice', () => {
+		it('officeId に一致するスタッフの id を string[] で返す', async () => {
+			const staffRows = [{ id: TEST_IDS.STAFF_1 }, { id: TEST_IDS.STAFF_2 }];
+
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockEq = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockSelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockSelect.mockReturnValue({ eq: mockEq });
+
+			const result = await repository.listIdsByOffice(officeId);
+
+			expect(result).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);
+			expect(mockEq).toHaveBeenCalledWith('office_id', officeId);
+		});
+
+		it('他のオフィスのスタッフは含まれない（officeId フィルタ）', async () => {
+			// officeId = OFFICE_1 のみを返すモック
+			const staffRows = [{ id: TEST_IDS.STAFF_1 }];
+
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockEq = vi
+				.fn()
+				.mockResolvedValue({ data: staffRows, error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockSelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockSelect.mockReturnValue({ eq: mockEq });
+
+			const result = await repository.listIdsByOffice(officeId);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toBe(TEST_IDS.STAFF_1);
+			// OFFICE_2 のスタッフ (STAFF_2) は含まれない
+			expect(result).not.toContain(TEST_IDS.STAFF_2);
+		});
+
+		it('Supabase error 時に例外を throw する', async () => {
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockEq = vi.fn().mockResolvedValue({
+				data: null,
+				error: new Error('DB error'),
+			});
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockSelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockSelect.mockReturnValue({ eq: mockEq });
+
+			await expect(repository.listIdsByOffice(officeId)).rejects.toThrow(
+				'DB error',
+			);
+		});
+
+		it('スタッフが0件なら空配列を返す', async () => {
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockEq = vi.fn().mockResolvedValue({ data: [], error: null });
+
+			(supabase.from as any).mockImplementation((table: string) => {
+				if (table === 'staffs') {
+					return { select: mockSelect };
+				}
+				throw new Error(`Unexpected table: ${table}`);
+			});
+
+			mockSelect.mockReturnValue({ eq: mockEq });
+
+			const result = await repository.listIdsByOffice(officeId);
+
+			expect(result).toEqual([]);
+		});
+	});
+
 	describe('findWithServiceTypesById', () => {
 		it('指定したスタッフをサービス区分付きで返す', async () => {
 			const mockStaffSelect = vi.fn().mockReturnThis();
