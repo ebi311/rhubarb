@@ -2552,5 +2552,116 @@ describe('POST /api/chat/shift-adjustment', () => {
 				officeId: TEST_IDS.OFFICE_1,
 			});
 		});
+
+		it('flexible モードでシフト0件の場合、system prompt に proposeShiftChanges が含まれない', async () => {
+			mockShiftRepositoryList.mockResolvedValue([]);
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '週次で調整したい' }],
+						context: {
+							mode: 'flexible',
+							weekRange: {
+								startDate: '2026-03-16',
+								endDate: '2026-03-22',
+							},
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.not.stringContaining('proposeShiftChanges'),
+				}),
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining('シフトが登録されていない'),
+				}),
+			);
+		});
+
+		it('flexible モードでシフトが存在する場合、system prompt に proposeShiftChanges が含まれる', async () => {
+			mockShiftRepositoryList.mockResolvedValue([
+				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+			]);
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '週次で調整したい' }],
+						context: {
+							mode: 'flexible',
+							weekRange: {
+								startDate: '2026-03-16',
+								endDate: '2026-03-22',
+							},
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining('proposeShiftChanges'),
+				}),
+			);
+		});
+
+		it('Legacy モード（x-ai-response-format なし）flexible でシフトがある場合、system prompt に proposeShiftChanges が含まれない', async () => {
+			mockShiftRepositoryList.mockResolvedValue([
+				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+			]);
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						// x-ai-response-format ヘッダーなし → Legacy モード（proposalToolMode === 'none'）
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '週次で調整したい' }],
+						context: {
+							mode: 'flexible',
+							weekRange: {
+								startDate: '2026-03-16',
+								endDate: '2026-03-22',
+							},
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.not.stringContaining('proposeShiftChanges'),
+				}),
+			);
+		});
 	});
 });

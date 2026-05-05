@@ -429,14 +429,30 @@ const buildSystemPromptBase = (
 	SHIFT_ID_MISSING_PROMPT +
 	SUCCESS_ASSERTION_PROMPT;
 
-const buildContextPrompt = (context: ChatRequest['context']): string => {
+const buildContextPrompt = (
+	context: ChatRequest['context'],
+	flexibleShiftsEmpty: boolean = false,
+	showProposalGuide: boolean = false,
+): string => {
 	if (context?.mode === 'flexible' && context.weekRange) {
+		if (flexibleShiftsEmpty) {
+			return `
+
+## 調整対象期間
+- ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
+- この期間にはシフトが登録されていないため、シフト変更の提案はできません
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください`;
+		}
+
 		return `
 
 ## 調整対象期間
 - ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
-- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください
-- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください`;
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください${
+			showProposalGuide
+				? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください'
+				: ''
+		}`;
 	}
 
 	if (!context?.shifts?.length) {
@@ -909,7 +925,11 @@ const resolveStreamMode = (
 		useProposalTool: proposalToolMode !== 'none',
 		systemPrompt:
 			buildSystemPromptBase(useUIMessageStream, proposalToolMode) +
-			buildContextPrompt(context),
+			buildContextPrompt(
+				context,
+				(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
+				proposalToolMode === 'batch',
+			),
 	};
 };
 
