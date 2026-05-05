@@ -2651,17 +2651,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 			);
 		});
 
-		it('Legacy モード（x-ai-response-format なし）flexible でシフトがある場合、system prompt に proposeShiftChanges が含まれない', async () => {
-			mockShiftRepositoryList.mockResolvedValue([
-				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
-			]);
-			mockStaffRepositoryListByOffice.mockResolvedValue([
-				{
-					id: TEST_IDS.STAFF_1,
-					service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
-				},
-			]);
-
+		it('Legacy モード（useUIMessageStream=false）では proposalToolMode が none になり system prompt に proposeShiftChanges が含まれない', async () => {
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
 				{
@@ -2693,19 +2683,9 @@ describe('POST /api/chat/shift-adjustment', () => {
 			);
 		});
 
-		it('Legacy モード（x-ai-response-format なし）flexible でシフトがある場合、system prompt に「シフトが登録されていない」が含まれない', async () => {
-			// !useUIMessageStream のとき flexibleAllowlist は null だが
-			// flexibleShiftsEmpty は false になるべき（Thread D）
-			mockShiftRepositoryList.mockResolvedValue([
-				{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
-			]);
-			mockStaffRepositoryListByOffice.mockResolvedValue([
-				{
-					id: TEST_IDS.STAFF_1,
-					service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
-				},
-			]);
-
+		it('Legacy モード（useUIMessageStream=false）では flexibleShiftsEmpty が常に false になり system prompt に「シフトが登録されていない」が含まれない', async () => {
+			// !useUIMessageStream のとき resolveFlexibleAllowlist は null を返すため
+			// mockShiftRepositoryList / mockStaffRepositoryListByOffice は呼ばれない
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
 				{
