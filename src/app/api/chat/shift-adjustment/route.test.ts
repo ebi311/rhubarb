@@ -2742,7 +2742,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 					}),
 				});
 
-			it('週内シフト未割当スタッフも staffIds に含まれる（オフィス全スタッフが対象）', async () => {
+			it('週内シフト未割当スタッフも staffIds に含まれる（オフィス内のヘルパーかつservice_type_idsありが対象）', async () => {
 				// STAFF_1 はシフト割当あり、STAFF_2 は週内シフトなし（どちらも serviceTypeIds あり）
 				mockShiftRepositoryList.mockResolvedValue([
 					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },

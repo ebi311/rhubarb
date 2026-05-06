@@ -731,7 +731,7 @@ const buildFlexibleAllowlist = async (
 	} catch (e) {
 		console.error(
 			'[buildFlexibleAllowlist] listByOffice failed, staffIds will be empty:',
-			e,
+			{ officeId, weekRange, error: e },
 		);
 		return { shiftIds, staffIds: [] };
 	}
