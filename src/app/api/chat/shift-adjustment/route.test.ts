@@ -1521,6 +1521,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 			mockStaffRepositoryListByOffice.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
+					role: 'helper' as const,
 					service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
 				},
 			]);
@@ -2616,6 +2617,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 			mockStaffRepositoryListByOffice.mockResolvedValue([
 				{
 					id: TEST_IDS.STAFF_1,
+					role: 'helper' as const,
 					service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
 				},
 			]);
