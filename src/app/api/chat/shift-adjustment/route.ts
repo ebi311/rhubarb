@@ -430,30 +430,63 @@ const buildSystemPromptBase = (
 	SHIFT_ID_MISSING_PROMPT +
 	SUCCESS_ASSERTION_PROMPT;
 
+const buildFlexibleContextPrompt = (
+	weekRange: NonNullable<NonNullable<ChatRequest['context']>['weekRange']>,
+	flexibleShiftsEmpty: boolean,
+	showProposalGuide: boolean,
+): string => {
+	if (flexibleShiftsEmpty) {
+		return `
+
+## 調整対象期間
+- ${weekRange.startDate} 〜 ${weekRange.endDate}
+- この期間にはシフトが登録されていないため、シフト変更の提案はできません
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください`;
+	}
+
+	const proposalGuide = showProposalGuide
+		? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください'
+		: '';
+
+	return `
+
+## 調整対象期間
+- ${weekRange.startDate} 〜 ${weekRange.endDate}
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください${proposalGuide}`;
+};
+
+const buildShiftSelectionPrompt = (shiftCount: number): string =>
+	shiftCount === 1
+		? `
+
+## 対象シフトの扱い（重要）
+- context.shifts[0] が今回の対象シフトです。
+- このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
+- context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
+- shiftId は表示された値をそのまま使ってください（推測・書き換え禁止）。
+- context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください。
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
+- startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
+  例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
+- ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
+		: `
+
+## 対象シフトの確認（重要）
+- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
+- 日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください。`;
+
 const buildContextPrompt = (
 	context: ChatRequest['context'],
 	flexibleShiftsEmpty: boolean = false,
 	showProposalGuide: boolean = false,
 ): string => {
 	if (context?.mode === 'flexible' && context.weekRange) {
-		if (flexibleShiftsEmpty) {
-			return `
-
-## 調整対象期間
-- ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
-- この期間にはシフトが登録されていないため、シフト変更の提案はできません
-- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください`;
-		}
-
-		return `
-
-## 調整対象期間
-- ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
-- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください${
-			showProposalGuide
-				? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください'
-				: ''
-		}`;
+		return buildFlexibleContextPrompt(
+			context.weekRange,
+			flexibleShiftsEmpty,
+			showProposalGuide,
+		);
 	}
 
 	if (!context?.shifts?.length) {
@@ -466,31 +499,10 @@ const buildContextPrompt = (
 		return `- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (${serviceTypeLabel}（serviceTypeId: ${s.serviceTypeId}）, clientId: ${s.clientId}, shiftId: ${s.id})`;
 	});
 
-	const shiftSelectionPrompt =
-		context.shifts.length === 1
-			? `
-
-## 対象シフトの扱い（重要）
-- context.shifts[0] が今回の対象シフトです。
-- このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
-- context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
-- shiftId は表示された値をそのまま使ってください（推測・書き換え禁止）。
-- context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください。
-- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
-- startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
-  例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
-- ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
-			: `
-
-## 対象シフトの確認（重要）
-- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。
-- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
-- 日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください。`;
-
 	return `
 
 ## 現在のシフト情報
-${shiftLines.join('\n')}${shiftSelectionPrompt}`;
+${shiftLines.join('\n')}${buildShiftSelectionPrompt(context.shifts.length)}`;
 };
 
 const isRecord = (input: unknown): input is Record<string, unknown> =>
@@ -698,20 +710,31 @@ const buildFlexibleAllowlist = async (
 		return { shiftIds: [], staffIds: [] };
 	}
 
-	const staffRepository = new StaffRepository(supabase);
-	const allStaffs = await staffRepository.listByOffice(officeId);
+	const shiftIds = [...new Set(shifts.map((shift) => shift.id))];
 
-	// allowlist は「週全体の変更候補スタッフ」の粗いフィルタ。
-	// シフトごとの service_type_id 照合は行わない（週内に複数の service_type が混在するため一意に決まらない）。
-	// service_type_id の精密バリデーションは確定時の ensureStaffAssignableForShift が担当する 2段設計。
-	const assignableStaffIds = allStaffs
-		.filter((s) => s.role === 'helper' && s.service_type_ids.length > 0)
-		.map((s) => s.id);
+	try {
+		const staffRepository = new StaffRepository(supabase);
+		const allStaffs = await staffRepository.listByOffice(officeId);
 
-	return {
-		shiftIds: [...new Set(shifts.map((shift) => shift.id))],
-		staffIds: [...new Set(assignableStaffIds)],
-	};
+		// allowlist は「週全体の変更候補スタッフ」の粗いフィルタ。
+		// シフトごとの service_type_id 照合は行わない（週内に複数の service_type が混在するため一意に決まらない）。
+		// service_type_id の精密バリデーションは確定時の ensureStaffAssignableForShift が担当する 2段設計。
+		const staffIds = [
+			...new Set(
+				allStaffs
+					.filter((s) => s.role === 'helper' && s.service_type_ids.length > 0)
+					.map((s) => s.id),
+			),
+		];
+
+		return { shiftIds, staffIds };
+	} catch (e) {
+		console.error(
+			'[buildFlexibleAllowlist] listByOffice failed, staffIds will be empty:',
+			e,
+		);
+		return { shiftIds, staffIds: [] };
+	}
 };
 
 const normalizeMessages = (

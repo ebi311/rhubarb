@@ -3043,7 +3043,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 				});
 			});
 
-			it('シフトが存在する状態で listByOffice がエラーを返す場合は 500 エラーを返す', async () => {
+			it('シフトが存在する状態で listByOffice がエラーを返しても 200 を返す（graceful degradation）', async () => {
 				mockShiftRepositoryList.mockResolvedValue([
 					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
 				]);
@@ -3053,9 +3053,8 @@ describe('POST /api/chat/shift-adjustment', () => {
 
 				const response = await POST(buildFlexibleRequest());
 
-				expect(response.status).toBe(500);
-				const body = await response.json();
-				expect(body.error).toBe('Failed to process chat request');
+				// listByOffice 失敗時は staffIds を空にして処理を継続する（可用性優先）
+				expect(response.status).toBe(200);
 			});
 
 			it('シフト0件のとき listByOffice がエラー状態でも 200 を返し listByOffice が呼ばれない', async () => {
