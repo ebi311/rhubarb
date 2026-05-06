@@ -2886,6 +2886,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 					},
 					{
 						id: TEST_IDS.STAFF_2,
+						role: 'helper',
 						service_type_ids: [],
 					},
 				]);
@@ -2970,9 +2971,11 @@ describe('POST /api/chat/shift-adjustment', () => {
 				);
 
 				mockStaffRepositoryListByOffice.mockClear();
+				mockShiftRepositoryList.mockClear();
 				await POST(legacyFlexibleRequest);
 
 				expect(mockStaffRepositoryListByOffice).not.toHaveBeenCalled();
+				expect(mockShiftRepositoryList).not.toHaveBeenCalled();
 			});
 
 			it('role=admin かつ service_type_ids ありのスタッフは staffIds に含まれない', async () => {
@@ -3038,6 +3041,18 @@ describe('POST /api/chat/shift-adjustment', () => {
 						},
 					],
 				});
+			});
+
+			it('listByOffice がエラーを返す場合は 500 エラーを返す', async () => {
+				mockStaffRepositoryListByOffice.mockRejectedValue(
+					new Error('DB error'),
+				);
+
+				const response = await POST(buildFlexibleRequest());
+
+				expect(response.status).toBe(500);
+				const body = await response.json();
+				expect(body.error).toBe('Failed to process chat request');
 			});
 		});
 	});
