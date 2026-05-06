@@ -2653,6 +2653,48 @@ describe('POST /api/chat/shift-adjustment', () => {
 			);
 		});
 
+		it('flexible モードで context.shifts が渡されても flexibleAllowlist.shiftIds が 0 なら proposalToolMode は none になる', async () => {
+			// flexibleAllowlist.shiftIds = 0 (default mock returns [])
+			mockShiftRepositoryList.mockResolvedValue([]);
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: 'テスト' }],
+						context: {
+							mode: 'flexible',
+							weekRange: { startDate: '2026-03-16', endDate: '2026-03-22' },
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2026-03-16',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.not.stringContaining('proposeShiftChanges'),
+				}),
+			);
+		});
+
 		it('Legacy モード（useUIMessageStream=false）では proposalToolMode が none になり system prompt に proposeShiftChanges が含まれない', async () => {
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',

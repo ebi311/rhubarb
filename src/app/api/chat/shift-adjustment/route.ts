@@ -932,7 +932,7 @@ const resolveProposalToolMode = (
 		return 'batch';
 	}
 
-	if (hasSingleProposalTargets(context)) {
+	if (hasSingleProposalTargets(context) && context?.mode !== 'flexible') {
 		return 'single';
 	}
 
