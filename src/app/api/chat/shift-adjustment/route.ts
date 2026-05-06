@@ -687,16 +687,19 @@ const buildFlexibleAllowlist = async (
 	weekRange: z.infer<typeof WeekRangeSchema>,
 ): Promise<FlexibleAllowlist> => {
 	const shiftRepository = new ShiftRepository(supabase);
-	const staffRepository = new StaffRepository(supabase);
+	const shifts = await shiftRepository.list({
+		officeId,
+		startDate: parseJstDateString(weekRange.startDate),
+		endDate: parseJstDateString(weekRange.endDate),
+	});
 
-	const [shifts, allStaffs] = await Promise.all([
-		shiftRepository.list({
-			officeId,
-			startDate: parseJstDateString(weekRange.startDate),
-			endDate: parseJstDateString(weekRange.endDate),
-		}),
-		staffRepository.listByOffice(officeId),
-	]);
+	// shiftIds が空なら staffIds は batch ツールで参照されない → listByOffice を省略
+	if (shifts.length === 0) {
+		return { shiftIds: [], staffIds: [] };
+	}
+
+	const staffRepository = new StaffRepository(supabase);
+	const allStaffs = await staffRepository.listByOffice(officeId);
 
 	// allowlist は「週全体の変更候補スタッフ」の粗いフィルタ。
 	// シフトごとの service_type_id 照合は行わない（週内に複数の service_type が混在するため一意に決まらない）。
