@@ -697,6 +697,7 @@ const buildFlexibleAllowlist = async (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	officeId: string,
 	weekRange: z.infer<typeof WeekRangeSchema>,
+	logContext: RequestLogContext,
 ): Promise<FlexibleAllowlist> => {
 	const shiftRepository = new ShiftRepository(supabase);
 	const shifts = await shiftRepository.list({
@@ -729,9 +730,10 @@ const buildFlexibleAllowlist = async (
 
 		return { shiftIds, staffIds };
 	} catch (e) {
-		console.error(
-			'[buildFlexibleAllowlist] listByOffice failed, staffIds will be empty:',
-			{ officeId, weekRange, error: e },
+		logChatError(
+			'[buildFlexibleAllowlist] listByOffice failed, staffIds will be empty',
+			e,
+			logContext,
 		);
 		return { shiftIds, staffIds: [] };
 	}
@@ -985,6 +987,7 @@ const resolveFlexibleAllowlist = async (
 	officeId: string,
 	context: ChatRequest['context'],
 	useUIMessageStream: boolean,
+	logContext: RequestLogContext,
 ): Promise<FlexibleAllowlist | null> => {
 	if (
 		!useUIMessageStream ||
@@ -994,7 +997,12 @@ const resolveFlexibleAllowlist = async (
 		return null;
 	}
 
-	return buildFlexibleAllowlist(supabase, officeId, context.weekRange);
+	return buildFlexibleAllowlist(
+		supabase,
+		officeId,
+		context.weekRange,
+		logContext,
+	);
 };
 
 const resolveShiftIds = (
@@ -1063,6 +1071,7 @@ const handlePost = async (
 		staffData.office_id,
 		context,
 		useUIMessageStream,
+		logContext,
 	);
 	const shiftIds = resolveShiftIds(context, flexibleAllowlist);
 	logContext.shiftsCount = shiftIds.length;
