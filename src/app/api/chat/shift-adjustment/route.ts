@@ -731,7 +731,7 @@ const buildFlexibleAllowlist = async (
 		return { shiftIds, staffIds };
 	} catch (e) {
 		logChatError(
-			'[buildFlexibleAllowlist] listByOffice failed, staffIds will be empty',
+			`[buildFlexibleAllowlist] listByOffice failed, staffIds will be empty (officeId: ${officeId}, weekRange: ${weekRange.startDate}~${weekRange.endDate})`,
 			e,
 			logContext,
 		);
