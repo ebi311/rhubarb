@@ -1,4 +1,5 @@
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
+import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { createGetShiftsTool } from '@/backend/tools/getShifts';
 import { createProcessStaffAbsenceTool } from '@/backend/tools/processStaffAbsence';
 import { createSearchAvailableHelpersTool } from '@/backend/tools/searchAvailableHelpers';
@@ -429,30 +430,63 @@ const buildSystemPromptBase = (
 	SHIFT_ID_MISSING_PROMPT +
 	SUCCESS_ASSERTION_PROMPT;
 
+const buildFlexibleContextPrompt = (
+	weekRange: NonNullable<NonNullable<ChatRequest['context']>['weekRange']>,
+	flexibleShiftsEmpty: boolean,
+	showProposalGuide: boolean,
+): string => {
+	if (flexibleShiftsEmpty) {
+		return `
+
+## 調整対象期間
+- ${weekRange.startDate} 〜 ${weekRange.endDate}
+- この期間にはシフトが登録されていないため、シフト変更の提案はできません
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください`;
+	}
+
+	const proposalGuide = showProposalGuide
+		? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください'
+		: '';
+
+	return `
+
+## 調整対象期間
+- ${weekRange.startDate} 〜 ${weekRange.endDate}
+- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください${proposalGuide}`;
+};
+
+const buildShiftSelectionPrompt = (shiftCount: number): string =>
+	shiftCount === 1
+		? `
+
+## 対象シフトの扱い（重要）
+- context.shifts[0] が今回の対象シフトです。
+- このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
+- context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
+- shiftId は表示された値をそのまま使ってください（推測・書き換え禁止）。
+- context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください。
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
+- startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
+  例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
+- ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
+		: `
+
+## 対象シフトの確認（重要）
+- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
+- 日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください。`;
+
 const buildContextPrompt = (
 	context: ChatRequest['context'],
 	flexibleShiftsEmpty: boolean = false,
 	showProposalGuide: boolean = false,
 ): string => {
 	if (context?.mode === 'flexible' && context.weekRange) {
-		if (flexibleShiftsEmpty) {
-			return `
-
-## 調整対象期間
-- ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
-- この期間にはシフトが登録されていないため、シフト変更の提案はできません
-- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください`;
-		}
-
-		return `
-
-## 調整対象期間
-- ${context.weekRange.startDate} 〜 ${context.weekRange.endDate}
-- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください${
-			showProposalGuide
-				? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください'
-				: ''
-		}`;
+		return buildFlexibleContextPrompt(
+			context.weekRange,
+			flexibleShiftsEmpty,
+			showProposalGuide,
+		);
 	}
 
 	if (!context?.shifts?.length) {
@@ -465,31 +499,10 @@ const buildContextPrompt = (
 		return `- ${s.date} ${s.startTime}〜${s.endTime}: ${s.clientName ?? '(利用者不明)'} / ${s.staffName ?? '(未割当)'} (${serviceTypeLabel}（serviceTypeId: ${s.serviceTypeId}）, clientId: ${s.clientId}, shiftId: ${s.id})`;
 	});
 
-	const shiftSelectionPrompt =
-		context.shifts.length === 1
-			? `
-
-## 対象シフトの扱い（重要）
-- context.shifts[0] が今回の対象シフトです。
-- このシフトを対象として扱い、日時・サービス内容・利用者の追加確認は行わないでください。
-- context.shifts[0] の date / clientId / serviceTypeId をそのまま tool 入力に使用してください。
-- shiftId は表示された値をそのまま使ってください（推測・書き換え禁止）。
-- context.shifts が 1 件のときは shiftId をユーザーに確認せず、そのまま使用してください。
-- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
-- startTime / endTime は文字列（例: "09:00"）を { hour, minute } オブジェクトに変換して tool 入力してください。
-  例: "09:00" → { hour: 9, minute: 0 }、"10:30" → { hour: 10, minute: 30 }
-- ユーザーが代替ヘルパーの提案・空きヘルパーの探索を求めている場合は、追加質問なしで即座に searchAvailableHelpers を呼び出してください。`
-			: `
-
-## 対象シフトの確認（重要）
-- context.shifts に複数シフトがあるため、どのシフトを対象にするかをユーザーに確認してください。
-- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください。
-- 日時（date/start/end）や利用者名/スタッフ名など、ユーザーが識別できる情報で選んでもらってください。`;
-
 	return `
 
 ## 現在のシフト情報
-${shiftLines.join('\n')}${shiftSelectionPrompt}`;
+${shiftLines.join('\n')}${buildShiftSelectionPrompt(context.shifts.length)}`;
 };
 
 const isRecord = (input: unknown): input is Record<string, unknown> =>
@@ -684,6 +697,7 @@ const buildFlexibleAllowlist = async (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	officeId: string,
 	weekRange: z.infer<typeof WeekRangeSchema>,
+	logContext: RequestLogContext,
 ): Promise<FlexibleAllowlist> => {
 	const shiftRepository = new ShiftRepository(supabase);
 	const shifts = await shiftRepository.list({
@@ -692,16 +706,37 @@ const buildFlexibleAllowlist = async (
 		endDate: parseJstDateString(weekRange.endDate),
 	});
 
-	return {
-		shiftIds: [...new Set(shifts.map((shift) => shift.id))],
-		staffIds: [
+	// shiftIds が空なら staffIds は batch ツールで参照されない → listByOffice を省略
+	if (shifts.length === 0) {
+		return { shiftIds: [], staffIds: [] };
+	}
+
+	const shiftIds = [...new Set(shifts.map((shift) => shift.id))];
+
+	try {
+		const staffRepository = new StaffRepository(supabase);
+		const allStaffs = await staffRepository.listByOffice(officeId);
+
+		// allowlist は「週全体の変更候補スタッフ」の粗いフィルタ。
+		// シフトごとの service_type_id 照合は行わない（週内に複数の service_type が混在するため一意に決まらない）。
+		// service_type_id の精密バリデーションは確定時の ensureStaffAssignableForShift が担当する 2段設計。
+		const staffIds = [
 			...new Set(
-				shifts
-					.map((shift) => shift.staff_id)
-					.filter((staffId): staffId is string => staffId !== null),
+				allStaffs
+					.filter((s) => s.role === 'helper' && s.service_type_ids.length > 0)
+					.map((s) => s.id),
 			),
-		],
-	};
+		];
+
+		return { shiftIds, staffIds };
+	} catch (e) {
+		logChatError(
+			`[buildFlexibleAllowlist] listByOffice failed, staffIds will be empty (officeId: ${officeId}, weekRange: ${weekRange.startDate}~${weekRange.endDate})`,
+			e,
+			logContext,
+		);
+		return { shiftIds, staffIds: [] };
+	}
 };
 
 const normalizeMessages = (
@@ -899,7 +934,7 @@ const resolveProposalToolMode = (
 		return 'batch';
 	}
 
-	if (hasSingleProposalTargets(context)) {
+	if (hasSingleProposalTargets(context) && context?.mode !== 'flexible') {
 		return 'single';
 	}
 
@@ -907,12 +942,10 @@ const resolveProposalToolMode = (
 };
 
 const resolveStreamMode = (
-	request: Request,
+	useUIMessageStream: boolean,
 	context: ChatRequest['context'],
 	flexibleAllowlist: FlexibleAllowlist | null,
 ) => {
-	const useUIMessageStream =
-		request.headers.get('x-ai-response-format') === 'uimessage';
 	const proposalToolMode = resolveProposalToolMode(
 		useUIMessageStream,
 		context,
@@ -927,7 +960,9 @@ const resolveStreamMode = (
 			buildSystemPromptBase(useUIMessageStream, proposalToolMode) +
 			buildContextPrompt(
 				context,
-				(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
+				useUIMessageStream &&
+					context?.mode === 'flexible' &&
+					(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
 				proposalToolMode === 'batch',
 			),
 	};
@@ -951,12 +986,23 @@ const resolveFlexibleAllowlist = async (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	officeId: string,
 	context: ChatRequest['context'],
+	useUIMessageStream: boolean,
+	logContext: RequestLogContext,
 ): Promise<FlexibleAllowlist | null> => {
-	if (context?.mode !== 'flexible' || !context.weekRange) {
+	if (
+		!useUIMessageStream ||
+		context?.mode !== 'flexible' ||
+		!context.weekRange
+	) {
 		return null;
 	}
 
-	return buildFlexibleAllowlist(supabase, officeId, context.weekRange);
+	return buildFlexibleAllowlist(
+		supabase,
+		officeId,
+		context.weekRange,
+		logContext,
+	);
 };
 
 const resolveShiftIds = (
@@ -1017,21 +1063,25 @@ const handlePost = async (
 	const { staffData } = staffResult;
 	logContext.officeId = staffData.office_id;
 
+	const useUIMessageStream =
+		request.headers.get('x-ai-response-format') === 'uimessage';
+
 	const flexibleAllowlist = await resolveFlexibleAllowlist(
 		supabase,
 		staffData.office_id,
 		context,
+		useUIMessageStream,
+		logContext,
 	);
 	const shiftIds = resolveShiftIds(context, flexibleAllowlist);
 	logContext.shiftsCount = shiftIds.length;
 	logContext.shiftIds = shiftIds;
 
-	const {
+	const { useProposalTool, proposalToolMode, systemPrompt } = resolveStreamMode(
 		useUIMessageStream,
-		useProposalTool,
-		proposalToolMode,
-		systemPrompt,
-	} = resolveStreamMode(request, context, flexibleAllowlist);
+		context,
+		flexibleAllowlist,
+	);
 	logContext.mode = useUIMessageStream ? 'uimessage' : 'legacy';
 	logContext.useProposalTool = useProposalTool;
 
