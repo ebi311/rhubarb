@@ -13,7 +13,7 @@ import {
 	ServiceTypeIdSchema,
 	ServiceTypeLabels,
 } from '@/models/valueObjects/serviceTypeId';
-import { parseJstDateString } from '@/utils/date';
+import { formatJstDateString, parseJstDateString } from '@/utils/date';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai';
@@ -508,6 +508,22 @@ ${shiftLines.join('\n')}${buildShiftSelectionPrompt(context.shifts.length)}`;
 const isRecord = (input: unknown): input is Record<string, unknown> =>
 	typeof input === 'object' && input !== null;
 
+/**
+ * AI 参照専用のシフトメタ情報
+ * UI 確定処理・永続化には影響しない
+ */
+type ShiftMeta = {
+	shiftDate: string; // "2026-05-10"
+	shiftStartTime: string; // "09:00"
+	shiftEndTime: string; // "10:00"
+	clientName?: string;
+	serviceTypeName: string;
+	toStaffName?: string; // change_shift_staff のみ
+};
+
+const formatHHmm = (hour: number, minute: number): string =>
+	`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
 const hasNestedToolInput = (
 	input: Record<string, unknown>,
 	key: string,
@@ -564,10 +580,11 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-	shifts: Array<{ id: string }> | undefined,
+	shifts: Array<z.infer<typeof ShiftContextItemSchema>> | undefined,
 	logContext: RequestLogContext,
 ) => {
 	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
+	const shiftContextMap = new Map((shifts ?? []).map((s) => [s.id, s]));
 	logContext.allowlistedShiftIdsSize = allowlistedShiftIds.size;
 
 	return tool({
@@ -630,7 +647,39 @@ const createProposeShiftChangeTool = (
 				throw shiftNotFoundError;
 			}
 
-			return proposal;
+			// _meta 構築（失敗時はフォールバックとして省略）
+			let meta: ShiftMeta | undefined;
+			try {
+				const shiftContext = shiftContextMap.get(proposal.shiftId);
+				if (shiftContext) {
+					const baseMeta: ShiftMeta = {
+						shiftDate: shiftContext.date,
+						shiftStartTime: shiftContext.startTime,
+						shiftEndTime: shiftContext.endTime,
+						clientName: shiftContext.clientName,
+						serviceTypeName: ServiceTypeLabels[shiftContext.serviceTypeId],
+					};
+
+					if (proposal.type === 'change_shift_staff') {
+						const staffRepo = new StaffRepository(supabase);
+						const toStaff = await staffRepo.findById(proposal.toStaffId);
+						if (toStaff) {
+							baseMeta.toStaffName = toStaff.name;
+						}
+					}
+
+					meta = baseMeta;
+				}
+			} catch (e) {
+				logChatError(
+					'Failed to build _meta for proposeShiftChange',
+					e,
+					logContext,
+					{ toolName: 'proposeShiftChange', proposalShiftId: proposal.shiftId },
+				);
+			}
+
+			return meta ? { ...proposal, _meta: meta } : proposal;
 		},
 	});
 };
@@ -661,6 +710,7 @@ const isAllowedBatchProposal = (
 
 const createProposeShiftChangesTool = (
 	allowlist: FlexibleAllowlist,
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	logContext: RequestLogContext,
 ) => {
 	const isAllowedProposal = isAllowedBatchProposal(allowlist);
@@ -675,20 +725,83 @@ const createProposeShiftChangesTool = (
 				(candidate) => !isAllowedProposal(candidate),
 			);
 
-			if (!invalidProposal) {
-				return proposal;
+			if (invalidProposal) {
+				const allowlistError = new Error(
+					'提案に許可されていないシフトまたはスタッフが含まれています。',
+				) as LoggedChatError;
+				allowlistError.__errorCode = 'allowlist_violation';
+				allowlistError.__logged = true;
+				logChatError('AI chat tool error', allowlistError, logContext, {
+					toolName: 'proposeShiftChanges',
+					proposalShiftId: invalidProposal.shiftId,
+				});
+				throw allowlistError;
 			}
 
-			const allowlistError = new Error(
-				'提案に許可されていないシフトまたはスタッフが含まれています。',
-			) as LoggedChatError;
-			allowlistError.__errorCode = 'allowlist_violation';
-			allowlistError.__logged = true;
-			logChatError('AI chat tool error', allowlistError, logContext, {
-				toolName: 'proposeShiftChanges',
-				proposalShiftId: invalidProposal.shiftId,
-			});
-			throw allowlistError;
+			// _meta を各 proposal に付与（失敗時はフォールバックとして省略）
+			try {
+				const shiftIds = [...new Set(proposal.proposals.map((p) => p.shiftId))];
+				const toStaffIds = [
+					...new Set(
+						proposal.proposals
+							.filter((p) => p.type === 'change_shift_staff')
+							.map(
+								(p) =>
+									(p as { type: 'change_shift_staff'; toStaffId: string })
+										.toStaffId,
+							),
+					),
+				];
+
+				const [shifts, staffs] = await Promise.all([
+					new ShiftRepository(supabase).findByIds(shiftIds),
+					new StaffRepository(supabase).findByIds(toStaffIds),
+				]);
+
+				const shiftMap = new Map(shifts.map((s) => [s.id, s]));
+				const staffMap = new Map(staffs.map((s) => [s.id, s]));
+
+				const proposalsWithMeta = proposal.proposals.map((p) => {
+					const shift = shiftMap.get(p.shiftId);
+					if (!shift) return p;
+
+					const meta: ShiftMeta = {
+						shiftDate: formatJstDateString(shift.date),
+						shiftStartTime: formatHHmm(
+							shift.time.start.hour,
+							shift.time.start.minute,
+						),
+						shiftEndTime: formatHHmm(
+							shift.time.end.hour,
+							shift.time.end.minute,
+						),
+						clientName: shift.client_name,
+						serviceTypeName: ServiceTypeLabels[shift.service_type_id],
+					};
+
+					if (p.type === 'change_shift_staff') {
+						const toStaff = staffMap.get(
+							(p as { type: 'change_shift_staff'; toStaffId: string })
+								.toStaffId,
+						);
+						if (toStaff) {
+							meta.toStaffName = toStaff.name;
+						}
+					}
+
+					return { ...p, _meta: meta };
+				});
+
+				return { proposals: proposalsWithMeta };
+			} catch (e) {
+				logChatError(
+					'Failed to build _meta for proposeShiftChanges',
+					e,
+					logContext,
+					{ toolName: 'proposeShiftChanges' },
+				);
+				return proposal;
+			}
 		},
 	});
 };
@@ -890,6 +1003,7 @@ const buildTools = (
 				? {
 						proposeShiftChanges: createProposeShiftChangesTool(
 							flexibleAllowlist,
+							supabase,
 							logContext,
 						),
 					}

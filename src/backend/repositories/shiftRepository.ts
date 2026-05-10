@@ -218,6 +218,36 @@ export class ShiftRepository {
 		return this.toDomain(data);
 	}
 
+	/**
+	 * 複数の ID でシフトを一括取得する
+	 * clients・staffs を JOIN して client_name / staff_name も返す
+	 * 空配列時は即 [] を返す
+	 */
+	async findByIds(ids: string[]): Promise<ShiftWithNames[]> {
+		if (ids.length === 0) return [];
+
+		const { data, error } = await this.supabase
+			.from('shifts')
+			.select('*, clients(name, office_id), staffs(name)')
+			.in('id', ids)
+			.order('start_time');
+
+		if (error) throw error;
+
+		return (data ?? []).map((row) => {
+			const listRow = row as ShiftListRow;
+			const shift = this.toDomain(listRow);
+			const clientName = this.extractNameFromRelation(listRow.clients);
+			const staffName = this.extractNameFromRelation(listRow.staffs);
+
+			return {
+				...shift,
+				...(clientName ? { client_name: clientName } : {}),
+				...(staffName ? { staff_name: staffName } : {}),
+			};
+		});
+	}
+
 	async create(shift: Shift): Promise<void> {
 		const dbData = this.toDB(shift);
 		const { error } = await this.supabase.from('shifts').insert(dbData);

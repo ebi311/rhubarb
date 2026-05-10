@@ -925,4 +925,93 @@ describe('StaffRepository', () => {
 			expect(mockStaffOr).toHaveBeenCalledTimes(1);
 		});
 	});
+
+	describe('findByIds', () => {
+		const baseRow = {
+			id: TEST_IDS.STAFF_1,
+			office_id: TEST_IDS.OFFICE_1,
+			name: '管理者A',
+			kana: null as string | null,
+			role: 'admin' as const,
+			email: 'admin@example.com',
+			note: null as string | null,
+			auth_user_id: null as string | null,
+			created_at: '2025-12-22T00:00:00Z',
+			updated_at: '2025-12-22T00:00:00Z',
+		};
+
+		it('空配列を渡した場合は即 [] を返す（DB アクセスなし）', async () => {
+			const result = await repository.findByIds([]);
+
+			expect(result).toEqual([]);
+			expect(supabase.from).not.toHaveBeenCalled();
+		});
+
+		it('指定した IDs で .in("id", ids) を使って検索する', async () => {
+			const ids = [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2];
+			const rows = [
+				baseRow,
+				{ ...baseRow, id: TEST_IDS.STAFF_2, name: 'ヘルパーB' },
+			];
+
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockIn = vi.fn().mockResolvedValueOnce({ data: rows, error: null });
+
+			(supabase.from as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+				select: mockSelect,
+				in: mockIn,
+			});
+			mockSelect.mockReturnValueOnce({ in: mockIn });
+
+			await repository.findByIds(ids);
+
+			expect(mockIn).toHaveBeenCalledWith('id', ids);
+		});
+
+		it('取得したデータを Staff[] にマッピングして返す', async () => {
+			const ids = [TEST_IDS.STAFF_1, TEST_IDS.STAFF_2];
+			const rows = [
+				baseRow,
+				{
+					...baseRow,
+					id: TEST_IDS.STAFF_2,
+					name: 'ヘルパーB',
+					role: 'helper' as const,
+				},
+			];
+
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockIn = vi.fn().mockResolvedValueOnce({ data: rows, error: null });
+
+			(supabase.from as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+				select: mockSelect,
+				in: mockIn,
+			});
+			mockSelect.mockReturnValueOnce({ in: mockIn });
+
+			const result = await repository.findByIds(ids);
+
+			expect(result).toHaveLength(2);
+			expect(result[0].name).toBe('管理者A');
+			expect(result[1].name).toBe('ヘルパーB');
+		});
+
+		it('DB エラー時は例外をスローする', async () => {
+			const ids = [TEST_IDS.STAFF_1];
+			const dbError = new Error('DB error');
+
+			const mockSelect = vi.fn().mockReturnThis();
+			const mockIn = vi
+				.fn()
+				.mockResolvedValueOnce({ data: null, error: dbError });
+
+			(supabase.from as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+				select: mockSelect,
+				in: mockIn,
+			});
+			mockSelect.mockReturnValueOnce({ in: mockIn });
+
+			await expect(repository.findByIds(ids)).rejects.toThrow('DB error');
+		});
+	});
 });

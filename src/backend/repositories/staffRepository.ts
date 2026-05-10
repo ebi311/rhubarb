@@ -156,6 +156,22 @@ export class StaffRepository {
 		return this.toDomain(data);
 	}
 
+	/**
+	 * 複数の ID でスタッフを一括取得する
+	 * 空配列時は即 [] を返す
+	 */
+	async findByIds(ids: string[]): Promise<Staff[]> {
+		if (ids.length === 0) return [];
+
+		const { data, error } = await this.supabase
+			.from('staffs')
+			.select('*')
+			.in('id', ids);
+
+		if (error) throw error;
+		return (data ?? []).map((row) => this.toDomain(row));
+	}
+
 	async findWithServiceTypesById(
 		id: string,
 	): Promise<StaffWithServiceTypes | null> {
