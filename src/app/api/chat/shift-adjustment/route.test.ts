@@ -1814,7 +1814,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 					shiftId: TEST_IDS.SCHEDULE_1,
 					toStaffId: TEST_IDS.STAFF_1,
 				}),
-			).resolves.toEqual({
+			).resolves.toMatchObject({
 				type: 'change_shift_staff',
 				shiftId: TEST_IDS.SCHEDULE_1,
 				toStaffId: TEST_IDS.STAFF_1,
@@ -3111,6 +3111,275 @@ describe('POST /api/chat/shift-adjustment', () => {
 
 				expect(response.status).toBe(200);
 				expect(mockStaffRepositoryListByOffice).not.toHaveBeenCalled();
+			});
+		});
+
+		describe('human-readable info in tool results', () => {
+			it('proposeShiftChange execute は context.shifts の情報から date/startTime/endTime/serviceTypeName/staffName を戻り値に追加する', async () => {
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '提案して' }],
+							context: {
+								shifts: [
+									{
+										id: TEST_IDS.SCHEDULE_1,
+										clientId: TEST_IDS.CLIENT_1,
+										serviceTypeId: 'life-support',
+										staffName: '山田 太郎',
+										clientName: '利用者A',
+										date: '2026-03-16',
+										startTime: '09:00',
+										endTime: '10:30',
+									},
+								],
+							},
+						}),
+					},
+				);
+
+				await POST(request);
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChange?: {
+							execute?: (input: {
+								type: 'change_shift_staff';
+								shiftId: string;
+								toStaffId: string;
+							}) => Promise<unknown>;
+						};
+					};
+				};
+
+				const execute = streamTextCall.tools?.proposeShiftChange?.execute;
+				expect(execute).toBeDefined();
+
+				const result = await execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+				});
+
+				expect(result).toMatchObject({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+					date: '2026-03-16',
+					startTime: '09:00',
+					endTime: '10:30',
+					serviceTypeName: '生活支援',
+					staffName: '山田 太郎',
+				});
+			});
+
+			it('proposeShiftChange execute は context.shifts に staffName がなければ staffName なしで返す', async () => {
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '提案して' }],
+							context: {
+								shifts: [
+									{
+										id: TEST_IDS.SCHEDULE_1,
+										clientId: TEST_IDS.CLIENT_1,
+										serviceTypeId: 'physical-care',
+										date: '2026-03-16',
+										startTime: '13:00',
+										endTime: '14:00',
+										// staffName は省略
+									},
+								],
+							},
+						}),
+					},
+				);
+
+				await POST(request);
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChange?: {
+							execute?: (input: {
+								type: 'change_shift_staff';
+								shiftId: string;
+								toStaffId: string;
+							}) => Promise<unknown>;
+						};
+					};
+				};
+
+				const execute = streamTextCall.tools?.proposeShiftChange?.execute;
+				const result = await execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+				});
+
+				expect(result).toMatchObject({
+					date: '2026-03-16',
+					startTime: '13:00',
+					endTime: '14:00',
+					serviceTypeName: '身体介護',
+				});
+				expect(result).not.toHaveProperty('staffName');
+			});
+
+			it('proposeShiftChanges execute は各 proposal に human-readable info を付与する', async () => {
+				// フル情報を持つシフトをモックとして返す
+				mockShiftRepositoryList.mockResolvedValue([
+					{
+						id: TEST_IDS.SCHEDULE_1,
+						date: new Date('2026-03-16T00:00:00+09:00'),
+						time: {
+							start: { hour: 9, minute: 0 },
+							end: { hour: 10, minute: 30 },
+						},
+						service_type_id: 'life-support',
+						staff_name: '山田 花子',
+						staff_id: TEST_IDS.STAFF_1,
+					},
+					{
+						id: TEST_IDS.SCHEDULE_2,
+						date: new Date('2026-03-17T00:00:00+09:00'),
+						time: {
+							start: { hour: 13, minute: 0 },
+							end: { hour: 14, minute: 0 },
+						},
+						service_type_id: 'physical-care',
+						staff_name: undefined, // 未割当
+						staff_id: null,
+					},
+				]);
+				mockStaffRepositoryListByOffice.mockResolvedValue([
+					{
+						id: TEST_IDS.STAFF_1,
+						role: 'helper' as const,
+						service_type_ids: ['life-support'],
+					},
+				]);
+
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '週次で調整したい' }],
+							context: {
+								mode: 'flexible',
+								weekRange: {
+									startDate: '2026-03-16',
+									endDate: '2026-03-22',
+								},
+							},
+						}),
+					},
+				);
+
+				await POST(request);
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChanges?: {
+							execute?: (input: unknown) => Promise<unknown>;
+						};
+					};
+				};
+
+				const execute = streamTextCall.tools?.proposeShiftChanges?.execute;
+				expect(execute).toBeDefined();
+
+				const result = await execute?.({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_1,
+						},
+						{
+							type: 'update_shift_time',
+							shiftId: TEST_IDS.SCHEDULE_2,
+							startAt: '2026-03-17T14:00:00+09:00',
+							endAt: '2026-03-17T15:00:00+09:00',
+						},
+					],
+				});
+
+				const typedResult = result as {
+					proposals: Array<Record<string, unknown>>;
+				};
+				expect(typedResult.proposals[0]).toMatchObject({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+					date: '2026-03-16',
+					startTime: '09:00',
+					endTime: '10:30',
+					serviceTypeName: '生活支援',
+					staffName: '山田 花子',
+				});
+				expect(typedResult.proposals[1]).toMatchObject({
+					type: 'update_shift_time',
+					shiftId: TEST_IDS.SCHEDULE_2,
+					date: '2026-03-17',
+					startTime: '13:00',
+					endTime: '14:00',
+					serviceTypeName: '身体介護',
+				});
+				expect(typedResult.proposals[1]).not.toHaveProperty('staffName');
+			});
+
+			it('システムプロンプトに変更提案時の人間可読な表示指示が含まれる', async () => {
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '提案してください' }],
+							context: {
+								shifts: [
+									{
+										id: TEST_IDS.SCHEDULE_1,
+										clientId: TEST_IDS.CLIENT_1,
+										serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+										date: '2026-03-16',
+										startTime: '09:00',
+										endTime: '10:00',
+									},
+								],
+							},
+						}),
+					},
+				);
+
+				const response = await POST(request);
+
+				expect(response.status).toBe(200);
+				expect(mockStreamText).toHaveBeenCalledWith(
+					expect.objectContaining({
+						system: expect.stringContaining('スタッフ名・日付・サービス種別名'),
+					}),
+				);
 			});
 		});
 	});

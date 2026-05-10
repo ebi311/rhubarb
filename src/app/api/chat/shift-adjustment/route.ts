@@ -1,3 +1,4 @@
+import type { ShiftWithNames } from '@/backend/repositories/shiftRepository';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { createGetShiftsTool } from '@/backend/tools/getShifts';
@@ -10,10 +11,11 @@ import {
 } from '@/models/aiChatMutationProposal';
 import { createJstDateStringSchema } from '@/models/valueObjects/jstDate';
 import {
+	ServiceTypeId,
 	ServiceTypeIdSchema,
 	ServiceTypeLabels,
 } from '@/models/valueObjects/serviceTypeId';
-import { parseJstDateString } from '@/utils/date';
+import { formatJstDateString, parseJstDateString } from '@/utils/date';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai';
@@ -385,6 +387,11 @@ const SUCCESS_ASSERTION_PROMPT = `
 - ツール実行が成功した場合に限り、成功断言を許可する
   - 成功時は、更新対象（shiftId）・変更内容（日時/利用者/ヘルパー/サービス種別など）を簡潔に要約して伝える
 
+## 変更提案の表示ルール
+- 変更提案ツールの戻り値には、スタッフ名・日付・サービス種別名などの情報が含まれる場合があります
+- 変更提案をユーザーに提示する際は、スタッフ名・日付・サービス種別名（serviceTypeName）を用いて人間が読みやすい形で表示してください
+- 内部識別子（shiftId, staffId など）はユーザーに直接提示しないでください
+
 日本語で丁寧に対応してください。`;
 
 // UIMessage モードか否かに応じてシステムプロンプトを切り替える
@@ -505,6 +512,72 @@ const buildContextPrompt = (
 ${shiftLines.join('\n')}${buildShiftSelectionPrompt(context.shifts.length)}`;
 };
 
+// ===== Human-readable shift info helpers =====
+
+type ShiftHumanInfo = {
+	date: string;
+	startTime: string;
+	endTime: string;
+	serviceTypeName: string;
+	staffName?: string;
+};
+
+const formatHHmm = (hour: number, minute: number): string =>
+	`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+/**
+ * ShiftWithNames から Human-readable な情報を抽出する。
+ * date / time / service_type_id が欠落している場合は null を返す（モックや不完全データ対応）。
+ */
+const extractShiftHumanInfo = (
+	shift: ShiftWithNames,
+): ShiftHumanInfo | null => {
+	if (!(shift.date instanceof Date) || !shift.time) {
+		return null;
+	}
+
+	const serviceTypeName =
+		ServiceTypeLabels[shift.service_type_id as ServiceTypeId] ??
+		shift.service_type_id;
+
+	const info: ShiftHumanInfo = {
+		date: formatJstDateString(shift.date),
+		startTime: formatHHmm(shift.time.start.hour, shift.time.start.minute),
+		endTime: formatHHmm(shift.time.end.hour, shift.time.end.minute),
+		serviceTypeName,
+	};
+
+	if (shift.staff_name) {
+		info.staffName = shift.staff_name;
+	}
+
+	return info;
+};
+
+/**
+ * context.shifts（ShiftContextItem）から Human-readable 情報へのマップを構築する。
+ */
+const buildContextShiftInfoMap = (
+	shifts: Array<z.infer<typeof ShiftContextItemSchema>>,
+): Map<string, ShiftHumanInfo> => {
+	const map = new Map<string, ShiftHumanInfo>();
+	for (const shift of shifts) {
+		const serviceTypeName =
+			ServiceTypeLabels[shift.serviceTypeId] ?? shift.serviceTypeId;
+		const info: ShiftHumanInfo = {
+			date: shift.date,
+			startTime: shift.startTime,
+			endTime: shift.endTime,
+			serviceTypeName,
+		};
+		if (shift.staffName) {
+			info.staffName = shift.staffName;
+		}
+		map.set(shift.id, info);
+	}
+	return map;
+};
+
 const isRecord = (input: unknown): input is Record<string, unknown> =>
 	typeof input === 'object' && input !== null;
 
@@ -564,11 +637,12 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-	shifts: Array<{ id: string }> | undefined,
+	shifts: Array<z.infer<typeof ShiftContextItemSchema>> | undefined,
 	logContext: RequestLogContext,
 ) => {
 	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
 	logContext.allowlistedShiftIdsSize = allowlistedShiftIds.size;
+	const shiftInfoMap = buildContextShiftInfoMap(shifts ?? []);
 
 	return tool({
 		description:
@@ -630,7 +704,8 @@ const createProposeShiftChangeTool = (
 				throw shiftNotFoundError;
 			}
 
-			return proposal;
+			const humanInfo = shiftInfoMap.get(proposal.shiftId);
+			return humanInfo ? { ...proposal, ...humanInfo } : proposal;
 		},
 	});
 };
@@ -638,6 +713,7 @@ const createProposeShiftChangeTool = (
 type FlexibleAllowlist = {
 	shiftIds: string[];
 	staffIds: string[];
+	shiftInfoMap: Map<string, ShiftHumanInfo>;
 };
 
 const isAllowedBatchProposal = (
@@ -675,20 +751,25 @@ const createProposeShiftChangesTool = (
 				(candidate) => !isAllowedProposal(candidate),
 			);
 
-			if (!invalidProposal) {
-				return proposal;
+			if (invalidProposal) {
+				const allowlistError = new Error(
+					'提案に許可されていないシフトまたはスタッフが含まれています。',
+				) as LoggedChatError;
+				allowlistError.__errorCode = 'allowlist_violation';
+				allowlistError.__logged = true;
+				logChatError('AI chat tool error', allowlistError, logContext, {
+					toolName: 'proposeShiftChanges',
+					proposalShiftId: invalidProposal.shiftId,
+				});
+				throw allowlistError;
 			}
 
-			const allowlistError = new Error(
-				'提案に許可されていないシフトまたはスタッフが含まれています。',
-			) as LoggedChatError;
-			allowlistError.__errorCode = 'allowlist_violation';
-			allowlistError.__logged = true;
-			logChatError('AI chat tool error', allowlistError, logContext, {
-				toolName: 'proposeShiftChanges',
-				proposalShiftId: invalidProposal.shiftId,
+			const enrichedProposals = proposal.proposals.map((p) => {
+				const humanInfo = allowlist.shiftInfoMap.get(p.shiftId);
+				return humanInfo ? { ...p, ...humanInfo } : p;
 			});
-			throw allowlistError;
+
+			return { proposals: enrichedProposals };
 		},
 	});
 };
@@ -704,14 +785,24 @@ const buildFlexibleAllowlist = async (
 		officeId,
 		startDate: parseJstDateString(weekRange.startDate),
 		endDate: parseJstDateString(weekRange.endDate),
+		includeNames: true,
 	});
 
 	// shiftIds が空なら staffIds は batch ツールで参照されない → listByOffice を省略
 	if (shifts.length === 0) {
-		return { shiftIds: [], staffIds: [] };
+		return { shiftIds: [], staffIds: [], shiftInfoMap: new Map() };
 	}
 
 	const shiftIds = [...new Set(shifts.map((shift) => shift.id))];
+
+	// human-readable info マップを構築（date/time が欠落しているエントリは除外）
+	const shiftInfoMap = new Map<string, ShiftHumanInfo>();
+	for (const shift of shifts) {
+		const info = extractShiftHumanInfo(shift);
+		if (info) {
+			shiftInfoMap.set(shift.id, info);
+		}
+	}
 
 	try {
 		const staffRepository = new StaffRepository(supabase);
@@ -728,14 +819,14 @@ const buildFlexibleAllowlist = async (
 			),
 		];
 
-		return { shiftIds, staffIds };
+		return { shiftIds, staffIds, shiftInfoMap };
 	} catch (e) {
 		logChatError(
 			`[buildFlexibleAllowlist] listByOffice failed, staffIds will be empty (officeId: ${officeId}, weekRange: ${weekRange.startDate}~${weekRange.endDate})`,
 			e,
 			logContext,
 		);
-		return { shiftIds, staffIds: [] };
+		return { shiftIds, staffIds: [], shiftInfoMap };
 	}
 };
 
