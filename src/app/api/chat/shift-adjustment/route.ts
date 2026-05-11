@@ -13,7 +13,11 @@ import {
 	ServiceTypeIdSchema,
 	ServiceTypeLabels,
 } from '@/models/valueObjects/serviceTypeId';
-import { formatJstDateString, parseJstDateString } from '@/utils/date';
+import {
+	formatJstDateString,
+	parseJstDateString,
+	timeObjectToString,
+} from '@/utils/date';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai';
@@ -521,9 +525,6 @@ type ShiftMeta = {
 	toStaffName?: string; // change_shift_staff のみ
 };
 
-const formatHHmm = (hour: number, minute: number): string =>
-	`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-
 const hasNestedToolInput = (
 	input: Record<string, unknown>,
 	key: string,
@@ -578,12 +579,34 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 	return input;
 }, AiChatMutationProposalSchema);
 
+const throwAllowlistViolation = (
+	message: string,
+	logContext: RequestLogContext,
+	extra: Record<string, unknown>,
+): never => {
+	const err = new Error(message) as LoggedChatError;
+	err.__errorCode = 'allowlist_violation';
+	err.__logged = true;
+	logChatError('AI chat tool error', err, logContext, extra);
+	throw err;
+};
+
+const isStaffAllowlistViolation = (
+	proposal: z.infer<typeof AiChatMutationProposalSchema>,
+	allowlistedStaffIds: Set<string>,
+): boolean =>
+	allowlistedStaffIds.size > 0 &&
+	proposal.type === 'change_shift_staff' &&
+	!allowlistedStaffIds.has(proposal.toStaffId);
+
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	shifts: Array<z.infer<typeof ShiftContextItemSchema>> | undefined,
 	logContext: RequestLogContext,
+	allowedStaffIds: string[] = [],
 ) => {
 	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
+	const allowlistedStaffIds = new Set(allowedStaffIds);
 	const shiftContextMap = new Map((shifts ?? []).map((s) => [s.id, s]));
 	logContext.allowlistedShiftIdsSize = allowlistedShiftIds.size;
 	const staffRepo = new StaffRepository(supabase);
@@ -594,16 +617,19 @@ const createProposeShiftChangeTool = (
 		inputSchema: ProposeShiftChangeToolInputSchema,
 		execute: async (proposal) => {
 			if (!allowlistedShiftIds.has(proposal.shiftId)) {
-				const allowlistError = new Error(
+				throwAllowlistViolation(
 					'シフトIDが不正です。候補に含まれているシフトから選択してください。',
-				) as LoggedChatError;
-				allowlistError.__errorCode = 'allowlist_violation';
-				allowlistError.__logged = true;
-				logChatError('AI chat tool error', allowlistError, logContext, {
-					toolName: 'proposeShiftChange',
-					proposalShiftId: proposal.shiftId,
-				});
-				throw allowlistError;
+					logContext,
+					{ toolName: 'proposeShiftChange', proposalShiftId: proposal.shiftId },
+				);
+			}
+
+			if (isStaffAllowlistViolation(proposal, allowlistedStaffIds)) {
+				throwAllowlistViolation(
+					'スタッフIDが不正です。候補に含まれているスタッフから選択してください。',
+					logContext,
+					{ toolName: 'proposeShiftChange', proposalShiftId: proposal.shiftId },
+				);
 			}
 
 			const { data: shiftData, error: shiftError } = await supabase
@@ -770,14 +796,8 @@ const createProposeShiftChangesTool = (
 
 					const meta: ShiftMeta = {
 						shiftDate: formatJstDateString(shift.date),
-						shiftStartTime: formatHHmm(
-							shift.time.start.hour,
-							shift.time.start.minute,
-						),
-						shiftEndTime: formatHHmm(
-							shift.time.end.hour,
-							shift.time.end.minute,
-						),
+						shiftStartTime: timeObjectToString(shift.time.start),
+						shiftEndTime: timeObjectToString(shift.time.end),
 						clientName: shift.client_name,
 						serviceTypeName: ServiceTypeLabels[shift.service_type_id],
 					};

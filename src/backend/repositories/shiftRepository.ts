@@ -132,6 +132,18 @@ export class ShiftRepository {
 		return relation.name;
 	}
 
+	private mapRowToShiftWithNames(row: ShiftListRow): ShiftWithNames {
+		const shift = this.toDomain(row);
+		const clientName = this.extractNameFromRelation(row.clients);
+		const staffName = this.extractNameFromRelation(row.staffs);
+
+		return {
+			...shift,
+			...(clientName ? { client_name: clientName } : {}),
+			...(staffName ? { staff_name: staffName } : {}),
+		};
+	}
+
 	async list(filters: ShiftFilters = {}): Promise<ShiftWithNames[]> {
 		if (filters.date !== undefined && !isValidJstDateString(filters.date)) {
 			throw new Error(`ShiftRepository.list: 無効な date 値 "${filters.date}"`);
@@ -188,18 +200,9 @@ export class ShiftRepository {
 		const { data, error } = await query.order('start_time');
 		if (error) throw error;
 
-		return (data ?? []).map((row) => {
-			const listRow = row as ShiftListRow;
-			const shift = this.toDomain(listRow);
-			const clientName = this.extractNameFromRelation(listRow.clients);
-			const staffName = this.extractNameFromRelation(listRow.staffs);
-
-			return {
-				...shift,
-				...(clientName ? { client_name: clientName } : {}),
-				...(staffName ? { staff_name: staffName } : {}),
-			};
-		});
+		return (data ?? []).map((row) =>
+			this.mapRowToShiftWithNames(row as ShiftListRow),
+		);
 	}
 
 	async findById(id: string): Promise<Shift | null> {
@@ -229,18 +232,9 @@ export class ShiftRepository {
 
 		if (error) throw error;
 
-		return (data ?? []).map((row) => {
-			const listRow = row as ShiftListRow;
-			const shift = this.toDomain(listRow);
-			const clientName = this.extractNameFromRelation(listRow.clients);
-			const staffName = this.extractNameFromRelation(listRow.staffs);
-
-			return {
-				...shift,
-				...(clientName ? { client_name: clientName } : {}),
-				...(staffName ? { staff_name: staffName } : {}),
-			};
-		});
+		return (data ?? []).map((row) =>
+			this.mapRowToShiftWithNames(row as ShiftListRow),
+		);
 	}
 
 	async create(shift: Shift): Promise<void> {
