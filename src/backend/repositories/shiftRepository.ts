@@ -30,13 +30,8 @@ type ShiftRow = Database['public']['Tables']['shifts']['Row'];
 type ShiftInsert = Database['public']['Tables']['shifts']['Insert'];
 type ShiftListRow = ShiftRow & {
 	clients?:
-		| Pick<Database['public']['Tables']['clients']['Row'], 'name' | 'office_id'>
-		| Array<
-				Pick<
-					Database['public']['Tables']['clients']['Row'],
-					'name' | 'office_id'
-				>
-		  >
+		| Pick<Database['public']['Tables']['clients']['Row'], 'name'>
+		| Array<Pick<Database['public']['Tables']['clients']['Row'], 'name'>>
 		| null;
 	staffs?:
 		| Pick<Database['public']['Tables']['staffs']['Row'], 'name'>
@@ -228,7 +223,7 @@ export class ShiftRepository {
 
 		const { data, error } = await this.supabase
 			.from('shifts')
-			.select('*, clients(name, office_id), staffs(name)')
+			.select('*, clients(name), staffs(name)')
 			.in('id', ids)
 			.order('start_time');
 

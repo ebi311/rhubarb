@@ -586,6 +586,7 @@ const createProposeShiftChangeTool = (
 	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
 	const shiftContextMap = new Map((shifts ?? []).map((s) => [s.id, s]));
 	logContext.allowlistedShiftIdsSize = allowlistedShiftIds.size;
+	const staffRepo = new StaffRepository(supabase);
 
 	return tool({
 		description:
@@ -661,7 +662,6 @@ const createProposeShiftChangeTool = (
 					};
 
 					if (proposal.type === 'change_shift_staff') {
-						const staffRepo = new StaffRepository(supabase);
 						const toStaff = await staffRepo.findById(proposal.toStaffId);
 						if (toStaff) {
 							baseMeta.toStaffName = toStaff.name;
@@ -744,12 +744,15 @@ const createProposeShiftChangesTool = (
 				const toStaffIds = [
 					...new Set(
 						proposal.proposals
-							.filter((p) => p.type === 'change_shift_staff')
-							.map(
-								(p) =>
-									(p as { type: 'change_shift_staff'; toStaffId: string })
-										.toStaffId,
-							),
+							.filter(
+								(
+									p,
+								): p is Extract<
+									(typeof proposal.proposals)[number],
+									{ type: 'change_shift_staff' }
+								> => p.type === 'change_shift_staff',
+							)
+							.map((p) => p.toStaffId),
 					),
 				];
 
@@ -780,10 +783,7 @@ const createProposeShiftChangesTool = (
 					};
 
 					if (p.type === 'change_shift_staff') {
-						const toStaff = staffMap.get(
-							(p as { type: 'change_shift_staff'; toStaffId: string })
-								.toStaffId,
-						);
+						const toStaff = staffMap.get(p.toStaffId);
 						if (toStaff) {
 							meta.toStaffName = toStaff.name;
 						}
