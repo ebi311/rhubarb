@@ -7,6 +7,7 @@ import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
 import {
 	AiChatMutationBatchProposalSchema,
 	AiChatMutationProposalSchema,
+	type ShiftMeta,
 } from '@/models/aiChatMutationProposal';
 import { createJstDateStringSchema } from '@/models/valueObjects/jstDate';
 import {
@@ -513,19 +514,6 @@ ${shiftLines.join('\n')}${buildShiftSelectionPrompt(context.shifts.length)}`;
 
 const isRecord = (input: unknown): input is Record<string, unknown> =>
 	typeof input === 'object' && input !== null;
-
-/**
- * AI 参照専用のシフトメタ情報
- * UI 確定処理・永続化には影響しない
- */
-type ShiftMeta = {
-	shiftDate: string; // "2026-05-10"
-	shiftStartTime: string; // "09:00"
-	shiftEndTime: string; // "10:00"
-	clientName?: string;
-	serviceTypeName: string;
-	toStaffName?: string; // change_shift_staff のみ
-};
 
 const hasNestedToolInput = (
 	input: Record<string, unknown>,

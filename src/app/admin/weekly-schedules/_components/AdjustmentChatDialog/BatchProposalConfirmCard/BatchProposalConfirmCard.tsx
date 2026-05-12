@@ -22,7 +22,24 @@ const createProposalDescription = (
 	proposal: AiChatMutationProposal,
 ): string => {
 	if (proposal.type === 'change_shift_staff') {
+		if (proposal._meta) {
+			const {
+				shiftDate,
+				shiftStartTime,
+				shiftEndTime,
+				clientName,
+				toStaffName,
+			} = proposal._meta;
+			const displayName = clientName ?? '利用者不明';
+			const staffDisplay = toStaffName ?? proposal.toStaffId;
+			return `${shiftDate} ${displayName}様 ${shiftStartTime}〜${shiftEndTime} → ${staffDisplay}`;
+		}
 		return `shiftId: ${proposal.shiftId} / toStaffId: ${proposal.toStaffId}`;
+	}
+
+	if (proposal._meta) {
+		const { shiftDate, shiftStartTime, shiftEndTime } = proposal._meta;
+		return `${shiftDate} ${shiftStartTime}〜${shiftEndTime}`;
 	}
 
 	return `${proposal.startAt} → ${proposal.endAt}`;
