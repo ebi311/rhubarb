@@ -18,7 +18,10 @@ const {
 	mockCreateSearchStaffsTool,
 	mockCreateGetShiftsTool,
 	mockShiftRepositoryList,
+	mockShiftRepositoryFindByIds,
 	mockStaffRepositoryListByOffice,
+	mockStaffRepositoryFindById,
+	mockStaffRepositoryFindByIds,
 	mockStepCountIs,
 } = vi.hoisted(() => ({
 	mockStreamText: vi.fn(),
@@ -36,7 +39,10 @@ const {
 	mockCreateSearchStaffsTool: vi.fn(),
 	mockCreateGetShiftsTool: vi.fn(),
 	mockShiftRepositoryList: vi.fn(),
+	mockShiftRepositoryFindByIds: vi.fn(),
 	mockStaffRepositoryListByOffice: vi.fn(),
+	mockStaffRepositoryFindById: vi.fn(),
+	mockStaffRepositoryFindByIds: vi.fn(),
 	mockStepCountIs: vi.fn((n: number) => ({ type: 'stepCountIs', count: n })),
 }));
 
@@ -80,6 +86,7 @@ vi.mock('@/backend/repositories/shiftRepository', () => ({
 	ShiftRepository: function MockShiftRepository() {
 		return {
 			list: mockShiftRepositoryList,
+			findByIds: mockShiftRepositoryFindByIds,
 		};
 	},
 }));
@@ -88,6 +95,8 @@ vi.mock('@/backend/repositories/staffRepository', () => ({
 	StaffRepository: function MockStaffRepository() {
 		return {
 			listByOffice: mockStaffRepositoryListByOffice,
+			findById: mockStaffRepositoryFindById,
+			findByIds: mockStaffRepositoryFindByIds,
 		};
 	},
 }));
@@ -158,7 +167,10 @@ describe('POST /api/chat/shift-adjustment', () => {
 			description: 'mock get shifts tool',
 		});
 		mockShiftRepositoryList.mockResolvedValue([]);
+		mockShiftRepositoryFindByIds.mockResolvedValue([]);
 		mockStaffRepositoryListByOffice.mockResolvedValue([]);
+		mockStaffRepositoryFindById.mockResolvedValue(null);
+		mockStaffRepositoryFindByIds.mockResolvedValue([]);
 
 		// デフォルトのstreamTextモック
 		mockToUIMessageStreamResponse.mockReturnValue(
@@ -1814,7 +1826,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 					shiftId: TEST_IDS.SCHEDULE_1,
 					toStaffId: TEST_IDS.STAFF_1,
 				}),
-			).resolves.toEqual({
+			).resolves.toMatchObject({
 				type: 'change_shift_staff',
 				shiftId: TEST_IDS.SCHEDULE_1,
 				toStaffId: TEST_IDS.STAFF_1,
@@ -2442,6 +2454,140 @@ describe('POST /api/chat/shift-adjustment', () => {
 					shiftErrorCode: '57014',
 				}),
 			);
+			consoleErrorSpy.mockRestore();
+		});
+
+		it('proposeShiftChange tool は context.staffIds の allowlist を検証する（Thread 7）', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '提案して' }],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2025-01-20',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+							staffIds: [TEST_IDS.STAFF_1],
+						},
+					}),
+				},
+			);
+
+			await POST(request);
+
+			const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+				tools?: {
+					proposeShiftChange?: {
+						execute?: (input: {
+							type: 'change_shift_staff';
+							shiftId: string;
+							toStaffId: string;
+						}) => Promise<unknown>;
+					};
+				};
+			};
+
+			const execute = streamTextCall.tools?.proposeShiftChange?.execute;
+			expect(execute).toBeDefined();
+
+			// staffIds に含まれていない STAFF_2 は拒否される
+			await expect(
+				execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_2,
+				}),
+			).rejects.toThrow('スタッフIDが不正です');
+
+			// staffIds に含まれている STAFF_1 は通過する
+			await expect(
+				execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+				}),
+			).resolves.toMatchObject({
+				type: 'change_shift_staff',
+				shiftId: TEST_IDS.SCHEDULE_1,
+				toStaffId: TEST_IDS.STAFF_1,
+			});
+		});
+
+		it('proposeShiftChange tool のスタッフ allowlist 違反時に logChatError の extra に toStaffId を含める（Thread 8）', async () => {
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined);
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '提案して' }],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									clientId: TEST_IDS.CLIENT_1,
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+									date: '2025-01-20',
+									startTime: '09:00',
+									endTime: '10:00',
+								},
+							],
+							staffIds: [TEST_IDS.STAFF_1],
+						},
+					}),
+				},
+			);
+
+			await POST(request);
+
+			const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+				tools?: {
+					proposeShiftChange?: {
+						execute?: (input: {
+							type: 'change_shift_staff';
+							shiftId: string;
+							toStaffId: string;
+						}) => Promise<unknown>;
+					};
+				};
+			};
+
+			await expect(
+				streamTextCall.tools?.proposeShiftChange?.execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_2,
+				}),
+			).rejects.toThrow('スタッフIDが不正です');
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({
+					errorType: 'allowlist_violation',
+					toolName: 'proposeShiftChange',
+					toStaffId: TEST_IDS.STAFF_2,
+				}),
+			);
+
 			consoleErrorSpy.mockRestore();
 		});
 
@@ -3111,6 +3257,341 @@ describe('POST /api/chat/shift-adjustment', () => {
 
 				expect(response.status).toBe(200);
 				expect(mockStaffRepositoryListByOffice).not.toHaveBeenCalled();
+			});
+		});
+
+		// ===== C-1: proposeShiftChange / _meta 付与 =====
+		describe('proposeShiftChange / _meta 付与', () => {
+			/** proposeShiftChange ツールの execute を取り出す共通ヘルパー */
+			const getExecute = async (shiftContextOverride?: {
+				clientName?: string;
+				serviceTypeId?: string;
+			}) => {
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '提案して' }],
+							context: {
+								shifts: [
+									{
+										id: TEST_IDS.SCHEDULE_1,
+										clientId: TEST_IDS.CLIENT_1,
+										serviceTypeId:
+											shiftContextOverride?.serviceTypeId ?? 'life-support',
+										clientName: shiftContextOverride?.clientName ?? '利用者A',
+										date: '2026-03-16',
+										startTime: '09:00',
+										endTime: '10:00',
+									},
+								],
+							},
+						}),
+					},
+				);
+
+				await POST(request);
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChange?: {
+							execute?: (input: {
+								type: 'change_shift_staff';
+								shiftId: string;
+								toStaffId: string;
+							}) => Promise<unknown>;
+						};
+					};
+				};
+
+				return streamTextCall.tools?.proposeShiftChange?.execute;
+			};
+
+			it('shiftContext あり + findById 成功（change_shift_staff）→ _meta が toStaffName 付きで付与される', async () => {
+				mockStaffRepositoryFindById.mockResolvedValue({
+					id: TEST_IDS.STAFF_1,
+					office_id: TEST_IDS.OFFICE_1,
+					name: 'テストスタッフA',
+					role: 'helper',
+					created_at: new Date('2024-01-01T00:00:00.000Z'),
+					updated_at: new Date('2024-01-01T00:00:00.000Z'),
+				});
+
+				const execute = await getExecute({ clientName: '利用者A' });
+
+				const result = await execute?.({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+				});
+
+				expect(result).toEqual({
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_1,
+					_meta: {
+						shiftDate: '2026-03-16',
+						shiftStartTime: '09:00',
+						shiftEndTime: '10:00',
+						clientName: '利用者A',
+						serviceTypeName: '生活支援',
+						toStaffName: 'テストスタッフA',
+					},
+				});
+			});
+
+			it('shiftContext あり + findById がエラーをスロー → _meta なしで proposal が返る（フォールバック）', async () => {
+				mockStaffRepositoryFindById.mockRejectedValue(
+					new Error('DB connection error'),
+				);
+
+				const consoleErrorSpy = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => undefined);
+
+				try {
+					const execute = await getExecute();
+
+					const result = await execute?.({
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+					});
+
+					// _meta なしで proposal がそのまま返ること
+					expect(result).toEqual({
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+					});
+					// フォールバック時にエラーログが出力されること
+					expect(consoleErrorSpy).toHaveBeenCalledWith(
+						'Failed to build _meta for proposeShiftChange',
+						expect.anything(),
+					);
+				} finally {
+					consoleErrorSpy.mockRestore();
+				}
+			});
+
+			it('shiftContext あり + allowlistedStaffIds に toStaffId が含まれない → findById が呼ばれず toStaffName が付与されない（Thread 3）', async () => {
+				// allowlistedStaffIds に STAFF_2 のみ含む状態で STAFF_1 を指定
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '提案して' }],
+							context: {
+								shifts: [
+									{
+										id: TEST_IDS.SCHEDULE_1,
+										clientId: TEST_IDS.CLIENT_1,
+										serviceTypeId: 'life-support',
+										clientName: '利用者A',
+										date: '2026-03-16',
+										startTime: '09:00',
+										endTime: '10:00',
+									},
+								],
+								staffIds: [TEST_IDS.STAFF_2], // STAFF_1 は含まれない
+							},
+						}),
+					},
+				);
+
+				await POST(request);
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChange?: {
+							execute?: (input: {
+								type: 'change_shift_staff';
+								shiftId: string;
+								toStaffId: string;
+							}) => Promise<unknown>;
+						};
+					};
+				};
+
+				const execute = streamTextCall.tools?.proposeShiftChange?.execute;
+				expect(execute).toBeDefined();
+
+				// allowlist 違反で例外が発生すること
+				await expect(
+					execute?.({
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1, // allowlist 外
+					}),
+				).rejects.toThrow('スタッフIDが不正です');
+
+				// findById が呼ばれていないこと（allowlist 外スタッフのスタッフ名は取得しない）
+				expect(mockStaffRepositoryFindById).not.toHaveBeenCalled();
+			});
+		});
+
+		// ===== C-2: proposeShiftChanges / _meta 付与 =====
+		describe('proposeShiftChanges / _meta 付与', () => {
+			/** flexible モードで proposeShiftChanges execute を取り出す共通ヘルパー */
+			const getExecute = async () => {
+				mockShiftRepositoryList.mockResolvedValue([
+					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+					{ id: TEST_IDS.SCHEDULE_2, staff_id: TEST_IDS.STAFF_2 },
+				]);
+				mockStaffRepositoryListByOffice.mockResolvedValue([
+					{
+						id: TEST_IDS.STAFF_1,
+						role: 'helper' as const,
+						service_type_ids: ['life-support'],
+					},
+					{
+						id: TEST_IDS.STAFF_2,
+						role: 'helper' as const,
+						service_type_ids: ['physical-care'],
+					},
+				]);
+
+				const request = new Request(
+					'http://localhost/api/chat/shift-adjustment',
+					{
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-ai-response-format': 'uimessage',
+						},
+						body: JSON.stringify({
+							messages: [{ role: 'user', content: '複数シフト調整して' }],
+							context: {
+								mode: 'flexible',
+								weekRange: {
+									startDate: '2026-03-16',
+									endDate: '2026-03-22',
+								},
+							},
+						}),
+					},
+				);
+
+				await POST(request);
+
+				const streamTextCall = mockStreamText.mock.calls.at(-1)?.[0] as {
+					tools?: {
+						proposeShiftChanges?: {
+							execute?: (input: unknown) => Promise<unknown>;
+						};
+					};
+				};
+
+				return streamTextCall.tools?.proposeShiftChanges?.execute;
+			};
+
+			it('findByIds 成功 → 各 proposal に _meta が付与される', async () => {
+				// ShiftRepository.findByIds: SCHEDULE_1 を返す
+				mockShiftRepositoryFindByIds.mockResolvedValue([
+					{
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_1,
+						date: new Date('2026-03-16T00:00:00+09:00'),
+						time: {
+							start: { hour: 9, minute: 0 },
+							end: { hour: 10, minute: 0 },
+						},
+						status: 'scheduled',
+						is_unassigned: false,
+						created_at: new Date('2024-01-01T00:00:00.000Z'),
+						updated_at: new Date('2024-01-01T00:00:00.000Z'),
+						client_name: '利用者A',
+					},
+				]);
+				// StaffRepository.findByIds: STAFF_2 を返す
+				mockStaffRepositoryFindByIds.mockResolvedValue([
+					{
+						id: TEST_IDS.STAFF_2,
+						office_id: TEST_IDS.OFFICE_1,
+						name: 'テストスタッフB',
+						role: 'helper',
+						created_at: new Date('2024-01-01T00:00:00.000Z'),
+						updated_at: new Date('2024-01-01T00:00:00.000Z'),
+					},
+				]);
+
+				const execute = await getExecute();
+
+				const result = await execute?.({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_2,
+						},
+					],
+				});
+
+				expect(result).toEqual({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_2,
+							_meta: {
+								shiftDate: '2026-03-16',
+								shiftStartTime: '09:00',
+								shiftEndTime: '10:00',
+								clientName: '利用者A',
+								serviceTypeName: '生活支援',
+								toStaffName: 'テストスタッフB',
+							},
+						},
+					],
+				});
+			});
+
+			it('ShiftRepository.findByIds がエラーをスロー → proposals そのまま返る（フォールバック）', async () => {
+				mockShiftRepositoryFindByIds.mockRejectedValue(
+					new Error('DB connection error'),
+				);
+
+				const consoleErrorSpy = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => undefined);
+
+				try {
+					const execute = await getExecute();
+
+					const input = {
+						proposals: [
+							{
+								type: 'change_shift_staff' as const,
+								shiftId: TEST_IDS.SCHEDULE_1,
+								toStaffId: TEST_IDS.STAFF_2,
+							},
+						],
+					};
+
+					const result = await execute?.(input);
+
+					// _meta なしで proposals がそのまま返ること
+					expect(result).toEqual(input);
+					// フォールバック時にエラーログが出力されること
+					expect(consoleErrorSpy).toHaveBeenCalledWith(
+						'Failed to build _meta for proposeShiftChanges',
+						expect.anything(),
+					);
+				} finally {
+					consoleErrorSpy.mockRestore();
+				}
 			});
 		});
 	});

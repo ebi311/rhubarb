@@ -1061,4 +1061,138 @@ describe('ShiftRepository', () => {
 			expect(mockSupabase._mockQuery.limit).toHaveBeenCalledWith(100);
 		});
 	});
+
+	describe('findByIds', () => {
+		const makeShiftRow = (id: string) => ({
+			id,
+			client_id: TEST_IDS.CLIENT_1,
+			service_type_id: 'life-support' as const,
+			staff_id: TEST_IDS.STAFF_1,
+			start_time: '2026-05-10T00:00:00+09:00',
+			end_time: '2026-05-10T01:00:00+09:00',
+			status: 'scheduled' as const,
+			is_unassigned: false,
+			canceled_reason: null,
+			canceled_category: null,
+			canceled_at: null,
+			notes: null,
+			created_at: '2026-01-01T00:00:00Z',
+			updated_at: '2026-01-01T00:00:00Z',
+		});
+
+		it('空配列を渡した場合は即 [] を返す（DB アクセスなし）', async () => {
+			const result = await repository.findByIds([]);
+
+			expect(result).toEqual([]);
+			expect(mockSupabase.from).not.toHaveBeenCalled();
+		});
+
+		it('指定した IDs で .in("id", ids) を使って検索する', async () => {
+			const ids = [TEST_IDS.SCHEDULE_1, TEST_IDS.SCHEDULE_2];
+			const rows = ids.map(makeShiftRow);
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: rows,
+				error: null,
+			});
+
+			await repository.findByIds(ids);
+
+			expect(mockSupabase._mockQuery.in).toHaveBeenCalledWith('id', ids);
+		});
+
+		it('clients と staffs を JOIN する SELECT を発行する', async () => {
+			const ids = [TEST_IDS.SCHEDULE_1];
+			const rows = ids.map(makeShiftRow);
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: rows,
+				error: null,
+			});
+
+			await repository.findByIds(ids);
+
+			expect(mockSupabase._mockQuery.select).toHaveBeenCalledWith(
+				'*, clients(name), staffs(name)',
+			);
+		});
+
+		it('返却されたデータを ShiftWithNames[] にマッピングする', async () => {
+			const ids = [TEST_IDS.SCHEDULE_1];
+			const rows = [
+				{
+					...makeShiftRow(TEST_IDS.SCHEDULE_1),
+					clients: { name: 'テスト利用者' },
+					staffs: { name: 'テストスタッフ' },
+				},
+			];
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: rows,
+				error: null,
+			});
+
+			const result = await repository.findByIds(ids);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].client_name).toBe('テスト利用者');
+			expect(result[0].staff_name).toBe('テストスタッフ');
+		});
+
+		it('clients が null の場合、client_name は undefined になる', async () => {
+			const ids = [TEST_IDS.SCHEDULE_1];
+			const rows = [
+				{
+					...makeShiftRow(TEST_IDS.SCHEDULE_1),
+					clients: null,
+					staffs: { name: 'テストスタッフ' },
+				},
+			];
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: rows,
+				error: null,
+			});
+
+			const result = await repository.findByIds(ids);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].client_name).toBeUndefined();
+			expect(result[0].staff_name).toBe('テストスタッフ');
+		});
+
+		it('staffs が null の場合、staff_name は undefined になる', async () => {
+			const ids = [TEST_IDS.SCHEDULE_1];
+			const rows = [
+				{
+					...makeShiftRow(TEST_IDS.SCHEDULE_1),
+					clients: { name: 'テスト利用者' },
+					staffs: null,
+				},
+			];
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: rows,
+				error: null,
+			});
+
+			const result = await repository.findByIds(ids);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].client_name).toBe('テスト利用者');
+			expect(result[0].staff_name).toBeUndefined();
+		});
+
+		it('DB エラー時は例外をスローする', async () => {
+			const ids = [TEST_IDS.SCHEDULE_1];
+			const dbError = new Error('DB error');
+
+			mockSupabase._mockQuery.order.mockResolvedValueOnce({
+				data: null,
+				error: dbError,
+			});
+
+			await expect(repository.findByIds(ids)).rejects.toThrow('DB error');
+		});
+	});
 });

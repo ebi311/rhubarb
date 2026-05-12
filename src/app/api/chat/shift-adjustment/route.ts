@@ -13,7 +13,11 @@ import {
 	ServiceTypeIdSchema,
 	ServiceTypeLabels,
 } from '@/models/valueObjects/serviceTypeId';
-import { parseJstDateString } from '@/utils/date';
+import {
+	formatJstDateString,
+	parseJstDateString,
+	timeObjectToString,
+} from '@/utils/date';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai';
@@ -228,6 +232,7 @@ const logChatError = (
 		toolName: string;
 		proposalShiftId: string;
 		shiftErrorCode: string;
+		toStaffId: string;
 	}> = {},
 ): void => {
 	const errorMessage =
@@ -259,6 +264,7 @@ const logChatError = (
 		toolName: extra.toolName,
 		proposalShiftId: extra.proposalShiftId,
 		shiftErrorCode: extra.shiftErrorCode,
+		toStaffId: extra.toStaffId,
 		stack: error instanceof Error ? error.stack : undefined,
 	});
 };
@@ -508,6 +514,19 @@ ${shiftLines.join('\n')}${buildShiftSelectionPrompt(context.shifts.length)}`;
 const isRecord = (input: unknown): input is Record<string, unknown> =>
 	typeof input === 'object' && input !== null;
 
+/**
+ * AI 参照専用のシフトメタ情報
+ * UI 確定処理・永続化には影響しない
+ */
+type ShiftMeta = {
+	shiftDate: string; // "2026-05-10"
+	shiftStartTime: string; // "09:00"
+	shiftEndTime: string; // "10:00"
+	clientName?: string;
+	serviceTypeName: string;
+	toStaffName?: string; // change_shift_staff のみ
+};
+
 const hasNestedToolInput = (
 	input: Record<string, unknown>,
 	key: string,
@@ -562,13 +581,80 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 	return input;
 }, AiChatMutationProposalSchema);
 
+const throwAllowlistViolation = (
+	message: string,
+	logContext: RequestLogContext,
+	extra: Parameters<typeof logChatError>[3],
+): never => {
+	const err = new Error(message) as LoggedChatError;
+	err.__errorCode = 'allowlist_violation';
+	err.__logged = true;
+	logChatError('AI chat tool error', err, logContext, extra);
+	throw err;
+};
+
+const isStaffAllowlistViolation = (
+	proposal: z.infer<typeof AiChatMutationProposalSchema>,
+	allowlistedStaffIds: Set<string>,
+): boolean =>
+	allowlistedStaffIds.size > 0 &&
+	proposal.type === 'change_shift_staff' &&
+	!allowlistedStaffIds.has(proposal.toStaffId);
+
+/** change_shift_staff 提案から toStaffId を取り出す（それ以外は undefined） */
+const extractToStaffId = (
+	proposal: z.infer<typeof AiChatMutationProposalSchema>,
+): string | undefined =>
+	proposal.type === 'change_shift_staff' ? proposal.toStaffId : undefined;
+
+/** context から staffIds を取り出す（未設定なら空配列） */
+const getContextStaffIds = (context: ChatRequest['context']): string[] =>
+	context?.staffIds ?? [];
+
+/** proposeShiftChange ツール用の _meta を構築する（失敗時は undefined を返す） */
+const buildProposeShiftChangeMeta = async (
+	proposal: z.infer<typeof AiChatMutationProposalSchema>,
+	shiftContextMap: Map<string, z.infer<typeof ShiftContextItemSchema>>,
+	staffRepo: StaffRepository,
+	allowlistedStaffIds: Set<string>,
+): Promise<ShiftMeta | undefined> => {
+	const shiftContext = shiftContextMap.get(proposal.shiftId);
+	if (!shiftContext) return undefined;
+
+	const baseMeta: ShiftMeta = {
+		shiftDate: shiftContext.date,
+		shiftStartTime: shiftContext.startTime,
+		shiftEndTime: shiftContext.endTime,
+		clientName: shiftContext.clientName,
+		serviceTypeName: ServiceTypeLabels[shiftContext.serviceTypeId],
+	};
+
+	if (proposal.type === 'change_shift_staff') {
+		const isAllowedStaff =
+			allowlistedStaffIds.size === 0 ||
+			allowlistedStaffIds.has(proposal.toStaffId);
+		if (isAllowedStaff) {
+			const toStaff = await staffRepo.findById(proposal.toStaffId);
+			if (toStaff) {
+				baseMeta.toStaffName = toStaff.name;
+			}
+		}
+	}
+
+	return baseMeta;
+};
+
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
-	shifts: Array<{ id: string }> | undefined,
+	shifts: Array<z.infer<typeof ShiftContextItemSchema>> | undefined,
 	logContext: RequestLogContext,
+	allowedStaffIds: string[] = [],
 ) => {
 	const allowlistedShiftIds = new Set((shifts ?? []).map((shift) => shift.id));
+	const allowlistedStaffIds = new Set(allowedStaffIds);
+	const shiftContextMap = new Map((shifts ?? []).map((s) => [s.id, s]));
 	logContext.allowlistedShiftIdsSize = allowlistedShiftIds.size;
+	const staffRepo = new StaffRepository(supabase);
 
 	return tool({
 		description:
@@ -576,16 +662,23 @@ const createProposeShiftChangeTool = (
 		inputSchema: ProposeShiftChangeToolInputSchema,
 		execute: async (proposal) => {
 			if (!allowlistedShiftIds.has(proposal.shiftId)) {
-				const allowlistError = new Error(
+				throwAllowlistViolation(
 					'シフトIDが不正です。候補に含まれているシフトから選択してください。',
-				) as LoggedChatError;
-				allowlistError.__errorCode = 'allowlist_violation';
-				allowlistError.__logged = true;
-				logChatError('AI chat tool error', allowlistError, logContext, {
-					toolName: 'proposeShiftChange',
-					proposalShiftId: proposal.shiftId,
-				});
-				throw allowlistError;
+					logContext,
+					{ toolName: 'proposeShiftChange', proposalShiftId: proposal.shiftId },
+				);
+			}
+
+			if (isStaffAllowlistViolation(proposal, allowlistedStaffIds)) {
+				throwAllowlistViolation(
+					'スタッフIDが不正です。候補に含まれているスタッフから選択してください。',
+					logContext,
+					{
+						toolName: 'proposeShiftChange',
+						proposalShiftId: proposal.shiftId,
+						toStaffId: extractToStaffId(proposal),
+					},
+				);
 			}
 
 			const { data: shiftData, error: shiftError } = await supabase
@@ -630,7 +723,29 @@ const createProposeShiftChangeTool = (
 				throw shiftNotFoundError;
 			}
 
-			return proposal;
+			// _meta 構築（失敗時はフォールバックとして省略）
+			let meta: ShiftMeta | undefined;
+			try {
+				meta = await buildProposeShiftChangeMeta(
+					proposal,
+					shiftContextMap,
+					staffRepo,
+					allowlistedStaffIds,
+				);
+			} catch (e) {
+				logChatError(
+					'Failed to build _meta for proposeShiftChange',
+					e,
+					logContext,
+					{
+						toolName: 'proposeShiftChange',
+						proposalShiftId: proposal.shiftId,
+						toStaffId: extractToStaffId(proposal),
+					},
+				);
+			}
+
+			return meta ? { ...proposal, _meta: meta } : proposal;
 		},
 	});
 };
@@ -661,6 +776,7 @@ const isAllowedBatchProposal = (
 
 const createProposeShiftChangesTool = (
 	allowlist: FlexibleAllowlist,
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	logContext: RequestLogContext,
 ) => {
 	const isAllowedProposal = isAllowedBatchProposal(allowlist);
@@ -675,20 +791,77 @@ const createProposeShiftChangesTool = (
 				(candidate) => !isAllowedProposal(candidate),
 			);
 
-			if (!invalidProposal) {
-				return proposal;
+			if (invalidProposal) {
+				const allowlistError = new Error(
+					'提案に許可されていないシフトまたはスタッフが含まれています。',
+				) as LoggedChatError;
+				allowlistError.__errorCode = 'allowlist_violation';
+				allowlistError.__logged = true;
+				logChatError('AI chat tool error', allowlistError, logContext, {
+					toolName: 'proposeShiftChanges',
+					proposalShiftId: invalidProposal.shiftId,
+				});
+				throw allowlistError;
 			}
 
-			const allowlistError = new Error(
-				'提案に許可されていないシフトまたはスタッフが含まれています。',
-			) as LoggedChatError;
-			allowlistError.__errorCode = 'allowlist_violation';
-			allowlistError.__logged = true;
-			logChatError('AI chat tool error', allowlistError, logContext, {
-				toolName: 'proposeShiftChanges',
-				proposalShiftId: invalidProposal.shiftId,
-			});
-			throw allowlistError;
+			// _meta を各 proposal に付与（失敗時はフォールバックとして省略）
+			try {
+				const shiftIds = [...new Set(proposal.proposals.map((p) => p.shiftId))];
+				const toStaffIds = [
+					...new Set(
+						proposal.proposals
+							.filter(
+								(
+									p,
+								): p is Extract<
+									(typeof proposal.proposals)[number],
+									{ type: 'change_shift_staff' }
+								> => p.type === 'change_shift_staff',
+							)
+							.map((p) => p.toStaffId),
+					),
+				];
+
+				const [shifts, staffs] = await Promise.all([
+					new ShiftRepository(supabase).findByIds(shiftIds),
+					new StaffRepository(supabase).findByIds(toStaffIds),
+				]);
+
+				const shiftMap = new Map(shifts.map((s) => [s.id, s]));
+				const staffMap = new Map(staffs.map((s) => [s.id, s]));
+
+				const proposalsWithMeta = proposal.proposals.map((p) => {
+					const shift = shiftMap.get(p.shiftId);
+					if (!shift) return p;
+
+					const meta: ShiftMeta = {
+						shiftDate: formatJstDateString(shift.date),
+						shiftStartTime: timeObjectToString(shift.time.start),
+						shiftEndTime: timeObjectToString(shift.time.end),
+						clientName: shift.client_name,
+						serviceTypeName: ServiceTypeLabels[shift.service_type_id],
+					};
+
+					if (p.type === 'change_shift_staff') {
+						const toStaff = staffMap.get(p.toStaffId);
+						if (toStaff) {
+							meta.toStaffName = toStaff.name;
+						}
+					}
+
+					return { ...p, _meta: meta };
+				});
+
+				return { proposals: proposalsWithMeta };
+			} catch (e) {
+				logChatError(
+					'Failed to build _meta for proposeShiftChanges',
+					e,
+					logContext,
+					{ toolName: 'proposeShiftChanges' },
+				);
+				return proposal;
+			}
 		},
 	});
 };
@@ -890,6 +1063,7 @@ const buildTools = (
 				? {
 						proposeShiftChanges: createProposeShiftChangesTool(
 							flexibleAllowlist,
+							supabase,
 							logContext,
 						),
 					}
@@ -908,6 +1082,7 @@ const buildTools = (
 			supabase,
 			shiftList,
 			logContext,
+			getContextStaffIds(context),
 		),
 	};
 };
