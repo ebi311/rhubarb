@@ -584,7 +584,7 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 const throwAllowlistViolation = (
 	message: string,
 	logContext: RequestLogContext,
-	extra: Record<string, unknown>,
+	extra: Parameters<typeof logChatError>[3],
 ): never => {
 	const err = new Error(message) as LoggedChatError;
 	err.__errorCode = 'allowlist_violation';
@@ -610,6 +610,39 @@ const extractToStaffId = (
 /** context から staffIds を取り出す（未設定なら空配列） */
 const getContextStaffIds = (context: ChatRequest['context']): string[] =>
 	context?.staffIds ?? [];
+
+/** proposeShiftChange ツール用の _meta を構築する（失敗時は undefined を返す） */
+const buildProposeShiftChangeMeta = async (
+	proposal: z.infer<typeof AiChatMutationProposalSchema>,
+	shiftContextMap: Map<string, z.infer<typeof ShiftContextItemSchema>>,
+	staffRepo: StaffRepository,
+	allowlistedStaffIds: Set<string>,
+): Promise<ShiftMeta | undefined> => {
+	const shiftContext = shiftContextMap.get(proposal.shiftId);
+	if (!shiftContext) return undefined;
+
+	const baseMeta: ShiftMeta = {
+		shiftDate: shiftContext.date,
+		shiftStartTime: shiftContext.startTime,
+		shiftEndTime: shiftContext.endTime,
+		clientName: shiftContext.clientName,
+		serviceTypeName: ServiceTypeLabels[shiftContext.serviceTypeId],
+	};
+
+	if (proposal.type === 'change_shift_staff') {
+		const isAllowedStaff =
+			allowlistedStaffIds.size === 0 ||
+			allowlistedStaffIds.has(proposal.toStaffId);
+		if (isAllowedStaff) {
+			const toStaff = await staffRepo.findById(proposal.toStaffId);
+			if (toStaff) {
+				baseMeta.toStaffName = toStaff.name;
+			}
+		}
+	}
+
+	return baseMeta;
+};
 
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
@@ -693,25 +726,12 @@ const createProposeShiftChangeTool = (
 			// _meta 構築（失敗時はフォールバックとして省略）
 			let meta: ShiftMeta | undefined;
 			try {
-				const shiftContext = shiftContextMap.get(proposal.shiftId);
-				if (shiftContext) {
-					const baseMeta: ShiftMeta = {
-						shiftDate: shiftContext.date,
-						shiftStartTime: shiftContext.startTime,
-						shiftEndTime: shiftContext.endTime,
-						clientName: shiftContext.clientName,
-						serviceTypeName: ServiceTypeLabels[shiftContext.serviceTypeId],
-					};
-
-					if (proposal.type === 'change_shift_staff') {
-						const toStaff = await staffRepo.findById(proposal.toStaffId);
-						if (toStaff) {
-							baseMeta.toStaffName = toStaff.name;
-						}
-					}
-
-					meta = baseMeta;
-				}
+				meta = await buildProposeShiftChangeMeta(
+					proposal,
+					shiftContextMap,
+					staffRepo,
+					allowlistedStaffIds,
+				);
 			} catch (e) {
 				logChatError(
 					'Failed to build _meta for proposeShiftChange',
