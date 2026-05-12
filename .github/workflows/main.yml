@@ -15,7 +15,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 10 # 利用中のpnpmバージョンに合わせてください
+          version: 11
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
