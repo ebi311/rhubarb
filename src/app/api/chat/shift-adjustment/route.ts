@@ -232,6 +232,7 @@ const logChatError = (
 		toolName: string;
 		proposalShiftId: string;
 		shiftErrorCode: string;
+		toStaffId: string;
 	}> = {},
 ): void => {
 	const errorMessage =
@@ -263,6 +264,7 @@ const logChatError = (
 		toolName: extra.toolName,
 		proposalShiftId: extra.proposalShiftId,
 		shiftErrorCode: extra.shiftErrorCode,
+		toStaffId: extra.toStaffId,
 		stack: error instanceof Error ? error.stack : undefined,
 	});
 };
@@ -599,6 +601,16 @@ const isStaffAllowlistViolation = (
 	proposal.type === 'change_shift_staff' &&
 	!allowlistedStaffIds.has(proposal.toStaffId);
 
+/** change_shift_staff 提案から toStaffId を取り出す（それ以外は undefined） */
+const extractToStaffId = (
+	proposal: z.infer<typeof AiChatMutationProposalSchema>,
+): string | undefined =>
+	proposal.type === 'change_shift_staff' ? proposal.toStaffId : undefined;
+
+/** context から staffIds を取り出す（未設定なら空配列） */
+const getContextStaffIds = (context: ChatRequest['context']): string[] =>
+	context?.staffIds ?? [];
+
 const createProposeShiftChangeTool = (
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
 	shifts: Array<z.infer<typeof ShiftContextItemSchema>> | undefined,
@@ -628,7 +640,11 @@ const createProposeShiftChangeTool = (
 				throwAllowlistViolation(
 					'スタッフIDが不正です。候補に含まれているスタッフから選択してください。',
 					logContext,
-					{ toolName: 'proposeShiftChange', proposalShiftId: proposal.shiftId },
+					{
+						toolName: 'proposeShiftChange',
+						proposalShiftId: proposal.shiftId,
+						toStaffId: extractToStaffId(proposal),
+					},
 				);
 			}
 
@@ -701,7 +717,11 @@ const createProposeShiftChangeTool = (
 					'Failed to build _meta for proposeShiftChange',
 					e,
 					logContext,
-					{ toolName: 'proposeShiftChange', proposalShiftId: proposal.shiftId },
+					{
+						toolName: 'proposeShiftChange',
+						proposalShiftId: proposal.shiftId,
+						toStaffId: extractToStaffId(proposal),
+					},
 				);
 			}
 
@@ -1042,6 +1062,7 @@ const buildTools = (
 			supabase,
 			shiftList,
 			logContext,
+			getContextStaffIds(context),
 		),
 	};
 };
