@@ -3593,6 +3593,42 @@ describe('POST /api/chat/shift-adjustment', () => {
 					consoleErrorSpy.mockRestore();
 				}
 			});
+
+			it('findByIds で shiftId が見つからない場合 → AI 提供の _meta を除去して返す', async () => {
+				// findByIds が空を返す（shiftId が DB に存在しない）
+				mockShiftRepositoryFindByIds.mockResolvedValue([]);
+				mockStaffRepositoryFindByIds.mockResolvedValue([]);
+
+				const execute = await getExecute();
+
+				const result = await execute?.({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_2,
+							_meta: {
+								shiftDate: '2026-03-16',
+								shiftStartTime: '09:00',
+								shiftEndTime: '10:00',
+								clientName: 'AI提供の利用者名',
+								toStaffName: 'AI提供のスタッフ名',
+							},
+						},
+					],
+				});
+
+				// _meta が除去されていること
+				expect(result).toEqual({
+					proposals: [
+						{
+							type: 'change_shift_staff',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							toStaffId: TEST_IDS.STAFF_2,
+						},
+					],
+				});
+			});
 		});
 	});
 });

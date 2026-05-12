@@ -175,7 +175,7 @@ describe('BatchProposalConfirmCard', () => {
 			).toBeInTheDocument();
 		});
 
-		it('update_shift_time は日付・時間帯を表示する', () => {
+		it('update_shift_time は日付・利用者名・時間帯を表示する', () => {
 			render(
 				<BatchProposalConfirmCard
 					proposal={proposalWithMeta}
@@ -184,7 +184,40 @@ describe('BatchProposalConfirmCard', () => {
 				/>,
 			);
 
-			expect(screen.getByText('2026-03-16 09:00〜10:00')).toBeInTheDocument();
+			expect(
+				screen.getByText('2026-03-16 田中花子様 09:00〜10:00'),
+			).toBeInTheDocument();
+		});
+
+		it('update_shift_time で clientName が未設定の場合は「利用者不明」を表示する', () => {
+			const proposalNoClientForUpdate = {
+				proposals: [
+					{
+						type: 'update_shift_time' as const,
+						shiftId: TEST_IDS.SCHEDULE_2,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+						reason: '利用者都合',
+						_meta: {
+							shiftDate: '2026-03-16',
+							shiftStartTime: '09:00',
+							shiftEndTime: '10:00',
+						},
+					},
+				],
+			};
+
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposalNoClientForUpdate}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText('2026-03-16 利用者不明様 09:00〜10:00'),
+			).toBeInTheDocument();
 		});
 
 		it('clientName が未設定の場合は「利用者不明」を表示する', () => {

@@ -17,9 +17,9 @@ export const ALLOWLIST_MAX_STAFF_IDS = 500;
  * UI 確認表示に使用される。確定処理・永続化には影響しない。
  */
 export const ShiftMetaSchema = z.object({
-	shiftDate: z.string(),
-	shiftStartTime: z.string(),
-	shiftEndTime: z.string(),
+	shiftDate: z.string().date(),
+	shiftStartTime: z.string().regex(/^\d{2}:\d{2}$/),
+	shiftEndTime: z.string().regex(/^\d{2}:\d{2}$/),
 	clientName: z.string().optional(),
 	serviceTypeName: z.string().optional(),
 	toStaffName: z.string().optional(),

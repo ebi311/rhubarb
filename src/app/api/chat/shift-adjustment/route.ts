@@ -820,7 +820,10 @@ const createProposeShiftChangesTool = (
 
 				const proposalsWithMeta = proposal.proposals.map((p) => {
 					const shift = shiftMap.get(p.shiftId);
-					if (!shift) return p;
+					if (!shift) {
+						const { _meta: _ignored, ...pWithoutMeta } = p;
+						return pWithoutMeta;
+					}
 
 					const meta: ShiftMeta = {
 						shiftDate: formatJstDateString(shift.date),

@@ -38,8 +38,10 @@ const createProposalDescription = (
 	}
 
 	if (proposal._meta) {
-		const { shiftDate, shiftStartTime, shiftEndTime } = proposal._meta;
-		return `${shiftDate} ${shiftStartTime}〜${shiftEndTime}`;
+		const { shiftDate, shiftStartTime, shiftEndTime, clientName } =
+			proposal._meta;
+		const displayName = clientName ?? '利用者不明';
+		return `${shiftDate} ${displayName}様 ${shiftStartTime}〜${shiftEndTime}`;
 	}
 
 	return `${proposal.startAt} → ${proposal.endAt}`;
