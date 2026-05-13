@@ -3379,6 +3379,77 @@ describe('POST /api/chat/shift-adjustment', () => {
 				}
 			});
 
+			it('shiftContext あり（update_shift_time）→ _meta の shiftStartTime/shiftEndTime/shiftDate が proposal.startAt/endAt から生成される', async () => {
+				// getExecute のシフトコンテキストは startTime:'09:00', endTime:'10:00', date:'2026-03-16'
+				// proposal.startAt/endAt は異なる時刻 (11:00〜12:00) を指定
+				mockShiftMaybeSingle.mockResolvedValue({
+					data: { id: TEST_IDS.SCHEDULE_1 },
+					error: null,
+				});
+
+				const execute = await getExecute({ clientName: '利用者A' });
+
+				const result = await (
+					execute as unknown as (input: unknown) => Promise<unknown>
+				)?.({
+					type: 'update_shift_time',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					startAt: '2026-03-16T11:00:00+09:00',
+					endAt: '2026-03-16T12:00:00+09:00',
+				});
+
+				expect(result).toEqual({
+					type: 'update_shift_time',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					startAt: '2026-03-16T11:00:00+09:00',
+					endAt: '2026-03-16T12:00:00+09:00',
+					_meta: {
+						shiftDate: '2026-03-16',
+						shiftStartTime: '11:00',
+						shiftEndTime: '12:00',
+						clientName: '利用者A',
+						serviceTypeName: '生活支援',
+					},
+				});
+			});
+
+			it('shiftContext あり + findById がエラーをスロー + AI 提供 _meta あり → _meta を除去して返す（フォールバック）', async () => {
+				mockStaffRepositoryFindById.mockRejectedValue(
+					new Error('DB connection error'),
+				);
+
+				const consoleErrorSpy = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => undefined);
+
+				try {
+					const execute = await getExecute();
+
+					const result = await (
+						execute as unknown as (input: unknown) => Promise<unknown>
+					)?.({
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+						_meta: {
+							shiftDate: '2026-03-16',
+							shiftStartTime: '09:00',
+							shiftEndTime: '10:00',
+							clientName: 'AI提供の利用者名',
+						},
+					});
+
+					// AI 提供の _meta が除去されること
+					expect(result).toEqual({
+						type: 'change_shift_staff',
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_1,
+					});
+				} finally {
+					consoleErrorSpy.mockRestore();
+				}
+			});
+
 			it('shiftContext あり + allowlistedStaffIds に toStaffId が含まれない → findById が呼ばれず toStaffName が付与されない（Thread 3）', async () => {
 				// allowlistedStaffIds に STAFF_2 のみ含む状態で STAFF_1 を指定
 				const request = new Request(
@@ -3592,6 +3663,103 @@ describe('POST /api/chat/shift-adjustment', () => {
 				} finally {
 					consoleErrorSpy.mockRestore();
 				}
+			});
+
+			it('ShiftRepository.findByIds がエラーをスロー + AI 提供 _meta あり → _meta を除去して返す（フォールバック）', async () => {
+				mockShiftRepositoryFindByIds.mockRejectedValue(
+					new Error('DB connection error'),
+				);
+
+				const consoleErrorSpy = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => undefined);
+
+				try {
+					const execute = await getExecute();
+
+					const result = await execute?.({
+						proposals: [
+							{
+								type: 'change_shift_staff' as const,
+								shiftId: TEST_IDS.SCHEDULE_1,
+								toStaffId: TEST_IDS.STAFF_2,
+								_meta: {
+									shiftDate: '2026-03-16',
+									shiftStartTime: '09:00',
+									shiftEndTime: '10:00',
+									clientName: 'AI提供の利用者名',
+									toStaffName: 'AI提供のスタッフ名',
+								},
+							},
+						],
+					});
+
+					// AI 提供の _meta が除去されること
+					expect(result).toEqual({
+						proposals: [
+							{
+								type: 'change_shift_staff',
+								shiftId: TEST_IDS.SCHEDULE_1,
+								toStaffId: TEST_IDS.STAFF_2,
+							},
+						],
+					});
+				} finally {
+					consoleErrorSpy.mockRestore();
+				}
+			});
+
+			it('findByIds 成功（update_shift_time）→ _meta の shiftStartTime/shiftEndTime/shiftDate が proposal.startAt/endAt から生成される', async () => {
+				mockShiftRepositoryFindByIds.mockResolvedValue([
+					{
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						service_type_id: 'life-support',
+						staff_id: TEST_IDS.STAFF_1,
+						date: new Date('2026-03-16T00:00:00+09:00'),
+						time: {
+							start: { hour: 9, minute: 0 }, // DB 元の時刻（変更前）
+							end: { hour: 10, minute: 0 },
+						},
+						status: 'scheduled',
+						is_unassigned: false,
+						created_at: new Date('2024-01-01T00:00:00.000Z'),
+						updated_at: new Date('2024-01-01T00:00:00.000Z'),
+						client_name: '利用者A',
+					},
+				]);
+				mockStaffRepositoryFindByIds.mockResolvedValue([]);
+
+				const execute = await getExecute();
+
+				const result = await execute?.({
+					proposals: [
+						{
+							type: 'update_shift_time',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							startAt: '2026-03-16T11:00:00+09:00',
+							endAt: '2026-03-16T12:00:00+09:00',
+						},
+					],
+				});
+
+				expect(result).toEqual({
+					proposals: [
+						{
+							type: 'update_shift_time',
+							shiftId: TEST_IDS.SCHEDULE_1,
+							startAt: '2026-03-16T11:00:00+09:00',
+							endAt: '2026-03-16T12:00:00+09:00',
+							_meta: {
+								shiftDate: '2026-03-16',
+								shiftStartTime: '11:00',
+								shiftEndTime: '12:00',
+								clientName: '利用者A',
+								serviceTypeName: '生活支援',
+							},
+						},
+					],
+				});
 			});
 
 			it('findByIds で shiftId が見つからない場合 → AI 提供の _meta を除去して返す', async () => {
