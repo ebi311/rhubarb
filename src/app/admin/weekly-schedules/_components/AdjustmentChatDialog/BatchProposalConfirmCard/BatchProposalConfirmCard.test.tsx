@@ -22,6 +22,39 @@ const proposal = {
 	],
 };
 
+const proposalWithMeta = {
+	proposals: [
+		{
+			type: 'change_shift_staff' as const,
+			shiftId: TEST_IDS.SCHEDULE_1,
+			toStaffId: TEST_IDS.STAFF_2,
+			reason: '欠勤対応',
+			_meta: {
+				shiftDate: '2026-03-16',
+				shiftStartTime: '09:00',
+				shiftEndTime: '10:00',
+				clientName: '田中花子',
+				serviceTypeName: '生活支援',
+				toStaffName: '鈴木太郎',
+			},
+		},
+		{
+			type: 'update_shift_time' as const,
+			shiftId: TEST_IDS.SCHEDULE_2,
+			startAt: '2026-03-16T09:00:00+09:00',
+			endAt: '2026-03-16T10:00:00+09:00',
+			reason: '利用者都合',
+			_meta: {
+				shiftDate: '2026-03-16',
+				shiftStartTime: '09:00',
+				shiftEndTime: '10:00',
+				clientName: '田中花子',
+				serviceTypeName: '生活支援',
+			},
+		},
+	],
+};
+
 describe('BatchProposalConfirmCard', () => {
 	it('初期表示では全提案が承認状態で表示される', () => {
 		render(
@@ -91,5 +124,200 @@ describe('BatchProposalConfirmCard', () => {
 		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
 
 		expect(onCancel).toHaveBeenCalledTimes(1);
+	});
+
+	describe('_meta なし（フォールバック表示）', () => {
+		it('change_shift_staff は UUID ベースのフォールバック表示になる', () => {
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposal}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText(
+					`shiftId: ${TEST_IDS.SCHEDULE_1} / toStaffId: ${TEST_IDS.STAFF_2}`,
+				),
+			).toBeInTheDocument();
+		});
+
+		it('update_shift_time は startAt / endAt のフォールバック表示になる', () => {
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposal}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText(
+					'2026-03-16T09:00:00+09:00 → 2026-03-16T10:00:00+09:00',
+				),
+			).toBeInTheDocument();
+		});
+	});
+
+	describe('_meta あり（人間可読表示）', () => {
+		it('change_shift_staff は日付・利用者名・時間・担当者名を表示する', () => {
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposalWithMeta}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText('2026-03-16 田中花子様 09:00〜10:00 → 鈴木太郎'),
+			).toBeInTheDocument();
+		});
+
+		it('update_shift_time は日付・利用者名・時間帯を表示する', () => {
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposalWithMeta}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText('2026-03-16 田中花子様 09:00〜10:00'),
+			).toBeInTheDocument();
+		});
+
+		it('update_shift_time で clientName が未設定の場合は「利用者不明」を表示する', () => {
+			const proposalNoClientForUpdate = {
+				proposals: [
+					{
+						type: 'update_shift_time' as const,
+						shiftId: TEST_IDS.SCHEDULE_2,
+						startAt: '2026-03-16T09:00:00+09:00',
+						endAt: '2026-03-16T10:00:00+09:00',
+						reason: '利用者都合',
+						_meta: {
+							shiftDate: '2026-03-16',
+							shiftStartTime: '09:00',
+							shiftEndTime: '10:00',
+						},
+					},
+				],
+			};
+
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposalNoClientForUpdate}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText('2026-03-16 利用者不明様 09:00〜10:00'),
+			).toBeInTheDocument();
+		});
+
+		it('clientName が未設定の場合は「利用者不明」を表示する', () => {
+			const proposalNoClient = {
+				proposals: [
+					{
+						type: 'change_shift_staff' as const,
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_2,
+						reason: '欠勤対応',
+						_meta: {
+							shiftDate: '2026-03-16',
+							shiftStartTime: '09:00',
+							shiftEndTime: '10:00',
+							toStaffName: '鈴木太郎',
+						},
+					},
+				],
+			};
+
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposalNoClient}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText('2026-03-16 利用者不明様 09:00〜10:00 → 鈴木太郎'),
+			).toBeInTheDocument();
+		});
+
+		it('toStaffName が未設定の場合は toStaffId を表示する', () => {
+			const proposalNoStaffName = {
+				proposals: [
+					{
+						type: 'change_shift_staff' as const,
+						shiftId: TEST_IDS.SCHEDULE_1,
+						toStaffId: TEST_IDS.STAFF_2,
+						reason: '欠勤対応',
+						_meta: {
+							shiftDate: '2026-03-16',
+							shiftStartTime: '09:00',
+							shiftEndTime: '10:00',
+							clientName: '田中花子',
+						},
+					},
+				],
+			};
+
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposalNoStaffName}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			expect(
+				screen.getByText(
+					`2026-03-16 田中花子様 09:00〜10:00 → ${TEST_IDS.STAFF_2}`,
+				),
+			).toBeInTheDocument();
+		});
+
+		it('update_shift_time は _meta.shiftStartTime/shiftEndTime でなく proposal.startAt/endAt の時刻を表示する', () => {
+			// _meta の shiftStartTime/shiftEndTime (DB 元の値) と
+			// proposal.startAt/endAt (変更後の値) が異なる場合、
+			// proposal.startAt/endAt の時刻が表示されること
+			const proposalWithDifferentTimes = {
+				proposals: [
+					{
+						type: 'update_shift_time' as const,
+						shiftId: TEST_IDS.SCHEDULE_2,
+						startAt: '2026-03-16T11:00:00+09:00',
+						endAt: '2026-03-16T12:00:00+09:00',
+						reason: '利用者都合',
+						_meta: {
+							shiftDate: '2026-03-16',
+							shiftStartTime: '09:00', // DB 元の値（古い）
+							shiftEndTime: '10:00', // DB 元の値（古い）
+							clientName: '田中花子',
+						},
+					},
+				],
+			};
+
+			render(
+				<BatchProposalConfirmCard
+					proposal={proposalWithDifferentTimes}
+					onConfirm={vi.fn()}
+					onCancel={vi.fn()}
+				/>,
+			);
+
+			// proposal.startAt/endAt の時刻 (11:00〜12:00) が表示される
+			expect(
+				screen.getByText('2026-03-16 田中花子様 11:00〜12:00'),
+			).toBeInTheDocument();
+		});
 	});
 });

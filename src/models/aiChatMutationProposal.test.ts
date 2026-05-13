@@ -10,7 +10,50 @@ import {
 	ExecuteAiChatMutationBatchResultSchema,
 	ExecuteAiChatMutationInputSchema,
 	ProposalAllowlistSchema,
+	ShiftMetaSchema,
 } from './aiChatMutationProposal';
+
+describe('ShiftMetaSchema', () => {
+	it('正常なフォーマットを受け入れる', () => {
+		const result = ShiftMetaSchema.safeParse({
+			shiftDate: '2026-03-16',
+			shiftStartTime: '09:00',
+			shiftEndTime: '10:00',
+		});
+
+		expect(result.success).toBe(true);
+	});
+
+	it('shiftDate が日付フォーマット（YYYY-MM-DD）でない場合はエラー', () => {
+		const result = ShiftMetaSchema.safeParse({
+			shiftDate: '2026/03/16',
+			shiftStartTime: '09:00',
+			shiftEndTime: '10:00',
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it('shiftStartTime が HH:MM フォーマットでない場合はエラー', () => {
+		const result = ShiftMetaSchema.safeParse({
+			shiftDate: '2026-03-16',
+			shiftStartTime: '9:00',
+			shiftEndTime: '10:00',
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it('shiftEndTime が HH:MM フォーマットでない場合はエラー', () => {
+		const result = ShiftMetaSchema.safeParse({
+			shiftDate: '2026-03-16',
+			shiftStartTime: '09:00',
+			shiftEndTime: '10:00:00',
+		});
+
+		expect(result.success).toBe(false);
+	});
+});
 
 describe('AiChatMutationProposalSchema', () => {
 	it('change_shift_staff proposal を受け入れる', () => {
