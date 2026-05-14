@@ -357,6 +357,8 @@ ${SERVICE_TYPE_LABELS_PROMPT}
   - 最大14日間まで指定可能です
   - 任意項目 memo には、可能な限り欠勤理由や補足情報を日本語で簡潔に記載してください
     - 例: { staffId: "<スタッフID>", startDate: "2024-04-01", endDate: "2024-04-03", memo: "体調不良のため" }
+  - ユーザーが代替スタッフを確定したら、必ず proposeShiftChange（1件）または proposeShiftChanges（複数件）ツールを使って変更提案を作成すること
+  - テキストのみで提案内容を報告して終わることは禁止
 - searchStaffs: スタッフを名前で検索します
   - スタッフIDがわからない場合に使用してください
   - 入力: { query: "検索文字列" }
@@ -452,7 +454,8 @@ const buildFlexibleContextPrompt = (
 	}
 
 	const proposalGuide = showProposalGuide
-		? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください'
+		? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください' +
+			'\n- processStaffAbsence の結果として代替スタッフが決まった場合も、proposeShiftChanges で変更提案を作成してください'
 		: '';
 
 	return `
