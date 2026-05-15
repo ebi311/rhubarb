@@ -18,6 +18,7 @@ import {
 	formatJstDateString,
 	parseJstDateString,
 	timeObjectToString,
+	toJstTimeStr,
 } from '@/utils/date';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -556,7 +557,8 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 	);
 
 	if (changeShiftStaffInput) {
-		return changeShiftStaffInput;
+		const { _meta: _, ...withoutMeta } = changeShiftStaffInput;
+		return withoutMeta;
 	}
 
 	const updateShiftTimeInput = normalizeNestedToolInput(
@@ -566,10 +568,12 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 	);
 
 	if (updateShiftTimeInput) {
-		return updateShiftTimeInput;
+		const { _meta: _, ...withoutMeta } = updateShiftTimeInput;
+		return withoutMeta;
 	}
 
-	return input;
+	const { _meta: _, ...withoutMeta } = input;
+	return withoutMeta;
 }, AiChatMutationProposalSchema);
 
 const throwAllowlistViolation = (
@@ -602,17 +606,6 @@ const extractToStaffId = (
 const getContextStaffIds = (context: ChatRequest['context']): string[] =>
 	context?.staffIds ?? [];
 
-/**
- * ISO 8601 オフセット付き文字列（例: "2026-03-16T09:00:00+09:00"）から
- * HH:mm を抽出する。T の直後の時刻部分はオフセット時刻そのもの。
- */
-const isoToHHmm = (isoString: string): string => isoString.slice(11, 16);
-
-/**
- * ISO 8601 オフセット付き文字列から YYYY-MM-DD を抽出する。
- */
-const isoToDate = (isoString: string): string => isoString.slice(0, 10);
-
 /** proposeShiftChange ツール用の _meta を構築する（失敗時は undefined を返す） */
 const buildProposeShiftChangeMeta = async (
 	proposal: z.infer<typeof AiChatMutationProposalSchema>,
@@ -629,13 +622,13 @@ const buildProposeShiftChangeMeta = async (
 
 	const baseMeta: ShiftMeta = {
 		shiftDate: isUpdateShiftTime
-			? isoToDate(proposal.startAt)
+			? formatJstDateString(new Date(proposal.startAt))
 			: shiftContext.date,
 		shiftStartTime: isUpdateShiftTime
-			? isoToHHmm(proposal.startAt)
+			? toJstTimeStr(new Date(proposal.startAt))
 			: shiftContext.startTime,
 		shiftEndTime: isUpdateShiftTime
-			? isoToHHmm(proposal.endAt)
+			? toJstTimeStr(new Date(proposal.endAt))
 			: shiftContext.endTime,
 		clientName: shiftContext.clientName,
 		serviceTypeName: ServiceTypeLabels[shiftContext.serviceTypeId],
@@ -861,13 +854,13 @@ const createProposeShiftChangesTool = (
 
 					const meta: ShiftMeta = {
 						shiftDate: isUpdateShiftTime
-							? isoToDate(p.startAt)
+							? formatJstDateString(new Date(p.startAt))
 							: formatJstDateString(shift.date),
 						shiftStartTime: isUpdateShiftTime
-							? isoToHHmm(p.startAt)
+							? toJstTimeStr(new Date(p.startAt))
 							: timeObjectToString(shift.time.start),
 						shiftEndTime: isUpdateShiftTime
-							? isoToHHmm(p.endAt)
+							? toJstTimeStr(new Date(p.endAt))
 							: timeObjectToString(shift.time.end),
 						clientName: shift.client_name,
 						serviceTypeName: ServiceTypeLabels[shift.service_type_id],
