@@ -785,6 +785,20 @@ const isAllowedBatchProposal = (
 	};
 };
 
+const ProposeShiftChangesToolInputSchema = z.preprocess((input) => {
+	if (!isRecord(input)) return input;
+	const raw = input as Record<string, unknown>;
+	if (!Array.isArray(raw.proposals)) return input;
+	return {
+		...raw,
+		proposals: raw.proposals.map((p) => {
+			if (!isRecord(p)) return p;
+			const { _meta: _, ...rest } = p as Record<string, unknown>;
+			return rest;
+		}),
+	};
+}, AiChatMutationBatchProposalSchema);
+
 const createProposeShiftChangesTool = (
 	allowlist: FlexibleAllowlist,
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
@@ -796,7 +810,7 @@ const createProposeShiftChangesTool = (
 	return tool({
 		description:
 			'複数のシフト変更をまとめて提案します。1件だけでも proposals 配列で返してください。',
-		inputSchema: AiChatMutationBatchProposalSchema,
+		inputSchema: ProposeShiftChangesToolInputSchema,
 		execute: async (proposal) => {
 			const invalidProposal = proposal.proposals.find(
 				(candidate) => !isAllowedProposal(candidate),
