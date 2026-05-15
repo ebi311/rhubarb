@@ -53,6 +53,15 @@ describe('ShiftMetaSchema', () => {
 
 		expect(result.success).toBe(false);
 	});
+
+	it('"99:99" のような無効な時刻はエラー', () => {
+		const result = ShiftMetaSchema.safeParse({
+			shiftDate: '2026-03-16',
+			shiftStartTime: '99:99',
+			shiftEndTime: '10:00',
+		});
+		expect(result.success).toBe(false);
+	});
 });
 
 describe('AiChatMutationProposalSchema', () => {
