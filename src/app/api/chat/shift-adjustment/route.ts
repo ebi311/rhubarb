@@ -358,8 +358,6 @@ ${SERVICE_TYPE_LABELS_PROMPT}
   - 最大14日間まで指定可能です
   - 任意項目 memo には、可能な限り欠勤理由や補足情報を日本語で簡潔に記載してください
     - 例: { staffId: "<スタッフID>", startDate: "2024-04-01", endDate: "2024-04-03", memo: "体調不良のため" }
-  - ユーザーが代替スタッフを確定したら、必ず proposeShiftChange（1件）または proposeShiftChanges（複数件）ツールを使って変更提案を作成すること
-  - テキストのみで提案内容を報告して終わることは禁止
 - searchStaffs: スタッフを名前で検索します
   - スタッフIDがわからない場合に使用してください
   - 入力: { query: "検索文字列" }
@@ -424,7 +422,9 @@ const buildSystemPromptBase = (
 - reason は任意。不明なら省略し、空文字は使わない（空白のみも不可）
 - update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
   - 例1: 2026-03-16T09:00:00+09:00
-  - 例2: 2026-03-16T00:00:00Z`
+  - 例2: 2026-03-16T00:00:00Z
+- processStaffAbsence の結果として代替スタッフが決まった場合は、必ず proposeShiftChange ツールを使って変更提案を作成すること
+- テキストのみで提案内容を報告して終わることは禁止`
 		: proposalToolMode === 'batch'
 			? `
 - シフト変更の提案は assistant の本文に JSON を直接書かず、必ず proposeShiftChanges ツールを呼び出して返す
@@ -435,7 +435,9 @@ const buildSystemPromptBase = (
   - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>", "reason": "<任意の理由>" }
   - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>" }
 - reason は任意。不明なら省略し、空文字は使わない（空白のみも不可）
-- update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）`
+- update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
+- processStaffAbsence の結果として代替スタッフが決まった場合は、必ず proposeShiftChanges ツールを使って変更提案を作成すること
+- テキストのみで提案内容を報告して終わることは禁止`
 			: '') +
 	SHIFT_ID_MISSING_PROMPT +
 	SUCCESS_ASSERTION_PROMPT;

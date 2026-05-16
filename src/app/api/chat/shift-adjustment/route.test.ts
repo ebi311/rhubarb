@@ -2696,14 +2696,31 @@ describe('POST /api/chat/shift-adjustment', () => {
 			);
 		});
 
-		it('BASE_SYSTEM_PROMPT の processStaffAbsence 説明に代替スタッフ確定後の proposeShiftChange(s) 必須ルールが含まれる', async () => {
+		it('proposalToolMode="single" の system prompt に processStaffAbsence 後の proposeShiftChange 必須ルールが含まれる', async () => {
 			const request = new Request(
 				'http://localhost/api/chat/shift-adjustment',
 				{
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
 					body: JSON.stringify({
 						messages: [{ role: 'user', content: 'テスト' }],
+						context: {
+							shifts: [
+								{
+									id: TEST_IDS.SCHEDULE_1,
+									date: '2026-03-16',
+									startTime: '09:00',
+									endTime: '10:00',
+									clientId: TEST_IDS.CLIENT_1,
+									clientName: 'テスト利用者',
+									staffName: 'テストヘルパー',
+									serviceTypeId: TEST_IDS.SERVICE_TYPE_1,
+								},
+							],
+						},
 					}),
 				},
 			);
@@ -2713,7 +2730,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 			expect(mockStreamText).toHaveBeenCalledWith(
 				expect.objectContaining({
 					system: expect.stringContaining(
-						'ユーザーが代替スタッフを確定したら、必ず proposeShiftChange（1件）または proposeShiftChanges（複数件）ツールを使って変更提案を作成すること',
+						'processStaffAbsence の結果として代替スタッフが決まった場合は、必ず proposeShiftChange ツールを使って変更提案を作成すること',
 					),
 				}),
 			);
@@ -2766,6 +2783,43 @@ describe('POST /api/chat/shift-adjustment', () => {
 				expect.objectContaining({
 					system: expect.stringContaining(
 						'processStaffAbsence の結果として代替スタッフが決まった場合も、proposeShiftChanges で変更提案を作成してください',
+					),
+				}),
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining(
+						'processStaffAbsence の結果として代替スタッフが決まった場合は、必ず proposeShiftChanges ツールを使って変更提案を作成すること',
+					),
+				}),
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining(
+						'テキストのみで提案内容を報告して終わることは禁止',
+					),
+				}),
+			);
+		});
+
+		it('proposalToolMode="none" の system prompt に proposeShiftChange 必須ルールが含まれない', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: 'テスト' }],
+					}),
+				},
+			);
+
+			await POST(request);
+
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.not.stringContaining(
+						'テキストのみで提案内容を報告して終わることは禁止',
 					),
 				}),
 			);
