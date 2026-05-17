@@ -40,3 +40,40 @@ export const Loading: Story = {
 		isLoading: true,
 	},
 };
+
+export const WithMeta: Story = {
+	args: {
+		proposal: {
+			proposals: [
+				{
+					type: 'change_shift_staff',
+					shiftId: TEST_IDS.SCHEDULE_1,
+					toStaffId: TEST_IDS.STAFF_2,
+					reason: '欠勤対応',
+					_meta: {
+						shiftDate: '2026-03-16',
+						shiftStartTime: '09:00',
+						shiftEndTime: '10:00',
+						clientName: '田中花子',
+						serviceTypeName: '生活支援',
+						toStaffName: '鈴木太郎',
+					},
+				},
+				{
+					type: 'update_shift_time',
+					shiftId: TEST_IDS.SCHEDULE_2,
+					startAt: '2026-03-16T09:00:00+09:00',
+					endAt: '2026-03-16T10:00:00+09:00',
+					reason: '利用者都合',
+					_meta: {
+						shiftDate: '2026-03-16',
+						shiftStartTime: '09:00',
+						shiftEndTime: '10:00',
+						clientName: '田中花子',
+						serviceTypeName: '生活支援',
+					},
+				},
+			],
+		},
+	},
+};

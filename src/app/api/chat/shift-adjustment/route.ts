@@ -7,6 +7,7 @@ import { createSearchStaffsTool } from '@/backend/tools/searchStaffs';
 import {
 	AiChatMutationBatchProposalSchema,
 	AiChatMutationProposalSchema,
+	type ShiftMeta,
 } from '@/models/aiChatMutationProposal';
 import { createJstDateStringSchema } from '@/models/valueObjects/jstDate';
 import {
@@ -514,19 +515,6 @@ ${shiftLines.join('\n')}${buildShiftSelectionPrompt(context.shifts.length)}`;
 const isRecord = (input: unknown): input is Record<string, unknown> =>
 	typeof input === 'object' && input !== null;
 
-/**
- * AI 参照専用のシフトメタ情報
- * UI 確定処理・永続化には影響しない
- */
-type ShiftMeta = {
-	shiftDate: string; // "2026-05-10"
-	shiftStartTime: string; // "09:00"
-	shiftEndTime: string; // "10:00"
-	clientName?: string;
-	serviceTypeName: string;
-	toStaffName?: string; // change_shift_staff のみ
-};
-
 const hasNestedToolInput = (
 	input: Record<string, unknown>,
 	key: string,
@@ -611,6 +599,17 @@ const extractToStaffId = (
 const getContextStaffIds = (context: ChatRequest['context']): string[] =>
 	context?.staffIds ?? [];
 
+/**
+ * ISO 8601 オフセット付き文字列（例: "2026-03-16T09:00:00+09:00"）から
+ * HH:mm を抽出する。T の直後の時刻部分はオフセット時刻そのもの。
+ */
+const isoToHHmm = (isoString: string): string => isoString.slice(11, 16);
+
+/**
+ * ISO 8601 オフセット付き文字列から YYYY-MM-DD を抽出する。
+ */
+const isoToDate = (isoString: string): string => isoString.slice(0, 10);
+
 /** proposeShiftChange ツール用の _meta を構築する（失敗時は undefined を返す） */
 const buildProposeShiftChangeMeta = async (
 	proposal: z.infer<typeof AiChatMutationProposalSchema>,
@@ -621,10 +620,20 @@ const buildProposeShiftChangeMeta = async (
 	const shiftContext = shiftContextMap.get(proposal.shiftId);
 	if (!shiftContext) return undefined;
 
+	// update_shift_time は変更後の時刻 (proposal.startAt/endAt) を _meta に使う
+	// change_shift_staff は DB のシフト情報 (shiftContext) を使う
+	const isUpdateShiftTime = proposal.type === 'update_shift_time';
+
 	const baseMeta: ShiftMeta = {
-		shiftDate: shiftContext.date,
-		shiftStartTime: shiftContext.startTime,
-		shiftEndTime: shiftContext.endTime,
+		shiftDate: isUpdateShiftTime
+			? isoToDate(proposal.startAt)
+			: shiftContext.date,
+		shiftStartTime: isUpdateShiftTime
+			? isoToHHmm(proposal.startAt)
+			: shiftContext.startTime,
+		shiftEndTime: isUpdateShiftTime
+			? isoToHHmm(proposal.endAt)
+			: shiftContext.endTime,
 		clientName: shiftContext.clientName,
 		serviceTypeName: ServiceTypeLabels[shiftContext.serviceTypeId],
 	};
@@ -745,7 +754,13 @@ const createProposeShiftChangeTool = (
 				);
 			}
 
-			return meta ? { ...proposal, _meta: meta } : proposal;
+			if (meta) {
+				return { ...proposal, _meta: meta };
+			}
+
+			// _meta 構築失敗時は AI 提供の _meta も除去してフォールバック返却
+			const { _meta: _ignored, ...proposalWithoutMeta } = proposal;
+			return proposalWithoutMeta;
 		},
 	});
 };
@@ -832,12 +847,25 @@ const createProposeShiftChangesTool = (
 
 				const proposalsWithMeta = proposal.proposals.map((p) => {
 					const shift = shiftMap.get(p.shiftId);
-					if (!shift) return p;
+					if (!shift) {
+						const { _meta: _ignored, ...pWithoutMeta } = p;
+						return pWithoutMeta;
+					}
+
+					// update_shift_time は変更後の時刻 (p.startAt/endAt) を _meta に使う
+					// change_shift_staff は DB のシフト情報を使う
+					const isUpdateShiftTime = p.type === 'update_shift_time';
 
 					const meta: ShiftMeta = {
-						shiftDate: formatJstDateString(shift.date),
-						shiftStartTime: timeObjectToString(shift.time.start),
-						shiftEndTime: timeObjectToString(shift.time.end),
+						shiftDate: isUpdateShiftTime
+							? isoToDate(p.startAt)
+							: formatJstDateString(shift.date),
+						shiftStartTime: isUpdateShiftTime
+							? isoToHHmm(p.startAt)
+							: timeObjectToString(shift.time.start),
+						shiftEndTime: isUpdateShiftTime
+							? isoToHHmm(p.endAt)
+							: timeObjectToString(shift.time.end),
 						clientName: shift.client_name,
 						serviceTypeName: ServiceTypeLabels[shift.service_type_id],
 					};
@@ -860,7 +888,12 @@ const createProposeShiftChangesTool = (
 					logContext,
 					{ toolName: 'proposeShiftChanges' },
 				);
-				return proposal;
+				// AI 提供の _meta も除去してフォールバック返却
+				const proposalsWithoutMeta = proposal.proposals.map((p) => {
+					const { _meta: _ignored, ...pWithoutMeta } = p;
+					return pWithoutMeta;
+				});
+				return { proposals: proposalsWithoutMeta };
 			}
 		},
 	});

@@ -12,11 +12,25 @@ export const AiChatMutationProposalTypeSchema = z.enum(
 export const ALLOWLIST_MAX_SHIFT_IDS = 200;
 export const ALLOWLIST_MAX_STAFF_IDS = 500;
 
+/**
+ * AI 参照専用のシフトメタ情報
+ * UI 確認表示に使用される。確定処理・永続化には影響しない。
+ */
+export const ShiftMetaSchema = z.object({
+	shiftDate: z.string().date(),
+	shiftStartTime: z.string().regex(/^\d{2}:\d{2}$/),
+	shiftEndTime: z.string().regex(/^\d{2}:\d{2}$/),
+	clientName: z.string().optional(),
+	serviceTypeName: z.string().optional(),
+	toStaffName: z.string().optional(),
+});
+
 const ChangeShiftStaffProposalSchema = z.object({
 	type: z.literal('change_shift_staff'),
 	shiftId: z.uuid(),
 	toStaffId: z.uuid(),
 	reason: z.string().trim().min(1).optional(),
+	_meta: ShiftMetaSchema.optional(),
 });
 
 const UpdateShiftTimeProposalSchema = z
@@ -28,6 +42,7 @@ const UpdateShiftTimeProposalSchema = z
 		startAt: z.string().datetime({ offset: true }),
 		endAt: z.string().datetime({ offset: true }),
 		reason: z.string().trim().min(1).optional(),
+		_meta: ShiftMetaSchema.optional(),
 	})
 	.superRefine((proposal, ctx) => {
 		if (new Date(proposal.startAt) >= new Date(proposal.endAt)) {
@@ -120,6 +135,8 @@ export const ExecuteAiChatMutationBatchResultSchema = z.object({
 export type AiChatMutationProposal = z.infer<
 	typeof AiChatMutationProposalSchema
 >;
+
+export type ShiftMeta = z.infer<typeof ShiftMetaSchema>;
 
 export type ProposalAllowlist = z.infer<typeof ProposalAllowlistSchema>;
 
