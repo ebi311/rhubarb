@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const SHIFT_META_TIME_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
 export const AI_CHAT_MUTATION_PROPOSAL_TYPES = [
 	'change_shift_staff',
 	'update_shift_time',
@@ -18,8 +20,8 @@ export const ALLOWLIST_MAX_STAFF_IDS = 500;
  */
 export const ShiftMetaSchema = z.object({
 	shiftDate: z.string().date(),
-	shiftStartTime: z.string().regex(/^\d{2}:\d{2}$/),
-	shiftEndTime: z.string().regex(/^\d{2}:\d{2}$/),
+	shiftStartTime: z.string().regex(SHIFT_META_TIME_REGEX),
+	shiftEndTime: z.string().regex(SHIFT_META_TIME_REGEX),
 	clientName: z.string().optional(),
 	serviceTypeName: z.string().optional(),
 	toStaffName: z.string().optional(),

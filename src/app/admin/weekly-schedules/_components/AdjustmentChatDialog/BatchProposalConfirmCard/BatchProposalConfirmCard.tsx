@@ -18,12 +18,6 @@ const OPERATION_LABELS: Record<AiChatMutationProposal['type'], string> = {
 	update_shift_time: '時間変更',
 };
 
-/**
- * ISO 8601 オフセット付き文字列（例: "2026-03-16T09:00:00+09:00"）から
- * HH:mm を抽出する。T の直後の時刻部分はオフセット時刻そのもの。
- */
-const isoToHHmm = (isoString: string): string => isoString.slice(11, 16);
-
 const createProposalDescription = (
 	proposal: AiChatMutationProposal,
 ): string => {
@@ -44,11 +38,10 @@ const createProposalDescription = (
 	}
 
 	if (proposal._meta) {
-		const { shiftDate, clientName } = proposal._meta;
+		const { shiftDate, clientName, shiftStartTime, shiftEndTime } =
+			proposal._meta;
 		const displayName = clientName ?? '利用者不明';
-		const startTime = isoToHHmm(proposal.startAt);
-		const endTime = isoToHHmm(proposal.endAt);
-		return `${shiftDate} ${displayName}様 ${startTime}〜${endTime}`;
+		return `${shiftDate} ${displayName}様 ${shiftStartTime}〜${shiftEndTime}`;
 	}
 
 	return `${proposal.startAt} → ${proposal.endAt}`;

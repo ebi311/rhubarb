@@ -41,6 +41,9 @@ const handleServiceError = async (
 		: null;
 
 	if (actorOfficeId) {
+		const proposalsWithoutMeta = request.proposals.map(
+			({ _meta: _, ...rest }) => rest,
+		);
 		await aiOperationLogService.logSilently({
 			office_id: actorOfficeId,
 			actor_user_id: userId,
@@ -49,9 +52,9 @@ const handleServiceError = async (
 				shiftIds: extractUniqueShiftIds(request.proposals),
 			},
 			proposal: {
-				proposals: request.proposals,
+				proposals: proposalsWithoutMeta,
 			},
-			request,
+			request: { ...request, proposals: proposalsWithoutMeta },
 			result: {
 				status: 'error',
 				error: error.message,
@@ -111,6 +114,9 @@ export const executeAiChatMutationBatchAction = async (
 			return errorResult(noResultError.message, 500);
 		}
 
+		const proposalsWithoutMeta = request.proposals.map(
+			({ _meta: _, ...rest }) => rest,
+		);
 		await aiOperationLogService.logSilently({
 			office_id: firstResult.officeId,
 			actor_user_id: user.id,
@@ -119,9 +125,9 @@ export const executeAiChatMutationBatchAction = async (
 				shiftIds: extractUniqueShiftIds(request.proposals),
 			},
 			proposal: {
-				proposals: request.proposals,
+				proposals: proposalsWithoutMeta,
 			},
-			request,
+			request: { ...request, proposals: proposalsWithoutMeta },
 			result: {
 				status: 'success',
 			},
