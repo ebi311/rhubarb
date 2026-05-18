@@ -26,6 +26,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint (ESLint)
+        run: pnpm lint
+
+      - name: Format check (Prettier)
+        run: pnpm exec prettier --check .
+
       - name: Install Playwright
         run: pnpm exec playwright install --with-deps
       - name: Run Vitest
