@@ -120,17 +120,17 @@ export const useChangeStaffDialog = (
 
 	// スタッフが選択されたときに時間重複チェック
 	useEffect(() => {
-		if (!selectedStaffId || !isOpen || isPastShift) {
-			setConflictingShifts([]);
-			return;
-		}
-
-		if (!parsedStart || !parsedEnd) {
-			setConflictingShifts([]);
-			return;
-		}
-
 		const checkAvailability = async () => {
+			if (!selectedStaffId || !isOpen || isPastShift) {
+				setConflictingShifts([]);
+				return;
+			}
+
+			if (!parsedStart || !parsedEnd) {
+				setConflictingShifts([]);
+				return;
+			}
+
 			setIsChecking(true);
 			try {
 				const result = await validateStaffAvailabilityAction({

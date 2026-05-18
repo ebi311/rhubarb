@@ -85,12 +85,12 @@ const useConflictCheck = (isOpen: boolean, shift: RestoreShiftDialogShift) => {
 	const [isCheckingConflict, setIsCheckingConflict] = useState(false);
 
 	useEffect(() => {
-		if (!isOpen || !shift.staffId) {
-			setConflictingShifts([]);
-			return;
-		}
-
 		const checkConflict = async () => {
+			if (!isOpen || !shift.staffId) {
+				setConflictingShifts([]);
+				return;
+			}
+
 			setIsCheckingConflict(true);
 			try {
 				const result = await validateStaffAvailabilityAction({

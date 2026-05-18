@@ -1,6 +1,6 @@
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { StaffFilterState } from '../../_types';
 import { filterStaffs, toStaffViewModel } from './staffViewModel';
 
@@ -21,10 +21,6 @@ export const useStaffListState = ({
 		StaffRecord,
 		'id' | 'name'
 	> | null>(null);
-
-	useEffect(() => {
-		setStaffs(initialStaffs);
-	}, [initialStaffs]);
 
 	const staffViewModels = useMemo(
 		() => staffs.map((staff) => toStaffViewModel(staff)),
