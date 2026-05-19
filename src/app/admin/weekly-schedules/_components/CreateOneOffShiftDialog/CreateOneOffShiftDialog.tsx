@@ -11,7 +11,7 @@ import {
 import { addJstDays, formatJstDateString } from '@/utils/date';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 
 export type CreateOneOffShiftDialogClientOption = {
 	id: string;
@@ -133,17 +133,33 @@ export const CreateOneOffShiftDialog = ({
 	);
 	const [staffId, setStaffId] = useState('');
 
-	useEffect(() => {
-		if (!isOpen) return;
-		setDateStr(defaultDateStr ?? weekStartDateStr);
-		setClientId(getInitialClientId(defaultClientId, clientOptions));
-	}, [
-		isOpen,
-		defaultDateStr,
-		weekStartDateStr,
-		defaultClientId,
-		clientOptions,
-	]);
+	// isOpen・defaultDateStr・weekStartDateStr・defaultClientId・clientOptions 変化時に
+	// dateStr/clientId を同期（derived state パターン）
+	const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+	const [prevDefaultDateStr, setPrevDefaultDateStr] = useState(defaultDateStr);
+	const [prevWeekStartDateStr, setPrevWeekStartDateStr] =
+		useState(weekStartDateStr);
+	const [prevDefaultClientId, setPrevDefaultClientId] =
+		useState(defaultClientId);
+	const [prevClientOptions, setPrevClientOptions] = useState(clientOptions);
+
+	if (
+		prevIsOpen !== isOpen ||
+		prevDefaultDateStr !== defaultDateStr ||
+		prevWeekStartDateStr !== weekStartDateStr ||
+		prevDefaultClientId !== defaultClientId ||
+		prevClientOptions !== clientOptions
+	) {
+		setPrevIsOpen(isOpen);
+		setPrevDefaultDateStr(defaultDateStr);
+		setPrevWeekStartDateStr(weekStartDateStr);
+		setPrevDefaultClientId(defaultClientId);
+		setPrevClientOptions(clientOptions);
+		if (isOpen) {
+			setDateStr(defaultDateStr ?? weekStartDateStr);
+			setClientId(getInitialClientId(defaultClientId, clientOptions));
+		}
+	}
 
 	const canSubmit = getCanSubmit({
 		isSubmitting,
