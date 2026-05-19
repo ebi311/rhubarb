@@ -22,6 +22,13 @@ export const useStaffListState = ({
 		'id' | 'name'
 	> | null>(null);
 
+	// initialStaffs（サーバー由来）が変化したら staffs を同期する（derived state パターン）
+	const [prevInitialStaffs, setPrevInitialStaffs] = useState(initialStaffs);
+	if (prevInitialStaffs !== initialStaffs) {
+		setPrevInitialStaffs(initialStaffs);
+		setStaffs(initialStaffs);
+	}
+
 	const staffViewModels = useMemo(
 		() => staffs.map((staff) => toStaffViewModel(staff)),
 		[staffs],

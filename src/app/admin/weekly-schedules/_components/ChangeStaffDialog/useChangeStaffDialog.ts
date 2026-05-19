@@ -71,12 +71,31 @@ export const useChangeStaffDialog = (
 	const { handleActionResult } = useActionResultHandler();
 	const router = useRouter();
 
-	// ダイアログが開いたとき、または shift.id が変わったときに状態をリセット（derived state パターン）
+	// ダイアログが開いたとき、shift.id が変わったとき、または initialSuggestion の影響で
+	// リセット値が変化したときに状態をリセット（derived state パターン）
 	const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 	const [prevShiftId, setPrevShiftId] = useState(shift.id);
-	if (prevIsOpen !== isOpen || prevShiftId !== shift.id) {
+	const [prevResetSelectedStaffId, setPrevResetSelectedStaffId] =
+		useState(resetSelectedStaffId);
+	const [prevResetDateStr, setPrevResetDateStr] = useState(resetDateStr);
+	const [prevResetStartTimeStr, setPrevResetStartTimeStr] =
+		useState(resetStartTimeStr);
+	const [prevResetEndTimeStr, setPrevResetEndTimeStr] =
+		useState(resetEndTimeStr);
+	if (
+		prevIsOpen !== isOpen ||
+		prevShiftId !== shift.id ||
+		prevResetSelectedStaffId !== resetSelectedStaffId ||
+		prevResetDateStr !== resetDateStr ||
+		prevResetStartTimeStr !== resetStartTimeStr ||
+		prevResetEndTimeStr !== resetEndTimeStr
+	) {
 		setPrevIsOpen(isOpen);
 		setPrevShiftId(shift.id);
+		setPrevResetSelectedStaffId(resetSelectedStaffId);
+		setPrevResetDateStr(resetDateStr);
+		setPrevResetStartTimeStr(resetStartTimeStr);
+		setPrevResetEndTimeStr(resetEndTimeStr);
 		if (isOpen) {
 			setSelectedStaffId(resetSelectedStaffId);
 			setReason('');

@@ -133,24 +133,28 @@ export const CreateOneOffShiftDialog = ({
 	);
 	const [staffId, setStaffId] = useState('');
 
-	// isOpen・defaultDateStr・weekStartDateStr・defaultClientId 変化時に dateStr/clientId を同期（derived state パターン）
+	// isOpen・defaultDateStr・weekStartDateStr・defaultClientId・clientOptions 変化時に
+	// dateStr/clientId を同期（derived state パターン）
 	const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 	const [prevDefaultDateStr, setPrevDefaultDateStr] = useState(defaultDateStr);
 	const [prevWeekStartDateStr, setPrevWeekStartDateStr] =
 		useState(weekStartDateStr);
 	const [prevDefaultClientId, setPrevDefaultClientId] =
 		useState(defaultClientId);
+	const [prevClientOptions, setPrevClientOptions] = useState(clientOptions);
 
 	if (
 		prevIsOpen !== isOpen ||
 		prevDefaultDateStr !== defaultDateStr ||
 		prevWeekStartDateStr !== weekStartDateStr ||
-		prevDefaultClientId !== defaultClientId
+		prevDefaultClientId !== defaultClientId ||
+		prevClientOptions !== clientOptions
 	) {
 		setPrevIsOpen(isOpen);
 		setPrevDefaultDateStr(defaultDateStr);
 		setPrevWeekStartDateStr(weekStartDateStr);
 		setPrevDefaultClientId(defaultClientId);
+		setPrevClientOptions(clientOptions);
 		if (isOpen) {
 			setDateStr(defaultDateStr ?? weekStartDateStr);
 			setClientId(getInitialClientId(defaultClientId, clientOptions));
