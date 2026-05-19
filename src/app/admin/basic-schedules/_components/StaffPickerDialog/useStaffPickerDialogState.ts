@@ -2,7 +2,7 @@ import {
 	ServiceTypeLabels,
 	type ServiceTypeId,
 } from '@/models/valueObjects/serviceTypeId';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { RoleFilter, StaffPickerOption } from './types';
 
 export type UseStaffPickerDialogStateParams = {
@@ -42,17 +42,24 @@ export const useStaffPickerDialogState = ({
 		selectedStaffId,
 	);
 
-	useEffect(() => {
+	// selectedStaffId が変わったら pendingSelection を同期する（derived state パターン）
+	const [prevSelectedStaffId, setPrevSelectedStaffId] =
+		useState(selectedStaffId);
+	if (prevSelectedStaffId !== selectedStaffId) {
+		setPrevSelectedStaffId(selectedStaffId);
 		setPendingSelection(selectedStaffId);
-	}, [selectedStaffId]);
+	}
 
-	useEffect(() => {
+	// ダイアログが閉じられたらフィルタをリセットする（derived state パターン）
+	const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+	if (prevIsOpen !== isOpen) {
+		setPrevIsOpen(isOpen);
 		if (!isOpen) {
 			setKeyword('');
 			setRoleFilter('all');
 			setServiceFilter('all');
 		}
-	}, [isOpen]);
+	}
 
 	const serviceTypeFilterOptions = useMemo(() => {
 		const unique = new Set<ServiceTypeId>();

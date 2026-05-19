@@ -18,6 +18,7 @@ import {
 	formatJstDateString,
 	parseJstDateString,
 	timeObjectToString,
+	toJstTimeStr,
 } from '@/utils/date';
 import { createSupabaseClient } from '@/utils/supabase/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -421,7 +422,9 @@ const buildSystemPromptBase = (
 - reason は任意。不明なら省略し、空文字は使わない（空白のみも不可）
 - update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
   - 例1: 2026-03-16T09:00:00+09:00
-  - 例2: 2026-03-16T00:00:00Z`
+  - 例2: 2026-03-16T00:00:00Z
+- processStaffAbsence の結果として代替スタッフが決まった場合は、必ず proposeShiftChange ツールを使って変更提案を作成すること
+- テキストのみで提案内容を報告して終わることは禁止`
 		: proposalToolMode === 'batch'
 			? `
 - シフト変更の提案は assistant の本文に JSON を直接書かず、必ず proposeShiftChanges ツールを呼び出して返す
@@ -432,7 +435,9 @@ const buildSystemPromptBase = (
   - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>", "reason": "<任意の理由>" }
   - { "type": "update_shift_time", "shiftId": "<UUID>", "startAt": "<ISO datetime with timezone offset>", "endAt": "<ISO datetime with timezone offset>" }
 - reason は任意。不明なら省略し、空文字は使わない（空白のみも不可）
-- update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）`
+- update_shift_time の startAt / endAt はタイムゾーンオフセット必須（+09:00 または末尾 Z も可）
+- processStaffAbsence の結果として代替スタッフが決まった場合は、必ず proposeShiftChanges ツールを使って変更提案を作成すること
+- テキストのみで提案内容を報告して終わることは禁止`
 			: '') +
 	SHIFT_ID_MISSING_PROMPT +
 	SUCCESS_ASSERTION_PROMPT;
@@ -452,7 +457,8 @@ const buildFlexibleContextPrompt = (
 	}
 
 	const proposalGuide = showProposalGuide
-		? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください'
+		? '\n- 複数シフトをまとめて変更する場合は proposeShiftChanges を使用してください' +
+			'\n- processStaffAbsence の結果として代替スタッフが決まった場合も、proposeShiftChanges で変更提案を作成してください'
 		: '';
 
 	return `
@@ -553,7 +559,8 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 	);
 
 	if (changeShiftStaffInput) {
-		return changeShiftStaffInput;
+		const { _meta: _, ...withoutMeta } = changeShiftStaffInput;
+		return withoutMeta;
 	}
 
 	const updateShiftTimeInput = normalizeNestedToolInput(
@@ -563,10 +570,12 @@ const ProposeShiftChangeToolInputSchema = z.preprocess((input) => {
 	);
 
 	if (updateShiftTimeInput) {
-		return updateShiftTimeInput;
+		const { _meta: _, ...withoutMeta } = updateShiftTimeInput;
+		return withoutMeta;
 	}
 
-	return input;
+	const { _meta: _, ...withoutMeta } = input;
+	return withoutMeta;
 }, AiChatMutationProposalSchema);
 
 const throwAllowlistViolation = (
@@ -599,17 +608,6 @@ const extractToStaffId = (
 const getContextStaffIds = (context: ChatRequest['context']): string[] =>
 	context?.staffIds ?? [];
 
-/**
- * ISO 8601 オフセット付き文字列（例: "2026-03-16T09:00:00+09:00"）から
- * HH:mm を抽出する。T の直後の時刻部分はオフセット時刻そのもの。
- */
-const isoToHHmm = (isoString: string): string => isoString.slice(11, 16);
-
-/**
- * ISO 8601 オフセット付き文字列から YYYY-MM-DD を抽出する。
- */
-const isoToDate = (isoString: string): string => isoString.slice(0, 10);
-
 /** proposeShiftChange ツール用の _meta を構築する（失敗時は undefined を返す） */
 const buildProposeShiftChangeMeta = async (
 	proposal: z.infer<typeof AiChatMutationProposalSchema>,
@@ -626,13 +624,13 @@ const buildProposeShiftChangeMeta = async (
 
 	const baseMeta: ShiftMeta = {
 		shiftDate: isUpdateShiftTime
-			? isoToDate(proposal.startAt)
+			? formatJstDateString(new Date(proposal.startAt))
 			: shiftContext.date,
 		shiftStartTime: isUpdateShiftTime
-			? isoToHHmm(proposal.startAt)
+			? toJstTimeStr(new Date(proposal.startAt))
 			: shiftContext.startTime,
 		shiftEndTime: isUpdateShiftTime
-			? isoToHHmm(proposal.endAt)
+			? toJstTimeStr(new Date(proposal.endAt))
 			: shiftContext.endTime,
 		clientName: shiftContext.clientName,
 		serviceTypeName: ServiceTypeLabels[shiftContext.serviceTypeId],
@@ -789,6 +787,20 @@ const isAllowedBatchProposal = (
 	};
 };
 
+const ProposeShiftChangesToolInputSchema = z.preprocess((input) => {
+	if (!isRecord(input)) return input;
+	const raw = input as Record<string, unknown>;
+	if (!Array.isArray(raw.proposals)) return input;
+	return {
+		...raw,
+		proposals: raw.proposals.map((p) => {
+			if (!isRecord(p)) return p;
+			const { _meta: _, ...rest } = p as Record<string, unknown>;
+			return rest;
+		}),
+	};
+}, AiChatMutationBatchProposalSchema);
+
 const createProposeShiftChangesTool = (
 	allowlist: FlexibleAllowlist,
 	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
@@ -800,7 +812,7 @@ const createProposeShiftChangesTool = (
 	return tool({
 		description:
 			'複数のシフト変更をまとめて提案します。1件だけでも proposals 配列で返してください。',
-		inputSchema: AiChatMutationBatchProposalSchema,
+		inputSchema: ProposeShiftChangesToolInputSchema,
 		execute: async (proposal) => {
 			const invalidProposal = proposal.proposals.find(
 				(candidate) => !isAllowedProposal(candidate),
@@ -858,13 +870,13 @@ const createProposeShiftChangesTool = (
 
 					const meta: ShiftMeta = {
 						shiftDate: isUpdateShiftTime
-							? isoToDate(p.startAt)
+							? formatJstDateString(new Date(p.startAt))
 							: formatJstDateString(shift.date),
 						shiftStartTime: isUpdateShiftTime
-							? isoToHHmm(p.startAt)
+							? toJstTimeStr(new Date(p.startAt))
 							: timeObjectToString(shift.time.start),
 						shiftEndTime: isUpdateShiftTime
-							? isoToHHmm(p.endAt)
+							? toJstTimeStr(new Date(p.endAt))
 							: timeObjectToString(shift.time.end),
 						clientName: shift.client_name,
 						serviceTypeName: ServiceTypeLabels[shift.service_type_id],
