@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { fn } from 'storybook/test';
 import { StaffPickerDialog, StaffPickerOption } from './StaffPickerDialog';
 import type { StaffPickerDialogProps } from './types';
@@ -59,9 +59,6 @@ const StatefulWrapper = (props: StaffPickerDialogProps) => {
 	const { selectedStaffId, onSelect, onClear, ...rest } = props;
 	const [selected, setSelected] = useState<string | null>(selectedStaffId);
 
-	useEffect(() => {
-		setSelected(selectedStaffId);
-	}, [selectedStaffId]);
 	return (
 		<StaffPickerDialog
 			{...rest}

@@ -1,6 +1,6 @@
 import type { StaffRecord } from '@/models/staffActionSchemas';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { StaffFilterState } from '../../_types';
 import { filterStaffs, toStaffViewModel } from './staffViewModel';
 
@@ -22,9 +22,12 @@ export const useStaffListState = ({
 		'id' | 'name'
 	> | null>(null);
 
-	useEffect(() => {
+	// initialStaffs（サーバー由来）が変化したら staffs を同期する（derived state パターン）
+	const [prevInitialStaffs, setPrevInitialStaffs] = useState(initialStaffs);
+	if (prevInitialStaffs !== initialStaffs) {
+		setPrevInitialStaffs(initialStaffs);
 		setStaffs(initialStaffs);
-	}, [initialStaffs]);
+	}
 
 	const staffViewModels = useMemo(
 		() => staffs.map((staff) => toStaffViewModel(staff)),

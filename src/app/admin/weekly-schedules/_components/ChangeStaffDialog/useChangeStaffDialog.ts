@@ -71,27 +71,41 @@ export const useChangeStaffDialog = (
 	const { handleActionResult } = useActionResultHandler();
 	const router = useRouter();
 
-	// ダイアログが開いたときにリセット
-	useEffect(() => {
-		if (!isOpen) {
-			return;
+	// ダイアログが開いたとき、shift.id が変わったとき、または initialSuggestion の影響で
+	// リセット値が変化したときに状態をリセット（derived state パターン）
+	const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+	const [prevShiftId, setPrevShiftId] = useState(shift.id);
+	const [prevResetSelectedStaffId, setPrevResetSelectedStaffId] =
+		useState(resetSelectedStaffId);
+	const [prevResetDateStr, setPrevResetDateStr] = useState(resetDateStr);
+	const [prevResetStartTimeStr, setPrevResetStartTimeStr] =
+		useState(resetStartTimeStr);
+	const [prevResetEndTimeStr, setPrevResetEndTimeStr] =
+		useState(resetEndTimeStr);
+	if (
+		prevIsOpen !== isOpen ||
+		prevShiftId !== shift.id ||
+		prevResetSelectedStaffId !== resetSelectedStaffId ||
+		prevResetDateStr !== resetDateStr ||
+		prevResetStartTimeStr !== resetStartTimeStr ||
+		prevResetEndTimeStr !== resetEndTimeStr
+	) {
+		setPrevIsOpen(isOpen);
+		setPrevShiftId(shift.id);
+		setPrevResetSelectedStaffId(resetSelectedStaffId);
+		setPrevResetDateStr(resetDateStr);
+		setPrevResetStartTimeStr(resetStartTimeStr);
+		setPrevResetEndTimeStr(resetEndTimeStr);
+		if (isOpen) {
+			setSelectedStaffId(resetSelectedStaffId);
+			setReason('');
+			setDateStr(resetDateStr);
+			setStartTimeStr(resetStartTimeStr);
+			setEndTimeStr(resetEndTimeStr);
+			setConflictingShifts([]);
+			setShowStaffPicker(false);
 		}
-
-		setSelectedStaffId(resetSelectedStaffId);
-		setReason('');
-		setDateStr(resetDateStr);
-		setStartTimeStr(resetStartTimeStr);
-		setEndTimeStr(resetEndTimeStr);
-		setConflictingShifts([]);
-		setShowStaffPicker(false);
-	}, [
-		isOpen,
-		resetDateStr,
-		resetEndTimeStr,
-		resetSelectedStaffId,
-		resetStartTimeStr,
-		shift.id,
-	]);
+	}
 
 	const baseDate = useMemo(() => {
 		try {
@@ -120,17 +134,17 @@ export const useChangeStaffDialog = (
 
 	// スタッフが選択されたときに時間重複チェック
 	useEffect(() => {
-		if (!selectedStaffId || !isOpen || isPastShift) {
-			setConflictingShifts([]);
-			return;
-		}
-
-		if (!parsedStart || !parsedEnd) {
-			setConflictingShifts([]);
-			return;
-		}
-
 		const checkAvailability = async () => {
+			if (!selectedStaffId || !isOpen || isPastShift) {
+				setConflictingShifts([]);
+				return;
+			}
+
+			if (!parsedStart || !parsedEnd) {
+				setConflictingShifts([]);
+				return;
+			}
+
 			setIsChecking(true);
 			try {
 				const result = await validateStaffAvailabilityAction({
