@@ -71,27 +71,22 @@ export const useChangeStaffDialog = (
 	const { handleActionResult } = useActionResultHandler();
 	const router = useRouter();
 
-	// ダイアログが開いたときにリセット
-	useEffect(() => {
-		if (!isOpen) {
-			return;
+	// ダイアログが開いたとき、または shift.id が変わったときに状態をリセット（derived state パターン）
+	const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+	const [prevShiftId, setPrevShiftId] = useState(shift.id);
+	if (prevIsOpen !== isOpen || prevShiftId !== shift.id) {
+		setPrevIsOpen(isOpen);
+		setPrevShiftId(shift.id);
+		if (isOpen) {
+			setSelectedStaffId(resetSelectedStaffId);
+			setReason('');
+			setDateStr(resetDateStr);
+			setStartTimeStr(resetStartTimeStr);
+			setEndTimeStr(resetEndTimeStr);
+			setConflictingShifts([]);
+			setShowStaffPicker(false);
 		}
-
-		setSelectedStaffId(resetSelectedStaffId);
-		setReason('');
-		setDateStr(resetDateStr);
-		setStartTimeStr(resetStartTimeStr);
-		setEndTimeStr(resetEndTimeStr);
-		setConflictingShifts([]);
-		setShowStaffPicker(false);
-	}, [
-		isOpen,
-		resetDateStr,
-		resetEndTimeStr,
-		resetSelectedStaffId,
-		resetStartTimeStr,
-		shift.id,
-	]);
+	}
 
 	const baseDate = useMemo(() => {
 		try {
