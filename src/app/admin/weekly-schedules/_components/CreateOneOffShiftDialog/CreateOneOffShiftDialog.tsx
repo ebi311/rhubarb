@@ -142,18 +142,19 @@ export const CreateOneOffShiftDialog = ({
 		useState(defaultClientId);
 
 	if (
-		isOpen &&
-		(prevIsOpen !== isOpen ||
-			prevDefaultDateStr !== defaultDateStr ||
-			prevWeekStartDateStr !== weekStartDateStr ||
-			prevDefaultClientId !== defaultClientId)
+		prevIsOpen !== isOpen ||
+		prevDefaultDateStr !== defaultDateStr ||
+		prevWeekStartDateStr !== weekStartDateStr ||
+		prevDefaultClientId !== defaultClientId
 	) {
 		setPrevIsOpen(isOpen);
 		setPrevDefaultDateStr(defaultDateStr);
 		setPrevWeekStartDateStr(weekStartDateStr);
 		setPrevDefaultClientId(defaultClientId);
-		setDateStr(defaultDateStr ?? weekStartDateStr);
-		setClientId(getInitialClientId(defaultClientId, clientOptions));
+		if (isOpen) {
+			setDateStr(defaultDateStr ?? weekStartDateStr);
+			setClientId(getInitialClientId(defaultClientId, clientOptions));
+		}
 	}
 
 	const canSubmit = getCanSubmit({
