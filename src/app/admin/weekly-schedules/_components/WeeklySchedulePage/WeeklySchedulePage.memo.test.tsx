@@ -11,12 +11,14 @@ import {
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
 const capturedStaffIds: string[][] = [];
+const mockSearchParamsGet = vi.fn();
 
 vi.mock('next/navigation', () => ({
 	useRouter: () => ({
 		push: mockPush,
 		refresh: mockRefresh,
 	}),
+	useSearchParams: () => ({ get: mockSearchParamsGet }),
 }));
 
 vi.mock('@/app/actions/weeklySchedules', () => ({
@@ -102,11 +104,14 @@ describe('WeeklySchedulePage staffOptions', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		capturedStaffIds.length = 0;
+		mockSearchParamsGet.mockImplementation((key: string) =>
+			key === 'view' ? 'list' : null,
+		);
 	});
 
 	it('再レンダー時もダイアログへ同じスタッフID一覧が渡る', async () => {
 		const user = userEvent.setup();
-		render(<WeeklySchedulePage {...defaultProps} />);
+		const { rerender } = render(<WeeklySchedulePage {...defaultProps} />);
 
 		await user.click(screen.getByRole('button', { name: '担当者を変更' }));
 		await user.click(screen.getByRole('button', { name: 'AIに相談' }));
@@ -114,9 +119,11 @@ describe('WeeklySchedulePage staffOptions', () => {
 		expect(capturedStaffIds).toHaveLength(1);
 		expect(capturedStaffIds[0]).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);
 
-		await user.click(
-			screen.getByRole('button', { name: '利用者別グリッド表示' }),
+		// searchParams が変わった場合の再レンダーをシミュレート
+		mockSearchParamsGet.mockImplementation((key: string) =>
+			key === 'view' ? 'staff-grid' : null,
 		);
+		rerender(<WeeklySchedulePage {...defaultProps} />);
 
 		expect(capturedStaffIds).toHaveLength(2);
 		expect(capturedStaffIds[1]).toEqual([TEST_IDS.STAFF_1, TEST_IDS.STAFF_2]);

@@ -68,12 +68,13 @@ describe('WeeklySchedulesPage', () => {
 			vi.mocked(parseSearchParams).mockReturnValue({
 				weekStartDate: null,
 				isValid: false,
+				viewMode: 'grid',
 			});
 
 			await WeeklySchedulesPage({ searchParams: Promise.resolve({}) });
 
 			expect(redirect).toHaveBeenCalledWith(
-				'/admin/weekly-schedules?week=2026-01-19',
+				'/admin/weekly-schedules?week=2026-01-19&view=grid',
 			);
 		});
 	});
@@ -84,6 +85,7 @@ describe('WeeklySchedulesPage', () => {
 				weekStartDate: null,
 				isValid: false,
 				error: 'invalid_date',
+				viewMode: 'grid',
 			});
 
 			await WeeklySchedulesPage({
@@ -91,7 +93,7 @@ describe('WeeklySchedulesPage', () => {
 			});
 
 			expect(redirect).toHaveBeenCalledWith(
-				'/admin/weekly-schedules?week=2026-01-19',
+				'/admin/weekly-schedules?week=2026-01-19&view=grid',
 			);
 		});
 	});
@@ -105,6 +107,7 @@ describe('WeeklySchedulesPage', () => {
 				weekStartDate: tuesday,
 				isValid: false,
 				error: 'not_monday',
+				viewMode: 'grid',
 			});
 			vi.mocked(getMonday).mockReturnValue(monday);
 			vi.mocked(formatJstDateString).mockReturnValue('2026-01-19');
@@ -115,7 +118,7 @@ describe('WeeklySchedulesPage', () => {
 
 			expect(getMonday).toHaveBeenCalledWith(tuesday);
 			expect(redirect).toHaveBeenCalledWith(
-				'/admin/weekly-schedules?week=2026-01-19',
+				'/admin/weekly-schedules?week=2026-01-19&view=grid',
 			);
 		});
 	});
@@ -127,6 +130,7 @@ describe('WeeklySchedulesPage', () => {
 			vi.mocked(parseSearchParams).mockReturnValue({
 				weekStartDate: monday,
 				isValid: true,
+				viewMode: 'grid',
 			});
 
 			const result = await WeeklySchedulesPage({
@@ -144,6 +148,7 @@ describe('WeeklySchedulesPage', () => {
 			vi.mocked(parseSearchParams).mockReturnValue({
 				weekStartDate: monday,
 				isValid: true,
+				viewMode: 'grid',
 			});
 
 			await WeeklySchedulesPage({

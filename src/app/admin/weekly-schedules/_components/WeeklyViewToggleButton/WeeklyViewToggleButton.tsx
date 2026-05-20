@@ -2,8 +2,9 @@
 
 import { Icon } from '@/app/_components/Icon';
 import classNames from 'classnames';
+import type { WeeklyViewMode } from '../../helpers';
 
-export type WeeklyViewMode = 'list' | 'grid' | 'staff-grid';
+export type { WeeklyViewMode } from '../../helpers';
 
 interface WeeklyViewToggleButtonProps {
 	currentView: WeeklyViewMode;
