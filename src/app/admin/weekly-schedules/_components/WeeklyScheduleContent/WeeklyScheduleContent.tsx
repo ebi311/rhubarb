@@ -2,16 +2,19 @@ import { getServiceUsersAction } from '@/app/actions/serviceUsers';
 import { listStaffsAction } from '@/app/actions/staffs';
 import { listShiftsAction } from '@/app/actions/weeklySchedules';
 import { addJstDays, formatJstDateString } from '@/utils/date';
+import type { WeeklyViewMode } from '../../helpers';
 import type { CreateOneOffShiftDialogClientOption } from '../CreateOneOffShiftDialog';
 import type { ShiftDisplayRow } from '../ShiftTable';
 import { WeeklySchedulePage } from '../WeeklySchedulePage';
 
 export interface WeeklyScheduleContentProps {
 	weekStartDate: Date;
+	viewMode: WeeklyViewMode;
 }
 
 export const WeeklyScheduleContent = async ({
 	weekStartDate,
+	viewMode,
 }: WeeklyScheduleContentProps) => {
 	const weekEndDate = addJstDays(weekStartDate, 6);
 
@@ -80,6 +83,7 @@ export const WeeklyScheduleContent = async ({
 			initialShifts={shifts}
 			staffOptions={staffOptions}
 			clientOptions={clientOptions}
+			initialViewMode={viewMode}
 		/>
 	);
 };

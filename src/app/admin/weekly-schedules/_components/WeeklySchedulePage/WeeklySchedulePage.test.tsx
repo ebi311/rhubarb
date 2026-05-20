@@ -114,6 +114,7 @@ describe('WeeklySchedulePage', () => {
 			{ id: TEST_IDS.CLIENT_1, name: '田中太郎' },
 			{ id: TEST_IDS.CLIENT_2, name: '鈴木一郎' },
 		],
+		initialViewMode: 'grid',
 	};
 
 	beforeEach(() => {
@@ -144,7 +145,11 @@ describe('WeeklySchedulePage', () => {
 
 	it('シフトがある場合はShiftTableが表示される', () => {
 		render(
-			<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+			<WeeklySchedulePage
+				{...defaultProps}
+				initialShifts={sampleShifts}
+				initialViewMode="list"
+			/>,
 		);
 
 		expect(screen.getByText('田中太郎')).toBeInTheDocument();
@@ -166,7 +171,18 @@ describe('WeeklySchedulePage', () => {
 		await user.click(screen.getByRole('button', { name: '前週' }));
 
 		expect(mockPush).toHaveBeenCalledWith(
-			'/admin/weekly-schedules?week=2026-01-12',
+			'/admin/weekly-schedules?week=2026-01-12&view=grid',
+		);
+	});
+
+	it('ビュー切替でrouter.pushに?view=が付いて呼ばれる', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: 'リスト表示' }));
+
+		expect(mockPush).toHaveBeenCalledWith(
+			'/admin/weekly-schedules?week=2026-01-19&view=list',
 		);
 	});
 
@@ -199,7 +215,11 @@ describe('WeeklySchedulePage', () => {
 		it('担当者変更ダイアログのAIに相談ボタンをクリックするとAdjustmentChatDialogが開く', async () => {
 			const user = userEvent.setup();
 			render(
-				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+				<WeeklySchedulePage
+					{...defaultProps}
+					initialShifts={sampleShifts}
+					initialViewMode="list"
+				/>,
 			);
 
 			await user.click(screen.getByRole('button', { name: '担当者を変更' }));
@@ -214,7 +234,11 @@ describe('WeeklySchedulePage', () => {
 			vi.useFakeTimers();
 			try {
 				render(
-					<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+					<WeeklySchedulePage
+						{...defaultProps}
+						initialShifts={sampleShifts}
+						initialViewMode="list"
+					/>,
 				);
 
 				fireEvent.click(screen.getByRole('button', { name: '担当者を変更' }));
@@ -253,6 +277,7 @@ describe('WeeklySchedulePage', () => {
 					<WeeklySchedulePage
 						{...defaultProps}
 						initialShifts={[...sampleShifts, secondShift]}
+						initialViewMode="list"
 					/>,
 				);
 
@@ -287,7 +312,11 @@ describe('WeeklySchedulePage', () => {
 		it('AIチャットには未保存編集ではなく初期シフトが渡される', async () => {
 			const user = userEvent.setup();
 			render(
-				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+				<WeeklySchedulePage
+					{...defaultProps}
+					initialShifts={sampleShifts}
+					initialViewMode="list"
+				/>,
 			);
 
 			await user.click(screen.getByRole('button', { name: '担当者を変更' }));
@@ -309,7 +338,11 @@ describe('WeeklySchedulePage', () => {
 		it('AdjustmentChatDialogの閉じるボタンでダイアログが閉じる', async () => {
 			const user = userEvent.setup();
 			render(
-				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
+				<WeeklySchedulePage
+					{...defaultProps}
+					initialShifts={sampleShifts}
+					initialViewMode="list"
+				/>,
 			);
 
 			await user.click(screen.getByRole('button', { name: '担当者を変更' }));

@@ -29,7 +29,7 @@ const WeeklySchedulesPage = async ({
 		}
 
 		const weekStr = formatJstDateString(mondayDate);
-		redirect(`/admin/weekly-schedules?week=${weekStr}`);
+		redirect(`/admin/weekly-schedules?week=${weekStr}&view=${parsed.viewMode}`);
 	}
 
 	const weekStartDate = parsed.weekStartDate!;
@@ -45,7 +45,10 @@ const WeeklySchedulesPage = async ({
 				</section>
 
 				<Suspense fallback={<WeeklyScheduleSkeleton />}>
-					<WeeklyScheduleContent weekStartDate={weekStartDate} />
+					<WeeklyScheduleContent
+						weekStartDate={weekStartDate}
+						viewMode={parsed.viewMode}
+					/>
 				</Suspense>
 			</div>
 		</>

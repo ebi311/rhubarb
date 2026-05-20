@@ -19,6 +19,25 @@ export const getMonday = (date: Date): Date => {
 };
 
 /**
+ * ビュー表示モード
+ */
+export type WeeklyViewMode = 'list' | 'grid' | 'staff-grid';
+
+/**
+ * 有効なビュー表示モードの一覧
+ */
+export const VALID_VIEW_MODES: WeeklyViewMode[] = [
+	'list',
+	'grid',
+	'staff-grid',
+];
+
+/**
+ * デフォルトのビュー表示モード
+ */
+export const DEFAULT_VIEW_MODE: WeeklyViewMode = 'grid';
+
+/**
  * Next.js page の searchParams の型
  */
 export type SearchParams = {
@@ -32,6 +51,7 @@ export type ParsedSearchParams = {
 	weekStartDate: Date | null;
 	isValid: boolean;
 	error?: 'invalid_date' | 'not_monday';
+	viewMode: WeeklyViewMode;
 };
 
 /**
@@ -41,11 +61,20 @@ export const parseSearchParams = (params: SearchParams): ParsedSearchParams => {
 	const weekRaw = params.week;
 	const week = typeof weekRaw === 'string' ? weekRaw : undefined;
 
+	// view パラメータのパース
+	const viewRaw = params.view;
+	const viewStr = typeof viewRaw === 'string' ? viewRaw : undefined;
+	const viewMode: WeeklyViewMode =
+		viewStr && (VALID_VIEW_MODES as string[]).includes(viewStr)
+			? (viewStr as WeeklyViewMode)
+			: DEFAULT_VIEW_MODE;
+
 	// week 未指定または空文字
 	if (!week) {
 		return {
 			weekStartDate: null,
 			isValid: false,
+			viewMode,
 		};
 	}
 
@@ -56,6 +85,7 @@ export const parseSearchParams = (params: SearchParams): ParsedSearchParams => {
 			weekStartDate: null,
 			isValid: false,
 			error: 'invalid_date',
+			viewMode,
 		};
 	}
 
@@ -69,11 +99,13 @@ export const parseSearchParams = (params: SearchParams): ParsedSearchParams => {
 			weekStartDate: parsedDate,
 			isValid: false,
 			error: 'not_monday',
+			viewMode,
 		};
 	}
 
 	return {
 		weekStartDate: parsedDate,
 		isValid: true,
+		viewMode,
 	};
 };

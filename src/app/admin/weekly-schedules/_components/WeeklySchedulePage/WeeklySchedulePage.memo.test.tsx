@@ -97,6 +97,7 @@ describe('WeeklySchedulePage staffOptions', () => {
 			},
 		],
 		clientOptions: [{ id: TEST_IDS.CLIENT_1, name: '田中太郎' }],
+		initialViewMode: 'list',
 	};
 
 	beforeEach(() => {

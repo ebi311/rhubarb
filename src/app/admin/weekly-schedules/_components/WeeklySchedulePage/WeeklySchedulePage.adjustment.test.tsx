@@ -166,6 +166,7 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		initialShifts: sampleShifts,
 		staffOptions: [],
 		clientOptions: [{ id: TEST_IDS.CLIENT_1, name: '田中太郎' }],
+		initialViewMode: 'list',
 	};
 
 	it('ChangeStaffDialog の調整相談ボタンクリックで AdjustmentWizardDialog が開く', async () => {
