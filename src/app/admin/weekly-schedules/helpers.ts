@@ -38,6 +38,12 @@ export const VALID_VIEW_MODES: WeeklyViewMode[] = [
 export const DEFAULT_VIEW_MODE: WeeklyViewMode = 'grid';
 
 /**
+ * 値が WeeklyViewMode かどうかを判定する型ガード
+ */
+export const isWeeklyViewMode = (value: unknown): value is WeeklyViewMode =>
+	(VALID_VIEW_MODES as unknown[]).includes(value);
+
+/**
  * Next.js page の searchParams の型
  */
 export type SearchParams = {
@@ -64,10 +70,9 @@ export const parseSearchParams = (params: SearchParams): ParsedSearchParams => {
 	// view パラメータのパース
 	const viewRaw = params.view;
 	const viewStr = typeof viewRaw === 'string' ? viewRaw : undefined;
-	const viewMode: WeeklyViewMode =
-		viewStr && (VALID_VIEW_MODES as string[]).includes(viewStr)
-			? (viewStr as WeeklyViewMode)
-			: DEFAULT_VIEW_MODE;
+	const viewMode: WeeklyViewMode = isWeeklyViewMode(viewStr)
+		? viewStr
+		: DEFAULT_VIEW_MODE;
 
 	// week 未指定または空文字
 	if (!week) {

@@ -45,10 +45,7 @@ const WeeklySchedulesPage = async ({
 				</section>
 
 				<Suspense fallback={<WeeklyScheduleSkeleton />}>
-					<WeeklyScheduleContent
-						weekStartDate={weekStartDate}
-						viewMode={parsed.viewMode}
-					/>
+					<WeeklyScheduleContent weekStartDate={weekStartDate} />
 				</Suspense>
 			</div>
 		</>

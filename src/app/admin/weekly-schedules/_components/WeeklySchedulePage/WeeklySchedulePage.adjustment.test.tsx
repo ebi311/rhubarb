@@ -5,12 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
+const mockSearchParamsGet = vi.fn();
 
 vi.mock('next/navigation', () => ({
 	useRouter: () => ({
 		push: mockPush,
 		refresh: mockRefresh,
 	}),
+	useSearchParams: () => ({ get: mockSearchParamsGet }),
 }));
 
 vi.mock('@/app/actions/weeklySchedules', () => ({
@@ -144,6 +146,9 @@ import {
 describe('WeeklySchedulePage (Adjustment entry)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockSearchParamsGet.mockImplementation((key: string) =>
+			key === 'view' ? 'list' : null,
+		);
 	});
 	const sampleShifts: ShiftDisplayRow[] = [
 		{
@@ -166,7 +171,6 @@ describe('WeeklySchedulePage (Adjustment entry)', () => {
 		initialShifts: sampleShifts,
 		staffOptions: [],
 		clientOptions: [{ id: TEST_IDS.CLIENT_1, name: '田中太郎' }],
-		initialViewMode: 'list',
 	};
 
 	it('ChangeStaffDialog の調整相談ボタンクリックで AdjustmentWizardDialog が開く', async () => {

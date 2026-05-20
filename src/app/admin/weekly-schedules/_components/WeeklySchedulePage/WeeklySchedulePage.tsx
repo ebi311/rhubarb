@@ -4,8 +4,13 @@ import { generateWeeklyShiftsAction } from '@/app/actions/weeklySchedules';
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { addJstDays, formatJstDateString, getJstDateOnly } from '@/utils/date';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import {
+	DEFAULT_VIEW_MODE,
+	isWeeklyViewMode,
+	type WeeklyViewMode,
+} from '../../helpers';
 import { AdjustmentChatDialog } from '../AdjustmentChatDialog';
 import type { ShiftContext } from '../AdjustmentChatDialog/useAdjustmentChat';
 import {
@@ -32,17 +37,13 @@ import {
 import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
 import { StaffWeeklyShiftGrid, WeeklyShiftGrid } from '../WeeklyShiftGrid';
-import {
-	WeeklyViewToggleButton,
-	type WeeklyViewMode,
-} from '../WeeklyViewToggleButton';
+import { WeeklyViewToggleButton } from '../WeeklyViewToggleButton';
 
 export interface WeeklySchedulePageProps {
 	weekStartDate: Date;
 	initialShifts: ShiftDisplayRow[];
 	staffOptions: StaffPickerOption[];
 	clientOptions: { id: string; name: string }[];
-	initialViewMode: WeeklyViewMode;
 }
 
 const shiftToDateTime = (
@@ -218,11 +219,13 @@ export const WeeklySchedulePage = ({
 	initialShifts,
 	staffOptions,
 	clientOptions,
-	initialViewMode,
 }: WeeklySchedulePageProps) => {
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const viewMode: WeeklyViewMode = isWeeklyViewMode(searchParams.get('view'))
+		? (searchParams.get('view') as WeeklyViewMode)
+		: DEFAULT_VIEW_MODE;
 	const weekStartDateStr = formatJstDateString(weekStartDate);
-	const [viewMode, setViewMode] = useState<WeeklyViewMode>(initialViewMode);
 	const [changeDialogShift, setChangeDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
 	const [cancelDialogShift, setCancelDialogShift] =
@@ -370,7 +373,6 @@ export const WeeklySchedulePage = ({
 					<WeeklyViewToggleButton
 						currentView={viewMode}
 						onViewChange={(newView) => {
-							setViewMode(newView);
 							router.push(
 								`/admin/weekly-schedules?week=${weekStartDateStr}&view=${newView}`,
 							);
