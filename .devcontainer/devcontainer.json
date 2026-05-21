@@ -15,7 +15,9 @@
 	// connected. This is typically a file mount in .devcontainer/docker-compose.yml
 	"workspaceFolder": "/workspaces/app",
 	"features": {
-		"ghcr.io/devcontainers-extra/features/supabase-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/supabase-cli:1": {
+			"version": "2.98.2"
+		},
 		"ghcr.io/devcontainers/features/docker-in-docker:3": {
 			"version": "latest",
 			"enableNonRootDocker": "true"
