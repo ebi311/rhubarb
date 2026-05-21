@@ -10,12 +10,14 @@ import {
 
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
+const mockSearchParamsGet = vi.fn();
 
 vi.mock('next/navigation', () => ({
 	useRouter: () => ({
 		push: mockPush,
 		refresh: mockRefresh,
 	}),
+	useSearchParams: () => ({ get: mockSearchParamsGet }),
 }));
 
 vi.mock('@/app/actions/weeklySchedules', () => ({
@@ -118,6 +120,9 @@ describe('WeeklySchedulePage', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockSearchParamsGet.mockImplementation((key: string) =>
+			key === 'view' ? 'grid' : null,
+		);
 	});
 
 	it('WeekSelectorが表示される', () => {
@@ -143,6 +148,9 @@ describe('WeeklySchedulePage', () => {
 	});
 
 	it('シフトがある場合はShiftTableが表示される', () => {
+		mockSearchParamsGet.mockImplementation((key: string) =>
+			key === 'view' ? 'list' : null,
+		);
 		render(
 			<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
 		);
@@ -166,7 +174,18 @@ describe('WeeklySchedulePage', () => {
 		await user.click(screen.getByRole('button', { name: '前週' }));
 
 		expect(mockPush).toHaveBeenCalledWith(
-			'/admin/weekly-schedules?week=2026-01-12',
+			'/admin/weekly-schedules?week=2026-01-12&view=grid',
+		);
+	});
+
+	it('ビュー切替でrouter.pushに?view=が付いて呼ばれる', async () => {
+		const user = userEvent.setup();
+		render(<WeeklySchedulePage {...defaultProps} />);
+
+		await user.click(screen.getByRole('button', { name: 'リスト表示' }));
+
+		expect(mockPush).toHaveBeenCalledWith(
+			'/admin/weekly-schedules?week=2026-01-19&view=list',
 		);
 	});
 
@@ -197,6 +216,9 @@ describe('WeeklySchedulePage', () => {
 
 	describe('AdjustmentChatDialog 統合', () => {
 		it('担当者変更ダイアログのAIに相談ボタンをクリックするとAdjustmentChatDialogが開く', async () => {
+			mockSearchParamsGet.mockImplementation((key: string) =>
+				key === 'view' ? 'list' : null,
+			);
 			const user = userEvent.setup();
 			render(
 				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
@@ -211,6 +233,9 @@ describe('WeeklySchedulePage', () => {
 		});
 
 		it('AIチャットは担当者変更ダイアログを閉じた後に開く', () => {
+			mockSearchParamsGet.mockImplementation((key: string) =>
+				key === 'view' ? 'list' : null,
+			);
 			vi.useFakeTimers();
 			try {
 				render(
@@ -240,6 +265,9 @@ describe('WeeklySchedulePage', () => {
 		});
 
 		it('AI相談後に別シフトの担当者変更ダイアログを開き直した場合、通常クローズでAIチャットは開かない', () => {
+			mockSearchParamsGet.mockImplementation((key: string) =>
+				key === 'view' ? 'list' : null,
+			);
 			vi.useFakeTimers();
 			try {
 				const secondShift: ShiftDisplayRow = {
@@ -285,6 +313,9 @@ describe('WeeklySchedulePage', () => {
 		});
 
 		it('AIチャットには未保存編集ではなく初期シフトが渡される', async () => {
+			mockSearchParamsGet.mockImplementation((key: string) =>
+				key === 'view' ? 'list' : null,
+			);
 			const user = userEvent.setup();
 			render(
 				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
@@ -307,6 +338,9 @@ describe('WeeklySchedulePage', () => {
 		});
 
 		it('AdjustmentChatDialogの閉じるボタンでダイアログが閉じる', async () => {
+			mockSearchParamsGet.mockImplementation((key: string) =>
+				key === 'view' ? 'list' : null,
+			);
 			const user = userEvent.setup();
 			render(
 				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
