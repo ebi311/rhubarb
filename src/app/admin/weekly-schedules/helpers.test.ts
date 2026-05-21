@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getMonday, parseSearchParams } from './helpers';
+import { DEFAULT_VIEW_MODE, getMonday, parseSearchParams } from './helpers';
 
 describe('getMonday', () => {
 	it('月曜日を渡すとそのまま返す', () => {
@@ -39,6 +39,7 @@ describe('parseSearchParams', () => {
 			expect(result).toEqual({
 				weekStartDate: null,
 				isValid: false,
+				viewMode: 'grid',
 			});
 		});
 
@@ -47,6 +48,7 @@ describe('parseSearchParams', () => {
 			expect(result).toEqual({
 				weekStartDate: null,
 				isValid: false,
+				viewMode: 'grid',
 			});
 		});
 	});
@@ -58,6 +60,7 @@ describe('parseSearchParams', () => {
 				weekStartDate: null,
 				isValid: false,
 				error: 'invalid_date',
+				viewMode: 'grid',
 			});
 		});
 
@@ -67,6 +70,7 @@ describe('parseSearchParams', () => {
 				weekStartDate: null,
 				isValid: false,
 				error: 'invalid_date',
+				viewMode: 'grid',
 			});
 		});
 	});
@@ -103,5 +107,45 @@ describe('parseSearchParams', () => {
 			expect(result.isValid).toBe(true);
 			expect(result.weekStartDate).not.toBeNull();
 		});
+	});
+});
+
+describe('parseSearchParams - viewMode', () => {
+	it('view 未指定の場合は DEFAULT_VIEW_MODE を返す', () => {
+		const result = parseSearchParams({ week: '2026-01-19' });
+		expect(result.viewMode).toBe(DEFAULT_VIEW_MODE);
+	});
+
+	it('view=list の場合は "list" を返す', () => {
+		const result = parseSearchParams({ week: '2026-01-19', view: 'list' });
+		expect(result.viewMode).toBe('list');
+	});
+
+	it('view=grid の場合は "grid" を返す', () => {
+		const result = parseSearchParams({ week: '2026-01-19', view: 'grid' });
+		expect(result.viewMode).toBe('grid');
+	});
+
+	it('view=staff-grid の場合は "staff-grid" を返す', () => {
+		const result = parseSearchParams({
+			week: '2026-01-19',
+			view: 'staff-grid',
+		});
+		expect(result.viewMode).toBe('staff-grid');
+	});
+
+	it('不正な view 値は DEFAULT_VIEW_MODE にフォールバック', () => {
+		const result = parseSearchParams({ week: '2026-01-19', view: 'invalid' });
+		expect(result.viewMode).toBe(DEFAULT_VIEW_MODE);
+	});
+
+	it('week が無効でも viewMode は正しくパースされる', () => {
+		const result = parseSearchParams({ week: 'invalid-date', view: 'list' });
+		expect(result.viewMode).toBe('list');
+	});
+
+	it('week 未指定でも viewMode は返される', () => {
+		const result = parseSearchParams({ view: 'staff-grid' });
+		expect(result.viewMode).toBe('staff-grid');
 	});
 });

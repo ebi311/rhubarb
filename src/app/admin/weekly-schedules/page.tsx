@@ -29,7 +29,7 @@ const WeeklySchedulesPage = async ({
 		}
 
 		const weekStr = formatJstDateString(mondayDate);
-		redirect(`/admin/weekly-schedules?week=${weekStr}`);
+		redirect(`/admin/weekly-schedules?week=${weekStr}&view=${parsed.viewMode}`);
 	}
 
 	const weekStartDate = parsed.weekStartDate!;
