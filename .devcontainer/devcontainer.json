@@ -19,7 +19,7 @@
 			"version": "2.98.2"
 		},
 		"ghcr.io/devcontainers/features/docker-in-docker:3": {
-			"version": "latest",
+			"version": "28.5.2",
 			"enableNonRootDocker": "true"
 		},
 		"ghcr.io/devcontainers/features/common-utils:": {
