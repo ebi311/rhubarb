@@ -15,8 +15,9 @@ Supabase Auth を使用した Google アカウントによる認証機能。
 
 1. `/login` で「Google でログイン」ボタンをクリック
 2. Supabase が Google OAuth 画面にリダイレクト
-3. Google 認証後、`/auth/callback` にリダイレクト
-4. コールバック処理でセッション確立
+3. Google 認証後、Google は Supabase の `/auth/v1/callback` に戻る
+4. Supabase がアプリの `/auth/callback` にリダイレクト
+5. コールバック処理でセッション確立
 
 ### スタッフ紐付け
 

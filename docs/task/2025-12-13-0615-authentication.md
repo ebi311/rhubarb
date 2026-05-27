@@ -11,7 +11,8 @@
 
 - [x] Supabase Dashboard > Authentication > Providers > Google を有効化。
 - [x] Client ID と Secret を設定。
-- [x] Redirect URL に `http://localhost:3000/auth/callback` を追加。
+- [x] Google Cloud Console の Authorized redirect URI に `http://127.0.0.1:54321/auth/v1/callback` を追加。
+- [x] アプリ側のログイン完了後のリダイレクト先として `http://localhost:3000/auth/callback` を許可。
 
 ### 2. ログインページの実装
 
