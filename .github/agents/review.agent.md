@@ -38,7 +38,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: gemini-2.5-pro
+model: Claude Sonnet 4.6 (copilot)
 ---
 
 実装内容をレビューしてください。批判的に評価を行い、指摘の妥当性そのものも含めて中立的に判断してください。新たな情報を検索、分析することを推奨します。あくまでレビューの提供までがあなたの役割です。GitHub 上の状態変更、push、thread resolve、re-review リクエストは行いません。
