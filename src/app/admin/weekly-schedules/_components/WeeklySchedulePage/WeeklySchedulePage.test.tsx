@@ -1,5 +1,5 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShiftDisplayRow } from '../ShiftTable';
@@ -355,10 +355,11 @@ describe('WeeklySchedulePage', () => {
 			).toBeInTheDocument();
 
 			const dialog = screen.getByRole('dialog', { name: /シフト調整チャット/ });
-			const closeButton = dialog.querySelector('button');
-			expect(closeButton).not.toBeNull();
+			const closeButton = within(dialog).getByRole('button', {
+				name: '閉じる',
+			});
 
-			await user.click(closeButton!);
+			await user.click(closeButton);
 
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 		});

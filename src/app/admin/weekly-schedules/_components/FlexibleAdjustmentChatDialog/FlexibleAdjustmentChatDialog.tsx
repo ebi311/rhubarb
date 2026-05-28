@@ -370,7 +370,7 @@ export const FlexibleAdjustmentChatDialog = ({
 				proposalMessageId={proposalMessageId}
 			/>
 
-			<div className="border-t border-base-300 pt-3">
+			<div className="border-t border-base-300 px-4 pt-3">
 				<ChatInput onSend={sendMessage} disabled={isStreaming || isExecuting} />
 			</div>
 		</aside>
