@@ -17,7 +17,14 @@ import type {
 } from '@/models/aiChatMutationProposal';
 import type { UIMessage } from 'ai';
 import { useRouter } from 'next/navigation';
-import { useMemo, useRef, useState, type MutableRefObject } from 'react';
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type MutableRefObject,
+} from 'react';
 
 type FlexibleAdjustmentChatDialogProps = {
 	isOpen: boolean;
@@ -289,67 +296,83 @@ export const FlexibleAdjustmentChatDialog = ({
 		handleConfirm,
 		setDismissedProposalKey,
 	});
+	const handleClose = useCallback(() => {
+		stop();
+		onClose();
+	}, [onClose, stop]);
+
+	useEffect(() => {
+		if (!isOpen) {
+			return;
+		}
+
+		const handleDocumentKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== 'Escape' || event.isComposing) {
+				return;
+			}
+
+			event.preventDefault();
+			handleClose();
+		};
+
+		document.addEventListener('keydown', handleDocumentKeyDown);
+
+		return () => {
+			document.removeEventListener('keydown', handleDocumentKeyDown);
+		};
+	}, [handleClose, isOpen]);
 
 	if (!isOpen) {
 		return null;
 	}
 
 	return (
-		<div
-			role="dialog"
-			className="modal-open modal modal-bottom sm:modal-middle"
-			aria-modal="true"
-			aria-labelledby="flexible-adjustment-chat-dialog-title"
+		<aside
+			role="complementary"
+			aria-labelledby="flexible-chat-drawer-heading"
+			className="fixed top-[var(--header-height,4rem)] right-0 z-40 flex h-[calc(100dvh-var(--header-height,4rem))] w-full flex-col border-l border-base-300 bg-base-100 shadow-xl lg:w-[400px]"
 		>
-			<div className="modal-box flex h-[80vh] max-w-3xl flex-col">
-				<div className="flex items-start justify-between gap-2 border-b border-base-300 pb-3">
-					<div>
-						<h2
-							id="flexible-adjustment-chat-dialog-title"
-							className="text-xl font-semibold"
-						>
-							AIアシスタント
-						</h2>
-						<p className="text-sm text-base-content/70">
-							複数シフトの調整案を会話しながらまとめて提案します
-						</p>
-					</div>
-					<button
-						type="button"
-						className="btn btn-ghost btn-sm"
-						aria-label="閉じる"
-						onClick={() => {
-							stop();
-							onClose();
-						}}
+			<div className="flex items-start justify-between gap-2 border-b border-base-300 px-4 py-3">
+				<div>
+					<h2
+						id="flexible-chat-drawer-heading"
+						className="text-xl font-semibold"
 					>
-						✕
-					</button>
+						AIアシスタント
+					</h2>
+					<p className="text-sm text-base-content/70">
+						複数シフトの調整案を会話しながらまとめて提案します
+					</p>
 				</div>
-
-				<div className="border-b border-base-300 bg-base-200/50 px-4 py-2 text-sm">
-					<span className="font-medium">対象期間: </span>
-					<span>
-						{weekRange.startDate} 〜 {weekRange.endDate}
-					</span>
-				</div>
-
-				{renderErrorAlert(error)}
-				{proposalSection}
-
-				<ChatMessageList
-					messages={messages}
-					isStreaming={isStreaming}
-					proposalMessageId={proposalMessageId}
-				/>
-
-				<div className="border-t border-base-300 pt-3">
-					<ChatInput
-						onSend={sendMessage}
-						disabled={isStreaming || isExecuting}
-					/>
-				</div>
+				<button
+					type="button"
+					className="btn btn-ghost btn-sm"
+					aria-label="閉じる"
+					onClick={handleClose}
+				>
+					✕
+				</button>
 			</div>
-		</div>
+
+			<div className="border-b border-base-300 bg-base-200/50 px-4 py-2 text-sm">
+				<span className="font-medium">対象期間: </span>
+				<span>
+					{weekRange.startDate} 〜 {weekRange.endDate}
+				</span>
+			</div>
+
+			{renderErrorAlert(error)}
+			{proposalSection}
+
+			<ChatMessageList
+				messages={messages}
+				isStreaming={isStreaming}
+				proposalMessageId={proposalMessageId}
+			/>
+
+			<div className="border-t border-base-300 pt-3">
+				<ChatInput onSend={sendMessage} disabled={isStreaming || isExecuting} />
+			</div>
+		</aside>
 	);
 };

@@ -5,7 +5,7 @@ import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/
 import { ServiceTypeLabels } from '@/models/valueObjects/serviceTypeId';
 import { addJstDays, formatJstDateString, getJstDateOnly } from '@/utils/date';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
 	DEFAULT_VIEW_MODE,
 	isWeeklyViewMode,
@@ -38,6 +38,10 @@ import { ShiftTable, type ShiftDisplayRow } from '../ShiftTable';
 import { WeekSelector } from '../WeekSelector';
 import { StaffWeeklyShiftGrid, WeeklyShiftGrid } from '../WeeklyShiftGrid';
 import { WeeklyViewToggleButton } from '../WeeklyViewToggleButton';
+import {
+	findShiftById,
+	usePendingAIChatTransition,
+} from './usePendingAIChatTransition';
 
 export interface WeeklySchedulePageProps {
 	weekStartDate: Date;
@@ -96,14 +100,6 @@ const createRestoreShiftDialogShift = (
 	cancelCategory: shift.cancelCategory ?? undefined,
 });
 
-const findShiftById = (shifts: ShiftDisplayRow[], shiftId: string | null) => {
-	if (!shiftId) {
-		return null;
-	}
-
-	return shifts.find((shift) => shift.id === shiftId) ?? null;
-};
-
 const getReopenWizardShiftId = (
 	shifts: ShiftDisplayRow[],
 	shiftIds: string[],
@@ -144,6 +140,11 @@ const getUniqueShiftIds = (shifts: ShiftDisplayRow[]): string[] => [
 const getUniqueStaffIds = (staffOptions: StaffPickerOption[]): string[] => [
 	...new Set(staffOptions.map((staffOption) => staffOption.id)),
 ];
+
+const getPageClassName = (isFlexibleChatOpen: boolean) =>
+	['flex flex-col gap-4', isFlexibleChatOpen ? 'lg:pr-[400px]' : null]
+		.filter(Boolean)
+		.join(' ');
 
 const renderScheduleContent = ({
 	hasShifts,
@@ -244,7 +245,11 @@ export const WeeklySchedulePage = ({
 	const [chatDialogShift, setChatDialogShift] =
 		useState<ShiftDisplayRow | null>(null);
 	const [isFlexibleChatOpen, setIsFlexibleChatOpen] = useState(false);
-	const pendingAIChatShiftIdRef = useRef<string | null>(null);
+	const { queuePendingAIChat } = usePendingAIChatTransition({
+		changeDialogShift,
+		shifts: initialShifts,
+		setChatDialogShift,
+	});
 
 	const wizardShift = findShiftById(initialShifts, wizardShiftId);
 
@@ -321,32 +326,10 @@ export const WeeklySchedulePage = ({
 	};
 
 	const handleStartAIChatFromChangeDialog = (shiftId: string) => {
-		pendingAIChatShiftIdRef.current = shiftId;
+		queuePendingAIChat(shiftId);
 		setChangeDialogShift(null);
 		setWizardSuggestion(null);
 	};
-
-	useEffect(() => {
-		if (changeDialogShift) {
-			pendingAIChatShiftIdRef.current = null;
-			return;
-		}
-
-		const pendingShiftId = pendingAIChatShiftIdRef.current;
-		if (!pendingShiftId) {
-			return;
-		}
-
-		pendingAIChatShiftIdRef.current = null;
-
-		const timerId = window.setTimeout(() => {
-			setChatDialogShift(findShiftById(initialShifts, pendingShiftId));
-		}, 0);
-
-		return () => {
-			window.clearTimeout(timerId);
-		};
-	}, [changeDialogShift, initialShifts]);
 
 	const hasShifts = initialShifts.length > 0;
 	const flexibleWeekRange = buildWeekRange(weekStartDate);
@@ -356,7 +339,7 @@ export const WeeklySchedulePage = ({
 	};
 
 	return (
-		<div className="flex flex-col gap-4">
+		<div className={getPageClassName(isFlexibleChatOpen)}>
 			<div className="flex flex-wrap items-center justify-between gap-4">
 				<WeekSelector
 					currentWeek={weekStartDate}

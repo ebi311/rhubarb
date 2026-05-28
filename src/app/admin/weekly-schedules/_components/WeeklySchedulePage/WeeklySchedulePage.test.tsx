@@ -78,15 +78,17 @@ vi.mock('../FlexibleAdjustmentChatDialog', () => ({
 		isOpen: boolean;
 		weekRange: { startDate: string; endDate: string };
 		onClose: () => void;
-	}) =>
-		isOpen ? (
-			<div role="dialog" aria-label="AIアシスタント">
-				<p>{`${weekRange.startDate}〜${weekRange.endDate}`}</p>
-				<button type="button" onClick={onClose}>
-					閉じる
-				</button>
-			</div>
-		) : null,
+	}) => (
+		<div
+			data-testid="flexible-adjustment-chat-dialog"
+			data-open={isOpen ? 'true' : 'false'}
+		>
+			<p>{weekRange.startDate + '〜' + weekRange.endDate}</p>
+			<button type="button" onClick={onClose}>
+				閉じる
+			</button>
+		</div>
+	),
 }));
 
 describe('WeeklySchedulePage', () => {
@@ -352,26 +354,44 @@ describe('WeeklySchedulePage', () => {
 				screen.getByRole('dialog', { name: /シフト調整チャット/ }),
 			).toBeInTheDocument();
 
-			await user.click(screen.getByRole('button', { name: '閉じる' }));
+			const dialog = screen.getByRole('dialog', { name: /シフト調整チャット/ });
+			const closeButton = dialog.querySelector('button');
+			expect(closeButton).not.toBeNull();
+
+			await user.click(closeButton!);
 
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 		});
 	});
 
 	describe('FlexibleAdjustmentChatDialog 統合', () => {
-		it('AIアシスタントボタンを押すと flexible ダイアログが開く', async () => {
+		it('AIアシスタント Drawer は常時 mount され、isOpen と右余白だけを切り替える', async () => {
 			const user = userEvent.setup();
-
-			render(
+			const { container } = render(
 				<WeeklySchedulePage {...defaultProps} initialShifts={sampleShifts} />,
 			);
+			const pageRoot = container.firstElementChild;
+			const drawer = screen.getByTestId('flexible-adjustment-chat-dialog');
+
+			expect(pageRoot).not.toBeNull();
+			expect(pageRoot).not.toHaveClass('lg:pr-[400px]');
+			expect(drawer).toHaveAttribute('data-open', 'false');
+			expect(drawer).toHaveTextContent('2026-01-19〜2026-01-25');
 
 			await user.click(screen.getByRole('button', { name: 'AIアシスタント' }));
 
-			expect(
-				screen.getByRole('dialog', { name: 'AIアシスタント' }),
-			).toBeInTheDocument();
-			expect(screen.getByText('2026-01-19〜2026-01-25')).toBeInTheDocument();
+			expect(drawer).toHaveAttribute('data-open', 'true');
+			expect(pageRoot).toHaveClass('lg:pr-[400px]');
+
+			await user.click(screen.getByRole('button', { name: '閉じる' }));
+
+			expect(drawer).toHaveAttribute('data-open', 'false');
+			expect(pageRoot).not.toHaveClass('lg:pr-[400px]');
+
+			await user.click(screen.getByRole('button', { name: 'AIアシスタント' }));
+
+			expect(drawer).toHaveAttribute('data-open', 'true');
+			expect(pageRoot).toHaveClass('lg:pr-[400px]');
 		});
 	});
 });

@@ -1,5 +1,5 @@
 import { TEST_IDS } from '@/test/helpers/testIds';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FlexibleAdjustmentChatDialog } from './FlexibleAdjustmentChatDialog';
@@ -101,6 +101,49 @@ describe('FlexibleAdjustmentChatDialog', () => {
 		});
 	});
 
+	it('isOpen が false のときは何も描画しない', () => {
+		render(
+			<FlexibleAdjustmentChatDialog
+				isOpen={false}
+				weekRange={{ startDate: '2026-03-16', endDate: '2026-03-22' }}
+				allowlist={allowlist}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('button', { name: '閉じる' }),
+		).not.toBeInTheDocument();
+	});
+
+	it('open 時は complementary landmark として見出しでラベル付けして表示する', () => {
+		render(
+			<FlexibleAdjustmentChatDialog
+				isOpen={true}
+				weekRange={{ startDate: '2026-03-16', endDate: '2026-03-22' }}
+				allowlist={allowlist}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		const drawer = screen.getByRole('complementary', {
+			name: 'AIアシスタント',
+		});
+		const heading = screen.getByRole('heading', {
+			level: 2,
+			name: 'AIアシスタント',
+		});
+
+		expect(drawer).toBeInTheDocument();
+		expect(drawer).toHaveAttribute(
+			'aria-labelledby',
+			'flexible-chat-drawer-heading',
+		);
+		expect(heading).toHaveAttribute('id', 'flexible-chat-drawer-heading');
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
+
 	it('対象期間を表示する', () => {
 		render(
 			<FlexibleAdjustmentChatDialog
@@ -143,7 +186,43 @@ describe('FlexibleAdjustmentChatDialog', () => {
 		expect(mockHandleActionResult).toHaveBeenCalledTimes(1);
 	});
 
-	it('閉じると stop と onClose を呼ぶ', async () => {
+	it('Escape キーで stop と onClose を呼ぶ', () => {
+		const onClose = vi.fn();
+		render(
+			<FlexibleAdjustmentChatDialog
+				isOpen={true}
+				weekRange={{ startDate: '2026-03-16', endDate: '2026-03-22' }}
+				allowlist={allowlist}
+				onClose={onClose}
+			/>,
+		);
+
+		fireEvent.keyDown(document, { key: 'Escape' });
+
+		expect(mockStop).toHaveBeenCalledTimes(1);
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('IME 変換中の Escape キーでは stop と onClose を呼ばない', () => {
+		const onClose = vi.fn();
+		render(
+			<FlexibleAdjustmentChatDialog
+				isOpen={true}
+				weekRange={{ startDate: '2026-03-16', endDate: '2026-03-22' }}
+				allowlist={allowlist}
+				onClose={onClose}
+			/>,
+		);
+
+		const event = new KeyboardEvent('keydown', { key: 'Escape' });
+		Object.defineProperty(event, 'isComposing', { value: true });
+		document.dispatchEvent(event);
+
+		expect(mockStop).not.toHaveBeenCalled();
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it('閉じるボタンで stop と onClose を呼ぶ', async () => {
 		const user = userEvent.setup();
 		const onClose = vi.fn();
 
