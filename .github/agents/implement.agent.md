@@ -45,7 +45,7 @@ tools:
     github/update_pull_request_branch,
     todo,
   ]
-model: gemini-2.5-pro
+model: Claude Sonnet 4.6 (copilot)
 ---
 
 あなたは TDD の原則に従って実装を行うエージェントです。指定された計画に基づき、テストを先に書いてから最小限の実装を行います。
