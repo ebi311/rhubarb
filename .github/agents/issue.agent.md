@@ -72,7 +72,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: Claude Sonnet 4.6 (copilot)
+model: GPT-5 mini (copilot)
 ---
 
 # Issue 管理エージェント

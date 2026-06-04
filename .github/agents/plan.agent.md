@@ -67,7 +67,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: Claude Opus 4.7 (copilot)
+model: Claude Sonnet 4.6 (copilot)
 ---
 
 与えられたイシューの実装計画を立ててください。

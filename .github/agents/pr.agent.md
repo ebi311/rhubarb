@@ -44,7 +44,7 @@ tools:
     ms-vscode.vscode-websearchforcopilot/websearch,
     todo,
   ]
-model: GPT-5.4 mini (copilot)
+model: GPT-5 mini (copilot)
 ---
 
 与えられたイシューと実装に対する、プルリクエストを作成してください。
