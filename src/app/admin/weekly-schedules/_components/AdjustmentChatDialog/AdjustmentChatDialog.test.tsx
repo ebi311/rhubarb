@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import type { UIMessage } from 'ai';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { AdjustmentChatDialog } from './AdjustmentChatDialog';
+import { PROPOSAL_DISMISS_GUIDANCE_MESSAGE } from './ProposalDismissGuidance';
 
 // Vercel AI SDK useChat のモック
 const mockUseChat = vi.fn();
@@ -648,6 +649,9 @@ describe('AdjustmentChatDialog', () => {
 		await waitFor(() => {
 			expect(screen.queryByText('担当者変更')).not.toBeInTheDocument();
 		});
+		expect(
+			screen.queryByText(PROPOSAL_DISMISS_GUIDANCE_MESSAGE),
+		).not.toBeInTheDocument();
 	});
 
 	it('キャンセル押下でカードが非表示になる', async () => {
@@ -693,6 +697,9 @@ describe('AdjustmentChatDialog', () => {
 
 		expect(mockDismissProposal).toHaveBeenCalledTimes(1);
 		expect(screen.queryByText('担当者変更')).not.toBeInTheDocument();
+		expect(
+			screen.getByText(PROPOSAL_DISMISS_GUIDANCE_MESSAGE),
+		).toBeInTheDocument();
 	});
 
 	it('isStreaming=true のとき確定ボタンが disabled になる', () => {
@@ -878,6 +885,138 @@ describe('AdjustmentChatDialog', () => {
 
 		expect(screen.queryByText('担当者変更')).not.toBeInTheDocument();
 		expect(screen.getByText('（提案を生成しました）')).toBeInTheDocument();
+		expect(
+			screen.getByText(PROPOSAL_DISMISS_GUIDANCE_MESSAGE),
+		).toBeInTheDocument();
+	});
+
+	it('新しい proposal が来たらガイダンスが非表示になる', async () => {
+		type UseProposalExecutionOptions = {
+			onDismiss?: () => void;
+		};
+		const user = userEvent.setup();
+
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(
+						`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`,
+						'assistant-1',
+					),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+		mockUseProposalExecution.mockImplementation(
+			(options: UseProposalExecutionOptions) => ({
+				isExecuting: false,
+				execute: mockExecuteProposal,
+				dismiss: () => {
+					options.onDismiss?.();
+					mockDismissProposal();
+				},
+			}),
+		);
+
+		const { rerender } = render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+		expect(
+			screen.getByText(PROPOSAL_DISMISS_GUIDANCE_MESSAGE),
+		).toBeInTheDocument();
+
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				messages: [
+					createProposalMessage(
+						`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`,
+						'assistant-2',
+					),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+
+		rerender(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.queryByText(PROPOSAL_DISMISS_GUIDANCE_MESSAGE),
+		).not.toBeInTheDocument();
+		expect(screen.getByText('担当者変更')).toBeInTheDocument();
+	});
+
+	it('isStreaming=true のときはガイダンスを表示しない', async () => {
+		type UseProposalExecutionOptions = {
+			onDismiss?: () => void;
+		};
+		const user = userEvent.setup();
+
+		mockUseChat.mockReturnValue(
+			createMockUseChatReturn({
+				status: 'streaming',
+				messages: [
+					createProposalMessage(`{
+  "type": "change_shift_staff",
+  "shiftId": "${TEST_IDS.SCHEDULE_1}",
+  "toStaffId": "${TEST_IDS.STAFF_2}"
+}`),
+				],
+				sendMessage: mockSendMessage,
+				stop: mockStop,
+				setMessages: mockSetMessages,
+			}),
+		);
+		mockUseProposalExecution.mockImplementation(
+			(options: UseProposalExecutionOptions) => ({
+				isExecuting: false,
+				execute: mockExecuteProposal,
+				dismiss: () => {
+					options.onDismiss?.();
+					mockDismissProposal();
+				},
+			}),
+		);
+
+		render(
+			<AdjustmentChatDialog
+				isOpen={true}
+				shiftContext={shiftContext}
+				staffOptions={staffOptions}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+		expect(
+			screen.queryByText(PROPOSAL_DISMISS_GUIDANCE_MESSAGE),
+		).not.toBeInTheDocument();
 	});
 
 	it('detectedProposal の算出で reverse を呼ばずに最新 assistant を検出できる', () => {

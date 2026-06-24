@@ -7,9 +7,11 @@ import {
 	ChatMessageList,
 	extractProposalFromParts,
 	parseProposal,
+	ProposalDismissGuidance,
 	useAdjustmentChat,
 	type FlexibleChatContext,
 } from '@/app/admin/weekly-schedules/_components/AdjustmentChatDialog';
+import { useProposalDismissState } from '@/app/admin/weekly-schedules/_components/AdjustmentChatDialog/useProposalDismissState';
 import { useActionResultHandler } from '@/hooks/useActionResultHandler';
 import type {
 	AiChatMutationBatchProposal,
@@ -134,23 +136,21 @@ const createFallbackErrorResult = () => ({
 const executeBatchProposal = async ({
 	approvedProposals,
 	allowlist,
-	proposalKey,
 	handleActionResult,
 	router,
 	isExecutingRef,
 	setIsExecuting,
-	setDismissedProposalKey,
+	confirmProposal,
 }: {
 	approvedProposals: AiChatMutationBatchProposal['proposals'];
 	allowlist: ProposalAllowlist;
-	proposalKey: string | null;
 	handleActionResult: ReturnType<
 		typeof useActionResultHandler
 	>['handleActionResult'];
 	router: ReturnType<typeof useRouter>;
 	isExecutingRef: MutableRefObject<boolean>;
 	setIsExecuting: (value: boolean) => void;
-	setDismissedProposalKey: (value: string | null) => void;
+	confirmProposal: () => void;
 }) => {
 	if (approvedProposals.length === 0 || isExecutingRef.current) {
 		return;
@@ -171,7 +171,7 @@ const executeBatchProposal = async ({
 				result.status === 409 ? CONFLICT_ERROR_MESSAGE : DEFAULT_ERROR_MESSAGE,
 			onSuccess: () => {
 				router.refresh();
-				setDismissedProposalKey(proposalKey);
+				confirmProposal();
 			},
 		});
 	} catch {
@@ -186,12 +186,10 @@ const executeBatchProposal = async ({
 
 const useFlexibleProposalExecution = ({
 	allowlist,
-	proposalKey,
-	setDismissedProposalKey,
+	confirmProposal,
 }: {
 	allowlist: ProposalAllowlist;
-	proposalKey: string | null;
-	setDismissedProposalKey: (value: string | null) => void;
+	confirmProposal: () => void;
 }) => {
 	const router = useRouter();
 	const { handleActionResult } = useActionResultHandler();
@@ -204,12 +202,11 @@ const useFlexibleProposalExecution = ({
 		void executeBatchProposal({
 			approvedProposals,
 			allowlist,
-			proposalKey,
 			handleActionResult,
 			router,
 			isExecutingRef,
 			setIsExecuting,
-			setDismissedProposalKey,
+			confirmProposal,
 		});
 
 	return {
@@ -221,19 +218,19 @@ const useFlexibleProposalExecution = ({
 const useFlexibleProposalState = ({
 	rawMessages,
 	allowlist,
-	dismissedProposalKey,
+	isDismissed,
 	isExecuting,
 	handleConfirm,
-	setDismissedProposalKey,
+	onDismiss,
 }: {
 	rawMessages: UIMessage[];
 	allowlist: ProposalAllowlist;
-	dismissedProposalKey: string | null;
+	isDismissed: boolean;
 	isExecuting: boolean;
 	handleConfirm: (
 		approvedProposals: AiChatMutationBatchProposal['proposals'],
 	) => void;
-	setDismissedProposalKey: (value: string | null) => void;
+	onDismiss: () => void;
 }) => {
 	const latestProposal = useMemo(
 		() => findLatestProposal(rawMessages, allowlist),
@@ -241,8 +238,6 @@ const useFlexibleProposalState = ({
 	);
 	const proposalKey = latestProposal?.messageId ?? null;
 	const detectedProposal = latestProposal?.proposal ?? null;
-	const isDismissed =
-		proposalKey !== null && proposalKey === dismissedProposalKey;
 	const shouldShowProposal =
 		detectedProposal !== null && !isDismissed && proposalKey !== null;
 
@@ -254,7 +249,7 @@ const useFlexibleProposalState = ({
 				proposalKey={proposalKey}
 				isExecuting={isExecuting}
 				onConfirm={handleConfirm}
-				onDismiss={() => setDismissedProposalKey(proposalKey)}
+				onDismiss={onDismiss}
 			/>
 		) : null,
 	};
@@ -266,10 +261,6 @@ export const FlexibleAdjustmentChatDialog = ({
 	allowlist,
 	onClose,
 }: FlexibleAdjustmentChatDialogProps) => {
-	const [dismissedProposalKey, setDismissedProposalKey] = useState<
-		string | null
-	>(null);
-
 	const { messages, rawMessages, isStreaming, error, sendMessage, stop } =
 		useAdjustmentChat({
 			context: {
@@ -283,18 +274,20 @@ export const FlexibleAdjustmentChatDialog = ({
 		[allowlist, rawMessages],
 	);
 	const proposalKey = latestProposal?.messageId ?? null;
+	const detectedProposal = latestProposal?.proposal ?? null;
+	const { isDismissed, dismissProposal, confirmProposal, shouldShowGuidance } =
+		useProposalDismissState(proposalKey);
 	const { isExecuting, handleConfirm } = useFlexibleProposalExecution({
 		allowlist,
-		proposalKey,
-		setDismissedProposalKey,
+		confirmProposal,
 	});
 	const { proposalMessageId, proposalSection } = useFlexibleProposalState({
 		rawMessages,
 		allowlist,
-		dismissedProposalKey,
+		isDismissed,
 		isExecuting,
 		handleConfirm,
-		setDismissedProposalKey,
+		onDismiss: dismissProposal,
 	});
 	const handleClose = useCallback(() => {
 		stop();
@@ -363,6 +356,11 @@ export const FlexibleAdjustmentChatDialog = ({
 
 			{renderErrorAlert(error)}
 			{proposalSection}
+
+			<ProposalDismissGuidance
+				visible={shouldShowGuidance(detectedProposal !== null, isStreaming)}
+				isStreaming={isStreaming}
+			/>
 
 			<ChatMessageList
 				messages={messages}

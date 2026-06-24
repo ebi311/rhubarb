@@ -1,3 +1,4 @@
+import { PROPOSAL_DISMISS_GUIDANCE_MESSAGE } from '@/app/admin/weekly-schedules/_components/AdjustmentChatDialog';
 import { TEST_IDS } from '@/test/helpers/testIds';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -184,6 +185,28 @@ describe('FlexibleAdjustmentChatDialog', () => {
 			allowlist,
 		});
 		expect(mockHandleActionResult).toHaveBeenCalledTimes(1);
+		expect(
+			screen.queryByText(PROPOSAL_DISMISS_GUIDANCE_MESSAGE),
+		).not.toBeInTheDocument();
+	});
+
+	it('キャンセル後に再提案ガイダンスを表示する', async () => {
+		const user = userEvent.setup();
+
+		render(
+			<FlexibleAdjustmentChatDialog
+				isOpen={true}
+				weekRange={{ startDate: '2026-03-16', endDate: '2026-03-22' }}
+				allowlist={allowlist}
+				onClose={vi.fn()}
+			/>,
+		);
+
+		await user.click(screen.getByRole('button', { name: 'キャンセル' }));
+
+		expect(
+			screen.getByText(PROPOSAL_DISMISS_GUIDANCE_MESSAGE),
+		).toBeInTheDocument();
 	});
 
 	it('Escape キーで stop と onClose を呼ぶ', () => {

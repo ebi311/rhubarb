@@ -2,15 +2,17 @@
 
 import type { StaffPickerOption } from '@/app/admin/basic-schedules/_components/StaffPickerDialog';
 import type { UIMessage } from 'ai';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { buildProposalDisplayValues } from './buildProposalDisplayValues';
 import { ChatInput } from './ChatInput';
 import { ChatMessageList } from './ChatMessageList';
 import { extractProposalFromParts } from './extractProposalFromParts';
 import { parseProposal } from './parseProposal';
 import { ProposalConfirmCard } from './ProposalConfirmCard';
+import { ProposalDismissGuidance } from './ProposalDismissGuidance';
 import type { ShiftContext } from './useAdjustmentChat';
 import { useAdjustmentChat } from './useAdjustmentChat';
+import { useProposalDismissState } from './useProposalDismissState';
 import { useProposalExecution } from './useProposalExecution';
 
 type AdjustmentChatDialogProps = {
@@ -161,17 +163,14 @@ export const AdjustmentChatDialog = ({
 			staffOptions,
 		});
 	}, [detectedProposal, shiftContext, staffOptions]);
-	const [dismissedProposalKey, setDismissedProposalKey] = useState<
-		string | null
-	>(null);
-	const isDismissed =
-		proposalKey !== null && proposalKey === dismissedProposalKey;
+	const { isDismissed, dismissProposal, confirmProposal, shouldShowGuidance } =
+		useProposalDismissState(proposalKey);
 
 	const { execute, dismiss, isExecuting } = useProposalExecution({
 		proposal: detectedProposal,
 		allowlist,
-		onSuccess: () => setDismissedProposalKey(proposalKey),
-		onDismiss: () => setDismissedProposalKey(proposalKey),
+		onSuccess: confirmProposal,
+		onDismiss: dismissProposal,
 	});
 
 	const handleClose = () => {
@@ -246,6 +245,11 @@ export const AdjustmentChatDialog = ({
 
 				{/* 提案検出表示 */}
 				{proposalSection}
+
+				<ProposalDismissGuidance
+					visible={shouldShowGuidance(detectedProposal !== null, isStreaming)}
+					isStreaming={isStreaming}
+				/>
 
 				{/* メッセージリスト */}
 				<ChatMessageList
