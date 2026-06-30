@@ -1,3 +1,4 @@
+import { resolveFlexibleChatContext } from '@/backend/chat/flexibleChatPreResolve';
 import { ShiftRepository } from '@/backend/repositories/shiftRepository';
 import { StaffRepository } from '@/backend/repositories/staffRepository';
 import { createGetShiftsTool } from '@/backend/tools/getShifts';
@@ -323,8 +324,8 @@ const BATCH_PROPOSAL_TOOL_PROMPT = `
 const UI_MESSAGE_NO_PROPOSAL_PROMPT = `
 - proposeShiftChange ツールは利用できません
 - assistant 本文に JSON やコードブロックを出力してはならない
-- シフト変更の提案を行う前に、必要な情報をユーザーに質問して対象シフトを特定する
-- 対象シフト（shiftId）が未特定など情報不足時は、必要な確認質問のみを行う
+- シフト変更の提案を行う前に、searchStaffs / getShifts で対象シフトを特定する（サーバー事前取得済みの情報がある場合はそれを前提とする）
+- ツールでも特定できない場合のみ、必要な確認質問を行う
 - proposeShiftChange が使えない前提で、確定操作前の候補案は自然文で簡潔に説明する`;
 
 const BASE_SYSTEM_PROMPT = `あなたは訪問介護事業所のシフト調整をサポートするAIアシスタントです。
@@ -369,8 +370,18 @@ const COMMON_CONSTRAINTS_PROMPT = `
 
 ## 制約
 - 提案は具体的かつ実行可能なものにする
-- 不明な点があれば確認を求める
+- searchStaffs / getShifts / searchAvailableHelpers で取得できる情報は、ユーザーに確認せず先にツールで取得する（サーバー事前取得済みの情報がある場合はそれを前提とする）。ツールでも特定できない場合のみ質問する
 - スタッフや利用者の負担を考慮する`;
+
+const FLEXIBLE_LOOKUP_PROMPT = `
+
+## 情報取得の優先順位（flexible モード）
+1. ユーザーがスタッフ名を述べた場合、まず searchStaffs を呼び出す（サーバー事前取得済みの情報がある場合はそれを優先利用する）
+2. 日付が特定できる場合、getShifts(date, staffId) を呼び出す（サーバー事前取得済みの情報がある場合はそれを優先利用する）
+3. 対象シフトが1件に特定できる場合、日時・サービス内容・利用者の追加確認は行わず searchAvailableHelpers を呼び出す
+4. 対象シフトが複数ある場合のみ、日時・利用者名などユーザーが識別できる情報で確認する
+5. 上記のツール（または事前取得情報）でも特定できない場合のみユーザーに質問する
+- shiftId は内部識別子のため、ユーザーに shiftId を尋ねたり提示したりしないでください`;
 
 const SHIFT_ID_MISSING_PROMPT = `
 
@@ -401,6 +412,7 @@ type ProposalToolMode = 'none' | 'single' | 'batch';
 const buildSystemPromptBase = (
 	useUIMessageStream: boolean,
 	proposalToolMode: ProposalToolMode,
+	isFlexibleMode: boolean = false,
 ): string =>
 	BASE_SYSTEM_PROMPT +
 	(proposalToolMode === 'single'
@@ -439,6 +451,7 @@ const buildSystemPromptBase = (
 - processStaffAbsence の結果として代替スタッフが決まった場合は、必ず proposeShiftChanges ツールを使って変更提案を作成すること
 - テキストのみで提案内容を報告して終わることは禁止`
 			: '') +
+	(isFlexibleMode ? FLEXIBLE_LOOKUP_PROMPT : '') +
 	SHIFT_ID_MISSING_PROMPT +
 	SUCCESS_ASSERTION_PROMPT;
 
@@ -453,7 +466,7 @@ const buildFlexibleContextPrompt = (
 ## 調整対象期間
 - ${weekRange.startDate} 〜 ${weekRange.endDate}
 - この期間にはシフトが登録されていないため、シフト変更の提案はできません
-- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください`;
+- スタッフ名・日付がメッセージに含まれる場合は searchStaffs / getShifts で状況を確認してください`;
 	}
 
 	const proposalGuide = showProposalGuide
@@ -465,7 +478,7 @@ const buildFlexibleContextPrompt = (
 
 ## 調整対象期間
 - ${weekRange.startDate} 〜 ${weekRange.endDate}
-- 必要に応じて getShifts を使い、日単位でシフト状況を確認してください${proposalGuide}`;
+- スタッフ名・日付がメッセージに含まれる場合は searchStaffs / getShifts で状況を確認してください（サーバー事前取得済みの情報がある場合は追加取得不要）${proposalGuide}`;
 };
 
 const buildShiftSelectionPrompt = (shiftCount: number): string =>
@@ -1165,26 +1178,33 @@ const resolveStreamMode = (
 	useUIMessageStream: boolean,
 	context: ChatRequest['context'],
 	flexibleAllowlist: FlexibleAllowlist | null,
+	preResolvedPromptSection: string = '',
 ) => {
 	const proposalToolMode = resolveProposalToolMode(
 		useUIMessageStream,
 		context,
 		flexibleAllowlist,
 	);
+	const isFlexibleMode = context?.mode === 'flexible';
 
 	return {
 		useUIMessageStream,
 		proposalToolMode,
 		useProposalTool: proposalToolMode !== 'none',
 		systemPrompt:
-			buildSystemPromptBase(useUIMessageStream, proposalToolMode) +
+			buildSystemPromptBase(
+				useUIMessageStream,
+				proposalToolMode,
+				isFlexibleMode,
+			) +
 			buildContextPrompt(
 				context,
 				useUIMessageStream &&
-					context?.mode === 'flexible' &&
+					isFlexibleMode &&
 					(flexibleAllowlist?.shiftIds.length ?? 0) === 0,
 				proposalToolMode === 'batch',
-			),
+			) +
+			preResolvedPromptSection,
 	};
 };
 
@@ -1252,6 +1272,35 @@ const createBaseTools = (
 	}),
 });
 
+const resolveFlexiblePreResolvedPromptSection = async (
+	supabase: Awaited<ReturnType<typeof createSupabaseClient>>,
+	context: ChatRequest['context'],
+	messages: ChatMessage[],
+	officeId: string,
+	logContext: RequestLogContext,
+): Promise<string> => {
+	if (context?.mode !== 'flexible' || !context.weekRange) {
+		return '';
+	}
+
+	try {
+		const preResolved = await resolveFlexibleChatContext({
+			supabase,
+			officeId,
+			weekRange: context.weekRange,
+			messages,
+		});
+		return preResolved?.promptSection ?? '';
+	} catch (error) {
+		logChatError(
+			'Failed to pre-resolve flexible chat context',
+			error,
+			logContext,
+		);
+		return '';
+	}
+};
+
 const handlePost = async (
 	request: Request,
 	logContext: RequestLogContext,
@@ -1297,10 +1346,20 @@ const handlePost = async (
 	logContext.shiftsCount = shiftIds.length;
 	logContext.shiftIds = shiftIds;
 
+	const preResolvedPromptSection =
+		await resolveFlexiblePreResolvedPromptSection(
+			supabase,
+			context,
+			messages,
+			staffData.office_id,
+			logContext,
+		);
+
 	const { useProposalTool, proposalToolMode, systemPrompt } = resolveStreamMode(
 		useUIMessageStream,
 		context,
 		flexibleAllowlist,
+		preResolvedPromptSection,
 	);
 	logContext.mode = useUIMessageStream ? 'uimessage' : 'legacy';
 	logContext.useProposalTool = useProposalTool;
