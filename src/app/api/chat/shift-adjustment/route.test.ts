@@ -22,6 +22,7 @@ const {
 	mockStaffRepositoryListByOffice,
 	mockStaffRepositoryFindById,
 	mockStaffRepositoryFindByIds,
+	mockStaffRepositorySearchByNameOrKana,
 	mockStepCountIs,
 } = vi.hoisted(() => ({
 	mockStreamText: vi.fn(),
@@ -43,6 +44,7 @@ const {
 	mockStaffRepositoryListByOffice: vi.fn(),
 	mockStaffRepositoryFindById: vi.fn(),
 	mockStaffRepositoryFindByIds: vi.fn(),
+	mockStaffRepositorySearchByNameOrKana: vi.fn(),
 	mockStepCountIs: vi.fn((n: number) => ({ type: 'stepCountIs', count: n })),
 }));
 
@@ -97,6 +99,7 @@ vi.mock('@/backend/repositories/staffRepository', () => ({
 			listByOffice: mockStaffRepositoryListByOffice,
 			findById: mockStaffRepositoryFindById,
 			findByIds: mockStaffRepositoryFindByIds,
+			searchByNameOrKana: mockStaffRepositorySearchByNameOrKana,
 		};
 	},
 }));
@@ -171,6 +174,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		mockStaffRepositoryListByOffice.mockResolvedValue([]);
 		mockStaffRepositoryFindById.mockResolvedValue(null);
 		mockStaffRepositoryFindByIds.mockResolvedValue([]);
+		mockStaffRepositorySearchByNameOrKana.mockResolvedValue([]);
 
 		// デフォルトのstreamTextモック
 		mockToUIMessageStreamResponse.mockReturnValue(
@@ -346,7 +350,7 @@ describe('POST /api/chat/shift-adjustment', () => {
 		expect(mockStreamText).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
-					'必要な情報をユーザーに質問して対象シフトを特定する',
+					'searchStaffs / getShifts で対象シフトを特定する',
 				),
 			}),
 		);
@@ -1611,6 +1615,136 @@ describe('POST /api/chat/shift-adjustment', () => {
 					},
 				],
 			});
+		});
+
+		it('flexible モードの system prompt に情報取得優先順位を含める', async () => {
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [{ role: 'user', content: '週次で調整したい' }],
+						context: {
+							mode: 'flexible',
+							weekRange: {
+								startDate: '2026-06-23',
+								endDate: '2026-06-29',
+							},
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining(
+						'情報取得の優先順位（flexible モード）',
+					),
+				}),
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining(
+						'searchStaffs / getShifts / searchAvailableHelpers で取得できる情報は、ユーザーに確認せず先にツールで取得する',
+					),
+				}),
+			);
+		});
+
+		it('flexible モードでスタッフ名と日付を含むメッセージの場合、事前確認済みシフト情報を system prompt に注入する', async () => {
+			mockShiftRepositoryList
+				.mockResolvedValueOnce([
+					{ id: TEST_IDS.SCHEDULE_1, staff_id: TEST_IDS.STAFF_1 },
+				])
+				.mockResolvedValueOnce([
+					{
+						id: TEST_IDS.SCHEDULE_1,
+						client_id: TEST_IDS.CLIENT_1,
+						client_name: '利用者A',
+						staff_name: 'ヘルパー-01',
+						service_type_id: 'physical-care',
+						time: {
+							start: { hour: 9, minute: 0 },
+							end: { hour: 10, minute: 0 },
+						},
+					},
+				]);
+			mockStaffRepositoryListByOffice.mockResolvedValue([
+				{
+					id: TEST_IDS.STAFF_1,
+					role: 'helper' as const,
+					service_type_ids: [TEST_IDS.SERVICE_TYPE_1],
+				},
+			]);
+			mockStaffRepositorySearchByNameOrKana.mockResolvedValue([
+				{
+					id: TEST_IDS.STAFF_1,
+					name: 'ヘルパー-01',
+					role: 'helper',
+					kana: null,
+					service_type_ids: ['physical-care'],
+				},
+			]);
+
+			const request = new Request(
+				'http://localhost/api/chat/shift-adjustment',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-ai-response-format': 'uimessage',
+					},
+					body: JSON.stringify({
+						messages: [
+							{
+								role: 'user',
+								content:
+									'6/27 の ヘルパー-01 さんの代わりの人を候補をあげてください',
+							},
+						],
+						context: {
+							mode: 'flexible',
+							weekRange: {
+								startDate: '2026-06-23',
+								endDate: '2026-06-29',
+							},
+						},
+					}),
+				},
+			);
+
+			const response = await POST(request);
+
+			expect(response.status).toBe(200);
+			expect(mockStaffRepositorySearchByNameOrKana).toHaveBeenCalledWith(
+				TEST_IDS.OFFICE_1,
+				'ヘルパー-01',
+				10,
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining(
+						'事前確認済みの情報（サーバー自動取得）',
+					),
+				}),
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining(`shiftId: ${TEST_IDS.SCHEDULE_1}`),
+				}),
+			);
+			expect(mockStreamText).toHaveBeenCalledWith(
+				expect.objectContaining({
+					system: expect.stringContaining('追加確認は行わないでください'),
+				}),
+			);
 		});
 
 		it('single モードでは getShifts / proposeShiftChanges を追加しない', async () => {
